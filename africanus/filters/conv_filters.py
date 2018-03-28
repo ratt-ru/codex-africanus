@@ -14,7 +14,7 @@ ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
         'full_sup_wo_padding', 'full_sup',
         'no_taps', 'filter_taps'])
 
-def _convolution_filter(half_support, oversampling_factor, filter_type):
+def convolution_filter(half_support, oversampling_factor, filter_type):
     """
     Create a 1D Convolution Filter suitable
     for use with gridding and degridding functions.
@@ -61,11 +61,3 @@ def _convolution_filter(half_support, oversampling_factor, filter_type):
 
     return ConvolutionFilter(half_support, oversampling_factor,
         full_sup_wo_padding, full_sup, no_taps, filter_taps)
-
-# jit the functions if this is not RTD
-import os
-
-if os.environ.get('READTHEDOCS') == 'True':
-    convolution_filter = _convolution_filter
-else:
-    convolution_filter = numba.jit(nopython=True, nogil=True, cache=True)(_convolution_filter)
