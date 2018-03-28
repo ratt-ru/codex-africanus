@@ -3,7 +3,11 @@
 
 """The setup script."""
 
+import os
+
 from setuptools import setup, find_packages
+
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -11,7 +15,20 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+
+# requirements
+
+# Basic requirements that contain no C extensions.
+# This is necessary for building on RTD
+requirements = []
+
+if on_rtd:
+    requirements += []
+else:
+    requirements += [
+        'numpy >= 1.14.0',
+        'numba >= 0.37.0',
+        'scipy >= 1.0.1']
 
 setup_requirements = ['pytest-runner', ]
 
