@@ -51,4 +51,4 @@ def test_degridder_gridder():
     # Indicate all visibilities are unflagged
     flags = np.zeros_like(vis, dtype=np.bool)
 
-    vis_grid, psf = grid(vis, uvw, flags, ref_wave, nx, ny, conv_filter)
+    vis_grid, psf = grid(vis, uvw, flags, ref_wave, conv_filter, nx, ny)

@@ -7,7 +7,9 @@ from __future__ import print_function
 import numba
 import numpy as np
 
-def _grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
+def _grid(vis, uvw, flags, ref_wave,
+                convolution_filter,
+                nx=1024, ny=1024):
     """
     Convolutional gridder which grids visibilities ``vis``
     at the specified ``uvw`` coordinates and
@@ -29,12 +31,12 @@ def _grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
         visibility should be flagged
     ref_wave : np.ndarray
         float64 array of wavelengths of shape (chan,)
-    nx : integer
-        Size of the grid's X dimension
-    ny : integer
-        Size of the grid's Y dimension
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution filter
+    nx : integer, optional
+        Size of the grid's X dimension
+    ny : integer, optional
+        Size of the grid's Y dimension
 
     Returns
     -------
