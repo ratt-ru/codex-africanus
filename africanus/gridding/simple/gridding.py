@@ -68,11 +68,14 @@ def _grid(vis, uvw, flags, ref_wave,
             disc_u = int(np.round(scaled_u))
             disc_v = int(np.round(scaled_v))
 
+            extent_v = disc_v + ny // 2
+            extent_u = disc_u + nx // 2
+
             # Out of bounds check
-            if (disc_v + ny // 2 + cf.half_sup >= ny or
-                disc_u + nx // 2 + cf.half_sup >= nx or
-                disc_v + ny // 2 - cf.half_sup < 0 or
-                disc_u + nx // 2 - cf.half_sup < 0):
+            if (extent_v + cf.half_sup >= ny or
+                extent_u + cf.half_sup >= nx or
+                extent_v - cf.half_sup < 0 or
+                extent_u - cf.half_sup < 0):
                 continue
 
             # One plus half support
@@ -182,11 +185,14 @@ def _degrid(grid, uvw, ref_wave, convolution_filter):
             disc_u = int(round(scaled_u))
             disc_v = int(round(scaled_v))
 
+            extent_v = disc_v + ny // 2
+            extent_u = disc_u + nx // 2
+
             # Out of bounds check
-            if (disc_v + ny // 2 + cf.half_sup >= ny or
-                disc_u + nx // 2 + cf.half_sup >= nx or
-                disc_v + ny // 2 - cf.half_sup < 0 or
-                disc_u + nx // 2 - cf.half_sup < 0):
+            if (extent_v + cf.half_sup >= ny or
+                extent_u + cf.half_sup >= nx or
+                extent_v - cf.half_sup < 0 or
+                extent_u - cf.half_sup < 0):
                 continue
 
             # One plus half support
