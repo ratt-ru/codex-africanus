@@ -11,7 +11,7 @@ def test_degridder_gridder():
     import numpy as np
 
     from africanus.filters import convolution_filter
-    from africanus.gridding.simple import grid, psf, degrid
+    from africanus.gridding.simple import grid, degrid
 
     conv_filter = convolution_filter(3, 63, "sinc")
     nx = ny = npix = 257
@@ -48,9 +48,7 @@ def test_degridder_gridder():
     # Degrid the sky model to produce visibilities
     vis = degrid(sky_grid, uvw, ref_wave, conv_filter)
 
-
     # Indicate all visibilities are unflagged
     flags = np.zeros_like(vis, dtype=np.bool)
 
-    vis_grid = grid(vis, uvw, flags, ref_wave, nx, ny, conv_filter)
-    psf_ = psf(vis, uvw, flags, ref_wave, nx, ny, conv_filter)
+    vis_grid, psf = grid(vis, uvw, flags, ref_wave, nx, ny, conv_filter)

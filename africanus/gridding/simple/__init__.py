@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-from .gridding import grid, degrid, psf
+from .gridding import grid, degrid

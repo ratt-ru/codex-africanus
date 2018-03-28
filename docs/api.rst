@@ -6,7 +6,6 @@ Simple Gridding
 
 .. autofunction:: africanus.gridding.simple.grid
 .. autofunction:: africanus.gridding.simple.degrid
-.. autofunction:: africanus.gridding.simple.psf
 
 Convolution Filters
 -------------------
