@@ -7,8 +7,7 @@ from __future__ import print_function
 import numba
 import numpy as np
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
+def _grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
     """
     Convolutional gridder (continuum)
 
@@ -91,8 +90,8 @@ def grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
 
     return grid
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def psf(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
+
+def _psf(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
     """
     Convolutional PSF gridder (continuum)
 
@@ -181,8 +180,7 @@ def psf(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
 
     return grid
 
-@numba.jit(nopython=True, nogil=True)
-def degrid(grid, uvw, ref_wave, convolution_filter):
+def _degrid(grid, uvw, ref_wave, convolution_filter):
     """
     Convolutional degridder (continuum)
 
@@ -249,3 +247,14 @@ def degrid(grid, uvw, ref_wave, convolution_filter):
 
     return vis
 
+# jit the functions if this is not RTD
+import os
+
+if os.environ.get('READTHEDOCS') == 'True':
+    grid = _grid
+    degrid = _degrid
+    psf = _psf
+else:
+    grid = numba.jit(nopython=True, nogil=True, cache=True)(_grid)
+    degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
+    psf = numba.jit(nopython=True, nogil=True, cache=True)(_psf)

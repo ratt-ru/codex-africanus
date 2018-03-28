@@ -1,5 +1,5 @@
 Welcome to Codex Africanus's documentation!
-======================================
+===========================================
 
 .. toctree::
    :maxdepth: 2
@@ -8,7 +8,7 @@ Welcome to Codex Africanus's documentation!
    readme
    installation
    usage
-   modules
+   api
    contributing
    authors
    history
