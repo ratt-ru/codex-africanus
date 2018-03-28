@@ -11,6 +11,9 @@ Simple Gridding
 Convolution Filters
 -------------------
 
+.. autodata:: africanus.filters.ConvolutionFilter
+
+
 .. autofunction:: africanus.filters.convolution_filter
 
 Deconvolution Algorithms

@@ -13,6 +13,37 @@ ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
         ['half_sup', 'oversample',
         'full_sup_wo_padding', 'full_sup',
         'no_taps', 'filter_taps'])
+"""
+:class:`collections.namedtuple` containing attributes
+defining a Convolution Filter. A namedtuple is used
+because they're easier to use when using
+``nopython`` mode in :mod:`numba`.
+
+.. attribute:: full_sup
+
+    Full support
+
+.. attribute:: full_sup_wo_padding
+
+    Full support without padding
+
+.. attribute:: half_sup
+
+    Half support
+
+.. attribute:: oversample
+
+    Oversampling factor
+
+.. attribute:: no_taps
+
+    Number of taps
+
+.. attribute:: filter_taps
+
+    Filter taps
+"""
+
 
 def convolution_filter(half_support, oversampling_factor, filter_type):
     """

@@ -27,7 +27,7 @@ def _grid(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
         Size of the grid's X dimension
     ny : integer
         Size of the grid's Y dimension
-    convolution_filter :  :class:`AAFilter`
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Anti-Aliasing filter object
 
     Returns
@@ -111,7 +111,7 @@ def _psf(vis, uvw, flags, ref_wave, nx, ny, convolution_filter):
         Size of the grid's X dimension
     ny : integer
         Size of the grid's Y dimension
-    convolution_filter :  :class:`AAFilter`
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Anti-Aliasing filter object
 
     Returns
@@ -193,7 +193,7 @@ def _degrid(grid, uvw, ref_wave, convolution_filter):
         float64 array of UVW coordinates of shape (row, 3)
     ref_wave : np.ndarray
         float64 array of wavelengths of shape (chan,)
-    convolution_filter :  :class:`AAFilter`
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Anti-Aliasing filter object
 
     Returns
