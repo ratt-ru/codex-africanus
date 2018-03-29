@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import collections
 
-import numba
 import numpy as np
 
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",

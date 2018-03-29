@@ -20,9 +20,6 @@ if not have_requirements or on_rtd():
 else:
     import numpy as np
     import dask.array as da
-    from dask.array.core import getter
-    import toolz
-
     from .gridding import (grid as nb_grid_fn, degrid as nb_degrid_fn)
 
     def grid(vis, uvw, flags, weights, ref_wave,
