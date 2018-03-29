@@ -12,6 +12,7 @@ before_install:
 - true
 install:
 - docker build . -t ${TARGET} -f .travis/${TARGET}.docker
+- pip install -r requirements_dev.txt
 before_script:
 - true
 script:
