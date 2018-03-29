@@ -10,4 +10,5 @@ Development Lead
 Contributors
 ------------
 
-None yet. Why not be the first?
+* Landman Bester <lbester@ska.ac.za>
+* Benjamin Hugo <bhugo@ska.ac.za>

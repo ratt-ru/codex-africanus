@@ -178,6 +178,11 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+extlinks = {
+    'issue': ('https://github.com/ska-sa/codex-africanus/issues/%s', 'GH#'),
+    'pr': ('https://github.com/ska-sa/codex-africanus/pull/%s', 'GH#')
+}
+
 intersphinx_mapping = {
     'numba': ('http://numba.pydata.org/numba-doc/dev/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
