@@ -24,14 +24,16 @@ else:
 _check_packages = set(['dask.array', 'toolz'])
 _have_packages = set([p for p in _check_packages if _package_exists(p)])
 
+
 def have_packages(*args):
     unknown_requirements = tuple(p for p in args if p not in _check_packages)
 
     if len(unknown_requirements) > 0:
         raise ValueError("The following requirements are not registered: %s"
-                            % unknown_requirements)
+                         % unknown_requirements)
 
     return all(p in _have_packages for p in args)
+
 
 class MissingPackageException(Exception):
     def __init__(self, *packages):

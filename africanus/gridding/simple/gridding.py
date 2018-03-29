@@ -9,17 +9,15 @@ import numpy as np
 
 from ...util.rtd import on_rtd
 
+
 def _grid(vis, uvw, flags, weights, ref_wave,
-                convolution_filter,
-                nx=1024, ny=1024):
+          convolution_filter,
+          nx=1024, ny=1024):
     """
     Convolutional gridder which grids visibilities ``vis``
     at the specified ``uvw`` coordinates and
     ``ref_wave`` reference wavelengths using
     the specified ``convolution_filter``.
-
-    It returns both the **gridded visibilities** and
-    **point spread function** as complex64 arrays.
 
     Parameters
     ----------
@@ -55,12 +53,12 @@ def _grid(vis, uvw, flags, weights, ref_wave,
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
     # one grid for the resampled visibilities per correlation:
-    grid = np.zeros((vis.shape[2],ny,nx),dtype=np.complex64)
+    grid = np.zeros((vis.shape[2], ny, nx), dtype=np.complex64)
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            scaled_u = uvw[r,0] / ref_wave[f]
-            scaled_v = uvw[r,1] / ref_wave[f]
+            scaled_u = uvw[r, 0] / ref_wave[f]
+            scaled_v = uvw[r, 1] / ref_wave[f]
 
             disc_u = int(np.round(scaled_u))
             disc_v = int(np.round(scaled_v))
@@ -72,7 +70,7 @@ def _grid(vis, uvw, flags, weights, ref_wave,
             if (extent_v + cf.half_sup >= ny or
                 extent_u + cf.half_sup >= nx or
                 extent_v - cf.half_sup < 0 or
-                extent_u - cf.half_sup < 0):
+                    extent_u - cf.half_sup < 0):
                 continue
 
             # One plus half support
@@ -98,15 +96,16 @@ def _grid(vis, uvw, flags, weights, ref_wave,
 
                     for c in range(vis.shape[2]):      # correlation
                         # Ignore flagged correlations
-                        if flags[r,f,c] > 0:
+                        if flags[r, f, c] > 0:
                             continue
 
                         # Grid the visibility
-                        grid[c,grid_v,grid_u] += (vis[r,f,c] *
-                                                conv_weight *
-                                                weights[r,f,c])
+                        grid[c, grid_v, grid_u] += (vis[r, f, c] *
+                                                    conv_weight *
+                                                    weights[r, f, c])
 
     return grid
+
 
 def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
@@ -145,8 +144,8 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel
 
-            scaled_u = uvw[r,0] / ref_wave[f]
-            scaled_v = uvw[r,1] / ref_wave[f]
+            scaled_u = uvw[r, 0] / ref_wave[f]
+            scaled_v = uvw[r, 1] / ref_wave[f]
 
             disc_u = int(round(scaled_u))
             disc_v = int(round(scaled_v))
@@ -158,7 +157,7 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
             if (extent_v + cf.half_sup >= ny or
                 extent_u + cf.half_sup >= nx or
                 extent_v - cf.half_sup < 0 or
-                extent_u - cf.half_sup < 0):
+                    extent_u - cf.half_sup < 0):
                 continue
 
             # One plus half support
@@ -182,14 +181,15 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
                     # Correlation
                     for c in range(vis.shape[2]):
-                        vis[r,f,c] += (grid[c,grid_v,grid_u]*
-                                        conv_weight*
-                                        weights[r,f,c])
+                        vis[r, f, c] += (grid[c, grid_v, grid_u] *
+                                         conv_weight *
+                                         weights[r, f, c])
 
     return vis
 
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
+
 
 if not on_rtd():
     grid = numba.jit(nopython=True, nogil=True, cache=True)(_grid)
