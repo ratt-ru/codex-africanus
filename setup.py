@@ -32,9 +32,7 @@ else:
 
 setup_requirements = ['pytest-runner', ]
 
-test_requirements = [
-        'pytest',
-        'dask >= 0.17.2']
+test_requirements = ['pytest', ]
 
 setup(
     author="Simon Perkins",
