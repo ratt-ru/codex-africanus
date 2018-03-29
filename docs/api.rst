@@ -4,8 +4,18 @@ API
 Simple Gridding
 ---------------
 
+Numpy
+~~~~~
+
 .. autofunction:: africanus.gridding.simple.grid
 .. autofunction:: africanus.gridding.simple.degrid
+
+Dask
+~~~~~
+
+.. autofunction:: africanus.gridding.simple.dask.grid
+.. autofunction:: africanus.gridding.simple.dask.degrid
+
 
 Convolution Filters
 -------------------
