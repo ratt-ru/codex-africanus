@@ -7,7 +7,7 @@ from __future__ import print_function
 import numba
 import numpy as np
 
-def _grid(vis, uvw, flags, ref_wave,
+def _grid(vis, uvw, flags, weights, ref_wave,
                 convolution_filter,
                 nx=1024, ny=1024):
     """
@@ -25,10 +25,14 @@ def _grid(vis, uvw, flags, ref_wave,
         complex64 visibility array of shape (row, chan, corr)
     uvw : np.ndarray
         float64 array of UVW coordinates of shape (row, 3)
+    weights : np.ndarray
+        float32 or float64 array of weights. Set this to
+        ``np.ones_like(vis, dtype=np.float64)`` as default.
     flags : np.ndarray
-        flagged data array of shape (row, chan, corr).
+        flagged array of shape (row, chan, corr).
         Any positive quantity will indicate that the corresponding
-        visibility should be flagged
+        visibility should be flagged.
+        Set to ``np.zero_like(vis, dtype=np.bool)`` as default.
     ref_wave : np.ndarray
         float64 array of wavelengths of shape (chan,)
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
@@ -53,12 +57,6 @@ def _grid(vis, uvw, flags, ref_wave,
 
     # one grid for the resampled visibilities per correlation:
     grid = np.zeros((vis.shape[2],ny,nx),dtype=np.complex64)
-
-    # for deconvolution the PSF should be 2x size of the image (see
-    # Hogbom CLEAN for details), one grid for the sampling function:
-    # Reference the real component of the PSF, imaginary is zero
-    psf = np.zeros((2*ny,2*nx), dtype=np.complex64)
-    psf_real = psf.real
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
@@ -88,64 +86,30 @@ def _grid(vis, uvw, flags, ref_wave,
             frac_u = int(base_frac_u*cf.oversample)
             frac_v = int(base_frac_v*cf.oversample)
 
-            # Twice scaled u and v
-            twice_scaled_u = 2*scaled_u
-            twice_scaled_v = 2*scaled_u
-
-            # Compute fractional u and v for the PSF
-            disc_u_psf = int(np.round(twice_scaled_u))
-            disc_v_psf = int(np.round(twice_scaled_v))
-
-            base_frac_u_psf = one_half_sup + disc_u_psf - twice_scaled_u
-            base_frac_v_psf = one_half_sup + disc_v_psf - twice_scaled_v
-
-            frac_u_psf = int(base_frac_u_psf*cf.oversample)
-            frac_v_psf = int(base_frac_v_psf*cf.oversample)
-
             # Iterate over v/y
             for conv_v in filter_index:
-                base_v = conv_v*cf.oversample
-                v_tap = cf.filter_taps[base_v + frac_v]
-                v_tap_psf = cf.filter_taps[base_v + frac_v_psf]
-
+                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
                 grid_v = disc_v + conv_v + ny // 2
-                grid_v_psf = disc_v_psf + conv_v + ny
 
                 # Iterate over u/x
                 for conv_u in filter_index:
-                    base_u = conv_u*cf.oversample
-                    u_tap = cf.filter_taps[base_u + frac_u]
-                    u_tap_psf = cf.filter_taps[base_u + frac_u_psf]
-
-                    conv_weight = v_tap * u_tap
-                    conv_weight_psf = v_tap_psf * u_tap_psf
-
+                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
+                    conv_weight = v_tap*u_tap
                     grid_u = disc_u + conv_u + nx // 2
-                    grid_u_psf = disc_u_psf + conv_u + nx
-
-                    vis_flagged = False
 
                     for c in range(vis.shape[2]):      # correlation
-                        # Ignore flagged correlations and
-                        # indicate flagging within visibility
+                        # Ignore flagged correlations
                         if flags[r,f,c] > 0:
-                            vis_flagged = True
                             continue
 
                         # Grid the visibility
-                        grid[c,grid_v,grid_u] +=  vis[r,f,c]*conv_weight
+                        grid[c,grid_v,grid_u] += (vis[r,f,c] *
+                                                conv_weight *
+                                                weights[r,f,c])
 
-                    # Don't grid the PSF is *any* correlation is flagged
-                    if vis_flagged:
-                        continue
+    return grid
 
-                    # Grid weight to PSF, assuming its the same
-                    # for all correlations
-                    psf_real[grid_v_psf,grid_u_psf] += conv_weight_psf
-
-    return grid, psf
-
-def _degrid(grid, uvw, ref_wave, convolution_filter):
+def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
     Convolutional degridder (continuum)
 
@@ -156,6 +120,9 @@ def _degrid(grid, uvw, ref_wave, convolution_filter):
         of shape (corr, ny, nx)
     uvw : np.ndarray
         float64 array of UVW coordinates of shape (row, 3)
+    weights : np.ndarray
+        float32 or float64 array of weights. Set this to
+        ``np.ones_like(vis, dtype=np.float64)`` as default.
     ref_wave : np.ndarray
         float64 array of wavelengths of shape (chan,)
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
@@ -216,7 +183,9 @@ def _degrid(grid, uvw, ref_wave, convolution_filter):
 
                     # Correlation
                     for c in range(vis.shape[2]):
-                        vis[r,f,c] += grid[c,grid_v,grid_u]*conv_weight
+                        vis[r,f,c] += (grid[c,grid_v,grid_u]*
+                                        conv_weight*
+                                        weights[r,f,c])
 
     return vis
 
