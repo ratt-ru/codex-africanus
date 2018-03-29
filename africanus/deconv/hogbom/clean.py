@@ -106,9 +106,9 @@ def hogbom_clean(dirty, psf,
     Parameters
     ----------
     dirty : np.ndarray
-        float64 dirty image of shape (nx, ny)
+        float64 dirty image of shape (ny, nx)
     psf : np.ndarray
-        float64 Point Spread Function of shape (2*nx, 2*ny)
+        float64 Point Spread Function of shape (2*ny, 2*nx)
     gamma (optional) float
         the gain factor (must be less than one)
     threshold (optional) : float or str
@@ -119,9 +119,9 @@ def hogbom_clean(dirty, psf,
     Returns
     -------
     np.ndarray
-        float64 clean image of shape (nx, ny)
+        float64 clean image of shape (ny, nx)
     np.ndarray
-        float64 residual image of shape (nx, ny)
+        float64 residual image of shape (ny, nx)
     """
     # deep copy dirties to first residuals, want to keep the original dirty maps
     residuals = dirty.copy()
@@ -181,18 +181,18 @@ def restore(clean, psf, residuals):
     Parameters
     ----------
     clean : np.ndarray
-        float64 clean image of shape (nx, ny)
+        float64 clean image of shape (ny, nx)
     psf : np.ndarray
-        float64 Point Spread Function of shape (2*nx, 2*ny)
+        float64 Point Spread Function of shape (2*ny, 2*nx)
     residuals : np.ndarray
-        float64 residual image of shape (nx, ny)
+        float64 residual image of shape (ny, nx)
 
     Returns
     -------
     np.ndarray
-        float64 Restored image of shape (nx, ny)
+        float64 Restored image of shape (ny, nx)
     np.ndarray
-        float64 Convolved model of shape (nx, ny)
+        float64 Convolved model of shape (ny, nx)
     """
 
     logging.info("Fitting 2D Gaussian")

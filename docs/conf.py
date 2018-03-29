@@ -184,7 +184,8 @@ extlinks = {
 }
 
 intersphinx_mapping = {
-    'numba': ('http://numba.pydata.org/numba-doc/dev/', None),
+    'dask': ('https://dask.pydata.org/en/latest/', None),
+    'numba': ('https://numba.pydata.org/numba-doc/dev/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
     'python': ('https://docs.python.org/3/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),

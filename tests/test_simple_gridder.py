@@ -15,8 +15,8 @@ def test_degridder_gridder():
 
     conv_filter = convolution_filter(3, 63, "sinc")
     nx = ny = npix = 257
-    ncorr = 1
-    nchan = 4
+    corr = 4
+    chan = 4
     nvis = npix*npix
     npoints = 10000
 
@@ -28,13 +28,13 @@ def test_degridder_gridder():
     rf = lambda *a, **kw: np.random.random(*a, **kw)
 
     # Channels of MeerKAT L band
-    ref_wave = C/np.linspace(.856e9, .856e9*2, nchan, endpoint=True)
+    ref_wave = C/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
 
     # Random UVW coordinates
     uvw = rf(size=(nvis,3)).astype(np.float64)*128*UV_SCALE
 
     # Simulate a sky model of npoints random point sources
-    sky_model = np.zeros(shape=(ncorr,nx,ny), dtype=np.float64)
+    sky_model = np.zeros(shape=(corr,nx,ny), dtype=np.float64)
     x = np.random.randint(0, nx, npoints)
     y = np.random.randint(0, ny, npoints)
     sky_model[0,x,y] = rf(size=npoints)
@@ -42,10 +42,10 @@ def test_degridder_gridder():
     from numpy.fft import fftshift, fft2, ifftshift
 
     sky_grid = np.stack([fftshift(fft2(ifftshift(sky_model[c])))
-                                    for c in range(ncorr)],
+                                    for c in range(corr)],
                                                     axis=0)
 
-    weights = np.random.random(size=(nvis,nchan,ncorr))
+    weights = np.random.random(size=(nvis,chan,corr))
 
     # Degrid the sky model to produce visibilities
     vis = degrid(sky_grid, uvw, weights, ref_wave, conv_filter)
@@ -115,7 +115,48 @@ def test_psf_subtraction():
     # Should be the same
     assert np.all(centre_vis == psf)
 
+from africanus.gridding.simple.dask import have_requirements
 
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+def test_dask_degridder_gridder():
+    from africanus.filters import convolution_filter
+    from africanus.gridding.simple.dask import grid, degrid
+
+    import dask.array as da
+
+    C = 2.99792458e8
+
+    row = 100
+    chan = 16
+    corr = 4
+    nx = ny = 1024
+
+    row_chunk = 25
+    chan_chunk = 4
+    corr_chunk = corr
+
+    vis_shape = (row, chan, corr)
+    vis_chunks = (row_chunk, chan_chunk, corr_chunk)
+
+    vis = (da.random.random(vis_shape, chunks=vis_chunks) +
+            1j*da.random.random(vis_shape, chunks=vis_chunks))
+    uvw = da.random.random((row,3), chunks=(row_chunk, 3))
+    # 4 channels of MeerKAT L band
+    ref_wave = C/da.linspace(.856e9, .856e9*2, chan,
+                            chunks=chan_chunk)
+    flags = da.random.randint(0, 1, size=vis_shape, chunks=vis_chunks)
+
+    weights = da.random.random(vis_shape, chunks=vis_chunks)
+
+    conv_filter = convolution_filter(3, 63, "sinc")
+
+    vis_grid = grid(vis, uvw, flags, weights, ref_wave, conv_filter, nx, ny)
+
+    degrid_vis = degrid(vis_grid, uvw, weights, ref_wave, conv_filter)
+
+    np_vis_grid, np_degrid_vis = da.compute(vis_grid, degrid_vis)
+    assert np_vis_grid.shape == (corr, ny, nx)
+    assert np_degrid_vis.shape == (row, chan, corr)
 
 
 

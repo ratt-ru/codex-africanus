@@ -7,6 +7,8 @@ from __future__ import print_function
 import numba
 import numpy as np
 
+from ...util.rtd import on_rtd
+
 def _grid(vis, uvw, flags, weights, ref_wave,
                 convolution_filter,
                 nx=1024, ny=1024):
@@ -27,7 +29,7 @@ def _grid(vis, uvw, flags, weights, ref_wave,
         float64 array of UVW coordinates of shape (row, 3)
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
-        ``np.ones_like(vis, dtype=np.float64)`` as default.
+        ``np.ones_like(vis, dtype=np.float32)`` as default.
     flags : np.ndarray
         flagged array of shape (row, chan, corr).
         Any positive quantity will indicate that the corresponding
@@ -46,9 +48,6 @@ def _grid(vis, uvw, flags, weights, ref_wave,
     -------
     np.ndarray
         (corr, ny, nx) complex64 ndarray of gridded visibilities
-    np.ndarray
-        (ny, nx) complex64 ndarray containing the PSF,
-        constructed by summing convolutional weights.
     """
     cf = convolution_filter
 
@@ -122,7 +121,7 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
         float64 array of UVW coordinates of shape (row, 3)
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
-        ``np.ones_like(vis, dtype=np.float64)`` as default.
+        ``np.ones_like(vis, dtype=np.float32)`` as default.
     ref_wave : np.ndarray
         float64 array of wavelengths of shape (chan,)
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
@@ -189,12 +188,12 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
     return vis
 
-# jit the functions if this is not RTD
-import os
+# jit the functions if this is not RTD otherwise
+# use the private funcs for generating docstrings
 
-if os.environ.get('READTHEDOCS') == 'True':
-    grid = _grid
-    degrid = _degrid
-else:
+if not on_rtd():
     grid = numba.jit(nopython=True, nogil=True, cache=True)(_grid)
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
+else:
+    grid = _grid
+    degrid = _degrid
