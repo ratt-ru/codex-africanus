@@ -10,5 +10,6 @@ Development Lead
 Contributors
 ------------
 
+* Landman Bester <lbester@ska.ac.za>
+* Benjamin Hugo <bhugo@ska.ac.za>
 * Gijs Molenaar <gijs@pythonic.nl>
-
