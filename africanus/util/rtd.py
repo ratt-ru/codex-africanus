@@ -8,4 +8,4 @@ import os
 
 
 def on_rtd():
-    return bool(os.environ.get("READTHEDOCS")) == True
+    return bool(os.environ.get("READTHEDOCS"))

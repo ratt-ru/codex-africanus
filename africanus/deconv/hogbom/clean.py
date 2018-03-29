@@ -37,11 +37,11 @@ def fit_2d_gaussian(psf):
     # implementation
     # I = np.stack((psf>=0.5*psf.max()).nonzero()).transpose()
 
-    I = np.argwhere(psf >= 0.5*psf.max())
+    loc = np.argwhere(psf >= 0.5*psf.max())
     # Create an array with these values at the same indices and zeros otherwise
     lk, mk = psf.shape
     psf_fit = np.zeros_like(psf)
-    psf_fit[I[:, 0], I[:, 1]] = psf[I[:, 0], I[:, 1]]
+    psf_fit[loc[:, 0], loc[:, 1]] = psf[loc[:, 0], loc[:, 1]]
     # Create x and y indices
     x = np.linspace(0, psf.shape[0]-1, psf.shape[0])
     y = np.linspace(0, psf.shape[1]-1, psf.shape[1])
@@ -132,7 +132,8 @@ def hogbom_clean(dirty, psf,
     np.ndarray
         float64 residual image of shape (ny, nx)
     """
-    # deep copy dirties to first residuals, want to keep the original dirty maps
+    # deep copy dirties to first residuals,
+    # want to keep the original dirty maps
     residuals = dirty.copy()
 
     # Check that psf is twice the size of residuals
@@ -211,7 +212,7 @@ def restore(clean, psf, residuals):
 
     logging.info("Convolving")
 
-    #, cval=0.0) #Fast using fft
+    # cval=0.0) #Fast using fft
     iconv_model = scipy.signal.fftconvolve(clean, clean_beam,  mode='same')
 
     logging.info("Convolving done")

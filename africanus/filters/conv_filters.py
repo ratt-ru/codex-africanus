@@ -91,4 +91,5 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
         raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
 
     return ConvolutionFilter(half_support, oversampling_factor,
-                             full_sup_wo_padding, full_sup, no_taps, filter_taps)
+                             full_sup_wo_padding, full_sup,
+                             no_taps, filter_taps)

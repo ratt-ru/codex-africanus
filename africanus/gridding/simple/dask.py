@@ -31,9 +31,10 @@ else:
 
         # Unfortunately necessary to introduce an extra dim
         # for atop to work properly
-        grid_fn = lambda *a, **kw: nb_grid_fn(*a, **kw)[None, :, :, :]
+        def _grid_fn(*args, **kwargs):
+            return nb_grid_fn(*args, **kwargs)[None, :, :, :]
 
-        return da.core.atop(grid_fn, ("row", "corr", "ny", "nx"),
+        return da.core.atop(_grid_fn, ("row", "corr", "ny", "nx"),
                             vis, ("row", "chan", "corr"),
                             uvw, ("row", "(u,v,w)"),
                             flags, ("row", "chan", "corr"),
