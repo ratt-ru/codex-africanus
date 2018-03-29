@@ -34,7 +34,8 @@ setup_requirements = ['pytest-runner', ]
 
 test_requirements = [
         'pytest',
-        'dask >= 0.17.2']
+        'dask >= 0.17.2',
+        'toolz']
 
 setup(
     author="Simon Perkins",
