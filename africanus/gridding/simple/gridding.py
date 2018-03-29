@@ -19,9 +19,6 @@ def _grid(vis, uvw, flags, weights, ref_wave,
     ``ref_wave`` reference wavelengths using
     the specified ``convolution_filter``.
 
-    It returns both the **gridded visibilities** and
-    **point spread function** as complex64 arrays.
-
     Parameters
     ----------
     vis : np.ndarray
