@@ -6,5 +6,6 @@ from __future__ import print_function
 
 import os
 
+
 def on_rtd():
     return bool(os.environ.get("READTHEDOCS")) == True

@@ -12,8 +12,9 @@ have_requirements = have_packages(*_package_requirements)
 
 if not have_requirements or on_rtd():
     def grid(vis, uvw, flags, weights, ref_wave,
-                convolution_filter, nx=1024, ny=1024):
+             convolution_filter, nx=1024, ny=1024):
         raise MissingPackageException(*_package_requirements)
+
     def degrid(grid, uvw, weights, ref_wave, convolution_filter):
         raise MissingPackageException(*_package_requirements)
 else:
@@ -25,35 +26,35 @@ else:
     from .gridding import (grid as nb_grid_fn, degrid as nb_degrid_fn)
 
     def grid(vis, uvw, flags, weights, ref_wave,
-            convolution_filter, nx=1024, ny=1024):
+             convolution_filter, nx=1024, ny=1024):
         """ Documentation below """
 
         # Unfortunately necessary to introduce an extra dim
         # for atop to work properly
-        grid_fn = lambda *a, **kw: nb_grid_fn(*a, **kw)[None,:,:,:]
+        grid_fn = lambda *a, **kw: nb_grid_fn(*a, **kw)[None, :, :, :]
 
         return da.core.atop(grid_fn, ("row", "corr", "ny", "nx"),
-                         vis, ("row", "chan", "corr"),
-                         uvw, ("row", "(u,v,w)"),
-                         flags, ("row", "chan", "corr"),
-                         weights, ("row", "chan", "corr"),
-                         ref_wave, ("chan",),
-                    new_axes={"ny": ny, "nx": nx},
-                    adjust_chunks={"row": lambda n: 1},
-                    concatenate=True,
-                    convolution_filter=convolution_filter,
-                    dtype=np.complex64).sum(axis=0)
+                            vis, ("row", "chan", "corr"),
+                            uvw, ("row", "(u,v,w)"),
+                            flags, ("row", "chan", "corr"),
+                            weights, ("row", "chan", "corr"),
+                            ref_wave, ("chan",),
+                            new_axes={"ny": ny, "nx": nx},
+                            adjust_chunks={"row": lambda n: 1},
+                            concatenate=True,
+                            convolution_filter=convolution_filter,
+                            dtype=np.complex64).sum(axis=0)
 
     def degrid(grid, uvw, weights, ref_wave, convolution_filter):
         """ Documentation below """
         return da.core.atop(nb_degrid_fn, ("row", "chan", "corr"),
-                    grid, ("corr", "ny", "nx"),
-                    uvw, ("row", "(u,v,w)"),
-                    weights, ("row", "chan", "corr"),
-                    ref_wave, ("chan",),
-                    concatenate=True,
-                    convolution_filter=convolution_filter,
-                    dtype=np.complex64)
+                            grid, ("corr", "ny", "nx"),
+                            uvw, ("row", "(u,v,w)"),
+                            weights, ("row", "chan", "corr"),
+                            ref_wave, ("chan",),
+                            concatenate=True,
+                            convolution_filter=convolution_filter,
+                            dtype=np.complex64)
 
 grid.__doc__ = """
 dask wrapper for :func:`~africanus.gridding.simple.grid`.
@@ -115,4 +116,3 @@ Returns
 :class:`dask.array.Array`
     (chan, corr) complex64 visibilities
 """
-

@@ -10,9 +10,9 @@ import numba
 import numpy as np
 
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
-        ['half_sup', 'oversample',
-        'full_sup_wo_padding', 'full_sup',
-        'no_taps', 'filter_taps'])
+                                           ['half_sup', 'oversample',
+                                            'full_sup_wo_padding', 'full_sup',
+                                            'no_taps', 'filter_taps'])
 """
 :class:`collections.namedtuple` containing attributes
 defining a Convolution Filter. A namedtuple is used
@@ -67,7 +67,7 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
         namedtuple containing filter attributes
     """
     full_sup_wo_padding = (half_support * 2 + 1)
-    full_sup = full_sup_wo_padding + 2 #+ padding
+    full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
 
     taps = np.arange(no_taps)/float(oversampling_factor) - full_sup / 2
@@ -91,4 +91,4 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
         raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
 
     return ConvolutionFilter(half_support, oversampling_factor,
-        full_sup_wo_padding, full_sup, no_taps, filter_taps)
+                             full_sup_wo_padding, full_sup, no_taps, filter_taps)

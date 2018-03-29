@@ -9,6 +9,7 @@ import numpy as np
 import scipy.signal
 from scipy import optimize as opt
 
+
 @numba.jit(nopython=True, nogil=True, cache=True)
 def twod_gaussian(coords, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     x = coords[0]
@@ -18,8 +19,12 @@ def twod_gaussian(coords, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
     b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
     c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
+    g = (offset + amplitude *
+         np.exp(- (a*((x-xo)**2) +
+                   2*b*(x-xo)*(y-yo) +
+                   c*((y-yo)**2))))
     return g.flatten()
+
 
 def fit_2d_gaussian(psf):
     """
@@ -32,26 +37,27 @@ def fit_2d_gaussian(psf):
     # implementation
     # I = np.stack((psf>=0.5*psf.max()).nonzero()).transpose()
 
-    I = np.argwhere(psf>=0.5*psf.max())
-    #Create an array with these values at the same indices and zeros otherwise
-    lk,mk = psf.shape
+    I = np.argwhere(psf >= 0.5*psf.max())
+    # Create an array with these values at the same indices and zeros otherwise
+    lk, mk = psf.shape
     psf_fit = np.zeros_like(psf)
-    psf_fit[I[:,0],I[:,1]] = psf[I[:,0],I[:,1]]
+    psf_fit[I[:, 0], I[:, 1]] = psf[I[:, 0], I[:, 1]]
     # Create x and y indices
     x = np.linspace(0, psf.shape[0]-1, psf.shape[0])
     y = np.linspace(0, psf.shape[1]-1, psf.shape[1])
     x, y = np.meshgrid(x, y)
     # Set starting point of optimiser
-    initial_guess = (0.5,lk/2,mk/2,1.75,1.4,-4.0,0)
-    #Flatten the data
+    initial_guess = (0.5, lk/2, mk/2, 1.75, 1.4, -4.0, 0)
+    # Flatten the data
     data = psf_fit.ravel()
-    #Fit the function (Gaussian for now)
-    popt, pcov = opt.curve_fit(twod_gaussian, (x,y), data, p0=initial_guess)
-    #Get function with fitted params
+    # Fit the function (Gaussian for now)
+    popt, pcov = opt.curve_fit(twod_gaussian, (x, y), data, p0=initial_guess)
+    # Get function with fitted params
     data_fitted = twod_gaussian((x, y), *popt)
-    #Normalise the psf to have a max value of one
+    # Normalise the psf to have a max value of one
     data_fitted = data_fitted/data_fitted.max()
-    return data_fitted.reshape(lk,mk)
+    return data_fitted.reshape(lk, mk)
+
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def find_peak(residuals):
@@ -67,7 +73,7 @@ def find_peak(residuals):
 
     for x in range(nx):
         for y in range(ny):
-            intensity = abs_residuals[x,y]
+            intensity = abs_residuals[x, y]
 
             if intensity == min_peak:
                 minx = x
@@ -86,20 +92,23 @@ def find_peak(residuals):
 
     return maxx, maxy, minx, miny, peak_intensity
 
+
 @numba.jit(nopython=True, nogil=True, cache=True)
 def build_cleanmap(clean, intensity, gamma, p, q):
-    clean[p,q] += intensity*gamma
+    clean[p, q] += intensity*gamma
+
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def update_residual(residual, intensity, gamma, p, q, npix, psf):
-    npix = residual.shape[0] #Assuming square image
+    npix = residual.shape[0]  # Assuming square image
     residual -= gamma*intensity*psf[npix - 1 - p:2*npix - 1 - p,
-                                npix - 1 - q:2*npix - 1 - q]
+                                    npix - 1 - q:2*npix - 1 - q]
+
 
 def hogbom_clean(dirty, psf,
-                  gamma = 0.1,
-                  threshold = "default",
-                  niter = "default"):
+                 gamma=0.1,
+                 threshold="default",
+                 niter="default"):
     """
     Performs Hogbom Clean on the  ``dirty`` image given the ``psf``.
 
@@ -156,17 +165,17 @@ def hogbom_clean(dirty, psf,
 
     while np.abs(intensity) > threshold and i <= niter:
         logging.info("min %f max %f peak %f threshold %f" %
-                (residuals.min(), residuals.max(), intensity, threshold))
+                     (residuals.min(), residuals.max(), intensity, threshold))
 
-        #First we set the
+        # First we set the
         build_cleanmap(clean, intensity, gamma, p, q)
-        #Subtract out pixel
+        # Subtract out pixel
         update_residual(residuals, intensity, gamma, p, q, npix, psf)
-        #Get new indices where residuals is max
-        p,q,_,_,intensity = find_peak(residuals)
-        #Increment counter
+        # Get new indices where residuals is max
+        p, q, _, _, intensity = find_peak(residuals)
+        # Increment counter
         i += 1
-        #Warn if niter exceeded
+        # Warn if niter exceeded
         if i > niter:
             logging.warn("Number of iterations exceeded")
             logging.warn("Minimum residuals = %s", residuals.max())
@@ -197,7 +206,7 @@ def restore(clean, psf, residuals):
 
     logging.info("Fitting 2D Gaussian")
 
-    #get the ideal beam (fit 2D Gaussian to HWFH of psf)
+    # get the ideal beam (fit 2D Gaussian to HWFH of psf)
     clean_beam = fit_2d_gaussian(psf)
 
     logging.info("Convolving")
@@ -207,10 +216,11 @@ def restore(clean, psf, residuals):
 
     logging.info("Convolving done")
 
-    #Finally we add the residuals back to the image
+    # Finally we add the residuals back to the image
     restored = iconv_model + residuals
 
     return (restored, iconv_model)
+
 
 if __name__ == "__main__":
     pass
