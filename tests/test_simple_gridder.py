@@ -57,6 +57,11 @@ def test_degridder_gridder():
     vis_grid = grid(vis, uvw, flags, weights, ref_wave,
                                         conv_filter, nx, ny)
 
+    # Test that a user supplied grid works
+    vis_grid = grid(vis, uvw, flags, weights, ref_wave,
+                                conv_filter, grid=vis_grid)
+
+
 def test_psf_subtraction():
     """
     Test that we can create the PSF with the gridder.
@@ -73,7 +78,7 @@ def test_psf_subtraction():
     corr = 4
     chan = 16
     rows = 200
-    npix = nx = ny = 257
+    npix = ny = nx = 257
 
     C = 2.99792458e8
     ARCSEC2RAD = 4.8481e-6
@@ -103,14 +108,14 @@ def test_psf_subtraction():
 
     # Compute PSF of (ny*2, nx*2)
     psf_squared = grid(vis, uvw, flags, weights, ref_wave,
-                                        conv_filter, nx*2, ny*2)
+                                        conv_filter, ny*2, nx*2)
 
     # Test that we have gridded something
     assert np.any(psf_squared > 0.0)
     assert np.any(psf > 0.0)
 
     # Extract the centre of the squared PSF
-    centre_vis = psf_squared[:,nx-nx//2:1+nx+nx//2, nx-nx//2:1+nx+nx//2]
+    centre_vis = psf_squared[:,ny-ny//2:1+ny+ny//2, nx-nx//2:1+nx+nx//2]
 
     # Should be the same
     assert np.all(centre_vis == psf)
@@ -150,7 +155,7 @@ def test_dask_degridder_gridder():
 
     conv_filter = convolution_filter(3, 63, "sinc")
 
-    vis_grid = grid(vis, uvw, flags, weights, ref_wave, conv_filter, nx, ny)
+    vis_grid = grid(vis, uvw, flags, weights, ref_wave, conv_filter, ny, nx)
 
     degrid_vis = degrid(vis_grid, uvw, weights, ref_wave, conv_filter)
 
