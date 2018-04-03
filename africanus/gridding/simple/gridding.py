@@ -9,51 +9,19 @@ import numpy as np
 
 from ...util.rtd import on_rtd
 
-
-def _grid(vis, uvw, flags, weights, ref_wave,
-          convolution_filter,
-          nx=1024, ny=1024):
+@numba.jit(nopython=True, nogil=True, cache=True)
+def _nb_grid(vis, uvw, flags, weights, ref_wave,
+          convolution_filter, grid):
     """
-    Convolutional gridder which grids visibilities ``vis``
-    at the specified ``uvw`` coordinates and
-    ``ref_wave`` reference wavelengths using
-    the specified ``convolution_filter``.
-
-    Parameters
-    ----------
-    vis : np.ndarray
-        complex64 visibility array of shape (row, chan, corr)
-    uvw : np.ndarray
-        float64 array of UVW coordinates of shape (row, 3)
-    weights : np.ndarray
-        float32 or float64 array of weights. Set this to
-        ``np.ones_like(vis, dtype=np.float32)`` as default.
-    flags : np.ndarray
-        flagged array of shape (row, chan, corr).
-        Any positive quantity will indicate that the corresponding
-        visibility should be flagged.
-        Set to ``np.zero_like(vis, dtype=np.bool)`` as default.
-    ref_wave : np.ndarray
-        float64 array of wavelengths of shape (chan,)
-    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
-        Convolution filter
-    nx : integer, optional
-        Size of the grid's X dimension
-    ny : integer, optional
-        Size of the grid's Y dimension
-
-    Returns
-    -------
-    np.ndarray
-        (corr, ny, nx) complex64 ndarray of gridded visibilities
+    See :func:"~africanus.gridding.simple.gridding._grid" for
+    documentation.
     """
     cf = convolution_filter
 
+    ny, nx = grid.shape[1:]
+
     assert vis.shape[1] == ref_wave.shape[0]
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
-
-    # one grid for the resampled visibilities per correlation:
-    grid = np.zeros((vis.shape[2], ny, nx), dtype=np.complex64)
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
@@ -106,6 +74,55 @@ def _grid(vis, uvw, flags, weights, ref_wave,
 
     return grid
 
+def _grid(vis, uvw, flags, weights, ref_wave,
+        convolution_filter,
+        nx=1024, ny=1024,
+        grid=None):
+    """
+    Convolutional gridder which grids visibilities ``vis``
+    at the specified ``uvw`` coordinates and
+    ``ref_wave`` reference wavelengths using
+    the specified ``convolution_filter``.
+
+    Parameters
+    ----------
+    vis : np.ndarray
+        complex64 visibility array of shape (row, chan, corr)
+    uvw : np.ndarray
+        float64 array of UVW coordinates of shape (row, 3)
+    weights : np.ndarray
+        float32 or float64 array of weights. Set this to
+        ``np.ones_like(vis, dtype=np.float32)`` as default.
+    flags : np.ndarray
+        flagged array of shape (row, chan, corr).
+        Any positive quantity will indicate that the corresponding
+        visibility should be flagged.
+        Set to ``np.zero_like(vis, dtype=np.bool)`` as default.
+    ref_wave : np.ndarray
+        float64 array of wavelengths of shape (chan,)
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
+        Convolution filter
+    nx : integer, optional
+        Size of the grid's X dimension
+    ny : integer, optional
+        Size of the grid's Y dimension
+    grid : np.ndarray, optional
+        complex64/complex128 array of shape (corr, ny, nx)
+        If supplied, this array will be used as the gridding target,
+        and ``nx`` and ``ny`` will be derived from this grid's
+        dimensions.
+
+    Returns
+    -------
+    np.ndarray
+        (corr, ny, nx) complex64 ndarray of gridded visibilities
+    """
+
+    if grid is None:
+        grid = np.zeros((vis.shape[2], ny, nx), dtype=np.complex64)
+
+    return _nb_grid(vis, uvw, flags, weights, ref_wave,
+                    convolution_filter, grid)
 
 def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
@@ -190,10 +207,9 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
 
+grid = _grid
 
 if not on_rtd():
-    grid = numba.jit(nopython=True, nogil=True, cache=True)(_grid)
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
 else:
-    grid = _grid
     degrid = _degrid
