@@ -7,7 +7,38 @@ from __future__ import print_function
 import numba
 import numpy as np
 
-from ...util.rtd import on_rtd
+from ...util.docs import on_rtd
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def _1d_stencil(convolution_filter, filter_index,
+                frac_v, frac_u, disc_v, disc_u,
+                nx, ny,
+                grid, vis, weights, flags,
+                r, f):
+
+    cf = convolution_filter
+
+    # Iterate over v/y
+    for conv_v in filter_index:
+        v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
+        grid_v = disc_v + conv_v + ny // 2
+
+        # Iterate over u/x
+        for conv_u in filter_index:
+            u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
+            conv_weight = v_tap*u_tap
+            grid_u = disc_u + conv_u + nx // 2
+
+            for c in range(vis.shape[2]):      # correlation
+                # Ignore flagged correlations
+                if flags[r, f, c] > 0:
+                    continue
+
+                # Grid the visibility
+                grid[c, grid_v, grid_u] += (vis[r, f, c] *
+                                            conv_weight *
+                                            weights[r, f, c])
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -20,6 +51,19 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
     cf = convolution_filter
 
     ny, nx = grid.shape[1:]
+
+    # h = 12
+
+    # def _test_stencil(a, h):
+    #     sum_ = 0
+    #     for i in range(-h, h):
+    #         sum_ += a[i]
+
+    #     return sum_
+
+    # _stencil = numba.stencil(_test_stencil, neighborhood=((-h, h),))
+
+    # _stencil(np.arange(-h, h), h)
 
     assert vis.shape[1] == ref_wave.shape[0]
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
@@ -52,34 +96,19 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
             frac_u = int(base_frac_u*cf.oversample)
             frac_v = int(base_frac_v*cf.oversample)
 
-            # Iterate over v/y
-            for conv_v in filter_index:
-                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
-                grid_v = disc_v + conv_v + ny // 2
-
-                # Iterate over u/x
-                for conv_u in filter_index:
-                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
-                    conv_weight = v_tap*u_tap
-                    grid_u = disc_u + conv_u + nx // 2
-
-                    for c in range(vis.shape[2]):      # correlation
-                        # Ignore flagged correlations
-                        if flags[r, f, c] > 0:
-                            continue
-
-                        # Grid the visibility
-                        grid[c, grid_v, grid_u] += (vis[r, f, c] *
-                                                    conv_weight *
-                                                    weights[r, f, c])
+            _1d_stencil(convolution_filter, filter_index,
+                        frac_v, frac_u, disc_v, disc_u,
+                        nx, ny,
+                        grid, vis, weights, flags,
+                        r, f)
 
     return grid
 
 
-def _grid(vis, uvw, flags, weights, ref_wave,
-          convolution_filter,
-          nx=1024, ny=1024,
-          grid=None):
+def grid(vis, uvw, flags, weights, ref_wave,
+         convolution_filter,
+         nx=1024, ny=1024,
+         grid=None):
     """
     Convolutional gridder which grids visibilities ``vis``
     at the specified ``uvw`` coordinates and
@@ -210,8 +239,6 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
 
-
-grid = _grid
 
 if not on_rtd():
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)

@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ...util.rtd import on_rtd
+from ...util.docs import on_rtd
 from ...util.requirements import have_packages, MissingPackageException
 
 _package_requirements = ('dask.array', 'toolz')

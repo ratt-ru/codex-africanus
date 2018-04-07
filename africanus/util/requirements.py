@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from .rtd import on_rtd
+from .docs import on_rtd
 
 if on_rtd():
     # Some dependencies are mock objects within readthedocs

@@ -1,6 +1,20 @@
 API
 ===
 
+Direct Fourier Transform
+------------------------
+
+Numpy
+~~~~~
+
+.. autofunction:: africanus.dft.dft
+
+Dask
+~~~~
+
+.. autofunction:: africanus.dft.dask.dft
+
+
 Simple Gridding
 ---------------
 
