@@ -1,5 +1,14 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numba
 import numpy as np
+
+from africanus.constants import c as lightspeed
 
 
 # Magic spheroidal coefficients
@@ -55,16 +64,6 @@ def polyval2d(x, y, coeffs):
             c += 1
 
     return z
-
-def test_polyfit2d():
-    npoints = 100
-    x = np.random.random(npoints)
-    y = np.random.random(npoints)
-    z = x**2 + y**2 + 3*x**3 + y + np.random.random(npoints)
-    coeffs = polyfit2d(x,y,z,order=5)
-    rz = polyval2d(x,y,coeffs)
-
-    print "Summed difference", (z-rz).sum()
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def spheroidal_2d(npix, factor=1.0):
@@ -154,7 +153,7 @@ def zero_pad(img, npix):
     for dim, npix_ in zip(img.shape, npix):
         # Pad and half-pad amount
         p = npix_  - dim
-        hp = p / 2
+        hp = p // 2
 
         # Pad the imagew
         padding.append((hp, hp) if p % 2 == 0 else (hp+1, hp))
@@ -162,16 +161,16 @@ def zero_pad(img, npix):
     return np.pad(img, padding, 'constant', constant_values=0)
 
 
-def spheroidal_convolution_filter(npix, support=11, spheroidal_support=111):
+def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
     # Convolution filter
     cf = spheroidal_2d(spheroidal_support).astype(np.complex128)
     # Fourier transformed convolution filter
     fcf = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(cf)))
 
     # Cut the support out
-    xc = spheroidal_support/2
-    start = xc-support/2
-    end = 1 + xc+support/2
+    xc = spheroidal_support//2
+    start = xc-support//2
+    end = 1 + xc+support//2
     fcf = fcf[start:end, start:end].copy()
 
     # Inverse fourier transform of the cut
@@ -228,7 +227,7 @@ def reorganise_convolution_filter(cf, oversampling):
         Reorganised convolution filter
 
     """
-    support = cf.shape[0]/oversampling
+    support = cf.shape[0]//oversampling
     result = np.empty((oversampling, oversampling, support, support),
                                                     dtype=cf.dtype)
 
@@ -248,7 +247,7 @@ def find_max_support(radius, maxw, min_wave):
 
     # Work out the spheroidal convolution filter for
     # the maximum support size
-    _, _, spheroidal_w = spheroidal_convolution_filter(max_support)
+    _, _, spheroidal_w = spheroidal_aa_filter(max_support)
 
     # Compute l, m and n-1 over the area of maximum support
     ex = radius*np.sqrt(2.)
@@ -261,11 +260,11 @@ def find_max_support(radius, maxw, min_wave):
 
     # Want to interpolate across fw. fw is symmetric
     # so take a slice across fw at the halfway point
-    fw1d = np.abs(fw[(max_support-1)/2, :])
+    fw1d = np.abs(fw[(max_support-1)//2, :])
     # normalise
     fw1d /= np.max(fw1d)
     # Then take half again due to symmetry
-    fw1d = fw1d[(max_support-1)/2::]
+    fw1d = fw1d[(max_support-1)//2::]
 
     ind = np.argsort(fw1d)
 
@@ -317,8 +316,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
     radius = np.deg2rad((npix/2.)*cell_size/3600.)
 
     # Minimum wavelength
-    C = 299792458.
-    min_wave = C / frequencies.min()
+    min_wave = lightspeed / frequencies.min()
 
     # Find the maximum support
     max_support = find_max_support(radius, maxw, min_wave)
@@ -348,7 +346,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
         norm_plane_w = plane_w / min_wave
 
         # Calculate the spheroidal for the given support
-        _, _, spheroidal_pw = spheroidal_convolution_filter(w_support)
+        _, _, spheroidal_pw = spheroidal_aa_filter(w_support)
 
         # Fit n-1 for this w plane using
         # delta n polynomial coefficients
@@ -403,12 +401,12 @@ if __name__ == "__main__":
         oversampling=11, lmshift=None,
         frequencies=np.linspace(.856e9, 2*.856e9, 64))
 
-    cf, fcf, ifzfcf = spheroidal_convolution_filter(args.npix,
+    cf, fcf, ifzfcf = spheroidal_aa_filter(args.npix,
                         args.support, args.spheroidal_support)
 
-    print "Convolution filter", cf.shape
-    print "Fourier transformed Convolution Filter", fcf.shape
-    print "Inverse Fourier transform of Zero-padded fcf", ifzfcf.shape
+    print("Convolution filter", cf.shape)
+    print("Fourier transformed Convolution Filter", fcf.shape)
+    print("Inverse Fourier transform of Zero-padded fcf", ifzfcf.shape)
 
     assert np.allclose(spheroidal_2d(args.spheroidal_support),
                     _spheroidal_2d(args.spheroidal_support))
