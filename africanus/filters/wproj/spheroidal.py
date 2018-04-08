@@ -10,14 +10,6 @@ import numpy as np
 
 from africanus.constants import c as lightspeed
 
-
-# Magic spheroidal coefficients
-P = np.array([[8.203343e-2, -3.644705e-1, 6.278660e-1, -5.335581e-1, 2.312756e-1],
-              [4.028559e-3, -3.697768e-2, 1.021332e-1, -1.201436e-1, 6.412774e-2]])
-Q = np.array([[1.0000000e0, 8.212018e-1, 2.078043e-1],
-              [1.0000000e0, 9.599102e-1, 2.918724e-1]])
-
-
 def polyfit2d(x, y, z, order=3):
     """
     Given ``x`` and ``y`` data points and ``z``, some
@@ -64,6 +56,27 @@ def polyval2d(x, y, coeffs):
             c += 1
 
     return z
+
+# Magic spheroidal coefficients
+# These derived from
+# Rational Approximations to Selected 0-order Spheroidal Functions
+# https://library.nrao.edu/public/memos/vla/comp/VLAC_156.pdf
+# Table IIIA (c) and Table IIIB (c) respectively
+
+# These values exist for a support width m = 6,
+# First elements are for |nu| < 0.75 and second for 0.75 <= |nu| <= 1.0
+
+# NOTE(sjperkins)
+# The above support width is generally
+# much smaller than the filter support sizes
+
+P = np.array([
+    [8.203343e-2, -3.644705e-1, 6.278660e-1, -5.335581e-1, 2.312756e-1],
+    [4.028559e-3, -3.697768e-2, 1.021332e-1, -1.201436e-1, 6.412774e-2]])
+
+Q = np.array([
+    [1.0000000e0, 8.212018e-1, 2.078043e-1],
+    [1.0000000e0, 9.599102e-1, 2.918724e-1]])
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def spheroidal_2d(npix, factor=1.0):
