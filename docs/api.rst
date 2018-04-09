@@ -1,6 +1,19 @@
 API
 ===
 
+Stokes
+------
+
+Numpy
+~~~~~
+
+.. autofunction:: africanus.stokes.brightness
+
+Dask
+~~~~
+
+.. autofunction:: africanus.stokes.dask.brightness
+
 Radio Interferometer Measurement Equation
 -----------------------------------------
 
