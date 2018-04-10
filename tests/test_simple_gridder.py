@@ -5,6 +5,8 @@
 
 import pytest
 
+from africanus.constants import c as lightspeed
+
 def test_degridder_gridder():
     """ Basic test of the gridder/degridder """
 
@@ -20,7 +22,6 @@ def test_degridder_gridder():
     nvis = npix*npix
     npoints = 10000
 
-    C = 2.99792458e8
     ARCSEC2RAD = 4.8481e-6
     DELTA_PIX = 6 * ARCSEC2RAD
     UV_SCALE = npix * DELTA_PIX
@@ -28,7 +29,7 @@ def test_degridder_gridder():
     rf = lambda *a, **kw: np.random.random(*a, **kw)
 
     # Channels of MeerKAT L band
-    ref_wave = C/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
+    ref_wave = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
 
     # Random UVW coordinates
     uvw = rf(size=(nvis,3)).astype(np.float64)*128*UV_SCALE
@@ -80,7 +81,6 @@ def test_psf_subtraction():
     rows = 200
     npix = ny = nx = 257
 
-    C = 2.99792458e8
     ARCSEC2RAD = 4.8481e-6
     DELTA_PIX = 6 * ARCSEC2RAD
     UV_SCALE = npix * DELTA_PIX
@@ -88,7 +88,7 @@ def test_psf_subtraction():
     rf = lambda *a, **kw: np.random.random(*a, **kw)
 
     # Channels of MeerKAT L band
-    ref_wave = C/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
+    ref_wave = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
 
     # Random UVW coordinates
     uvw = rf(size=(rows,3)).astype(np.float64)*128*UV_SCALE
@@ -129,8 +129,6 @@ def test_dask_degridder_gridder():
 
     import dask.array as da
 
-    C = 2.99792458e8
-
     row = 100
     chan = 16
     corr = 4
@@ -147,7 +145,7 @@ def test_dask_degridder_gridder():
             1j*da.random.random(vis_shape, chunks=vis_chunks))
     uvw = da.random.random((row,3), chunks=(row_chunk, 3))
     # 4 channels of MeerKAT L band
-    ref_wave = C/da.linspace(.856e9, .856e9*2, chan,
+    ref_wave = lightspeed/da.linspace(.856e9, .856e9*2, chan,
                             chunks=chan_chunk)
     flags = da.random.randint(0, 1, size=vis_shape, chunks=vis_chunks)
 

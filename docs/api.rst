@@ -1,6 +1,20 @@
 API
 ===
 
+Radio Interferometer Measurement Equation
+-----------------------------------------
+
+Numpy
+~~~~~
+
+.. autofunction:: africanus.rime.phase_delay
+
+Dask
+~~~~
+
+.. autofunction:: africanus.rime.dask.phase_delay
+
+
 Simple Gridding
 ---------------
 

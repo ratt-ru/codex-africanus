@@ -7,7 +7,7 @@ from __future__ import print_function
 import numba
 import numpy as np
 
-from ...util.rtd import on_rtd
+from ...util.docs import on_rtd
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -76,10 +76,10 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
     return grid
 
 
-def _grid(vis, uvw, flags, weights, ref_wave,
-          convolution_filter,
-          nx=1024, ny=1024,
-          grid=None):
+def grid(vis, uvw, flags, weights, ref_wave,
+         convolution_filter,
+         nx=1024, ny=1024,
+         grid=None):
     """
     Convolutional gridder which grids visibilities ``vis``
     at the specified ``uvw`` coordinates and
@@ -210,8 +210,6 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
 
-
-grid = _grid
 
 if not on_rtd():
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
