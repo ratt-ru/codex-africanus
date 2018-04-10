@@ -12,9 +12,9 @@ import numpy as np
 
 @numba.jit(nopython=True,nogil=True,cache=True)
 def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
-                            antenna_scaling, coords):
+                            antenna_scaling, frequencies, coords):
     """ numba implementation of :func:`transform_sources` """
-    nsrc, ntime, na, nchan, _ = coords.shape
+    _, nsrc, ntime, na, nchan = coords.shape
 
     for t in range(ntime):
         for a in range(na):
@@ -34,15 +34,15 @@ def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
 
                 # Scale by antenna scaling factors
                 for c in range(nchan):
-                    coords[s,t,a,c,0] = l*antenna_scaling[a,c]
-                    coords[s,t,a,c,1] = m*antenna_scaling[a,c]
+                    coords[0,s,t,a,c] = l*antenna_scaling[a,c]
+                    coords[1,s,t,a,c] = m*antenna_scaling[a,c]
+                    coords[2,s,t,a,c] = frequencies[c]
 
     return coords
 
 
-def transform_sources(lm, parallactic_angles,
-                        pointing_errors, antenna_scaling,
-                        dtype=None):
+def transform_sources(lm, parallactic_angles, pointing_errors,
+                        antenna_scaling, frequencies, dtype=None):
     """
     Creates beam sampling coordinates by
 
@@ -65,6 +65,8 @@ def transform_sources(lm, parallactic_angles,
     antenna_scaling : :class:`numpy.ndarray`
         antenna scaling factor for each channel and
         each antenna. Has shape :code:`(antenna, chan)`
+    frequencies : :class:`numpy.ndarray`
+        frequencies for each channel. Has shape :code:`(chan,)`
     dtype : :class:`numpy.dtype`, optional
         Numpy dtype of result array. Should be float32 or float64.
         Defaults to float64
@@ -73,17 +75,18 @@ def transform_sources(lm, parallactic_angles,
     Result
     ------
     :class:`numpy.ndarray`
-        coordinates of shape :code:`(src, time, antenna, chan, 2)
+        coordinates of shape :code:`(3, src, time, antenna, chan)
     """
 
     ntime, na = parallactic_angles.shape
     nsrc = lm.shape[0]
     assert (ntime,na,2) == pointing_errors.shape
     nchan = antenna_scaling.shape[1]
+    assert nchan == frequencies.shape[0]
 
-    coords = np.empty((nsrc,ntime,na,nchan,2),
-                        dtype=np.float64 if dtype is None else dtype)
+    dtype = np.float64 if dtype is None else dtype
+    coords = np.empty((3,nsrc,ntime,na,nchan), dtype=dtype)
 
     return _nb_transform_sources(lm, parallactic_angles, pointing_errors,
-                                antenna_scaling, coords)
+                                antenna_scaling, frequencies, coords)
 

@@ -22,21 +22,24 @@ else:
     import dask.array as da
 
     def transform_sources(lm, parallactic_angles, pointing_errors,
-                            antenna_scaling, dtype=None):
+                            antenna_scaling, frequency, dtype=None):
 
         def _wrapper(lm, parallactic_angles, pointing_errors,
-                        antenna_scaling, dtype_):
-            return np_transform_sources(lm, parallactic_angles,
-                    pointing_errors, antenna_scaling, dtype=dtype_)
+                        antenna_scaling, frequency, dtype_):
+            return np_transform_sources(lm[0], parallactic_angles,
+                    pointing_errors[0], antenna_scaling, frequency,
+                    dtype=dtype_)
 
         if dtype is None:
             dtype = np.float64
 
-        return da.core.atop(_wrapper, ("src", "time", "ant", "chan", 'lm'),
+        return da.core.atop(_wrapper, ("comp", "src", "time", "ant", "chan"),
                             lm, ("src", "lm"),
                             parallactic_angles, ("time", "ant"),
                             pointing_errors, ("time", "ant", "lm"),
                             antenna_scaling, ("ant", "chan"),
+                            frequency, ("chan",),
+                            new_axes={"comp": 3},
                             dtype=dtype,
                             dtype_=dtype)
 
