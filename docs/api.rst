@@ -1,18 +1,18 @@
 API
 ===
 
-Direct Fourier Transform
-------------------------
+Radio Interferometer Measurement Equation
+-----------------------------------------
 
 Numpy
 ~~~~~
 
-.. autofunction:: africanus.dft.dft
+.. autofunction:: africanus.rime.phase_delay
 
 Dask
 ~~~~
 
-.. autofunction:: africanus.dft.dask.dft
+.. autofunction:: africanus.rime.dask.phase_delay
 
 
 Simple Gridding

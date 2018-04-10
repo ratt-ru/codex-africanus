@@ -7,8 +7,8 @@ import numpy as np
 
 import pytest
 
-def test_dft():
-    from africanus.dft import dft
+def test_phase_delay():
+    from africanus.rime import phase_delay
 
     uvw = np.random.random(size=(100,3))
     lm = np.random.random(size=(10,2))
@@ -29,7 +29,7 @@ def test_dft():
     frequency[freq_i] = freq
 
     # Compute complex phase
-    complex_phase = dft(uvw, lm, frequency)
+    complex_phase = phase_delay(uvw, lm, frequency)
 
     # Test singular value vs a point in the output
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
@@ -37,13 +37,13 @@ def test_dft():
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-from africanus.dft.dask import have_requirements
+from africanus.rime.dask import have_requirements
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
-def test_dask_dft():
+def test_dask_phase_delay():
     import dask.array as da
-    from africanus.dft import dft as np_dft
-    from africanus.dft.dask import dft as dask_dft
+    from africanus.rime import phase_delay as np_phase_delay
+    from africanus.rime.dask import phase_delay as dask_phase_delay
 
     uvw = np.random.random(size=(100,3))
     lm = np.random.random(size=(10,2))*0.01 # So that 1 > 1 - l**2 - m**2 >= 0
@@ -53,8 +53,8 @@ def test_dask_dft():
     dask_lm = da.from_array(lm, chunks=(5, 2))
     dask_frequency = da.from_array(frequency, chunks=16)
 
-    dask_phase = dask_dft(dask_uvw, dask_lm, dask_frequency).compute()
-    np_phase = np_dft(uvw, lm, frequency)
+    dask_phase = dask_phase_delay(dask_uvw, dask_lm, dask_frequency).compute()
+    np_phase = np_phase_delay(uvw, lm, frequency)
 
     # Should agree completely
     assert np.all(np_phase == dask_phase)

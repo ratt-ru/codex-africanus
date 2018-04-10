@@ -14,10 +14,10 @@ from ..constants import c as lightspeed, minus_two_pi_over_c
 from ..util.docs import doc_tuple_to_str
 
 
-def dft(uvw, lm, frequency, dtype=None):
+def phase_delay(uvw, lm, frequency, dtype=None):
 
     @numba.jit(nopython=True, nogil=True, cache=True)
-    def _dft_impl(uvw, lm, frequency, complex_phase):
+    def _phase_delay_impl(uvw, lm, frequency, complex_phase):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
@@ -44,15 +44,15 @@ def dft(uvw, lm, frequency, dtype=None):
     complex_phase = np.empty((lm.shape[0], uvw.shape[0], frequency.shape[0]),
                              dtype=np.complex128 if dtype is None else dtype)
 
-    return _dft_impl(uvw, lm, frequency, complex_phase)
+    return _phase_delay_impl(uvw, lm, frequency, complex_phase)
 
 
 _DFT_DOCSTRING = namedtuple(
     "_DFTDOCSTRING", ["preamble", "parameters", "returns"])
 
-dft_docs = _DFT_DOCSTRING(
+phase_delay_docs = _DFT_DOCSTRING(
     preamble="""
-    Computes the complex phase:
+    Computes the phase delay (K) term:
 
     .. math::
 
@@ -87,4 +87,4 @@ dft_docs = _DFT_DOCSTRING(
 )
 
 
-dft.__doc__ = doc_tuple_to_str(dft_docs)
+phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs)
