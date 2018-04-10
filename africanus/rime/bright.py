@@ -43,7 +43,7 @@ def bright_corr_shape(npol, corr_shape):
 
 def brightness(stokes, polarisation_type=None, corr_shape=None):
     """
-    Computes the brightness matrix from the ``stokes`` parameters
+    Computes the brightness matrix (B) from the ``stokes`` parameters
     of a number of sources for the given ``polarisation_type``.
 
     ``stokes`` is an array of polarisations of shape
