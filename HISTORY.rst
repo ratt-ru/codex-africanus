@@ -5,7 +5,7 @@ History
 0.1.3 (2018-03-28)
 ------------------
 
-* Implement DFT (:pr:`8`)
+* Implement RIME Phase Delay term (:pr:`8`)
 * Support user supplied grids (:pr:`7`)
 * Add dask wrappers to the gridder and degridder (:pr:`4`)
 * Add weights to gridder/degridder and remove psf function (:pr:`2`)
