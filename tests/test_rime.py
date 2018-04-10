@@ -39,7 +39,7 @@ def test_phase_delay():
 
 def test_brightness():
     import numpy as np
-    from africanus.stokes import brightness
+    from africanus.rime import brightness
 
     # One stokes
     stokes = np.asarray([[1], [5]])
@@ -88,7 +88,7 @@ def test_brightness():
 
 def test_brightness_shape():
     import numpy as np
-    from africanus.stokes import brightness
+    from africanus.rime import brightness
 
     for pol_type in ('linear', 'circular'):
         # 4 polarisation case
@@ -145,7 +145,7 @@ def test_dask_phase_delay():
 def test_dask_brightness():
     import dask.array as da
     import numpy as np
-    from africanus.stokes.dask import brightness
+    from africanus.rime.dask import brightness
 
     stokes = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.float64)
     da_stokes = da.from_array(stokes, (1,4))
@@ -172,7 +172,7 @@ def test_dask_brightness():
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_brightness_shape():
     import dask.array as da
-    from africanus.stokes.dask import brightness
+    from africanus.rime.dask import brightness
 
     for pol_type in ('linear', 'circular'):
         # 4 polarisation case

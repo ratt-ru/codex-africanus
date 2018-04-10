@@ -6,7 +6,7 @@ from __future__ import print_function
 
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
-from .bright import brightness as np_brightness
+from .bright import brightness as np_brightness, bright_corr_shape
 
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
