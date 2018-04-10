@@ -54,7 +54,12 @@ def test_dask_brightness():
 
     stokes = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.float64)
 
-    B = brightness(da.from_array(stokes, (1,4)))
+    B = brightness(da.from_array(stokes, (1,4)), polarisation_type='linear')
     expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
                             [5+6,7+8*1j,7-8*1j,5-6]])
+    assert np.all(B.compute()==expected)
+
+    B = brightness(da.from_array(stokes, (1,4)), polarisation_type='circular')
+    expected = np.asarray([[1+4, 2+3*1j, 2-3*1j, 1-4],
+                            [5+8,6+7*1j,6-7*1j,5-8]])
     assert np.all(B.compute()==expected)
