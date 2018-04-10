@@ -11,10 +11,10 @@ import numpy as np
 def brightness(stokes, polarisation_type=None):
     """
     Computes the brightness matrix from the ``stokes`` parameters
-    for the ``polarisation_type``.
+    of a number of sources for the given ``polarisation_type``.
 
-    ``stokes`` is an array of polarisations of shape :code:`(stokes, pol)`.
-    The ``pol`` dimension may have size 1, 2 or 4.
+    ``stokes`` is an array of polarisations of shape :code:`(source, pol)`.
+    The ``pol`` dimension must have size 1, 2 or 4.
 
     * If pol has size 1, this always represents the ``I`` polarisation
     * If pol has size 2, this represents :code:`(I,Q)` in the ``linear``
@@ -24,16 +24,16 @@ def brightness(stokes, polarisation_type=None):
     Parameters
     ----------
     stokes : :class:`numpy.ndarray`
-        floating point array of shape :code:`(stokes, pol)`
+        floating point array of shape :code:`(source, pol)`
     polarisation_type : {'linear', 'circular'}
         Type of polarisation
 
     Returns
     -------
     :class:`numpy.ndarray`
-        complex brightness matrix of shape :code:`(stokes, pol)`
+        complex brightness matrix of shape :code:`(source, pol)`
     """
-    nstokes, npol = stokes.shape
+    nsource, npol = stokes.shape
     dtype = np.complex64 if stokes.dtype == np.float32 else np.complex128
 
     if polarisation_type is None:
