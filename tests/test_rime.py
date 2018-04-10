@@ -54,15 +54,15 @@ def test_brightness():
 
     # Linear (I and Q)
     B = brightness(stokes, polarisation_type='linear')
-    expected = np.asarray([[1+2, 1-2], [5+6, 5-6]])
+    expected = np.asarray([[[1+2], [1-2]], [[5+6], [5-6]]])
     assert np.all(B == expected)
 
     # Circular (I and V) produce the same result as linear
     B = brightness(stokes, polarisation_type='circular')
     assert np.all(B == expected)
 
-    B = brightness(stokes, polarisation_type='linear', corr_shape='matrix')
-    assert np.all(B==expected.reshape(2,2,1))
+    B = brightness(stokes, polarisation_type='linear', corr_shape='flat')
+    assert np.all(B==expected.reshape(2,2))
 
     # Four stokes parameters
     stokes = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.float64)
@@ -71,18 +71,18 @@ def test_brightness():
     B = brightness(stokes, polarisation_type='linear')
     expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
                             [5+6,7+8*1j,7-8*1j,5-6]])
-    assert np.all(B==expected)
+    assert np.all(B==expected.reshape(2,2,2))
 
     # Circular (I,Q,U,V)
     B = brightness(stokes, polarisation_type='circular')
     expected = np.asarray([[1+4, 2+3*1j, 2-3*1j, 1-4],
                             [5+8,6+7*1j,6-7*1j,5-8]])
-    assert np.all(B==expected)
+    assert np.all(B==expected.reshape(2,2,2))
 
     # Test correlation shape
-    B = brightness(stokes, polarisation_type='linear', corr_shape='matrix')
+    B = brightness(stokes, polarisation_type='linear', corr_shape='flat')
     expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
-                            [5+6,7+8*1j,7-8*1j,5-6]]).reshape(2,2,2)
+                            [5+6,7+8*1j,7-8*1j,5-6]]).reshape(2,4)
     assert np.all(B==expected)
 
 

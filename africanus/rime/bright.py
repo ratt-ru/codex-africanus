@@ -83,7 +83,7 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
         polarisation_type = 'linear'
 
     if corr_shape is None:
-        corr_shape = 'flat'
+        corr_shape = 'matrix'
 
     if npol == 1:
         brightness = stokes.astype(dtype)
