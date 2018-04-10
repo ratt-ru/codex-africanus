@@ -15,7 +15,7 @@ have_requirements = have_packages(*_package_requirements)
 
 if not have_requirements or on_rtd():
     def brightness(stokes, polarisation_type=None, corr_shape=None):
-        raise MissingPackageException(_*_package_requirements)
+        raise MissingPackageException(_ * _package_requirements)
 else:
     import dask.array as da
     import numpy as np
@@ -40,8 +40,8 @@ else:
 
         def _wrapper(stokes):
             return np_brightness(stokes[0],
-                                polarisation_type=polarisation_type,
-                                corr_shape=corr_shape)
+                                 polarisation_type=polarisation_type,
+                                 corr_shape=corr_shape)
 
         return da.core.atop(_wrapper, head_dims + corr_dims,
                             stokes, head_dims + ("pol",),

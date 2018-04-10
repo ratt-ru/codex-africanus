@@ -64,9 +64,8 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
     corr_shape : {'matrix', 'flat'}
         The shape of the resulting correlations in the last
         dimensions in the result.
-        If ``matrix``, the last two dimensions will be a square
-        matrix.
-        If ``flat``, they will be flattened.
+        If ``matrix``, the last two dimensions will be a matrix.
+        If ``flat``, the last dimension will equal ``pol``.
 
     Returns
     -------
@@ -96,8 +95,8 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
         elif npol == 4:
             brightness = np.empty_like(stokes, dtype=dtype)
             brightness[:, 0] = stokes[:, 0] + stokes[:, 1]     # I + Q
-            brightness[:, 1] = stokes[:, 2] + 1j*stokes[:, 3]  # U + Vi
-            brightness[:, 2] = stokes[:, 2] - 1j*stokes[:, 3]  # U - Vi
+            brightness[:, 1] = stokes[:, 2] + 1j * stokes[:, 3]  # U + Vi
+            brightness[:, 2] = stokes[:, 2] - 1j * stokes[:, 3]  # U - Vi
             brightness[:, 3] = stokes[:, 0] - stokes[:, 1]     # I - Q
         else:
             raise ValueError("npol not in (1, 2, 4)")
@@ -109,8 +108,8 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
         elif npol == 4:
             brightness = np.empty_like(stokes, dtype=dtype)
             brightness[:, 0] = stokes[:, 0] + stokes[:, 3]     # I + V
-            brightness[:, 1] = stokes[:, 1] + 1j*stokes[:, 2]  # Q + Ui
-            brightness[:, 2] = stokes[:, 1] - 1j*stokes[:, 2]  # Q - Ui
+            brightness[:, 1] = stokes[:, 1] + 1j * stokes[:, 2]  # Q + Ui
+            brightness[:, 2] = stokes[:, 1] - 1j * stokes[:, 2]  # Q - Ui
             brightness[:, 3] = stokes[:, 0] - stokes[:, 3]     # I - V
         else:
             raise ValueError("npol not in (1, 2, 4)")

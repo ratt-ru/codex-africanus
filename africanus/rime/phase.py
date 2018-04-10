@@ -27,11 +27,11 @@ def phase_delay(uvw, lm, frequency, dtype=None):
             for row in range(uvw.shape[0]):
                 u, v, w = uvw[row]
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = minus_two_pi_over_c*(l*u + m*v + n*w)
+                real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
                 for chan in range(frequency.shape[0]):
-                    p = real_phase*frequency[chan]
+                    p = real_phase * frequency[chan]
 
                     # Our phase input is purely imaginary
                     # so we can can elide a call to exp
