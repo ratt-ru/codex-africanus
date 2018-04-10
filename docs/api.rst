@@ -8,11 +8,13 @@ Numpy
 ~~~~~
 
 .. autofunction:: africanus.rime.phase_delay
+.. autofunction:: africanus.rime.brightness
 
 Dask
 ~~~~
 
 .. autofunction:: africanus.rime.dask.phase_delay
+.. autofunction:: africanus.rime.dask.brightness
 
 
 Simple Gridding
