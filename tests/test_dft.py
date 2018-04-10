@@ -14,7 +14,28 @@ def test_dft():
     lm = np.random.random(size=(10,2))
     frequency = np.linspace(.856e9, .856e9*2, 64, endpoint=True)
 
+    from africanus.constants import minus_two_pi_over_c
+
+    # Test complex phase at a particular index in the output
+    uvw_i, lm_i, freq_i = 2, 3, 5
+
+    u, v, w = [1,2,3]
+    l, m = [0.1, 0.2]
+    freq = 0.856e9
+
+    # Set up values in the input
+    uvw[uvw_i] = [u, v, w]
+    lm[lm_i] = [l, m]
+    frequency[freq_i] = freq
+
+    # Compute complex phase
     complex_phase = dft(uvw, lm, frequency)
+
+    # Test singular value vs a point in the output
+    n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+    phase = minus_two_pi_over_c*(u*l + v*m + w*n)*freq
+    assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
+
 
 from africanus.dft.dask import have_requirements
 
