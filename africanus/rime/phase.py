@@ -56,10 +56,10 @@ phase_delay_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        & {\Large e^{-2 \pi i (u l + v m + w n)} }
+        & {\\Large e^{-2 \\pi i (u l + v m + w n)} }
 
-        & \\textrm{where } n = \sqrt{1 - l^2 - m^2} - 1
-    """,
+        & \\textrm{where } n = \\sqrt{1 - l^2 - m^2} - 1
+    """,  # noqa
 
     parameters="""
     Parameters
