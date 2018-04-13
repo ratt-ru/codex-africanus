@@ -26,43 +26,20 @@ class FitsAxes(object):
         self._cunit = [header.get('CUNIT%d' % n, '').strip().upper()
                        for n in axr]
 
-    @property
-    def ndims(self):
-        return self._ndims
-
-    @property
-    def crpix(self):
-        return self._crpix
-
-    @property
-    def naxis(self):
-        return self._naxis
-
-    @property
-    def crval(self):
-        return self._crval
-
-    @property
-    def cdelt(self):
-        return self._cdelta
-
-    @property
-    def cunit(self):
-        return self._cunit
-
-    @property
-    def ctype(self):
-        return self._ctype
-
-
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
 
+    In general, FORTRAN ordered indices are
+    converted to C ordering
+    (CRPIX and the individual axis indices)
+
     Any degree axes are converted to radians and
     grids for each axis are created.
-    Inversions of the L, M, X and Y axes are supported
-    by a -L mechanism.
+
+    Inversions of the L, M, X and Y grids are supported
+    if a minus sign is detected before the CUNIT in
+    the FITS header.
     """
 
     def __init__(self, header=None):
@@ -82,7 +59,7 @@ class BeamAxes(FitsAxes):
         def _regular_grid(i):
             """ Construct a regular grid from a FitsAxes object and index """
             R = np.arange(0.0, float(self._naxis[i]))
-            return (R - self._crpix[i])*self._cdelt[i] + self.crval[i]
+            return (R - self._crpix[i])*self._cdelt[i] + self._crval[i]
 
         # Set up the grid
         self._grid = [_regular_grid(i) if not self._irreg[i]
@@ -143,16 +120,32 @@ class BeamAxes(FitsAxes):
 
 def beam_grids(header):
     """
+    Extracts the FITS indices and grids for the beam dimensions
+    in the supplied FITS ``header``.
+    Specifically the axes specified by
+
+    1. ``L`` or ``X`` CTYPE
+    2. ``M`` or ``Y`` CTYPE
+    3. ``FREQ`` CTYPE
+
+    If the first two axes have a negative sign, such as ``-L``, the grid
+    will be inverted.
+
+    Any grids corresponding to axes with a CUNIT type of ``DEG``
+    will be converted to radians.
+
     Parameters
     ----------
     header : :class:`~astropy.io.fits.Header` or dict
-        FITS header
+        FITS header object.
 
     Returns
     -------
     tuple
-        (l_grid, m_grid, freq_grid) of grid arrays
-
+        Returns
+        ((l_axis, l_grid), (m_axis, m_grid), (freq_axis, freq_grid))
+        where the axis is the FORTRAN indexed FITS axis (1-indexed)
+        and grid contains the values at each pixel along the axis.
     """
     beam_axes = BeamAxes(header)
 
@@ -250,8 +243,8 @@ def beam_filenames(filename_schema, polarisation_type):
     polarisation_type : {'linear', 'circular'}
         String defining the type of polarisation.
 
-    Return
-    ------
+    Returns
+    -------
     dict
         Dictionary of schema ``{correlation : (refile, imfile)}``
         mapping correlations to real and imaginary filename pairs

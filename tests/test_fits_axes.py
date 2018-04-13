@@ -79,19 +79,22 @@ def fits_header():
     }
 
 def test_fits_axes(fits_header):
-    from africanus.util import BeamAxes
+    from africanus.util.fits_axes import BeamAxes
 
     beam_axes = BeamAxes(fits_header)
 
     # L axis converted to radian
-    assert beam_axes.ctype[0] == 'L'
+    assert beam_axes.ctype[0] == fits_header['CTYPE1'].strip() == 'L'
+    assert fits_header['CUNIT1'].strip() == 'DEG'
     assert beam_axes.cunit[0] == 'RAD'
     assert beam_axes.crval[0] == np.deg2rad(fits_header['CRVAL1'])
     assert beam_axes.cdelt[0] == np.deg2rad(fits_header['CDELT1'])
     assert beam_axes.sign[0] == 1.0
 
     # M axis converted to radian and sign flipped
+    assert fits_header['CTYPE2'].strip() == '-M'
     assert beam_axes.ctype[1] == 'M'
+    assert fits_header['CUNIT2'].strip() == 'DEG'
     assert beam_axes.cunit[1] == 'RAD'
     assert beam_axes.crval[1] == np.deg2rad(fits_header['CRVAL2'])
     assert beam_axes.cdelt[1] == np.deg2rad(fits_header['CDELT2'])
@@ -99,13 +102,62 @@ def test_fits_axes(fits_header):
 
     # GFREQS used for the frequency grid
     gfreqs = [fits_header.get('GFREQ%d'%(i+1)) for i
-                in range(fits_header['NAXIS3'])]
+                        in range(fits_header['NAXIS3'])]
 
     assert np.allclose(beam_axes.grid[2], np.asarray(gfreqs))
 
+    # Now remove a GFREQ, forcing usage of the regular frequency grid
+    fits_header = fits_header.copy()
+    del fits_header['GFREQ30']
+
+    beam_axes = BeamAxes(fits_header)
+
+    R = np.arange(beam_axes.naxis[2])
+    g = (R - beam_axes.crpix[2])*beam_axes.cdelt[2] + beam_axes.crval[2]
+
+    assert np.all(g == beam_axes.grid[2])
+
+def test_beam_grids(fits_header):
+    from africanus.util.fits_axes import beam_grids
+
+    hdr = fits_header
+
+    # Extract l, m and frequency axes and grids
+    (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header)
+
+    # Check expected L
+    crval = hdr['CRVAL%d' % l]
+    cdelt = hdr['CDELT%d' % l]
+    crpix = hdr['CRPIX%d' % l] - 1  # C-indexing
+    R = np.arange(0.0, float(hdr['NAXIS%d'%l]))
+
+    exp_l = (R - crpix)*cdelt + crval
+    exp_l = np.deg2rad(exp_l)
+
+    assert np.allclose(exp_l, l_grid)
+
+    crval = hdr['CRVAL%d' % m]
+    cdelt = hdr['CDELT%d' % m]
+    crpix = hdr['CRPIX%d' % m] - 1  # C-indexing
+    R = np.arange(0.0, float(hdr['NAXIS%d'%m]))
+
+    # Check expected M. It's -M in the FITS header
+    # so there's a flip in direction here
+    exp_m = (R - crpix)*cdelt + crval
+    exp_m = np.deg2rad(exp_m)
+    exp_m = np.flipud(exp_m)
+
+    assert np.allclose(exp_m, m_grid)
+
+    # GFREQS used for the frequency grid
+    gfreqs = [fits_header.get('GFREQ%d'%(i+1)) for i
+                in range(fits_header['NAXIS3'])]
+
+    assert np.allclose(freq_grid, gfreqs)
+
 
 def test_beam_filenames():
-    from africanus.util import beam_filenames
+    from africanus.util.fits_axes import beam_filenames
 
     assert beam_filenames("beam_$(corr)_$(reim).fits", "linear") == {
         'xx': ('beam_xx_re.fits', 'beam_xx_im.fits'),

@@ -23,8 +23,10 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
     Both real and imaginary beam values are sampled at
     the given coordinates and normalised to form a
     `mean of circular quantities
-    <https://en.wikipedia.org/wiki/Mean_of_circular_quantities>`_
-    .
+    <https://en.wikipedia.org/wiki/Mean_of_circular_quantities>`_.
+
+    ``l_grid``, ``m_grid`` and ``freq_grid`` can be obtained from
+    :func:`~africanus.util.fits_axes.beam_grids`.
 
     Parameters
     ----------

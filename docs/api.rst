@@ -49,3 +49,9 @@ Deconvolution Algorithms
 ------------------------
 
 .. autofunction:: africanus.deconv.hogbom.hogbom_clean
+
+Utilities
+---------
+
+.. autofunction:: africanus.util.fits_axes.beam_filenames
+.. autofunction:: africanus.util.fits_axes.beam_grids
