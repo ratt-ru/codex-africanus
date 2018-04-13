@@ -26,6 +26,7 @@ class FitsAxes(object):
         self._cunit = [header.get('CUNIT%d' % n, '').strip().upper()
                        for n in axr]
 
+
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
