@@ -5,24 +5,26 @@ import re
 import numpy as np
 from six.moves import range
 
+
 class FitsAxes(object):
     """
     FitsAxes object, inspired by Tigger's FITSAxes
     """
+
     def __init__(self, header=None):
         # Create an zero-dimensional object if no header supplied
         self._ndims = ndims = 0 if header is None else header['NAXIS']
 
         # Extract header information for each dimension
         axr = list(range(1, ndims+1))
-        self._naxis = [header.get('NAXIS%d'%n)            for n in axr]
-        self._ctype = [header.get('CTYPE%d'%n, n).strip() for n in axr]
-        self._crval = [header.get('CRVAL%d'%n, 0)         for n in axr]
+        self._naxis = [header.get('NAXIS%d' % n) for n in axr]
+        self._ctype = [header.get('CTYPE%d' % n, n).strip() for n in axr]
+        self._crval = [header.get('CRVAL%d' % n, 0) for n in axr]
         # Convert right pixel from FORTRAN to C indexing
-        self._crpix = [header['CRPIX%d'%n]-1              for n in axr]
-        self._cdelt = [header.get('CDELT%d'%n, 1)         for n in axr]
-        self._cunit = [header.get('CUNIT%d'%n, '').strip().upper()
-                                                          for n in axr]
+        self._crpix = [header['CRPIX%d' % n]-1 for n in axr]
+        self._cdelt = [header.get('CDELT%d' % n, 1) for n in axr]
+        self._cunit = [header.get('CUNIT%d' % n, '').strip().upper()
+                       for n in axr]
 
     @property
     def ndims(self):
@@ -52,6 +54,7 @@ class FitsAxes(object):
     def ctype(self):
         return self._ctype
 
+
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
@@ -61,19 +64,20 @@ class BeamAxes(FitsAxes):
     Inversions of the L, M, X and Y axes are supported
     by a -L mechanism.
     """
+
     def __init__(self, header=None):
         super(BeamAxes, self).__init__(header)
 
         # Check for custom irregular grid format.
         # Currently only implemented for FREQ dimension.
         irregular_grid = np.asarray([
-                            [header.get('G%s%d' % (self._ctype[i], j), None)
-                                    for j in range(1, self._naxis[i]+1)]
-                                    for i in range(self._ndims)])
+            [header.get('G%s%d' % (self._ctype[i], j), None)
+             for j in range(1, self._naxis[i]+1)]
+            for i in range(self._ndims)])
 
         # Irregular grids are only valid if values exist for all grid points
         self._irreg = [all(x is not None for x in irregular_grid[i])
-                            for i in range(self._ndims)]
+                       for i in range(self._ndims)]
 
         def _regular_grid(i):
             """ Construct a regular grid from a FitsAxes object and index """
@@ -82,8 +86,8 @@ class BeamAxes(FitsAxes):
 
         # Set up the grid
         self._grid = [_regular_grid(i) if not self._irreg[i]
-                                        else np.asarray(irregular_grid[i])
-                                        for i in range(self._ndims)]
+                      else np.asarray(irregular_grid[i])
+                      for i in range(self._ndims)]
 
         self._sign = [1.0]*self._ndims
 
@@ -136,6 +140,7 @@ class BeamAxes(FitsAxes):
     def sign(self):
         return self._sign
 
+
 def beam_grids(header):
     """
     Parameters
@@ -185,7 +190,8 @@ def beam_grids(header):
     l_grid = np.flipud(l_grid) if l_sign == -1.0 else l_grid
     m_grid = np.flipud(m_grid) if m_sign == -1.0 else m_grid
 
-    return ((l+1,l_grid), (m+1,m_grid), (freq+1,freq_grid))
+    return ((l+1, l_grid), (m+1, m_grid), (freq+1, freq_grid))
+
 
 class FitsFilenameTemplate(string.Template):
     """
@@ -200,12 +206,14 @@ class FitsFilenameTemplate(string.Template):
       \((?P<braced>%(id)s)\)   |   # delimiter and a braced identifier
       (?P<invalid>)                # Other ill-formed delimiter exprs
     )
-    """ % { 'delim' : re.escape(string.Template.delimiter),
-        'id' : string.Template.idpattern }
+    """ % {'delim': re.escape(string.Template.delimiter),
+           'id': string.Template.idpattern}
+
 
 CIRCULAR_CORRELATIONS = ('rr', 'rl', 'lr', 'll')
 LINEAR_CORRELATIONS = ('xx', 'xy', 'yx', 'yy')
 REIM = ('re', 'im')
+
 
 def beam_filenames(filename_schema, polarisation_type):
     """
@@ -256,13 +264,13 @@ def beam_filenames(filename_schema, polarisation_type):
             return tuple(template.substitute(
                 corr=corr.lower(), CORR=corr.upper(),
                 reim=ri.lower(), REIM=ri.upper())
-                    for ri in REIM)
+                for ri in REIM)
         except KeyError:
             raise ValueError("Invalid filename schema '%s'. "
-                            "FITS Beam filename schemas "
-                            "must follow forms such as "
-                            "'beam_$(corr)_$(reim).fits' or "
-                            "'beam_$(CORR)_$(REIM).fits." % filename_schema)
+                             "FITS Beam filename schemas "
+                             "must follow forms such as "
+                             "'beam_$(corr)_$(reim).fits' or "
+                             "'beam_$(CORR)_$(REIM).fits." % filename_schema)
 
     if polarisation_type == 'linear':
         CORRELATIONS = LINEAR_CORRELATIONS
@@ -270,7 +278,7 @@ def beam_filenames(filename_schema, polarisation_type):
         CORRELATIONS = CIRCULAR_CORRELATIONS
     else:
         raise ValueError("Invalid polarisation_type '{}'. "
-            "Should be 'linear' or 'circular'")
+                         "Should be 'linear' or 'circular'")
 
     return OrderedDict((c, _re_im_filenames(c, template))
-                                    for c in CORRELATIONS)
+                       for c in CORRELATIONS)

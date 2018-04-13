@@ -215,7 +215,7 @@ def restore(clean, psf, residuals):
     logging.info("Convolving")
 
     # cval=0.0) #Fast using fft
-    iconv_model = scipy.signal.fftconvolve(clean, clean_beam,  mode='same')
+    iconv_model = scipy.signal.fftconvolve(clean, clean_beam, mode='same')
 
     logging.info("Convolving done")
 

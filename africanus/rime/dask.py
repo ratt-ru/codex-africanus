@@ -28,7 +28,7 @@ if not have_requirements or on_rtd():
         raise MissingPackageException(*_package_requirements)
 
     def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
-                    spline_order=1, mode='nearest'):
+                      spline_order=1, mode='nearest'):
         raise MissingPackageException(*_package_requirements)
 
 else:
@@ -105,31 +105,30 @@ else:
                             dtype_=dtype)
 
     def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
-                    spline_order=1, mode='nearest'):
+                      spline_order=1, mode='nearest'):
 
         def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
-                    spline_order=1, mode='nearest'):
+                     spline_order=1, mode='nearest'):
             return np_beam_cude_dde(beam[0][0][0], coords[0],
-                                l_grid[0], m_grid[0], freq_grid[0],
-                                spline_order=spline_order, mode=mode)
+                                    l_grid[0], m_grid[0], freq_grid[0],
+                                    spline_order=spline_order, mode=mode)
 
         coord_shapes = coords.shape[1:]
         corr_shapes = beam.shape[3:]
-        corr_dims = tuple("corr-%d"%i for i in range(len(corr_shapes)))
-        coord_dims = tuple("coord-%d"%i for i in range(len(coord_shapes)))
+        corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
+        coord_dims = tuple("coord-%d" % i for i in range(len(coord_shapes)))
 
         beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
 
         return da.core.atop(_wrapper, coord_dims + corr_dims,
-                        beam, beam_dims,
-                        coords, ("coords",) + coord_dims,
-                        l_grid, ("beam_lw",),
-                        m_grid, ("beam_mh",),
-                        freq_grid, ("beam_nud",),
-                        #concatenate=True,
-                        spline_order=spline_order,
-                        mode=mode,
-                        dtype=beam.dtype)
+                            beam, beam_dims,
+                            coords, ("coords",) + coord_dims,
+                            l_grid, ("beam_lw",),
+                            m_grid, ("beam_mh",),
+                            freq_grid, ("beam_nud",),
+                            spline_order=spline_order,
+                            mode=mode,
+                            dtype=beam.dtype)
 
 phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
                                        [(":class:`numpy.ndarray`",
@@ -144,6 +143,5 @@ transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
                                        ":class:`dask.array.Array`")])
 
 beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
-                                     [(":class:`numpy.ndarray`",
-                                       ":class:`dask.array.Array`")])
-
+                                 [(":class:`numpy.ndarray`",
+                                   ":class:`dask.array.Array`")])

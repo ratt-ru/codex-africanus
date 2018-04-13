@@ -98,9 +98,9 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                                     assume_sorted=m_inc)
 
     freq_interp = interpolate.interp1d(freq_grid, np.arange(freq_grid.size),
-                                    'linear', bounds_error=False,
-                                    fill_value='extrapolate',
-                                     assume_sorted=True)
+                                       'linear', bounds_error=False,
+                                       fill_value='extrapolate',
+                                       assume_sorted=True)
 
     head, tail = coords.shape[0], coords.shape[1:]
 
