@@ -35,7 +35,9 @@ class Mock(MagicMock):
             obj.__doc__ = "doc"
             return obj
 
-MOCK_MODULES = ['numba', 'numpy', 'scipy', 'scipy.signal']
+MOCK_MODULES = ['numba', 'numpy',
+                'scipy', 'scipy.signal', 'scipy.ndimage'
+                ]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 import sphinx_rtd_theme

@@ -9,12 +9,16 @@ Numpy
 
 .. autofunction:: africanus.rime.phase_delay
 .. autofunction:: africanus.rime.brightness
+.. autofunction:: africanus.rime.transform_sources
+.. autofunction:: africanus.rime.beam_cube_dde
 
 Dask
 ~~~~
 
 .. autofunction:: africanus.rime.dask.phase_delay
 .. autofunction:: africanus.rime.dask.brightness
+.. autofunction:: africanus.rime.dask.transform_sources
+.. autofunction:: africanus.rime.dask.beam_cube_dde
 
 
 Simple Gridding

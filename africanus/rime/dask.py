@@ -7,6 +7,8 @@ from __future__ import print_function
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
 from .bright import brightness as np_brightness, bright_corr_shape
+from .transform import transform_sources as np_transform_sources
+from .beam_cubes import beam_cube_dde as np_beam_cude_dde
 
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
@@ -20,6 +22,15 @@ if not have_requirements or on_rtd():
 
     def brightness(stokes, polarisation_type=None, corr_shape=None):
         raise MissingPackageException(*_package_requirements)
+
+    def transform_sources(lm, parallactic_angles, pointing_errors,
+                          antenna_scaling, dtype=None):
+        raise MissingPackageException(*_package_requirements)
+
+    def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
+                    spline_order=1, mode='nearest'):
+        raise MissingPackageException(*_package_requirements)
+
 else:
     import numpy as np
     import dask.array as da
@@ -71,6 +82,55 @@ else:
                             dtype=np.complex64 if stokes.dtype == np.float32
                             else np.complex128)
 
+    def transform_sources(lm, parallactic_angles, pointing_errors,
+                          antenna_scaling, frequency, dtype=None):
+
+        def _wrapper(lm, parallactic_angles, pointing_errors,
+                     antenna_scaling, frequency, dtype_):
+            return np_transform_sources(lm[0], parallactic_angles,
+                                        pointing_errors[0], antenna_scaling,
+                                        frequency, dtype=dtype_)
+
+        if dtype is None:
+            dtype = np.float64
+
+        return da.core.atop(_wrapper, ("comp", "src", "time", "ant", "chan"),
+                            lm, ("src", "lm"),
+                            parallactic_angles, ("time", "ant"),
+                            pointing_errors, ("time", "ant", "lm"),
+                            antenna_scaling, ("ant", "chan"),
+                            frequency, ("chan",),
+                            new_axes={"comp": 3},
+                            dtype=dtype,
+                            dtype_=dtype)
+
+    def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
+                    spline_order=1, mode='nearest'):
+
+        def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
+                    spline_order=1, mode='nearest'):
+            return np_beam_cude_dde(beam[0][0][0], coords[0],
+                                l_grid[0], m_grid[0], freq_grid[0],
+                                spline_order=spline_order, mode=mode)
+
+        coord_shapes = coords.shape[1:]
+        corr_shapes = beam.shape[3:]
+        corr_dims = tuple("corr-%d"%i for i in range(len(corr_shapes)))
+        coord_dims = tuple("coord-%d"%i for i in range(len(coord_shapes)))
+
+        beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
+
+        return da.core.atop(_wrapper, coord_dims + corr_dims,
+                        beam, beam_dims,
+                        coords, ("coords",) + coord_dims,
+                        l_grid, ("beam_lw",),
+                        m_grid, ("beam_mh",),
+                        freq_grid, ("beam_nud",),
+                        #concatenate=True,
+                        spline_order=spline_order,
+                        mode=mode,
+                        dtype=beam.dtype)
+
 phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
                                        [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`")])
@@ -78,3 +138,12 @@ phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
 brightness.__doc__ = mod_docs(np_brightness.__doc__,
                               [(":class:`numpy.ndarray`",
                                 ":class:`dask.array.Array`")])
+
+transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
+                                     [(":class:`numpy.ndarray`",
+                                       ":class:`dask.array.Array`")])
+
+beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
+                                     [(":class:`numpy.ndarray`",
+                                       ":class:`dask.array.Array`")])
+
