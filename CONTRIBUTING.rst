@@ -68,7 +68,7 @@ Ready to contribute? Here's how to set up `codex-africanus` for local developmen
 
     $ mkvirtualenv codex-africanus
     $ cd codex-africanus/
-    $ python setup.py develop
+    $ pip install -e .
 
 4. Create a branch for local development::
 
@@ -76,14 +76,15 @@ Ready to contribute? Here's how to set up `codex-africanus` for local developmen
 
    Now you can make your changes locally.
 
-5. When you're done making changes, check that your changes pass flake8 and the
-   tests, including testing other Python versions with tox::
+5. When you're done making changes, check that your changes
+   pass the test cases, fixup your PEP8 compliance,
+   and check for any code style issues:
 
-    $ flake8 codex-africanus tests
-    $ python setup.py test or py.test
-    $ tox
+    $ py.test -v africanus
+    $ autopep8 -r -i africanus
+    $ pycodestyle africanus
 
-   To get flake8 and tox, just pip install them into your virtualenv.
+   To get autopep8 and pycodestyle, just pip install them into your virtualenv.
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -101,8 +102,8 @@ Before you submit a pull request, check that it meets these guidelines:
 1. The pull request should include tests.
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
-   feature to the list in README.rst.
-3. The pull request should work for Python 2.7, 3.4, 3.5 and 3.6, and for PyPy. Check
+   feature to the list in HISTORY.rst.
+3. The pull request should work for Python 2.7, 3.5 and 3.6. Check
    https://travis-ci.org/ska-sa/codex-africanus/pull_requests
    and make sure that the tests pass for all supported Python versions.
 
