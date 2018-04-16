@@ -97,6 +97,13 @@ def grid(vis, uvw, flags, weights, ref_wave,
     ``ref_wave`` reference wavelengths using
     the specified ``convolution_filter``.
 
+    Variable numbers of correlations are supported.
+
+    * :code:`(row, chan, corr_1, corr_2)` ``vis`` will result in a
+      :code:`(ny, nx, corr_1, corr_2)` ``grid``.
+    * :code:`(row, chan, corr_1)` ``vis`` will result in a
+      :code:`(ny, nx, corr_1)` ``grid``.
+
     Parameters
     ----------
     vis : np.ndarray
@@ -110,7 +117,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
         flagged array of shape :code:`(row, chan, corr_1, corr_2)`.
         Any positive quantity will indicate that the corresponding
         visibility should be flagged.
-        Set to ``np.zero_like(vis, dtype=np.bool)`` as default.
+        Set to ``np.zeros_like(vis, dtype=np.bool)`` as default.
     ref_wave : np.ndarray
         float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
@@ -128,7 +135,9 @@ def grid(vis, uvw, flags, weights, ref_wave,
     Returns
     -------
     np.ndarray
-        :code:`(ny, nx, corr_1, corr_2)` complex ndarray of gridded visibilities
+        :code:`(ny, nx, corr_1, corr_2)` complex ndarray of
+        gridded visibilities. The number of correlations may vary,
+        depending on the shape of vis.
     """
 
     # Flatten the correlation dimensions
@@ -148,6 +157,14 @@ def grid(vis, uvw, flags, weights, ref_wave,
 def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
     Convolutional degridder (continuum)
+
+    Variable numbers of correlations are supported.
+
+    * :code:`(ny, nx, corr_1, corr_2)` ``grid`` will result in a
+      :code:`(row, chan, corr_1, corr_2)` ``vis``
+
+    * :code:`(ny, nx, corr_1)` ``grid`` will result in a
+      :code:`(row, chan, corr_1)` ``vis``
 
     Parameters
     ----------
