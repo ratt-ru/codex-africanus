@@ -191,8 +191,8 @@ def test_beam_filenames():
 
 def test_inverse_interp():
     """
-    Tests that interp1d handles monotically increasing and
-    decreasing ranges the same
+    Tests that interp1d handles monotically increasing
+    and decreasing correctly
     """
 
     try:
