@@ -33,20 +33,20 @@ else:
         # for atop to work properly
         def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter):
             return np_grid_fn(vis[0], uvw[0], flags[0], weights[0],
-                                ref_wave[0], convolution_filter,
-                                nx=nx, ny=ny)[None,:]
+                              ref_wave[0], convolution_filter,
+                              nx=nx, ny=ny)[None, :]
 
         # Get grids, stacked by row
         grids = da.core.atop(_grid_fn, ("row", "ny", "nx") + corrs,
-                            vis, ("row", "chan") + corrs,
-                            uvw, ("row", "(u,v,w)"),
-                            flags, ("row", "chan") + corrs,
-                            weights, ("row", "chan") + corrs,
-                            ref_wave, ("chan",),
-                            new_axes={"ny": ny, "nx": nx},
-                            adjust_chunks={"row": 1},
-                            convolution_filter=convolution_filter,
-                            dtype=np.complex64)
+                             vis, ("row", "chan") + corrs,
+                             uvw, ("row", "(u,v,w)"),
+                             flags, ("row", "chan") + corrs,
+                             weights, ("row", "chan") + corrs,
+                             ref_wave, ("chan",),
+                             new_axes={"ny": ny, "nx": nx},
+                             adjust_chunks={"row": 1},
+                             convolution_filter=convolution_filter,
+                             dtype=np.complex64)
 
         # Sum grids over the row dimension to produce (ny, nx, corr_1, corr_2)
         return grids.sum(axis=0)
@@ -67,16 +67,13 @@ else:
                             dtype=np.complex64)
 
 grid.__doc__ = mod_docs(np_grid_fn.__doc__,
-                          [(":class:`numpy.ndarray`",
+                        [(":class:`numpy.ndarray`",
                             ":class:`dask.array.Array`"),
-                           ("np.ones_like", "da.ones_like"),
-                           ("np.zeros_like", "da.zeros_like")])
+                         ("np.ones_like", "da.ones_like"),
+                         ("np.zeros_like", "da.zeros_like")])
 
 degrid.__doc__ = mod_docs(np_degrid_fn.__doc__,
                           [(":class:`numpy.ndarray`",
                             ":class:`dask.array.Array`"),
                            ("np.ones_like", "da.ones_like"),
                            ("np.zeros_like", "da.zeros_like")])
-
-
-

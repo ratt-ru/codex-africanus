@@ -29,9 +29,9 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
     flat_corrs = grid.shape[2]
 
     # Flatten correlation dimension for easier loop handling
-    fvis = vis.reshape((nrow,nchan,flat_corrs))
-    fflags = flags.reshape((nrow,nchan,flat_corrs))
-    fweights = weights.reshape((nrow,nchan,flat_corrs))
+    fvis = vis.reshape((nrow, nchan, flat_corrs))
+    fflags = flags.reshape((nrow, nchan, flat_corrs))
+    fweights = weights.reshape((nrow, nchan, flat_corrs))
 
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
@@ -154,6 +154,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
     return _nb_grid(vis, uvw, flags, weights, ref_wave,
                     convolution_filter, grid)
 
+
 def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
     Convolutional degridder (continuum)
@@ -197,7 +198,6 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
     for corr in corrs:
         flat_corrs *= corr
-
 
     vis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
     grid = grid.reshape((ny, nx, flat_corrs))
