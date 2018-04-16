@@ -26,7 +26,7 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
     <https://en.wikipedia.org/wiki/Mean_of_circular_quantities>`_.
 
     ``l_grid``, ``m_grid`` and ``freq_grid`` can be obtained from
-    :func:`~africanus.util.fits_axes.beam_grids`.
+    :func:`~africanus.util.beams.beam_grids`.
 
     Parameters
     ----------
@@ -86,8 +86,18 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
     if not freq_inc:
         raise ValueError("freq_grid is not monotonically increasing")
 
-    l_sign = 1 if l_grid[0] < l_grid[-1] else -1
-    m_sign = 1 if m_grid[0] < m_grid[-1] else -1
+    # interp1d works on monotically increasing/decreasing values
+    #
+    # .. code-block:: python
+    #
+    #    values = np.asarray([1.0, 0.7, 0.2, 0.0, -0.4, -1.0])
+    #    values = np.flipud(values)
+    #    grid = np.arange(values.size)
+    #
+    #    initial = np.stack((values, grid))
+    #    interp = interp1d(values, grid, bounds_error=False,
+    #                                    fill_value='extrapolate')
+    #    assert np.all(initial == np.stack((values,interp(values))))
 
     l_interp = interpolate.interp1d(l_grid, np.arange(l_grid.size),
                                     'linear', bounds_error=False,
@@ -134,8 +144,8 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
     # Convert to grid coordinates
     grid_coords = np.empty_like(coords)
-    grid_coords[0, :] = l_interp(coords[0, :])*l_sign
-    grid_coords[1, :] = m_interp(coords[1, :])*m_sign
+    grid_coords[0, :] = l_interp(coords[0, :])
+    grid_coords[1, :] = m_interp(coords[1, :])
     grid_coords[2, :] = freq_interp(coords[2, :])
 
     # Create beam and result indices

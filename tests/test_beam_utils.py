@@ -79,7 +79,7 @@ def fits_header():
     }
 
 def test_fits_axes(fits_header):
-    from africanus.util.fits_axes import BeamAxes
+    from africanus.util.beams import BeamAxes
 
     beam_axes = BeamAxes(fits_header)
 
@@ -118,7 +118,7 @@ def test_fits_axes(fits_header):
     assert np.all(g == beam_axes.grid[2])
 
 def test_beam_grids(fits_header):
-    from africanus.util.fits_axes import beam_grids
+    from africanus.util.beams import beam_grids
 
     hdr = fits_header
 
@@ -157,7 +157,7 @@ def test_beam_grids(fits_header):
 
 
 def test_beam_filenames():
-    from africanus.util.fits_axes import beam_filenames
+    from africanus.util.beams import beam_filenames
 
     assert beam_filenames("beam_$(corr)_$(reim).fits", "linear") == {
         'xx': ('beam_xx_re.fits', 'beam_xx_im.fits'),
@@ -186,3 +186,34 @@ def test_beam_filenames():
         'yx': ('beam_yx_RE.fits', 'beam_yx_IM.fits'),
         'yy': ('beam_yy_RE.fits', 'beam_yy_IM.fits')
     }
+
+
+
+def test_inverse_interp():
+    """
+    Tests that interp1d handles monotically increasing and
+    decreasing ranges the same
+    """
+
+    try:
+        from scipy.interpolate import interp1d
+    except ImportError:
+        pytest.skip("scipy not installed")
+
+    # Monotically decreasing
+    values = np.asarray([1.0, 0.7, 0.2, 0.0, -0.4, -1.0])
+    assert np.all(np.diff(values) < 0)
+    grid = np.arange(values.size)
+
+    initial = np.stack((values, grid))
+    interp = interp1d(values, grid, bounds_error=False,
+                                   fill_value='extrapolate')
+    assert np.all(initial == np.stack((values,interp(values))))
+
+    # Monotonically increasing
+    values = np.flipud(values)
+    assert np.all(np.diff(values) > 0)
+    initial = np.stack((values, grid))
+    interp = interp1d(values, grid, bounds_error=False,
+                                   fill_value='extrapolate')
+    assert np.all(initial == np.stack((values,interp(values))))

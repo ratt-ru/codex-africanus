@@ -53,5 +53,5 @@ Deconvolution Algorithms
 Utilities
 ---------
 
-.. autofunction:: africanus.util.fits_axes.beam_filenames
-.. autofunction:: africanus.util.fits_axes.beam_grids
+.. autofunction:: africanus.util.beams.beam_filenames
+.. autofunction:: africanus.util.beams.beam_grids
