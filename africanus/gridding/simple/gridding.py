@@ -4,6 +4,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from operator import mul
+
+try:
+    # in python3, reduce is in functools
+    from functools import reduce
+except ImportError:
+    # I guess this is python2
+    pass
+
 import numba
 import numpy as np
 
@@ -19,9 +28,18 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
     """
     cf = convolution_filter
 
-    ny, nx = grid.shape[1:]
+    nrow, nchan = vis.shape[0:2]
+    assert nchan == ref_wave.shape[0]
+    corrs = vis.shape[2:]
 
-    assert vis.shape[1] == ref_wave.shape[0]
+    ny, nx = grid.shape[0:2]
+    flat_corrs = grid.shape[2]
+
+    # Flatten correlation dimension for easier loop handling
+    fvis = vis.reshape((nrow, nchan, flat_corrs))
+    fflags = flags.reshape((nrow, nchan, flat_corrs))
+    fweights = weights.reshape((nrow, nchan, flat_corrs))
+
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
     for r in range(uvw.shape[0]):                 # row (vis)
@@ -63,17 +81,17 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
                     conv_weight = v_tap*u_tap
                     grid_u = disc_u + conv_u + nx // 2
 
-                    for c in range(vis.shape[2]):      # correlation
+                    for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
-                        if flags[r, f, c] > 0:
+                        if fflags[r, f, c] > 0:
                             continue
 
                         # Grid the visibility
-                        grid[c, grid_v, grid_u] += (vis[r, f, c] *
+                        grid[grid_v, grid_u, c] += (fvis[r, f, c] *
                                                     conv_weight *
-                                                    weights[r, f, c])
+                                                    fweights[r, f, c])
 
-    return grid
+    return grid.reshape((ny, nx) + corrs)
 
 
 def grid(vis, uvw, flags, weights, ref_wave,
@@ -86,22 +104,29 @@ def grid(vis, uvw, flags, weights, ref_wave,
     ``ref_wave`` reference wavelengths using
     the specified ``convolution_filter``.
 
+    Variable numbers of correlations are supported.
+
+    * :code:`(row, chan, corr_1, corr_2)` ``vis`` will result in a
+      :code:`(ny, nx, corr_1, corr_2)` ``grid``.
+    * :code:`(row, chan, corr_1)` ``vis`` will result in a
+      :code:`(ny, nx, corr_1)` ``grid``.
+
     Parameters
     ----------
     vis : np.ndarray
-        complex64 visibility array of shape (row, chan, corr)
+        complex visibility array of shape :code:`(row, chan, corr_1, corr_2)`
     uvw : np.ndarray
-        float64 array of UVW coordinates of shape (row, 3)
+        float64 array of UVW coordinates of shape :code:`(row, 3)`
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
     flags : np.ndarray
-        flagged array of shape (row, chan, corr).
+        flagged array of shape :code:`(row, chan, corr_1, corr_2)`.
         Any positive quantity will indicate that the corresponding
         visibility should be flagged.
-        Set to ``np.zero_like(vis, dtype=np.bool)`` as default.
+        Set to ``np.zeros_like(vis, dtype=np.bool)`` as default.
     ref_wave : np.ndarray
-        float64 array of wavelengths of shape (chan,)
+        float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution filter
     nx : integer, optional
@@ -109,7 +134,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
     ny : integer, optional
         Size of the grid's Y dimension
     grid : np.ndarray, optional
-        complex64/complex128 array of shape (corr, ny, nx)
+        complex64/complex128 array of shape :code:`(ny, nx, corr_1, corr_2)`
         If supplied, this array will be used as the gridding target,
         and ``nx`` and ``ny`` will be derived from this grid's
         dimensions.
@@ -117,11 +142,21 @@ def grid(vis, uvw, flags, weights, ref_wave,
     Returns
     -------
     np.ndarray
-        (corr, ny, nx) complex64 ndarray of gridded visibilities
+        :code:`(ny, nx, corr_1, corr_2)` complex ndarray of
+        gridded visibilities. The number of correlations may vary,
+        depending on the shape of vis.
     """
 
+    # Flatten the correlation dimensions
+    corrs = vis.shape[2:]
+    flat_corrs = (reduce(mul, corrs),)
+
+    # Create grid of flatten correlations or reshape
     if grid is None:
-        grid = np.zeros((vis.shape[2], ny, nx), dtype=np.complex64)
+        grid = np.zeros((ny, nx) + flat_corrs, dtype=vis.dtype)
+    else:
+        ny, nx = grid.shape[0:2]
+        grid = grid.reshape((ny, nx) + flat_corrs)
 
     return _nb_grid(vis, uvw, flags, weights, ref_wave,
                     convolution_filter, grid)
@@ -131,32 +166,49 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
     Convolutional degridder (continuum)
 
+    Variable numbers of correlations are supported.
+
+    * :code:`(ny, nx, corr_1, corr_2)` ``grid`` will result in a
+      :code:`(row, chan, corr_1, corr_2)` ``vis``
+
+    * :code:`(ny, nx, corr_1)` ``grid`` will result in a
+      :code:`(row, chan, corr_1)` ``vis``
+
     Parameters
     ----------
     grid : np.ndarray
         float or complex grid of visibilities
-        of shape (corr, ny, nx)
+        of shape :code:`(ny, nx, corr_1, corr_2)`
     uvw : np.ndarray
-        float64 array of UVW coordinates of shape (row, 3)
+        float64 array of UVW coordinates of shape :code:`(row, 3)`
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
     ref_wave : np.ndarray
-        float64 array of wavelengths of shape (chan,)
+        float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution Filter
 
     Returns
     -------
     np.ndarray
-        (row, chan, corr) complex64 ndarray of visibilities
+        :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
     """
     cf = convolution_filter
-    ncorr, nx, ny = grid.shape
+
+    ny, nx = grid.shape[0:2]
+    corrs = grid.shape[2:]
     nchan = ref_wave.shape[0]
     nrow = uvw.shape[0]
 
-    vis = np.zeros((nrow, nchan, ncorr), dtype=np.complex64)
+    flat_corrs = 1
+
+    for corr in corrs:
+        flat_corrs *= corr
+
+    vis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
+    grid = grid.reshape((ny, nx, flat_corrs))
+    weights = weights.reshape((nrow, nchan, flat_corrs))
 
     assert vis.shape[1] == ref_wave.shape[0]
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
@@ -200,12 +252,12 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
                     grid_u = disc_u + conv_u + nx // 2
 
                     # Correlation
-                    for c in range(vis.shape[2]):
-                        vis[r, f, c] += (grid[c, grid_v, grid_u] *
+                    for c in range(flat_corrs):
+                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
                                          conv_weight *
                                          weights[r, f, c])
 
-    return vis
+    return vis.reshape((nrow, nchan) + corrs)
 
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
@@ -213,5 +265,6 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
 if not on_rtd():
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
+    # degrid = _degrid
 else:
     degrid = _degrid
