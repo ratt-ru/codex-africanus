@@ -1,12 +1,26 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+
 from ..util.requirements import have_packages, MissingPackageException
+
+_discovered_backends = []
+_standard_backends = ['casa', 'astropy']
 
 _casa_requirements = ('pyrap.measures', 'pyrap.quanta')
 have_casa_requirements = have_packages(*_casa_requirements)
 
 if not have_casa_requirements:
-    def casa_parallactic_angles(times, antenna_positions, field_centre):
+    def casa_parallactic_angles(times, antenna_positions, field_centre,
+                                antenna_frame):
         raise MissingPackageException(*_casa_requirements)
 else:
+    _discovered_backends.append('casa')
+
     import pyrap.measures
     import pyrap.quanta as pq
 
@@ -44,14 +58,16 @@ else:
             ]
             for t in times])
 
-
 _astropy_requirements = ('astropy',)
 have_astropy_requirements = have_packages(*_astropy_requirements)
 
 if not have_astropy_requirements:
-    def astropy_parallactic_angles(times, antenna_positions, field_centre):
+    def astropy_parallactic_angles(times, antenna_positions, field_centre,
+                                   antenna_frame):
         raise MissingPackageException(*_astropy_requirements)
 else:
+    _discovered_backends.append('astropy')
+
     from astropy.coordinates import (EarthLocation, SkyCoord,
                                      AltAz, CIRS, Angle)
     from astropy.time import Time
@@ -83,20 +99,19 @@ else:
         fc_altaz = fc_cirs[:, None].transform_to(altaz_frame)
         return fc_altaz.position_angle(pole_altaz)
 
-
-def parallactic_angles(times, antenna_positions, field_centre,
-                       backend='casa', **kwargs):
+def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
 
     Notes
     -----
+
     * The casa backend uses an ``AZELGEO`` frame in order
       to more closely agree with the astropy backend,
       but slightly differs from ``AZEL`` frame using in MeqTrees.
     * The astropy backend is slightly more than 2x faster than
-    the casa backend
+      the casa backend
 
     Parameters
     ----------
@@ -108,22 +123,34 @@ def parallactic_angles(times, antenna_positions, field_centre,
         in *metres* in the *ITRF* frame.
     field_centre : :class:`numpy.ndarray`
         Field centre of shape :code:`(2,)` in *radians*
-    backend : {'casa', 'astropy', 'test'}
+    backend : {'casa', 'astropy', 'test'}, optional
         Backend to use for calculating the parallactic angles.
 
-        * ``casa`` defers to an implementation\=
-        depending on ``python-casacore``
+        * ``casa`` defers to an implementation
+          depending on ``python-casacore``
         * ``astropy`` defers to astropy.
-        * ``test`` creates random parallactic angles
-        and merely exists for testing purposes
+        * ``test`` creates parallactic angles
+          by multiplying the ``times`` and ``antenna_position``
+          arrays. It exist solely for testing.
 
     antenna_frame : {'itrs'}, optional
+        The coordinate system of the antenna frame.
+        Defaults to 'itrs' for the moment.
 
     Returns
     -------
     :class:`numpy.ndarray`
         Parallactic angles of shape :code:`(time,ant)`
     """
+
+    try:
+        backend = kwargs.pop('backend')
+    except KeyError:
+        try:
+            backend = _discovered_backends[0]
+        except IndexError:
+            raise ValueError("None of the standard backends "
+                            "%s are installed" % _standard_backends)
 
     aframe = kwargs.pop('antenna_frame', 'itrs')
 
@@ -140,7 +167,6 @@ def parallactic_angles(times, antenna_positions, field_centre,
         return casa_parallactic_angles(times, antenna_positions,
                                        field_centre, antenna_frame=aframe)
     elif backend == 'test':
-        shape = (times.shape[0], antenna_positions.shape[0])
-        return np.random.random(size=shape).astype(time.dtype)
+        return times[:,None]*(antenna_positions.sum(axis=1)[None,:])
     else:
         raise ValueError("Invalid backend %s" % backend)
