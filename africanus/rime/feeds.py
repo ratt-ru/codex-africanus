@@ -66,7 +66,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
         cos(pa) & sin(pa) \\\\
         -sin(pa) & cos(pa)
         \\end{bmatrix}
-        \qquad
+        \\qquad
         \\textrm{circular}
         \\begin{bmatrix}
         e^{-i pa} & 0 \\\\

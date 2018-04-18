@@ -22,7 +22,7 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
         I+Q & U+Vi \\\\
         U-Vi & I-Q
         \\end{bmatrix}
-        \qquad
+        \\qquad
         \\textrm{circular}
         \\begin{bmatrix}
         I+V & Q+Ui \\\\
