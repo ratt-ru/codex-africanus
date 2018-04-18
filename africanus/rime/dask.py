@@ -102,7 +102,6 @@ else:
                             dtype=times.dtype,
                             **kwargs)
 
-
     def feed_rotation(parallactic_angles, feed_type):
         pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
         corr_dims = ('corr-1', 'corr-2')
@@ -178,8 +177,8 @@ brightness.__doc__ = mod_docs(np_brightness.__doc__,
                                 ":class:`dask.array.Array`")])
 
 parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
-                              [(":class:`numpy.ndarray`",
-                                ":class:`dask.array.Array`")])
+                                      [(":class:`numpy.ndarray`",
+                                        ":class:`dask.array.Array`")])
 
 feed_rotation.__doc__ = mod_docs(np_feed_rotation.__doc__,
                                  [(":class:`numpy.ndarray`",

@@ -38,8 +38,9 @@ else:
         zenith = meas_serv.direction('AZELGEO', '0deg', '90deg')
 
         # Create position measures for each antenna
-        reference_positions = [meas_serv.position(antenna_frame,
-                               *(pq.quantity(x, 'm') for x in pos))
+        reference_positions = [meas_serv.position(
+                                    antenna_frame,
+                                    *(pq.quantity(x, 'm') for x in pos))
                                for pos in antenna_positions]
 
         # Compute field centre in radians
@@ -74,7 +75,7 @@ else:
     from astropy import units
 
     def astropy_parallactic_angles(times, antenna_positions, field_centre,
-                                    antenna_frame='itrs'):
+                                   antenna_frame='itrs'):
         """
         Computes parallactic angles per timestep for the given
         reference antenna position and field centre.
@@ -98,6 +99,7 @@ else:
         pole_altaz = pole_cirs[:, None].transform_to(altaz_frame)
         fc_altaz = fc_cirs[:, None].transform_to(altaz_frame)
         return fc_altaz.position_angle(pole_altaz)
+
 
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
     """
@@ -150,7 +152,7 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
             backend = _discovered_backends[0]
         except IndexError:
             raise ValueError("None of the standard backends "
-                            "%s are installed" % _standard_backends)
+                             "%s are installed" % _standard_backends)
 
     aframe = kwargs.pop('antenna_frame', 'itrs')
 
@@ -162,11 +164,11 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
             aframe = 'itrf'
 
         return astropy_parallactic_angles(times, antenna_positions,
-                                        field_centre, antenna_frame=aframe)
+                                          field_centre, antenna_frame=aframe)
     elif backend == 'casa':
         return casa_parallactic_angles(times, antenna_positions,
                                        field_centre, antenna_frame=aframe)
     elif backend == 'test':
-        return times[:,None]*(antenna_positions.sum(axis=1)[None,:])
+        return times[:, None]*(antenna_positions.sum(axis=1)[None, :])
     else:
         raise ValueError("Invalid backend %s" % backend)

@@ -13,6 +13,7 @@ __author__ = """Simon Perkins"""
 __email__ = 'sperkins@ska.ac.za'
 __version__ = '0.1.2'
 
+
 def _create_logger():
     """ Setup logging configuration """
 
@@ -27,5 +28,6 @@ def _create_logger():
     # Create the logger, adding the console handler
     log = logging.getLogger(__name__)
     log.addHandler(ch)
+
 
 _create_logger()

@@ -34,7 +34,7 @@ def have_packages(*args):
 
     if len(unknown_requirements) > 0:
         log.debug("The following requirements "
-                 "are not registered: %s", (unknown_requirements,))
+                  "are not registered: %s", (unknown_requirements,))
 
     return all(p in _have_packages for p in args)
 
