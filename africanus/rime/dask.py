@@ -7,6 +7,7 @@ from __future__ import print_function
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
 from .bright import brightness as np_brightness
+from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
@@ -23,6 +24,9 @@ if not have_requirements or on_rtd():
         raise MissingPackageException(*_package_requirements)
 
     def brightness(stokes, polarisation_type=None, corr_shape=None):
+        raise MissingPackageException(*_package_requirements)
+
+    def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
         raise MissingPackageException(*_package_requirements)
 
     def feed_rotation(parallactic_angles, feed_type=None):
@@ -86,6 +90,17 @@ else:
                             new_axes=new_axes,
                             dtype=np.complex64 if stokes.dtype == np.float32
                             else np.complex128)
+
+    def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
+        def _wrapper(t, ap, fc, **kw):
+            return np_parangles(t, ap[0], fc, **kwargs)
+
+        return da.core.atop(_wrapper, ("time", "ant"),
+                            times, ("time",),
+                            antenna_positions, ("ant", "xyz"),
+                            field_centre, ("fc",),
+                            dtype=times.dtype,
+                            **kwargs)
 
     def feed_rotation(parallactic_angles, feed_type):
         pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
@@ -160,6 +175,10 @@ phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
 brightness.__doc__ = mod_docs(np_brightness.__doc__,
                               [(":class:`numpy.ndarray`",
                                 ":class:`dask.array.Array`")])
+
+parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
+                                      [(":class:`numpy.ndarray`",
+                                        ":class:`dask.array.Array`")])
 
 feed_rotation.__doc__ = mod_docs(np_feed_rotation.__doc__,
                                  [(":class:`numpy.ndarray`",
