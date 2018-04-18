@@ -5,6 +5,7 @@ History
 0.1.3 (2018-03-28)
 ------------------
 
+* Parallactic Angle computation (:pr:`15`)
 * Implement Feed Rotation term (:pr:`14`)
 * Swap gridding correlation dimensions (:pr:`13`)
 * Implement DDE beam cubes (:pr:`12`)
