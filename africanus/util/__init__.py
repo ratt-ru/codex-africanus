@@ -1,6 +1,5 @@
 
 
-
 def corr_shape(ncorr, corr_shape):
     """
     Returns the shape of the correlations, given

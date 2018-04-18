@@ -97,7 +97,7 @@ else:
             dtype = np.complex128
         else:
             raise ValueError("parallactic_angles have "
-                            "non-floating point dtype")
+                             "non-floating point dtype")
 
         return da.core.atop(np_feed_rotation, pa_dims + corr_dims,
                             parallactic_angles, pa_dims,

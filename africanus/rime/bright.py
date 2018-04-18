@@ -9,6 +9,7 @@ import numpy as np
 
 from ..util import corr_shape as corr_shape_fn
 
+
 def brightness(stokes, polarisation_type=None, corr_shape=None):
     """
     Computes the brightness matrix (B) from the ``stokes`` parameters

@@ -15,6 +15,7 @@ import numpy as np
 
 from africanus.util import corr_shape
 
+
 @numba.njit(nogil=True, cache=True)
 def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
     shape = parallactic_angles.shape
@@ -26,14 +27,14 @@ def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
             pa_cos = np.cos(pa)
             pa_sin = np.sin(pa)
 
-            feed_rotation.real[i,0,0] = pa_cos
-            feed_rotation.imag[i,0,0] = 0.0
-            feed_rotation.real[i,0,1] = pa_sin
-            feed_rotation.imag[i,0,1] = 0.0
-            feed_rotation.real[i,1,0] = -pa_sin
-            feed_rotation.imag[i,1,0] = 0.0
-            feed_rotation.real[i,1,1] = pa_cos
-            feed_rotation.imag[i,1,1] = 0.0
+            feed_rotation.real[i, 0, 0] = pa_cos
+            feed_rotation.imag[i, 0, 0] = 0.0
+            feed_rotation.real[i, 0, 1] = pa_sin
+            feed_rotation.imag[i, 0, 1] = 0.0
+            feed_rotation.real[i, 1, 0] = -pa_sin
+            feed_rotation.imag[i, 1, 0] = 0.0
+            feed_rotation.real[i, 1, 1] = pa_cos
+            feed_rotation.imag[i, 1, 1] = 0.0
 
     # Circular feeds
     elif feed_type == 1:
@@ -41,16 +42,17 @@ def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
             pa_cos = np.cos(pa)
             pa_sin = np.sin(pa)
 
-            feed_rotation.real[i,0,0] = pa_cos
-            feed_rotation.imag[i,0,0] = -pa_sin
-            feed_rotation[i,0,1] = 0.0 + 0.0*1j
-            feed_rotation[i,1,0] = 0.0 + 0.0*1j
-            feed_rotation.real[i,1,1] = pa_cos
-            feed_rotation.imag[i,1,1] = pa_sin
+            feed_rotation.real[i, 0, 0] = pa_cos
+            feed_rotation.imag[i, 0, 0] = -pa_sin
+            feed_rotation[i, 0, 1] = 0.0 + 0.0*1j
+            feed_rotation[i, 1, 0] = 0.0 + 0.0*1j
+            feed_rotation.real[i, 1, 1] = pa_cos
+            feed_rotation.imag[i, 1, 1] = pa_sin
     else:
         raise ValueError("Invalid feed_type")
 
-    return feed_rotation.reshape(shape + (2,2))
+    return feed_rotation.reshape(shape + (2, 2))
+
 
 def feed_rotation(parallactic_angles, feed_type='linear'):
     """
@@ -83,11 +85,11 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
         dtype = np.complex128
     else:
         raise ValueError("parallactic_angles has "
-                        "none-floating point type %s"
-                            % parallactic_angles.dtype)
+                         "none-floating point type %s"
+                         % parallactic_angles.dtype)
 
     # Create result array with flattened parangles
-    shape = (reduce(mul, parallactic_angles.shape),) + (2,2)
+    shape = (reduce(mul, parallactic_angles.shape),) + (2, 2)
     result = np.empty(shape, dtype=dtype)
 
     return _nb_feed_rotation(parallactic_angles, poltype, result)
