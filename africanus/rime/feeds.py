@@ -54,7 +54,8 @@ def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
 
 def feed_rotation(parallactic_angles, feed_type='linear'):
     """
-    Computes the 2x2 feed rotation term from the ``parallactic_angles``.
+    Computes the 2x2 feed rotation (L) matrix
+    from the ``parallactic_angles``.
 
     Parameters
     ----------
