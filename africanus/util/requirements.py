@@ -42,4 +42,4 @@ def have_packages(*args):
 class MissingPackageException(Exception):
     def __init__(self, *packages):
         super(MissingPackageException, self).__init__(
-            "The following packages must be installed: %s" % packages)
+            "The following packages must be installed: %s" % (packages,))
