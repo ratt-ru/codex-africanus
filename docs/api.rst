@@ -9,6 +9,7 @@ Numpy
 
 .. autofunction:: africanus.rime.phase_delay
 .. autofunction:: africanus.rime.brightness
+.. autofunction:: africanus.rime.parallactic_angles
 .. autofunction:: africanus.rime.feed_rotation
 .. autofunction:: africanus.rime.transform_sources
 .. autofunction:: africanus.rime.beam_cube_dde
