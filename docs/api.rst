@@ -19,6 +19,7 @@ Dask
 
 .. autofunction:: africanus.rime.dask.phase_delay
 .. autofunction:: africanus.rime.dask.brightness
+.. autofunction:: africanus.rime.dask.parallactic_angles
 .. autofunction:: africanus.rime.dask.feed_rotation
 .. autofunction:: africanus.rime.dask.transform_sources
 .. autofunction:: africanus.rime.dask.beam_cube_dde

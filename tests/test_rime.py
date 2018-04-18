@@ -105,6 +105,19 @@ def test_feed_rotation():
     assert np.allclose(fr, np_expr.reshape(10,5,2,2))
 
 
+
+def test_parallactic_angles():
+    import numpy as np
+    from africanus.rime import parallactic_angles
+
+    time = np.random.random((5,)).astype(np.float64)
+    ant = np.random.random((4,3)).astype(np.float64)
+    fc = np.random.random((2,)).astype(np.float64)
+
+    pa = parallactic_angles(time, ant, fc, backend='test')
+    assert pa.shape == (5,4)
+
+
 def test_brightness_shape():
     import numpy as np
     from africanus.rime import brightness
@@ -158,6 +171,29 @@ def test_dask_phase_delay():
 
     # Should agree completely
     assert np.all(np_phase == dask_phase)
+
+
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+def test_dask_parallactic_angles():
+    import dask.array as da
+    from africanus.rime import parallactic_angles as np_parangle
+    from africanus.rime.dask import parallactic_angles as da_parangle
+
+    np_times = np.random.random(size=(5,))
+    np_ants = np.random.random(size=(4,3))
+    np_fc = np.random.random(size=2)
+
+    np_pa = np_parangle(np_times, np_ants, np_fc, backend='test')
+
+    da_times = da.from_array(np_times, chunks=(2,3))
+    da_ants = da.from_array(np_ants, chunks=((2,2),3))
+    da_fc = da.from_array(np_fc, chunks=2)
+
+    da_pa = da_parangle(da_times, da_ants, da_fc, backend='test')
+
+    from pprint import pprint
+
+    assert np.all(np_pa == da_pa.compute())
 
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
