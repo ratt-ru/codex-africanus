@@ -86,6 +86,25 @@ def test_brightness():
     assert np.all(B==expected)
 
 
+def test_feed_rotation():
+    import numpy as np
+    from africanus.rime import feed_rotation
+
+    parangles = np.random.random((10, 5))
+    pa_sin = np.sin(parangles)
+    pa_cos = np.cos(parangles)
+
+    fr = feed_rotation(parangles, feed_type='linear')
+    np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
+    assert np.allclose(fr, np_expr.reshape(10,5,2,2))
+
+    fr = feed_rotation(parangles, feed_type='circular')
+    zeros = np.zeros_like(pa_sin)
+    np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
+                        zeros, pa_cos + 1j*pa_sin], axis=2)
+    assert np.allclose(fr, np_expr.reshape(10,5,2,2))
+
+
 def test_brightness_shape():
     import numpy as np
     from africanus.rime import brightness
@@ -209,3 +228,18 @@ def test_dask_brightness_shape():
             corr_shape='flat').shape == (10,5,3,1)
 
 
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+def test_dask_feed_rotation():
+    import dask.array as da
+    import numpy as np
+    from africanus.rime import feed_rotation as np_feed_rotation
+    from africanus.rime.dask import feed_rotation
+
+    parangles = np.random.random((10, 5))
+    dask_parangles = da.from_array(parangles, chunks=(5, (2,3)))
+
+    np_fr = np_feed_rotation(parangles, feed_type='linear')
+    assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='linear'))
+
+    np_fr = np_feed_rotation(parangles, feed_type='circular')
+    assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='circular'))

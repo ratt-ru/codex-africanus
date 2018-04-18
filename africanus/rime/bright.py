@@ -7,39 +7,7 @@ from __future__ import print_function
 
 import numpy as np
 
-
-def bright_corr_shape(npol, corr_shape):
-    """
-    Returns the shape of the correlations, given
-    ``npol`` and the type of correlation shape requested
-
-    Parameters
-    ----------
-    npol : integer
-        Number of polarisations
-    corr_shape : {'flat', 'matrix'}
-        If 'flat' returns a single dimension.
-        If 'matrix' returns a square matrix of dimensions
-
-    Returns
-    -------
-    tuple
-        Shape tuple describing the correlation dimensions
-    """
-    if corr_shape == "flat":
-        return (npol,)
-    elif corr_shape == "matrix":
-        if npol == 1:
-            return (1,)
-        elif npol == 2:
-            return (2, 1)
-        elif npol == 4:
-            return (2, 2)
-        else:
-            raise ValueError("npol not in (1, 2, 4)")
-    else:
-        raise ValueError("corr_shape must be 'flat' or 'matrix'")
-
+from ..util import corr_shape as corr_shape_fn
 
 def brightness(stokes, polarisation_type=None, corr_shape=None):
     """
@@ -116,4 +84,4 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
     else:
         raise ValueError("polarisation_type must be 'linear' or 'circular'")
 
-    return brightness.reshape(head + bright_corr_shape(npol, corr_shape))
+    return brightness.reshape(head + corr_shape_fn(npol, corr_shape))

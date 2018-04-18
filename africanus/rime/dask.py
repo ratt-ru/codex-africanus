@@ -6,10 +6,12 @@ from __future__ import print_function
 
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
-from .bright import brightness as np_brightness, bright_corr_shape
+from .bright import brightness as np_brightness
+from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
 
+from ..util import corr_shape as corr_shape_fn
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
 
@@ -21,6 +23,9 @@ if not have_requirements or on_rtd():
         raise MissingPackageException(*_package_requirements)
 
     def brightness(stokes, polarisation_type=None, corr_shape=None):
+        raise MissingPackageException(*_package_requirements)
+
+    def feed_rotation(parallactic_angles, feed_type=None):
         raise MissingPackageException(*_package_requirements)
 
     def transform_sources(lm, parallactic_angles, pointing_errors,
@@ -64,7 +69,7 @@ else:
         # Create unique strings for the head dimensions
         head_dims = tuple("head-%d" % i for i in range(len(head)))
         # Figure out what our correlation shape should look like
-        corr_shapes = bright_corr_shape(npol, corr_shape)
+        corr_shapes = corr_shape_fn(npol, corr_shape)
         # Create unique strings for the correlation dimensions
         corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
         # We're introducing new axes for the correlations
@@ -81,6 +86,24 @@ else:
                             new_axes=new_axes,
                             dtype=np.complex64 if stokes.dtype == np.float32
                             else np.complex128)
+
+    def feed_rotation(parallactic_angles, feed_type):
+        pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
+        corr_dims = ('corr-1', 'corr-2')
+
+        if parallactic_angles.dtype == np.float32:
+            dtype = np.complex64
+        elif parallactic_angles.dtype == np.float64:
+            dtype = np.complex128
+        else:
+            raise ValueError("parallactic_angles have "
+                            "non-floating point dtype")
+
+        return da.core.atop(np_feed_rotation, pa_dims + corr_dims,
+                            parallactic_angles, pa_dims,
+                            feed_type=feed_type,
+                            new_axes={'corr-1': 2, 'corr-2': 2},
+                            dtype=dtype)
 
     def transform_sources(lm, parallactic_angles, pointing_errors,
                           antenna_scaling, frequency, dtype=None):
