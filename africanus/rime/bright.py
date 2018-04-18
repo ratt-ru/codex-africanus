@@ -15,6 +15,20 @@ def brightness(stokes, polarisation_type=None, corr_shape=None):
     Computes the brightness matrix (B) from the ``stokes`` parameters
     of a number of sources for the given ``polarisation_type``.
 
+    .. math::
+
+        \\textrm{linear}
+        \\begin{bmatrix}
+        I+Q & U+Vi \\\\
+        U-Vi & I-Q
+        \\end{bmatrix}
+        \qquad
+        \\textrm{circular}
+        \\begin{bmatrix}
+        I+V & Q+Ui \\\\
+        Q-Ui & I-V
+        \\end{bmatrix}
+
     ``stokes`` is an array of polarisations of shape
     :code:`(dim_1, dim_2, ..., dim_n, pol)`.
     The ``pol`` dimension must have size 1, 2 or 4.

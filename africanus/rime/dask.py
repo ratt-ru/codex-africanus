@@ -161,6 +161,10 @@ brightness.__doc__ = mod_docs(np_brightness.__doc__,
                               [(":class:`numpy.ndarray`",
                                 ":class:`dask.array.Array`")])
 
+feed_rotation.__doc__ = mod_docs(np_feed_rotation.__doc__,
+                              [(":class:`numpy.ndarray`",
+                                ":class:`dask.array.Array`")])
+
 transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
                                      [(":class:`numpy.ndarray`",
                                        ":class:`dask.array.Array`")])
