@@ -66,6 +66,9 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
         Sampled complex beam values at the specified coordinates with
         shape :code:`(dim_1, ..., dim_n, corr_1, corr_2)`
     """
+    if not np.iscomplexobj(beam):
+        raise ValueError("beam is not complex")
+
     l_diff = np.diff(l_grid)
     l_inc = np.all(l_diff > 0)
     l_dec = np.all(l_diff < 0)
@@ -154,8 +157,12 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
     result_all = tuple(all_ for _ in range(len(tail)))
 
     corr_indices = list(product(*(range(d) for d in corr_dims)))
-    beam_indices = tuple((all_,) + cp for cp in corr_indices)
-    result_indices = tuple(result_all + cp for cp in corr_indices)
+    if len(corr_indices) > 0:
+        beam_indices = tuple((all_,) + cp for cp in corr_indices)
+        result_indices = tuple(result_all + cp for cp in corr_indices)
+    else:
+        beam_indices = ((all_,),)
+        result_indices = ((result_all,),)
 
     # Allocate output array
     result = np.empty(tail + corr_dims, dtype=beam.dtype)
@@ -168,14 +175,14 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
         im = result[ri].imag
 
         # Interpolate real and imaginary beams
-        re.flat = interpolation.map_coordinates(beam[bi].real, grid_coords,
-                                                order=spline_order,
-                                                prefilter=prefilter,
-                                                mode=mode)
-        im.flat = interpolation.map_coordinates(beam[bi].real, grid_coords,
-                                                order=spline_order,
-                                                prefilter=prefilter,
-                                                mode=mode)
+        re.flat[:] = interpolation.map_coordinates(beam[bi].real, grid_coords,
+                                                   order=spline_order,
+                                                   prefilter=prefilter,
+                                                   mode=mode)
+        im.flat[:] = interpolation.map_coordinates(beam[bi].imag, grid_coords,
+                                                   order=spline_order,
+                                                   prefilter=prefilter,
+                                                   mode=mode)
 
         # This computes a mean of circular quantities
         # and the following should hold

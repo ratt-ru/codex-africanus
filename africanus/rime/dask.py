@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
 from .bright import brightness as np_brightness
@@ -46,6 +48,7 @@ else:
 
     def phase_delay(uvw, lm, frequency, dtype=np.complex128):
         """ Dask wrapper for phase_delay function """
+        @wraps(np_phase_delay)
         def _wrapper(uvw, lm, frequency, dtype_):
             return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
 
@@ -80,6 +83,7 @@ else:
         # with a fixed shape
         new_axes = {d: s for d, s in zip(corr_dims, corr_shapes)}
 
+        @wraps(np_brightness)
         def _wrapper(stokes):
             return np_brightness(stokes[0],
                                  polarisation_type=polarisation_type,
@@ -92,6 +96,7 @@ else:
                             else np.complex128)
 
     def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
+        @wraps(np_parangles)
         def _wrapper(t, ap, fc, **kw):
             return np_parangles(t, ap[0], fc, **kwargs)
 
@@ -123,6 +128,7 @@ else:
     def transform_sources(lm, parallactic_angles, pointing_errors,
                           antenna_scaling, frequency, dtype=None):
 
+        @wraps(np_transform_sources)
         def _wrapper(lm, parallactic_angles, pointing_errors,
                      antenna_scaling, frequency, dtype_):
             return np_transform_sources(lm[0], parallactic_angles,
@@ -145,6 +151,7 @@ else:
     def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                       spline_order=1, mode='nearest'):
 
+        @wraps(np_beam_cude_dde)
         def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
                      spline_order=1, mode='nearest'):
             return np_beam_cude_dde(beam[0][0][0], coords[0],
