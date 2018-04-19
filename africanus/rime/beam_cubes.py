@@ -175,11 +175,11 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
         im = result[ri].imag
 
         # Interpolate real and imaginary beams
-        re.flat = interpolation.map_coordinates(beam[bi].real, grid_coords,
+        re.flat[:] = interpolation.map_coordinates(beam[bi].real, grid_coords,
                                                 order=spline_order,
                                                 prefilter=prefilter,
                                                 mode=mode)
-        im.flat = interpolation.map_coordinates(beam[bi].real, grid_coords,
+        im.flat[:] = interpolation.map_coordinates(beam[bi].real, grid_coords,
                                                 order=spline_order,
                                                 prefilter=prefilter,
                                                 mode=mode)
