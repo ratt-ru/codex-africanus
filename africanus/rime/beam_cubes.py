@@ -157,8 +157,12 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
     result_all = tuple(all_ for _ in range(len(tail)))
 
     corr_indices = list(product(*(range(d) for d in corr_dims)))
-    beam_indices = tuple((all_,) + cp for cp in corr_indices)
-    result_indices = tuple(result_all + cp for cp in corr_indices)
+    if len(corr_indices) > 0:
+        beam_indices = tuple((all_,) + cp for cp in corr_indices)
+        result_indices = tuple(result_all + cp for cp in corr_indices)
+    else:
+        beam_indices = ((all_,),)
+        result_indices = ((result_all,),)
 
     # Allocate output array
     result = np.empty(tail + corr_dims, dtype=beam.dtype)
