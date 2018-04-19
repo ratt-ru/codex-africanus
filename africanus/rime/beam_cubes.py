@@ -179,7 +179,7 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                                                 order=spline_order,
                                                 prefilter=prefilter,
                                                 mode=mode)
-        im.flat[:] = interpolation.map_coordinates(beam[bi].real, grid_coords,
+        im.flat[:] = interpolation.map_coordinates(beam[bi].imag, grid_coords,
                                                 order=spline_order,
                                                 prefilter=prefilter,
                                                 mode=mode)
