@@ -66,6 +66,9 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
         Sampled complex beam values at the specified coordinates with
         shape :code:`(dim_1, ..., dim_n, corr_1, corr_2)`
     """
+    if not np.iscomplexobj(beam):
+        raise ValueError("beam is not complex")
+
     l_diff = np.diff(l_grid)
     l_inc = np.all(l_diff > 0)
     l_dec = np.all(l_diff < 0)
