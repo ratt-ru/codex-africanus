@@ -176,13 +176,13 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
         # Interpolate real and imaginary beams
         re.flat[:] = interpolation.map_coordinates(beam[bi].real, grid_coords,
-                                                order=spline_order,
-                                                prefilter=prefilter,
-                                                mode=mode)
+                                                   order=spline_order,
+                                                   prefilter=prefilter,
+                                                   mode=mode)
         im.flat[:] = interpolation.map_coordinates(beam[bi].imag, grid_coords,
-                                                order=spline_order,
-                                                prefilter=prefilter,
-                                                mode=mode)
+                                                   order=spline_order,
+                                                   prefilter=prefilter,
+                                                   mode=mode)
 
         # This computes a mean of circular quantities
         # and the following should hold
