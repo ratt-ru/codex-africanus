@@ -98,7 +98,7 @@ else:
     def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
         @wraps(np_parangles)
         def _wrapper(t, ap, fc, **kw):
-            return np_parangles(t, ap[0], fc, **kwargs)
+            return np_parangles(t, ap[0], fc[0], **kwargs)
 
         return da.core.atop(_wrapper, ("time", "ant"),
                             times, ("time",),
