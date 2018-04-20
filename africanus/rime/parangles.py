@@ -157,7 +157,8 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
     aframe = kwargs.pop('antenna_frame', 'itrs')
 
     if not field_centre.shape == (2,):
-        raise ValueError("Invalid field_centre shape %s" % (field_centre.shape,))
+        raise ValueError("Invalid field_centre shape %s" %
+                         (field_centre.shape,))
 
     if aframe not in ('itrs'):
         raise ValueError("Invalid antenna_frame %s" % aframe)
