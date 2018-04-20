@@ -156,16 +156,20 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
     aframe = kwargs.pop('antenna_frame', 'itrs')
 
+    if not field_centre.shape == (2,):
+        raise ValueError("Invalid field_centre shape %s" %
+                         (field_centre.shape,))
+
     if aframe not in ('itrs'):
         raise ValueError("Invalid antenna_frame %s" % aframe)
 
     if backend == 'astropy':
-        if aframe == 'itrs':
-            aframe = 'itrf'
-
         return astropy_parallactic_angles(times, antenna_positions,
                                           field_centre, antenna_frame=aframe)
     elif backend == 'casa':
+        if aframe == 'itrs':
+            aframe = 'itrf'
+
         return casa_parallactic_angles(times, antenna_positions,
                                        field_centre, antenna_frame=aframe)
     elif backend == 'test':
