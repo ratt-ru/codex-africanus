@@ -15,10 +15,10 @@ from ..util.docs import doc_tuple_to_str
 
 
 
-def im_to_vis_kernel(uvw, lm, frequency, dtype=None):
+def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
     @numba.jit(nopython=True, nogil=True, cache=True)
-    def _im_to_vis_kernel_impl(uvw, lm, frequency, complex_phase):
+    def _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im):
         # For each uvw coordinate
         for row in range(uvw.shape[0]):
             u, v, w = uvw[row]
@@ -38,20 +38,23 @@ def im_to_vis_kernel(uvw, lm, frequency, dtype=None):
                     # Our phase input is purely imaginary
                     # so we can can elide a call to exp
                     # and just compute the cos and sin
-                    complex_phase.real[row, source, chan] = math.cos(p)
-                    complex_phase.imag[row, source, chan] = math.sin(p)
+                    # @simon does this really make a difference?
+                    # I thought a complex exponential is evaluated as a sum of sin and cos anyway
+                    vis_of_im.real[row, chan] += math.cos(p) * I[source, chan]
+                    vis_of_im.imag[row, chan] += math.sin(p) * I[source, chan]
 
-        return complex_phase
+        return vis_of_im
 
-    complex_phase = np.empty((uvw.shape[0], lm.shape[0], frequency.shape[0]),
+    vis_of_im = np.empty((uvw.shape[0], frequency.shape[0]),
                              dtype=np.complex128 if dtype is None else dtype)
 
-    return _im_to_vis_kernel_impl(uvw, lm, frequency, complex_phase)
+    return _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im)
 
 
-def vis_to_im_kernel(uvw, lm, frequency, dtype=None):
+def vis_to_im(vis, uvw, lm, frequency, dtype=None):
+
     @numba.jit(nopython=True, nogil=True, cache=True)
-    def _vis_to_im_kernel_impl(uvw, lm, frequency, complex_phase):
+    def _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
@@ -67,39 +70,38 @@ def vis_to_im_kernel(uvw, lm, frequency, dtype=None):
                 for chan in range(frequency.shape[0]):
                     p = real_phase * frequency[chan]
 
-                    # Our phase input is purely imaginary
-                    # so we can can elide a call to exp
-                    # and just compute the cos and sin
-                    complex_phase.real[row, source, chan] = math.cos(p)
-                    # for the adjoint we don't need to keep the complex part
-                    # complex_phase.imag[row, source, chan] = math.sin(p)
+                    im_of_vis[source, chan] += np.real(np.exp(p) * vis[row, chan])
+                    # Note for the adjoint we don't need the imaginary part
 
-        return complex_phase
+        return im_of_vis
 
-    complex_phase = np.empty((lm.shape[0], uvw.shape[0], frequency.shape[0]),
-                             dtype=np.complex128 if dtype is None else dtype)
+    im_of_vis = np.empty((lm.shape[0], frequency.shape[0]),
+                             dtype=np.float64 if dtype is None else dtype)
 
-    return _vis_to_im_kernel_impl(uvw, lm, frequency, complex_phase)
+    return _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis)
 
 
 _DFT_DOCSTRING = namedtuple(
     "_DFTDOCSTRING", ["preamble", "parameters", "returns"])
 
-im_to_vis_kernel_docs = _DFT_DOCSTRING(
+im_to_vis_docs = _DFT_DOCSTRING(
     preamble="""
-    Computes the phase delay (K) term:
+    Computes the discrete image to visibility mapping of an ideal 
+    unpolarised iterferometer :
 
     .. math::
 
-        & {\\Large e^{-2 \\pi i (u l + v m + w n)} }
+        & {\\Large \sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1)} \cdot I_s }
 
-        & \\textrm{where } n = \\sqrt{1 - l^2 - m^2} - 1
     """,  # noqa
 
     parameters="""
     Parameters
     ----------
 
+    image : :class:`numpy.ndarray`
+        image of shape :code:`(source, chan)`
+        The Stokes I intensity in each pixel (flatten 2D array per channel).
     uvw : :class:`numpy.ndarray`
         UVW coordinates of shape :code:`(row, 3)` with
         U, V and W components in the last dimension.
@@ -117,28 +119,31 @@ im_to_vis_kernel_docs = _DFT_DOCSTRING(
     Returns
     -------
     :class:`numpy.ndarray`
-        complex of shape :code:`(row, source, chan)`
+        complex of shape :code:`(row, chan)`
     """
 )
 
 
-im_to_vis_kernel.__doc__ = doc_tuple_to_str(im_to_vis_kernel_docs)
+im_to_vis.__doc__ = doc_tuple_to_str(im_to_vis_docs)
 
-vis_to_im_kernel_docs = _DFT_DOCSTRING(
+vis_to_im_docs = _DFT_DOCSTRING(
     preamble="""
-    Computes only the real part of the adjoint of the phase delay (K) term:
+    Computes visibility to image mapping of an ideal
+    unpolarised interferometer:
 
     .. math::
 
-        & {\\Large cos{ 2 \\pi i (u l + v m + w n)}
+        & {\\Large \sum_n exp{ 2 \\pi i (u_n l + v_n m + w_n (n - 1))} \cdot V_n
 
-        & \\textrm{where } n = \\sqrt{1 - l^2 - m^2} - 1
     """,  # noqa
 
     parameters="""
     Parameters
     ----------
 
+    vis : :class:`numpy.ndarray`
+        visibilities of shape :code:`(row, chan)`
+        The Stokes I visibilities of which to compute a dirty image
     uvw : :class:`numpy.ndarray`
         UVW coordinates of shape :code:`(row, 3)` with
         U, V and W components in the last dimension.
@@ -148,17 +153,17 @@ vis_to_im_kernel_docs = _DFT_DOCSTRING(
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional
-        Datatype of result. Should be either np.complex64
-        or np.complex128. Defaults to np.complex128
+        Datatype of result. Should be either np.float32
+        or np.float64. Defaults to np.float64
     """,
 
     returns="""
     Returns
     -------
     :class:`numpy.ndarray`
-        complex of shape :code:`(source, row, chan)`
+        float of shape :code:`(source, chan)`
     """
 )
 
 
-vis_to_im_kernel.__doc__ = doc_tuple_to_str(vis_to_im_kernel_docs)
+vis_to_im.__doc__ = doc_tuple_to_str(vis_to_im_docs)
