@@ -88,8 +88,8 @@ else:
 
         ap = EarthLocation.from_geocentric(
             ap[:, 0], ap[:, 1], ap[:, 2], unit='m')
-        fc = SkyCoord(ra=fc[0], dec=fc[1], unit=units.rad, frame='itrs')
-        pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame='itrs')
+        fc = SkyCoord(ra=fc[0], dec=fc[1], unit=units.rad, frame='fk5')
+        pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame='fk5')
 
         cirs_frame = CIRS(obstime=times)
         pole_cirs = pole.transform_to(cirs_frame)
