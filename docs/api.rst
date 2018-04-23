@@ -1,28 +1,78 @@
 API
 ===
 
-Radio Interferometer Measurement Equation
------------------------------------------
+Radio Interferometer Measurement Equation (RIME)
+------------------------------------------------
+
+Functions used to compute the terms of the RIME.
+It describes the response of an interferometer to a sky model.
+
+.. math::
+
+    V_{pq} = G_{p} \left( \sum_{s} E_{ps} L_{p} K_{ps} B_{s} K_{qs}^H L_{q}^H E_{qs}^H \right) G_{q}^H
+
+where for antenna :math:`p` and :math:`q`, and source :math:`s`:
+
+- :math:`G_{p}` represents direction independent effects.
+- :math:`E_{ps}` represents direction dependent effects.
+- :math:`L_{p}` represents the feed rotation.
+- :math:`K_{ps}` represents the phase delay term.
+- :math:`B_{s}` represents the brightness matrix.
+
+
+The RIME is more formally described in the following four papers:
+
+- `I. A full-sky Jones formalism <rime_paper_i_>`_
+- `II. Calibration and direction-dependent effects <rime_paper_ii_>`_
+- `III. Addressing direction-dependent effects in 21cm WSRT observations of 3C147 <rime_paper_iii_>`_
+- `IV. A generalized tensor formalism <rime_paper_iv_>`_
+
+.. _rime_paper_i: https://arxiv.org/abs/1101.1764
+.. _rime_paper_ii: https://arxiv.org/abs/1101.1765
+.. _rime_paper_iii: https://arxiv.org/abs/1101.1768
+.. _rime_paper_iv: https://arxiv.org/abs/1106.0579
+
 
 Numpy
 ~~~~~
 
-.. autofunction:: africanus.rime.phase_delay
-.. autofunction:: africanus.rime.brightness
-.. autofunction:: africanus.rime.parallactic_angles
-.. autofunction:: africanus.rime.feed_rotation
-.. autofunction:: africanus.rime.transform_sources
-.. autofunction:: africanus.rime.beam_cube_dde
+.. currentmodule:: africanus.rime
+
+.. autosummary::
+    phase_delay
+    brightness
+    parallactic_angles
+    feed_rotation
+    transform_sources
+    beam_cube_dde
+
+.. autofunction:: phase_delay
+.. autofunction:: brightness
+.. autofunction:: parallactic_angles
+.. autofunction:: feed_rotation
+.. autofunction:: transform_sources
+.. autofunction:: beam_cube_dde
 
 Dask
 ~~~~
 
-.. autofunction:: africanus.rime.dask.phase_delay
-.. autofunction:: africanus.rime.dask.brightness
-.. autofunction:: africanus.rime.dask.parallactic_angles
-.. autofunction:: africanus.rime.dask.feed_rotation
-.. autofunction:: africanus.rime.dask.transform_sources
-.. autofunction:: africanus.rime.dask.beam_cube_dde
+.. currentmodule:: africanus.rime.dask
+
+.. autosummary::
+    phase_delay
+    brightness
+    parallactic_angles
+    feed_rotation
+    transform_sources
+    beam_cube_dde
+
+
+.. autofunction:: phase_delay
+.. autofunction:: brightness
+.. autofunction:: parallactic_angles
+.. autofunction:: feed_rotation
+.. autofunction:: transform_sources
+.. autofunction:: beam_cube_dde
 
 
 Simple Gridding
@@ -31,31 +81,55 @@ Simple Gridding
 Numpy
 ~~~~~
 
-.. autofunction:: africanus.gridding.simple.grid
-.. autofunction:: africanus.gridding.simple.degrid
+.. currentmodule:: africanus.gridding.simple
+
+.. autosummary::
+    grid
+    degrid
+
+.. autofunction:: grid
+.. autofunction:: degrid
 
 Dask
 ~~~~~
 
-.. autofunction:: africanus.gridding.simple.dask.grid
-.. autofunction:: africanus.gridding.simple.dask.degrid
+.. currentmodule:: africanus.gridding.simple.dask
+
+.. autosummary::
+    grid
+    degrid
+
+.. autofunction:: grid
+.. autofunction:: degrid
 
 
 Convolution Filters
 -------------------
 
-.. autodata:: africanus.filters.ConvolutionFilter
+.. currentmodule:: africanus.filters
+
+.. autodata:: ConvolutionFilter
 
 
-.. autofunction:: africanus.filters.convolution_filter
+.. autofunction:: convolution_filter
 
 Deconvolution Algorithms
 ------------------------
 
-.. autofunction:: africanus.deconv.hogbom.hogbom_clean
+.. currentmodule:: africanus.deconv.hogbom
+
+
+.. autofunction:: hogbom_clean
 
 Utilities
 ---------
+
+.. currentmodule:: africanus.util.beams
+
+.. autosummary::
+    beam_filenames
+    beam_grids
+
 
 .. autofunction:: africanus.util.beams.beam_filenames
 .. autofunction:: africanus.util.beams.beam_grids
