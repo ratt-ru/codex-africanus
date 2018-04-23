@@ -105,6 +105,49 @@ def test_feed_rotation():
     assert np.allclose(fr, np_expr.reshape(10,5,2,2))
 
 
+import math
+
+def _julian_day(year, month, day):
+    """
+    Given a Anno Dominei date, computes the Julian Date in days.
+
+    Parameters
+    ----------
+    year : int
+    month : int
+    day : int
+
+    Returns
+    -------
+    float
+        Julian Date
+    """
+
+    # Formula below from
+    # http://scienceworld.wolfram.com/astronomy/JulianDate.html
+    # Also agrees with https://gist.github.com/jiffyclub/1294443
+    return (367*year - int(7*(year + int((month+9)/12))/4)
+            - int((3*(int(year + (month - 9)/7)/100)+1)/4)
+            + int(275*month/9) + day + 1721028.5)
+
+def _modified_julian_date(year, month, day):
+    """
+    Given a Anno Dominei date, computes the Modified Julian Date in days.
+
+    Parameters
+    ----------
+    year : int
+    month : int
+    day : int
+
+    Returns
+    -------
+    float
+        Modified Julian Date
+    """
+
+    return _julian_day(year, month, day) - 2400000.5
+
 from africanus.rime.parangles import _discovered_backends
 no_casa = 'casa' not in _discovered_backends
 no_astropy = 'astropy' not in _discovered_backends
@@ -119,7 +162,14 @@ def test_parallactic_angles(backend):
     import numpy as np
     from africanus.rime import parallactic_angles
 
-    time = np.random.random((5,)).astype(np.float64)
+    # Four hour Observation on 01/01/2017
+    start = _modified_julian_date(2017, 1, 1)
+    end = start + 4.0 / 24
+
+    start*= 86400.
+    end *= 86400.
+
+    time = np.linspace(start, end, 5)
     ant = np.random.random((4,3)).astype(np.float64)
     fc = np.random.random((2,)).astype(np.float64)
 
@@ -194,7 +244,15 @@ def test_dask_parallactic_angles(backend):
     from africanus.rime import parallactic_angles as np_parangle
     from africanus.rime.dask import parallactic_angles as da_parangle
 
-    np_times = np.random.random(size=(5,))
+    # Four hour Observation on 01/01/2017
+    start = _modified_julian_date(2017, 1, 1)
+    end = start + 4.0 / 24
+
+    # Convert to seconds
+    start *= 86400.
+    end *= 86400.
+
+    np_times = np.linspace(start, end, 5)
     np_ants = np.random.random(size=(4,3))
     np_fc = np.random.random(size=2)
 
