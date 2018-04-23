@@ -306,7 +306,7 @@ def test_dask_phase_delay():
                         reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
                         reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018,01,01,4)])
+@pytest.mark.parametrize('observation', [(2018, 1, 1,4)])
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     import dask.array as da
     from africanus.rime import parallactic_angles as np_parangle
