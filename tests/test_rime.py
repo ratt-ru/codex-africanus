@@ -219,7 +219,7 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     Compare astropy and python-casacore parallactic angle implementations.
     More work needs to be done here to get things lined up closer,
-    but the tolerances above suggest nothing > 10s.
+    but the tolerances above suggest nothing > 10 arcseconds.
     """
     import numpy as np
     from africanus.rime import parallactic_angles

@@ -105,11 +105,13 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
     Notes
     -----
 
-    * The casa backend uses an ``AZELGEO`` frame in order
+    * The python-casacore backend uses an ``AZELGEO`` frame in order
       to more closely agree with the astropy backend,
       but slightly differs from ``AZEL`` frame using in MeqTrees.
     * The astropy backend is slightly more than 2x faster than
       the casa backend
+    * The astropy and python-casacore differ by at most
+      10 arcseconds
 
     Parameters
     ----------
