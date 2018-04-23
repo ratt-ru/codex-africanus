@@ -194,7 +194,7 @@ no_astropy = 'astropy' not in _discovered_backends
                         reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
                         reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018,01,01,4)])
+@pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
     from africanus.rime import parallactic_angles
@@ -212,9 +212,9 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
                     reason="Neither python-casacore or astropy installed")
 # Parametrize on observation length and error tolerance
 @pytest.mark.parametrize('obs_and_tol', [
-    ((2018,01,01,4), "10s"),
-    ((2018,02,20, 8), "10s"),
-    ((2018,11,02,4), "10s")])
+    ((2018, 1, 1, 4), "10s"),
+    ((2018, 2, 20, 8), "10s"),
+    ((2018, 11, 2, 4), "10s")])
 def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     Compare astropy and python-casacore parallactic angle implementations.
