@@ -148,6 +148,41 @@ def _modified_julian_date(year, month, day):
 
     return _julian_day(year, month, day) - 2400000.5
 
+def _observation_endpoints(year, month, date, hour_duration):
+    """
+    Start and end points of a four hour observation on 2018/02/20
+    in Modified Julian Date seconds
+    """
+    start = _modified_julian_date(year, month, date)
+    end = start + hour_duration / 24.
+
+    # Convert to seconds
+    start *= 86400.
+    end *= 86400.
+
+    return (start, end)
+
+@pytest.fixture
+def wsrt_ants():
+    """ Westerbork antenna positions """
+    return np.array([
+           [ 3828763.10544699,   442449.10566454,  5064923.00777   ],
+           [ 3828746.54957258,   442592.13950824,  5064923.00792   ],
+           [ 3828729.99081359,   442735.17696417,  5064923.00829   ],
+           [ 3828713.43109885,   442878.2118934 ,  5064923.00436   ],
+           [ 3828696.86994428,   443021.24917264,  5064923.00397   ],
+           [ 3828680.31391933,   443164.28596862,  5064923.00035   ],
+           [ 3828663.75159173,   443307.32138056,  5064923.00204   ],
+           [ 3828647.19342757,   443450.35604638,  5064923.0023    ],
+           [ 3828630.63486201,   443593.39226634,  5064922.99755   ],
+           [ 3828614.07606798,   443736.42941621,  5064923.        ],
+           [ 3828609.94224429,   443772.19450029,  5064922.99868   ],
+           [ 3828601.66208572,   443843.71178407,  5064922.99963   ],
+           [ 3828460.92418735,   445059.52053929,  5064922.99071   ],
+           [ 3828452.64716351,   445131.03744105,  5064922.98793   ]],
+        dtype=np.float64)
+
+
 from africanus.rime.parangles import _discovered_backends
 no_casa = 'casa' not in _discovered_backends
 no_astropy = 'astropy' not in _discovered_backends
@@ -158,24 +193,51 @@ no_astropy = 'astropy' not in _discovered_backends
                         reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
                         reason="astropy not installed"))])
-def test_parallactic_angles(backend):
+@pytest.mark.parametrize('observation', [(2018,01,01,4)])
+def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
     from africanus.rime import parallactic_angles
 
-    # Four hour Observation on 01/01/2017
-    start = _modified_julian_date(2017, 1, 1)
-    end = start + 4.0 / 24
-
-    start*= 86400.
-    end *= 86400.
-
+    start, end = _observation_endpoints(*observation)
     time = np.linspace(start, end, 5)
-    ant = np.random.random((4,3)).astype(np.float64)
+    ant = wsrt_ants[:4,:]
     fc = np.random.random((2,)).astype(np.float64)
 
     pa = parallactic_angles(time, ant, fc, backend=backend)
     assert pa.shape == (5,4)
 
+
+@pytest.mark.skipif(no_casa or no_astropy,
+                    reason="Neither python-casacore or astropy installed")
+# Parametrize on observation length and error tolerance
+@pytest.mark.parametrize('obs_and_tol', [
+    ((2018,01,01,4), 1e-3),
+    # There's something horribly wrong in this case
+    pytest.param(((2018,02,20,4), 1e-1), marks=pytest.mark.xfail),
+    ((2018,11,02,4), 1e-4)])
+def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
+    """
+    Compare astropy and python-casacore parallactic angle implementations.
+    More work needs to be done here to get things lined up closer.
+    """
+    import numpy as np
+    from africanus.rime import parallactic_angles
+    from astropy import units
+    from astropy.coordinates import Angle
+
+    obs, rtol = obs_and_tol
+    start, end = _observation_endpoints(*obs)
+
+    time = np.linspace(start, end, 5)
+    ant = wsrt_ants[:4,:]
+    fc = np.array([ 0. , 1.04719755], dtype=np.float64)
+
+    astro_pa = parallactic_angles(time, ant, fc, backend='astropy')
+    astro_pa = np.asarray(astro_pa)
+    casa_pa = parallactic_angles(time, ant, fc, backend='casa')
+
+    # Not exact, but close
+    assert np.allclose(astro_pa, casa_pa, rtol=rtol)
 
 def test_brightness_shape():
     import numpy as np
@@ -239,21 +301,15 @@ def test_dask_phase_delay():
                         reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
                         reason="astropy not installed"))])
-def test_dask_parallactic_angles(backend):
+@pytest.mark.parametrize('observation', [(2018,01,01,4)])
+def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     import dask.array as da
     from africanus.rime import parallactic_angles as np_parangle
     from africanus.rime.dask import parallactic_angles as da_parangle
 
-    # Four hour Observation on 01/01/2017
-    start = _modified_julian_date(2017, 1, 1)
-    end = start + 4.0 / 24
-
-    # Convert to seconds
-    start *= 86400.
-    end *= 86400.
-
+    start, end = _observation_endpoints(*observation)
     np_times = np.linspace(start, end, 5)
-    np_ants = np.random.random(size=(4,3))
+    np_ants = wsrt_ants[:4,:]
     np_fc = np.random.random(size=2)
 
     np_pa = np_parangle(np_times, np_ants, np_fc, backend=backend)
@@ -264,8 +320,6 @@ def test_dask_parallactic_angles(backend):
     da_fc = da.from_array(np_fc, chunks=2)
 
     da_pa = da_parangle(da_times, da_ants, da_fc, backend=backend)
-
-    from pprint import pprint
 
     assert np.all(np_pa == da_pa.compute())
 
