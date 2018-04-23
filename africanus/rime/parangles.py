@@ -15,8 +15,7 @@ _casa_requirements = ('pyrap.measures', 'pyrap.quanta')
 have_casa_requirements = have_packages(*_casa_requirements)
 
 if not have_casa_requirements:
-    def casa_parallactic_angles(times, antenna_positions, field_centre,
-                                antenna_frame):
+    def casa_parallactic_angles(times, antenna_positions, field_centre):
         raise MissingPackageException(*_casa_requirements)
 else:
     _discovered_backends.append('casa')
@@ -27,8 +26,7 @@ else:
     # Create a measures server
     meas_serv = pyrap.measures.measures()
 
-    def casa_parallactic_angles(times, antenna_positions, field_centre,
-                                antenna_frame='itrf'):
+    def casa_parallactic_angles(times, antenna_positions, field_centre):
         """
         Computes parallactic angles per timestep for the given
         reference antenna position and field centre.
@@ -39,7 +37,7 @@ else:
 
         # Create position measures for each antenna
         reference_positions = [meas_serv.position(
-                                    antenna_frame,
+                                    'itrf',
                                     *(pq.quantity(x, 'm') for x in pos))
                                for pos in antenna_positions]
 
@@ -63,8 +61,7 @@ _astropy_requirements = ('astropy',)
 have_astropy_requirements = have_packages(*_astropy_requirements)
 
 if not have_astropy_requirements:
-    def astropy_parallactic_angles(times, antenna_positions, field_centre,
-                                   antenna_frame):
+    def astropy_parallactic_angles(times, antenna_positions, field_centre):
         raise MissingPackageException(*_astropy_requirements)
 else:
     _discovered_backends.append('astropy')
@@ -74,8 +71,7 @@ else:
     from astropy.time import Time
     from astropy import units
 
-    def astropy_parallactic_angles(times, antenna_positions, field_centre,
-                                   antenna_frame='itrs'):
+    def astropy_parallactic_angles(times, antenna_positions, field_centre):
         """
         Computes parallactic angles per timestep for the given
         reference antenna position and field centre.
@@ -135,10 +131,6 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
           by multiplying the ``times`` and ``antenna_position``
           arrays. It exist solely for testing.
 
-    antenna_frame : {'itrs'}, optional
-        The coordinate system of the antenna frame.
-        Defaults to 'itrs' for the moment.
-
     Returns
     -------
     :class:`numpy.ndarray`
@@ -154,24 +146,18 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
             raise ValueError("None of the standard backends "
                              "%s are installed" % _standard_backends)
 
-    aframe = kwargs.pop('antenna_frame', 'itrs')
-
     if not field_centre.shape == (2,):
         raise ValueError("Invalid field_centre shape %s" %
                          (field_centre.shape,))
 
-    if aframe not in ('itrs'):
-        raise ValueError("Invalid antenna_frame %s" % aframe)
-
     if backend == 'astropy':
-        return astropy_parallactic_angles(times, antenna_positions,
-                                          field_centre, antenna_frame=aframe)
+        return astropy_parallactic_angles(times,
+                                          antenna_positions,
+                                          field_centre)
     elif backend == 'casa':
-        if aframe == 'itrs':
-            aframe = 'itrf'
-
-        return casa_parallactic_angles(times, antenna_positions,
-                                       field_centre, antenna_frame=aframe)
+        return casa_parallactic_angles(times,
+                                       antenna_positions,
+                                       field_centre)
     elif backend == 'test':
         return times[:, None]*(antenna_positions.sum(axis=1)[None, :])
     else:
