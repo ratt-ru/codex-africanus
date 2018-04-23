@@ -7,6 +7,7 @@ from __future__ import print_function
 import numpy as np
 
 from ..util.requirements import have_packages, MissingPackageException
+from ..util.docs import on_rtd
 
 _discovered_backends = []
 _standard_backends = ['casa', 'astropy']
@@ -14,7 +15,7 @@ _standard_backends = ['casa', 'astropy']
 _casa_requirements = ('pyrap.measures', 'pyrap.quanta')
 have_casa_requirements = have_packages(*_casa_requirements)
 
-if not have_casa_requirements:
+if not have_casa_requirements or on_rtd():
     def casa_parallactic_angles(times, antenna_positions, field_centre):
         raise MissingPackageException(*_casa_requirements)
 else:
@@ -60,7 +61,7 @@ else:
 _astropy_requirements = ('astropy',)
 have_astropy_requirements = have_packages(*_astropy_requirements)
 
-if not have_astropy_requirements:
+if not have_astropy_requirements or on_rtd():
     def astropy_parallactic_angles(times, antenna_positions, field_centre):
         raise MissingPackageException(*_astropy_requirements)
 else:
