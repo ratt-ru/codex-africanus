@@ -150,7 +150,8 @@ def _modified_julian_date(year, month, day):
 
 def _observation_endpoints(year, month, date, hour_duration):
     """
-    Start and end points of a four hour observation on 2018/02/20
+    Start and end points of an observation starting on
+    ``year-month-day`` and of duration ``hour_duration``
     in Modified Julian Date seconds
     """
     start = _modified_julian_date(year, month, date)
@@ -211,14 +212,14 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
                     reason="Neither python-casacore or astropy installed")
 # Parametrize on observation length and error tolerance
 @pytest.mark.parametrize('obs_and_tol', [
-    ((2018,01,01,4), 1e-3),
-    # There's something horribly wrong in this case
-    pytest.param(((2018,02,20,4), 1e-1), marks=pytest.mark.xfail),
-    ((2018,11,02,4), 1e-4)])
+    ((2018,01,01,4), "10s"),
+    ((2018,02,20, 8), "10s"),
+    ((2018,11,02,4), "10s")])
 def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     Compare astropy and python-casacore parallactic angle implementations.
-    More work needs to be done here to get things lined up closer.
+    More work needs to be done here to get things lined up closer,
+    but the tolerances above suggest nothing > 10s.
     """
     import numpy as np
     from africanus.rime import parallactic_angles
@@ -233,11 +234,15 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     fc = np.array([ 0. , 1.04719755], dtype=np.float64)
 
     astro_pa = parallactic_angles(time, ant, fc, backend='astropy')
-    astro_pa = np.asarray(astro_pa)
     casa_pa = parallactic_angles(time, ant, fc, backend='casa')
 
-    # Not exact, but close
-    assert np.allclose(astro_pa, casa_pa, rtol=rtol)
+    # Convert to angle degrees
+    astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180*units.deg)
+    casa_pa = Angle(casa_pa*units.rad, unit=units.deg).wrap_at(180*units.deg)
+
+    # Difference in degrees, wrapped at 180
+    diff = np.abs((astro_pa - casa_pa).wrap_at(180*units.deg))
+    assert np.all(np.abs(diff) < Angle(rtol))
 
 def test_brightness_shape():
     import numpy as np
