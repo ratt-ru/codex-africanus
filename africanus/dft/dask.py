@@ -27,7 +27,8 @@ else:
     def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
         """ Dask wrapper for phase_delay function """
         def _wrapper(image, uvw, lm, frequency, dtype_):
-            return np_im_to_vis(image[0], uvw[0], lm[0], frequency, dtype=dtype_)
+            return np_im_to_vis(image[0], uvw[0], lm[0],
+                                frequency, dtype=dtype_)
 
         return da.core.atop(_wrapper, ("row", "chan"),
                             uvw, ("row", "(u,v,w)"),
@@ -50,9 +51,9 @@ else:
 
 
 im_to_vis.__doc__ = doc_tuple_to_str(im_to_vis_docs,
-                                       [(":class:`numpy.ndarray`",
+                                     [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`")])
 
 vis_to_im.__doc__ = doc_tuple_to_str(vis_to_im_docs,
-                                       [(":class:`numpy.ndarray`",
+                                     [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`")])
