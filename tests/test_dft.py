@@ -5,7 +5,7 @@
 
 import numpy as np
 
-#import pytest
+import pytest
 
 def test_im_to_vis():
     """
@@ -14,27 +14,26 @@ def test_im_to_vis():
     :return: 
     """
     from africanus.dft.kernels import im_to_vis
-    #np.random.seed(123)
 
-    Nrow = 100
-    uvw = np.random.random(size=(Nrow, 3))
-    Npix = 35  # must be odd for this test to work
-    x = np.linspace(-0.1, 0.1, Npix)
+    nrow = 100
+    uvw = np.random.random(size=(nrow, 3))
+    npix = 35  # must be odd for this test to work
+    x = np.linspace(-0.1, 0.1, npix)
     ll, mm = np.meshgrid(x, x)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
-    Nchan = 11
-    frequency = np.linspace(1.0, 2.0, Nchan, endpoint=True)
+    nchan = 11
+    frequency = np.linspace(1.0, 2.0, nchan, endpoint=True)
 
-    image = np.zeros([Npix, Npix, Nchan], dtype=np.float64)
+    image = np.zeros([npix, npix, nchan], dtype=np.float64)
     I0 = 1.0
-    ref_freq = frequency[Nchan//2]
+    ref_freq = frequency[nchan//2]
     Inu = I0*(frequency/ref_freq)**(-0.7)
-    image[Npix//2, Npix//2, :] = Inu
-    image = image.reshape(Npix**2, Nchan)
+    image[npix//2, npix//2, :] = Inu
+    image = image.reshape(npix**2, nchan)
 
     vis = im_to_vis(image, uvw, lm, frequency)
 
-    for i in xrange(Nchan):
+    for i in range(nchan):
         tmp = vis[:, i] - Inu[i]
         assert np.all(tmp.real < 1e-13)
         assert np.all(tmp.imag < 1e-13)
@@ -48,21 +47,21 @@ def test_vis_to_im():
     :return: 
     """
     from africanus.dft.kernels import vis_to_im
-    Nchan = 11
+    nchan = 11
 
-    vis = np.ones([1, Nchan], dtype=np.complex128)
+    vis = np.ones([1, nchan], dtype=np.complex128)
     uvw = np.zeros([1, 3], dtype=np.float64)
-    Npix = 5
-    x = np.linspace(-0.1, 0.1, Npix)
+    npix = 5
+    x = np.linspace(-0.1, 0.1, npix)
     ll, mm = np.meshgrid(x, x)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
     wsum = 1.0
 
-    frequency = np.linspace(1.0, 2.0, Nchan, endpoint=True)
+    frequency = np.linspace(1.0, 2.0, nchan, endpoint=True)
 
     image = vis_to_im(vis, uvw, lm, frequency)
 
-    for i in xrange(Nchan):
+    for i in range(nchan):
         assert np.all(image[:, i] == wsum)
 
 
