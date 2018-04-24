@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import namedtuple
 
 import numba
@@ -42,8 +46,6 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
         return vis_of_im
 
-    # vis_of_im = np.empty((uvw.shape[0], frequency.shape[0]),
-    #                          dtype=np.complex128 if dtype is None else dtype)
     vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0]),
                              dtype=np.complex128 if dtype is None else dtype)
 
@@ -74,8 +76,6 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
 
         return im_of_vis
 
-    # im_of_vis = np.empty((lm.shape[0], frequency.shape[0]),
-    #                          dtype=np.float64 if dtype is None else dtype)
     im_of_vis = np.zeros((lm.shape[0], frequency.shape[0]),
                              dtype=np.float64 if dtype is None else dtype)
 
