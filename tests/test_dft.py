@@ -91,8 +91,6 @@ def test_adjointness():
     LHS = gamma2.T.dot(R(gamma1, uvw, lm, frequency))
     RHS = RH(gamma2, uvw, lm, frequency).T.dot(gamma1)
 
-    print np.abs(LHS - RHS).max()
-
     assert np.all(np.abs(LHS - RHS) < 1e-5)
 
 from africanus.rime.dask import have_requirements
@@ -160,10 +158,10 @@ def test_vis_to_im_dask():
 
     assert np.allclose(image, image_dask)
 
-if __name__=="__main__":
-    test_im_to_vis()
-    test_vis_to_im()
-    test_adjointness()
-
-    test_im_to_vis_dask()
-    test_vis_to_im_dask()
+# if __name__=="__main__":
+#     test_im_to_vis()
+#     test_vis_to_im()
+#     test_adjointness()
+#
+#     test_im_to_vis_dask()
+#     test_vis_to_im_dask()
