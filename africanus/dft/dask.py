@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 from .kernels import im_to_vis_docs, vis_to_im_docs
 from .kernels import im_to_vis as np_im_to_vis
 from .kernels import vis_to_im as np_vis_to_im
@@ -26,11 +28,18 @@ else:
 
     def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
         """ Dask wrapper for phase_delay function """
+        @wraps(np_im_to_vis)
         def _wrapper(image, uvw, lm, frequency, dtype_):
-            return np_im_to_vis(image[0], uvw[0], lm[0],
+            return np_im_to_vis(image[0], uvw[0], lm[0][0],
                                 frequency, dtype=dtype_)
-
+        assert lm.chunks[0][0] == lm.shape[0], \
+            "lm chunks must match lm shape on first axis"
+        assert image.chunks[0][0] == image.shape[0], \
+            "Image chunks must match image shape on first axis"
+        assert image.chunks[0][0] == lm.chunks[0][0], \
+            "Image chunks and lm chunks must match on first axis"
         return da.core.atop(_wrapper, ("row", "chan"),
+                            image, ("source", "chan"),
                             uvw, ("row", "(u,v,w)"),
                             lm, ("source", "(l,m)"),
                             frequency, ("chan",),
@@ -40,9 +49,11 @@ else:
     def vis_to_im(vis, uvw, lm, frequency, dtype=np.complex128):
         """ Dask wrapper for phase_delay_adjoint function """
         def _wrapper(vis, uvw, lm, frequency, dtype_):
-            return np_vis_to_im(vis[0], uvw[0], lm[0], frequency, dtype=dtype_)
+            return np_vis_to_im(vis[0], uvw[0][0], lm[0], frequency,
+                                dtype=dtype_)
 
         return da.core.atop(_wrapper, ("source", "chan"),
+                            vis, ("row", "chan"),
                             uvw, ("row", "(u,v,w)"),
                             lm, ("source", "(l,m)"),
                             frequency, ("chan",),
