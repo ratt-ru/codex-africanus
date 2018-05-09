@@ -32,12 +32,15 @@ else:
         def _wrapper(image, uvw, lm, frequency, dtype_):
             return np_im_to_vis(image[0], uvw[0], lm[0][0],
                                 frequency, dtype=dtype_)
-        assert lm.chunks[0][0] == lm.shape[0], \
-            "lm chunks must match lm shape on first axis"
-        assert image.chunks[0][0] == image.shape[0], \
-            "Image chunks must match image shape on first axis"
-        assert image.chunks[0][0] == lm.chunks[0][0], \
-            "Image chunks and lm chunks must match on first axis"
+        if lm.chunks[0][0] != lm.shape[0]:
+            raise ValueError("lm chunks must match lm shape "
+                             "on first axis")
+        if image.chunks[0][0] != image.shape[0]:
+            raise ValueError("Image chunks must match image "
+                             "shape on first axis")
+        if image.chunks[0][0] != lm.chunks[0][0]:
+            raise ValueError("Image chunks and lm chunks must "
+                             "match on first axis")
         return da.core.atop(_wrapper, ("row", "chan"),
                             image, ("source", "chan"),
                             uvw, ("row", "(u,v,w)"),
@@ -46,7 +49,7 @@ else:
                             dtype=dtype,
                             dtype_=dtype)
 
-    def vis_to_im(vis, uvw, lm, frequency, dtype=np.complex128):
+    def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
         """ Dask wrapper for phase_delay_adjoint function """
         def _wrapper(vis, uvw, lm, frequency, dtype_):
             return np_vis_to_im(vis[0], uvw[0][0], lm[0], frequency,

@@ -69,8 +69,10 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
                     p = real_phase * frequency[chan]
 
                     im_of_vis[source,
-                              chan] += (np.exp(p) * vis[row, chan]).real
+                              chan] += np.cos(p) * vis[row, chan].real - \
+                        np.sin(p) * vis[row, chan].imag
                     # Note for the adjoint we don't need the imaginary part
+                    # and we can elude the call to exp
 
         return im_of_vis
 
@@ -86,7 +88,7 @@ _DFT_DOCSTRING = namedtuple(
 im_to_vis_docs = _DFT_DOCSTRING(
     preamble="""
     Computes the discrete image to visibility mapping of an ideal 
-    unpolarised iterferometer :
+    unpolarised interferometer :
 
     .. math::
 

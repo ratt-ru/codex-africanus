@@ -11,7 +11,6 @@ def test_im_to_vis():
     """
     The simplest test here is to see if a single source at the phase centre
     returns simply the flux everywhere with zero imaginary part
-    :return: 
     """
     from africanus.dft.kernels import im_to_vis
 
@@ -44,7 +43,6 @@ def test_vis_to_im():
     Still thinking of a better test here but we can do here but the simplest test 
     does exactly the same as the above. If we have an auto-correlation we expect 
     to measure a flat image with value wsum
-    :return: 
     """
     from africanus.dft.kernels import vis_to_im
     nchan = 11
@@ -69,7 +67,6 @@ def test_adjointness():
     """
     She is the mother of all tests. The DFT should be perfectly self adjoint up to 
     machine precision. 
-    :return: 
     """
     from africanus.dft.kernels import im_to_vis as R
     from africanus.dft.kernels import vis_to_im as RH
@@ -157,11 +154,3 @@ def test_vis_to_im_dask():
     image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask)
 
     assert np.allclose(image, image_dask)
-
-# if __name__=="__main__":
-#     test_im_to_vis()
-#     test_vis_to_im()
-#     test_adjointness()
-#
-#     test_im_to_vis_dask()
-#     test_vis_to_im_dask()
