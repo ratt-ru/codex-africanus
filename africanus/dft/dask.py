@@ -51,6 +51,7 @@ else:
 
     def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
         """ Dask wrapper for phase_delay_adjoint function """
+        @wraps(np_vis_to_im)
         def _wrapper(vis, uvw, lm, frequency, dtype_):
             return np_vis_to_im(vis[0], uvw[0][0], lm[0], frequency,
                                 dtype=dtype_)
