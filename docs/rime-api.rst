@@ -1,3 +1,5 @@
+.. _rime-api-anchor:
+
 Radio Interferometer Measurement Equation (RIME)
 ------------------------------------------------
 
@@ -36,6 +38,7 @@ Numpy
 .. currentmodule:: africanus.rime
 
 .. autosummary::
+    multiplex
     phase_delay
     brightness
     parallactic_angles
@@ -43,6 +46,7 @@ Numpy
     transform_sources
     beam_cube_dde
 
+.. autofunction:: multiplex
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles

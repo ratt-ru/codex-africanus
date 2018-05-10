@@ -98,6 +98,23 @@ def multiplex(time_index, antenna1, antenna2,
               ant1_jones, ant2_jones, row_jones,
               g1_jones, g2_jones):
     """
+    Multiply jones terms together to form model visibilities according
+    to the following formula:
+
+    .. math::
+
+        V_{pq} = G_{p} \\left( \\sum_{s} A_{ps} B_{pqs} A_{qs}^H \\right) G_{q}^H
+
+    where for antenna :math:`p` and :math:`q`, and source :math:`s`:
+
+    - :math:`A_{ps}` represents per-antenna and source Jones terms.
+    - :math:`B_{pqs}` represents the per-baseline and source Jones terms.
+    - :math:`G_{p}` represents per-antenna Jones terms.
+
+    Generally, :math:`A_{ps}` and :math:`G_{p}` should be formed by creating
+    Jones terms using RIME functions in the `RIME API <rime-api-anchor_>`_
+    and combining them together with a function like :func:`numpy.einsum`
+
     Parameters
     ----------
     time_index : :class:`numpy.ndarray`
