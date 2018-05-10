@@ -22,7 +22,6 @@ def _check_shapes(ant1, bl, ant2, out):
     if bl.shape != out.shape:
         raise ValueError("bl.shape != out.shape")
 
-
 @numba.njit(nogil=True)
 def jones_2x2_mul(ant1, bl, ant2, out):
     _check_shapes(ant1, bl, ant2, out)
@@ -47,7 +46,7 @@ def jones_2x2_mul(ant1, bl, ant2, out):
         fr[r, 0, 0] = fa1[r, 0, 0] * xx + fa1[r, 0, 1] * yx
         fr[r, 0, 1] = fa1[r, 0, 0] * xy + fa1[r, 0, 1] * yy
         fr[r, 1, 0] = fa1[r, 1, 0] * xx + fa1[r, 1, 1] * yx
-        fr[r, 1, 1] = fa1[r, 1, 0] * xx + fa1[r, 1, 1] * yy
+        fr[r, 1, 1] = fa1[r, 1, 0] * xy + fa1[r, 1, 1] * yy
 
 
 @numba.njit(nogil=True)
@@ -69,19 +68,20 @@ def jones_1x1_mul(ant1, bl, ant2, out):
         fr[r, 0] = fa1[r, 0] * fb[r, 0] * np.conj(fa2[r, 0])
 
 
-@numba.njit(nogil=True)
+#@numba.njit(nogil=True)
 def _multiplex(time_index, ant1, ant2,
                ant1_jones, ant2_jones, row_jones,
                g1_jones, g2_jones, out, jones_mul):
 
-    jones_out = np.empty(out.shape[-2:], out.dtype)
+    jones_out = np.zeros(out.shape[2:], out.dtype)
 
     # Iterate over sources
     for s in range(ant1_jones.shape[0]):
         # Iterate over rows
         for r, (ti, a1, a2) in enumerate(zip(time_index, ant1, ant2)):
             # Iterate over channels
-            for c in range(ant1_jones.shape[2]):
+            for c in range(ant1_jones.shape[3]):
+#                import pdb; pdb.set_trace()
                 jones_mul(ant1_jones[s, ti, a1, c], row_jones[s, r, c],
                           ant2_jones[s, ti, a2, c], jones_out)
 
@@ -91,7 +91,7 @@ def _multiplex(time_index, ant1, ant2,
     # Iterate over rows
     for r, (ti, a1, a2) in enumerate(zip(time_index, ant1, ant2)):
         # Iterate over channels
-        for c in range(out.shape[1]):
+        for c in range(ant1_jones.shape[3]):
             jones_mul(g1_jones[ti, a1, c], out[r, c],
                       g2_jones[ti, a2, c], jones_out)
 

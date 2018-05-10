@@ -277,9 +277,33 @@ def test_brightness_shape():
             corr_shape='flat').shape == (10,5,3,1)
 
 
-def test_multiplex():
+def test_jones_2x2_mul():
+    import numpy as np
+    from africanus.rime.multiplexing import jones_2x2_mul
+
+    rf = lambda *a, **kw: np.random.random(*a, **kw)
+    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
+
+    a1_jones  = rc((2,2))
+    a2_jones  = rc((2,2))
+    bl_jones = rc((2,2))
+    out = np.empty_like(bl_jones)
+
+    jones_2x2_mul(a1_jones, bl_jones, a2_jones, out)
+
+    v = np.einsum("ij,jk,kl->il", a1_jones, bl_jones, a2_jones.conj())
+    assert np.allclose(v, out)
+
+@pytest.mark.parametrize('corr', [
+    ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+    pytest.param(((2,1), "", ""), marks=pytest.mark.xfail),
+    ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+])
+def test_multiplex(corr):
     import numpy as np
     from africanus.rime import multiplex
+
+    corr_shape, einsum_sig1, einsum_sig2 = corr
 
     rf = lambda *a, **kw: np.random.random(*a, **kw)
     rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
@@ -290,20 +314,36 @@ def test_multiplex():
     c = 5       # channels
     r = 10      # rows
 
-    a1_jones = rc((s,t,a,c,2,2))
-    a2_jones = rc((s,t,a,c,2,2))
-    bl_jones = rc((s,r,c,2,2))
-    g1_jones = rc((t,a,c,2,2))
-    g2_jones = rc((t,a,c,2,2))
+    a1_jones = rc((s,t,a,c) + corr_shape)
+    a2_jones = rc((s,t,a,c) + corr_shape)
+    bl_jones = rc((s,r,c) + corr_shape)
+    g1_jones = rc((t,a,c) + corr_shape)
+    g2_jones = rc((t,a,c) + corr_shape)
+
+    #  Row indices into the above time/ant indexed arrays
     time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
     ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3])
     ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
 
     assert ant1.size == r
 
-    multiplex(time_idx, ant1, ant2,
+    model_vis = multiplex(time_idx, ant1, ant2,
               a1_jones, a2_jones, bl_jones,
               g1_jones, g2_jones)
+
+    assert model_vis.shape == (r,c) + corr_shape
+
+    v = np.einsum(einsum_sig1,
+        a1_jones[:,time_idx,ant1],
+        bl_jones,
+        a2_jones[:,time_idx,ant2].conj())
+
+    v = np.einsum(einsum_sig2,
+        g1_jones[time_idx,ant1],
+        v,
+        g2_jones[time_idx,ant2].conj())
+
+    assert np.allclose(v, model_vis)
 
 from africanus.rime.dask import have_requirements
 
