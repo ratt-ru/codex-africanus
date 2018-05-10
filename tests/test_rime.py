@@ -276,6 +276,35 @@ def test_brightness_shape():
             polarisation_type=pol_type,
             corr_shape='flat').shape == (10,5,3,1)
 
+
+def test_multiplex():
+    import numpy as np
+    from africanus.rime import multiplex
+
+    rf = lambda *a, **kw: np.random.random(*a, **kw)
+    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
+
+    s = 2       # sources
+    t = 4       # times
+    a = 4       # antennas
+    c = 5       # channels
+    r = 10      # rows
+
+    a1_jones = rc((s,t,a,c,2,2))
+    a2_jones = rc((s,t,a,c,2,2))
+    bl_jones = rc((s,r,c,2,2))
+    g1_jones = rc((t,a,c,2,2))
+    g2_jones = rc((t,a,c,2,2))
+    time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+    ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3])
+    ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+
+    assert ant1.size == r
+
+    multiplex(time_idx, ant1, ant2,
+              a1_jones, a2_jones, bl_jones,
+              g1_jones, g2_jones)
+
 from africanus.rime.dask import have_requirements
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
