@@ -22,6 +22,7 @@ def _check_shapes(ant1, bl, ant2, out):
     if bl.shape != out.shape:
         raise ValueError("bl.shape != out.shape")
 
+
 @numba.njit(nogil=True)
 def jones_2x2_mul(ant1, bl, ant2, out):
     _check_shapes(ant1, bl, ant2, out)
@@ -81,7 +82,6 @@ def _multiplex(time_index, ant1, ant2,
         for r, (ti, a1, a2) in enumerate(zip(time_index, ant1, ant2)):
             # Iterate over channels
             for c in range(ant1_jones.shape[3]):
-#                import pdb; pdb.set_trace()
                 jones_mul(ant1_jones[s, ti, a1, c], row_jones[s, r, c],
                           ant2_jones[s, ti, a2, c], jones_out)
 
