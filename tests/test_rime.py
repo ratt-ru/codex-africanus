@@ -296,7 +296,7 @@ def test_jones_2x2_mul():
 
 @pytest.mark.parametrize('corr', [
     ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    pytest.param(((2,1), "", ""), marks=pytest.mark.xfail),
+    ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
 ])
 def test_multiplex(corr):

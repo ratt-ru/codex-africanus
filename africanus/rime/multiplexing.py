@@ -51,12 +51,7 @@ def jones_2x2_mul(ant1, bl, ant2, out):
 
 
 @numba.njit(nogil=True)
-def jones_2x1_mul(ant1, bl, ant2, out):
-    raise NotImplementedError("2x1 jones multiplication needs implementing")
-
-
-@numba.njit(nogil=True)
-def jones_1x1_mul(ant1, bl, ant2, out):
+def jones_1_and_2_mul(ant1, bl, ant2, out):
     _check_shapes(ant1, bl, ant2, out)
 
     reshape = (-1,) + ant1.shape[-2:]
@@ -66,10 +61,11 @@ def jones_1x1_mul(ant1, bl, ant2, out):
     fr = np.reshape(out, reshape)
 
     for r in range(fa1.shape[0]):
-        fr[r, 0] = fa1[r, 0] * fb[r, 0] * np.conj(fa2[r, 0])
+        for c in range(fa2.shape[1]):
+            fr[r, c] = fa1[r, c] * fb[r, c] * np.conj(fa2[r, c])
 
 
-#@numba.njit(nogil=True)
+@numba.njit(nogil=True)
 def _multiplex(time_index, ant1, ant2,
                ant1_jones, ant2_jones, row_jones,
                g1_jones, g2_jones, out, jones_mul):
@@ -130,10 +126,8 @@ def multiplex(time_index, antenna1, antenna2,
     _, row, chan = row_jones.shape[:3]
     corrs = row_jones.shape[3:]
 
-    if corrs == (1,):
-        jones_mul = jones_1x1_mul
-    elif corrs == (2, 1):
-        jones_mul = jones_2x1_mul
+    if corrs == (1,) or corrs == (2,):
+        jones_mul = jones_1_and_2_mul
     elif corrs == (2, 2):
         jones_mul = jones_2x2_mul
     else:
