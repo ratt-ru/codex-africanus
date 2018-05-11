@@ -123,7 +123,9 @@ multiplex_docs = _MP_DOCSTRING(
 
     .. math::
 
-        V_{pq} = G_{p} \\left( \\sum_{s} A_{ps} B_{pqs} A_{qs}^H \\right) G_{q}^H
+        V_{pq} = G_{p} \\left(
+            \\sum_{s} A_{ps} B_{pqs} A_{qs}^H
+            \\right) G_{q}^H
 
     where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 

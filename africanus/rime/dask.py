@@ -202,8 +202,8 @@ else:
             time_index -= time_index.min()
 
             return np_multiplex(time_index, antenna1, antenna2,
-                                ant1_jones[0][0], ant2_jones[0][0], row_jones[0],
-                                g1_jones[0], g2_jones[0])
+                                ant1_jones[0][0], ant2_jones[0][0],
+                                row_jones[0], g1_jones[0], g2_jones[0])
 
         if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
             raise ValueError("Subdivision of antenna dimension into "
