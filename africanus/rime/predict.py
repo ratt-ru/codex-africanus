@@ -174,7 +174,7 @@ predict_vis_docs = _MP_DOCSTRING(
     ant2_jones : :class:`numpy.ndarray`
         Per-source Jones terms for the second antenna.
         shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-    row_jones : class:`numpy.ndarray`
+    row_jones : :class:`numpy.ndarray`
         Per-source Jones term for the row (baseline).
         shape :code:`(source,row,chan,corr_1,corr_2)`
     g1_jones : :class:`numpy.ndarray`
