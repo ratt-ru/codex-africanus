@@ -1,9 +1,10 @@
 .. _rime-api-anchor:
 
-Radio Interferometer Measurement Equation (RIME)
-------------------------------------------------
+Radio Interferometer Measurement Equation
+-----------------------------------------
 
-Functions used to compute the terms of the RIME.
+Functions used to compute the terms of the
+Radio Interferometer Measurement Equation (RIME).
 It describes the response of an interferometer to a sky model.
 
 .. math::
