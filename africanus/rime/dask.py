@@ -47,8 +47,8 @@ if not have_requirements or on_rtd():
         raise MissingPackageException(*_package_requirements)
 
     def predict_vis(time_index, antenna1, antenna2,
-                  ant1_jones, ant2_jones, row_jones,
-                  g1_jones, g2_jones):
+                    ant1_jones, ant2_jones, row_jones,
+                    g1_jones, g2_jones):
         raise MissingPackageException(*_package_requirements)
 
 else:
@@ -190,8 +190,8 @@ else:
                             dtype=beam.dtype)
 
     def predict_vis(time_index, antenna1, antenna2,
-                  ant1_jones, ant2_jones, row_jones,
-                  g1_jones, g2_jones):
+                    ant1_jones, ant2_jones, row_jones,
+                    g1_jones, g2_jones):
 
         @wraps(np_predict_vis)
         def _wrapper(time_index, antenna1, antenna2,
@@ -202,8 +202,8 @@ else:
             time_index -= time_index.min()
 
             return np_predict_vis(time_index, antenna1, antenna2,
-                                ant1_jones[0][0], ant2_jones[0][0],
-                                row_jones[0], g1_jones[0], g2_jones[0])
+                                  ant1_jones[0][0], ant2_jones[0][0],
+                                  row_jones[0], g1_jones[0], g2_jones[0])
 
         if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
             raise ValueError("Subdivision of antenna dimension into "
@@ -346,7 +346,7 @@ dask_mp_docs['notes'] += (
 
 
 predict_vis.__doc__ = doc_tuple_to_str(dask_mp_docs,
-                                     [(":class:`numpy.ndarray`",
-                                       ":class:`dask.array.Array`"),
-                                      (":func:`~numpy.einsum`",
+                                       [(":class:`numpy.ndarray`",
+                                         ":class:`dask.array.Array`"),
+                                        (":func:`~numpy.einsum`",
                                          ":func:`~dask.array.einsum`")])

@@ -51,8 +51,8 @@ def jones_2x2_mul(ant1, bl, ant2, out):
 
 @numba.njit(nogil=True)
 def _predict_vis(time_index, ant1, ant2,
-               ant1_jones, ant2_jones, row_jones,
-               g1_jones, g2_jones, out, jones_mul):
+                 ant1_jones, ant2_jones, row_jones,
+                 g1_jones, g2_jones, out, jones_mul):
 
     # Sanity check our indices
     for ti, a1, a2 in zip(time_index, ant1, ant2):
@@ -91,8 +91,8 @@ def _predict_vis(time_index, ant1, ant2,
 
 
 def predict_vis(time_index, antenna1, antenna2,
-              ant1_jones, ant2_jones, row_jones,
-              g1_jones, g2_jones):
+                ant1_jones, ant2_jones, row_jones,
+                g1_jones, g2_jones):
     _, row, chan = row_jones.shape[:3]
     corrs = row_jones.shape[3:]
 
@@ -106,8 +106,8 @@ def predict_vis(time_index, antenna1, antenna2,
     out = np.zeros((row, chan) + corrs, dtype=row_jones.dtype)
 
     _predict_vis(time_index, antenna1, antenna2,
-               ant1_jones, ant2_jones, row_jones,
-               g1_jones, g2_jones, out, jones_mul)
+                 ant1_jones, ant2_jones, row_jones,
+                 g1_jones, g2_jones, out, jones_mul)
 
     return out
 
