@@ -4,4 +4,4 @@ RUN pip install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
 RUN pip install .
-RUN python setup.py test
+RUN py.test -v -s .
