@@ -4,11 +4,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import namedtuple
+
 import numba
 import numpy as np
 
 from ..util.requirements import have_packages, MissingPackageException
-from ..util.docs import on_rtd
+from ..util.docs import on_rtd, doc_tuple_to_str
 
 
 @numba.njit(nogil=True, cache=True)
@@ -91,7 +93,31 @@ def _multiplex(time_index, ant1, ant2,
 def multiplex(time_index, antenna1, antenna2,
               ant1_jones, ant2_jones, row_jones,
               g1_jones, g2_jones):
-    """
+    _, row, chan = row_jones.shape[:3]
+    corrs = row_jones.shape[3:]
+
+    if corrs == (1,) or corrs == (2,):
+        jones_mul = jones_1_and_2_mul
+    elif corrs == (2, 2):
+        jones_mul = jones_2x2_mul
+    else:
+        raise ValueError("Unhandled correlations %s", (corrs,))
+
+    out = np.zeros((row, chan) + corrs, dtype=row_jones.dtype)
+
+    _multiplex(time_index, antenna1, antenna2,
+               ant1_jones, ant2_jones, row_jones,
+               g1_jones, g2_jones, out, jones_mul)
+
+    return out
+
+
+_MP_DOCSTRING = namedtuple("MULTIPLEXDOCSTRING",
+                           ["preamble", "notes", "parameters", "returns"])
+
+
+multiplex_docs = _MP_DOCSTRING(
+    preamble="""
     Multiply Jones terms together to form model visibilities according
     to the following formula:
 
@@ -109,6 +135,23 @@ def multiplex(time_index, antenna1, antenna2,
     Jones terms using the `RIME API <rime-api-anchor_>`_ functions
     and combining them together with :func:`~numpy.einsum`.
 
+    **Please read the Notes**
+
+    """,
+
+    notes="""
+    Notes
+    -----
+
+    * The inputs to this function involve ``row``, ``time``
+      and ``ant`` (antenna) dimensions.
+    * Each ``row`` is associated with a pair of antenna Jones matrices
+      at a particular timestep via the
+      ``time_index``, ``antenna1`` and ``antenna2`` inputs.
+    * The ``row`` dimension must be an increasing partial order in time.
+    """,
+
+    parameters="""
     Parameters
     ----------
     time_index : :class:`numpy.ndarray`
@@ -138,26 +181,14 @@ def multiplex(time_index, antenna1, antenna2,
     g2_jones : :class:`numpy.ndarray`
         Jones terms for the second antenna of the baseline.
         shape :code:`(time,ant,chan,corr_1,corr_2)`
+    """,
 
+    returns="""
     Returns
     -------
     :class:`numpy.ndarray`
         Model visibilities of shape :code:`(row,chan,corr_1,corr_2)`
-    """
-    _, row, chan = row_jones.shape[:3]
-    corrs = row_jones.shape[3:]
+    """)
 
-    if corrs == (1,) or corrs == (2,):
-        jones_mul = jones_1_and_2_mul
-    elif corrs == (2, 2):
-        jones_mul = jones_2x2_mul
-    else:
-        raise ValueError("Unhandled correlations %s", (corrs,))
 
-    out = np.zeros((row, chan) + corrs, dtype=row_jones.dtype)
-
-    _multiplex(time_index, antenna1, antenna2,
-               ant1_jones, ant2_jones, row_jones,
-               g1_jones, g2_jones, out, jones_mul)
-
-    return out
+multiplex.__doc__ = doc_tuple_to_str(multiplex_docs)

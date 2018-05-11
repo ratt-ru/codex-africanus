@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import OrderedDict
 from functools import wraps
 
 from .phase import phase_delay_docs
@@ -13,7 +14,9 @@ from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
+from .multiplexing import multiplex_docs
 from .multiplexing import multiplex as np_multiplex
+
 
 from ..util import corr_shape as corr_shape_fn
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
@@ -287,8 +290,63 @@ beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                  [(":class:`numpy.ndarray`",
                                    ":class:`dask.array.Array`")])
 
-multiplex.__doc__ = mod_docs(np_multiplex.__doc__,
-                             [(":class:`numpy.ndarray`",
-                               ":class:`dask.array.Array`"),
-                              (":func:`~numpy.einsum`",
-                               ":func:`~dask.array.einsum`")])
+
+dask_mp_docs = OrderedDict((k, getattr(multiplex_docs, k)) for k
+                           in multiplex_docs._fields)
+
+dask_mp_docs['notes'] += (
+    """* The ``ant`` dimension should only contain a single chunk equal
+      to the number of antenna. Since each ``row`` can contain
+      any antenna, random access must be preserved along this dimension.
+    * The chunks in the ``row`` and ``time`` dimension **must** align.
+      This subtle point **must be understood otherwise
+      invalid results will be produced** by the chunking scheme.
+      In the example below
+      we have four unique time indices :code:`[0,1,2,3]`, and
+      four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
+
+      .. code-block:: python
+
+          #  Row indices into the time/antenna indexed arrays
+          time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+          ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
+          ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+
+
+      A reasonable chunking scheme for the
+      ``row`` and ``time`` dimension would be :code:`(4,4,2)`
+      and :code:`(2,1,1)` respectively.
+      Another way of explaining this is that the first
+      four rows contain two unique timesteps, the second four
+      rows contain one unique timestep and the last two rows
+      contain one unique timestep.
+
+      Some rules of thumb:
+
+      1. The number chunks in ``row`` and ``time`` must match
+         although the individual chunk sizes need not.
+      2. Unique timesteps should not be split across row chunks.
+      3. For a Measurement Set whose rows are ordered on the
+         ``TIME`` column, the following is a good way of obtaining
+         the row chunking strategy:
+
+         .. code-block:: python
+
+            import numpy as np
+            import pyrap.tables as pt
+
+            ms = pt.table("data.ms")
+            times = ms.getcol("TIME")
+            unique_times, chunks = np.unique(times, return_counts=True)
+
+      4. It is a good idea to aggregate multiple ``row`` and ``time``
+         chunks into chunks large enough for functions to be supplied
+         with sufficient data to drop the GIL for a good period of time.
+""")
+
+
+multiplex.__doc__ = doc_tuple_to_str(dask_mp_docs,
+                                     [(":class:`numpy.ndarray`",
+                                       ":class:`dask.array.Array`"),
+                                      (":func:`~numpy.einsum`",
+                                         ":func:`~dask.array.einsum`")])
