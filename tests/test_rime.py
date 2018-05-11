@@ -481,3 +481,81 @@ def test_dask_feed_rotation():
 
     np_fr = np_feed_rotation(parangles, feed_type='circular')
     assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='circular'))
+
+
+
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+@pytest.mark.parametrize('corr', [
+    ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+    ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+    ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+])
+def test_dask_multiplex(corr):
+    import dask.array as da
+    import numpy as np
+    from africanus.rime import multiplex as np_multiplex
+    from africanus.rime.dask import multiplex
+
+    corr_shape, einsum_sig1, einsum_sig2 = corr
+
+    rf = lambda *a, **kw: np.random.random(*a, **kw)
+    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
+
+    # dimension sizes
+    s = 2       # sources
+    t = 4       # times
+    a = 4       # antennas
+    c = 5       # channels
+    r = 10      # rows
+
+    a1_jones = rc((s,t,a,c) + corr_shape)
+    a2_jones = rc((s,t,a,c) + corr_shape)
+    bl_jones = rc((s,r,c) + corr_shape)
+    g1_jones = rc((t,a,c) + corr_shape)
+    g2_jones = rc((t,a,c) + corr_shape)
+
+    #  Row indices into the above time/ant indexed arrays
+    time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+    ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3])
+    ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+
+    assert ant1.size == r
+
+    np_model_vis = np_multiplex(time_idx, ant1, ant2,
+                                a1_jones, a2_jones, bl_jones,
+                                g1_jones, g2_jones)
+
+    # chunk sizes
+    sc = 2          # sources
+    tc = (2,1,1)    # times
+    rc = (4,4,2)    # rows
+    ac = a          # antennas
+    cc = (3,2)      # channels
+
+    da_time_idx = da.from_array(time_idx, chunks=rc)
+    da_ant1 = da.from_array(ant1, chunks=rc)
+    da_ant2 = da.from_array(ant2, chunks=rc)
+
+    da_a1_jones = da.from_array(a1_jones, chunks=(sc,tc,ac,cc) + corr_shape)
+    da_a2_jones = da.from_array(a2_jones, chunks=(sc,tc,ac,cc) + corr_shape)
+    da_bl_jones = da.from_array(bl_jones, chunks=(sc,rc,cc) + corr_shape)
+    da_g1_jones = da.from_array(g1_jones, chunks=(tc,ac,cc) + corr_shape)
+    da_g2_jones = da.from_array(g2_jones, chunks=(tc,ac,cc) + corr_shape)
+
+    model_vis = multiplex(da_time_idx, da_ant1, da_ant2,
+                        da_a1_jones, da_a2_jones, da_bl_jones,
+                        da_g1_jones, da_g2_jones)
+
+    model_vis = model_vis.compute()
+
+    if not np.allclose(model_vis, np_model_vis):
+        diff = model_vis - np_model_vis
+        diff[np.abs(diff) < 1e-10] = 0.0
+        problems = np.array(np.nonzero(diff)).T
+
+        for p in (tuple(p.tolist()) for p in problems):
+            print(p, model_vis[p], np_model_vis[p])
+
+    assert np.allclose(model_vis, np_model_vis)
+
+

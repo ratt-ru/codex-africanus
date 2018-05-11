@@ -13,12 +13,13 @@ from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
+from .multiplexing import multiplex as np_multiplex
 
 from ..util import corr_shape as corr_shape_fn
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
 
-_package_requirements = ('dask.array',)
+_package_requirements = ('dask.array', 'toolz')
 have_requirements = have_packages(*_package_requirements)
 
 if not have_requirements or on_rtd():
@@ -42,9 +43,19 @@ if not have_requirements or on_rtd():
                       spline_order=1, mode='nearest'):
         raise MissingPackageException(*_package_requirements)
 
+    def multiplex(time_index, antenna1, antenna2,
+                  ant1_jones, ant2_jones, row_jones,
+                  g1_jones, g2_jones):
+        raise MissingPackageException(*_package_requirements)
+
 else:
     import numpy as np
     import dask.array as da
+
+    try:
+        import cytoolz as toolz
+    except ImportError:
+        import toolz
 
     def phase_delay(uvw, lm, frequency, dtype=np.complex128):
         """ Dask wrapper for phase_delay function """
@@ -175,6 +186,83 @@ else:
                             mode=mode,
                             dtype=beam.dtype)
 
+    def multiplex(time_index, antenna1, antenna2,
+                  ant1_jones, ant2_jones, row_jones,
+                  g1_jones, g2_jones):
+
+        @wraps(np_multiplex)
+        def _wrapper(time_index, antenna1, antenna2,
+                     ant1_jones, ant2_jones, row_jones,
+                     g1_jones, g2_jones):
+
+            # Normalise the time index
+            time_index -= time_index.min()
+
+            return np_multiplex(time_index, antenna1, antenna2,
+                                ant1_jones[0][0], ant2_jones[0][0], row_jones[0],
+                                g1_jones[0], g2_jones[0])
+
+        if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
+            raise ValueError("Subdivision of antenna dimension into "
+                             "multiple chunks is not supported.")
+
+        if len(ant1_jones.chunks[1]) != len(time_index.chunks[0]):
+            raise ValueError("Number of row chunks (%s) does not equal "
+                             "number of time chunks (%s)." %
+                             (time_index.chunks[0], ant1_jones.chunks[1]))
+
+        # Generate strings for the correlation dimensions
+        cdims = tuple("corr-%d" % i for i in range(len(row_jones.shape[3:])))
+        ajones_dims = ("src", "row", "ant", "chan") + cdims
+
+        # In the case multiplex, the "row" and "time" dimensions
+        # are intimately related -- a contiguous series of rows
+        # are related to a contiguous series of timesteps.
+        # This means that the number of chunks of these
+        # two dimensions must match even though the chunk sizes may not.
+        # da.core.atop insists on matching chunk sizes.
+        # For this reason, we use the lower level da.core.top and
+        # substitute "row" for "time" in arrays such as ant1_jones
+        # and g1_jones.
+        token = da.core.tokenize(time_index, antenna1, antenna2,
+                                 ant1_jones, ant2_jones, row_jones,
+                                 g1_jones, g2_jones)
+        name = "-".join(("multiplex", token))
+        dsk = da.core.top(_wrapper, name, ("row", "chan") + cdims,
+                          time_index.name, ("row",),
+                          antenna1.name, ("row",),
+                          antenna2.name, ("row",),
+                          ant1_jones.name, ajones_dims,
+                          ant2_jones.name, ajones_dims,
+                          row_jones.name, ("src", "row", "chan") + cdims,
+                          g1_jones.name, ("row", "ant", "chan") + cdims,
+                          g2_jones.name, ("row", "ant", "chan") + cdims,
+                          numblocks={
+                                time_index.name: time_index.numblocks,
+                                antenna1.name: antenna1.numblocks,
+                                antenna2.name: antenna2.numblocks,
+                                ant1_jones.name: ant1_jones.numblocks,
+                                ant2_jones.name: ant2_jones.numblocks,
+                                row_jones.name: row_jones.numblocks,
+                                g1_jones.name: g1_jones.numblocks,
+                                g2_jones.name: g2_jones.numblocks,
+                            })
+
+        # Merge input graphs into the top graph
+        dsk = toolz.merge(dsk, *(a.__dask_graph__() for a in (time_index,
+                                                              antenna1,
+                                                              antenna2,
+                                                              ant1_jones,
+                                                              ant2_jones,
+                                                              row_jones,
+                                                              g1_jones,
+                                                              g2_jones)))
+
+        # We can infer output chunk sizes from row_jones
+        chunks = row_jones.chunks[1:]
+
+        return da.Array(dsk, name, chunks, dtype=ant1_jones.dtype)
+
 phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
                                        [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`")])
@@ -198,3 +286,9 @@ transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
 beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                  [(":class:`numpy.ndarray`",
                                    ":class:`dask.array.Array`")])
+
+multiplex.__doc__ = mod_docs(np_multiplex.__doc__,
+                             [(":class:`numpy.ndarray`",
+                               ":class:`dask.array.Array`"),
+                              (":func:`~numpy.einsum`",
+                               ":func:`~dask.array.einsum`")])

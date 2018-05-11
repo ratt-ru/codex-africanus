@@ -60,6 +60,7 @@ Dask
 .. currentmodule:: africanus.rime.dask
 
 .. autosummary::
+    multiplex
     phase_delay
     brightness
     parallactic_angles
@@ -68,6 +69,7 @@ Dask
     beam_cube_dde
 
 
+.. autofunction:: multiplex
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles
