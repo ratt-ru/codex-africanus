@@ -50,7 +50,7 @@ def jones_2x2_mul(ant1, bl, ant2, out):
 
 
 @numba.njit(nogil=True)
-def _multiplex(time_index, ant1, ant2,
+def _predict_vis(time_index, ant1, ant2,
                ant1_jones, ant2_jones, row_jones,
                g1_jones, g2_jones, out, jones_mul):
 
@@ -90,7 +90,7 @@ def _multiplex(time_index, ant1, ant2,
             out[r, c] = jones_out
 
 
-def multiplex(time_index, antenna1, antenna2,
+def predict_vis(time_index, antenna1, antenna2,
               ant1_jones, ant2_jones, row_jones,
               g1_jones, g2_jones):
     _, row, chan = row_jones.shape[:3]
@@ -105,7 +105,7 @@ def multiplex(time_index, antenna1, antenna2,
 
     out = np.zeros((row, chan) + corrs, dtype=row_jones.dtype)
 
-    _multiplex(time_index, antenna1, antenna2,
+    _predict_vis(time_index, antenna1, antenna2,
                ant1_jones, ant2_jones, row_jones,
                g1_jones, g2_jones, out, jones_mul)
 
@@ -116,7 +116,7 @@ _MP_DOCSTRING = namedtuple("MULTIPLEXDOCSTRING",
                            ["preamble", "notes", "parameters", "returns"])
 
 
-multiplex_docs = _MP_DOCSTRING(
+predict_vis_docs = _MP_DOCSTRING(
     preamble="""
     Multiply Jones terms together to form model visibilities according
     to the following formula:
@@ -129,11 +129,11 @@ multiplex_docs = _MP_DOCSTRING(
 
     where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
-    - :math:`A_{ps}` represents per-antenna and source Jones terms.
-    - :math:`B_{pqs}` represents the per-baseline and source Jones terms.
-    - :math:`G_{p}` represents per-antenna Jones terms.
+    - :math:`E_{ps}` represents direction-dependent (per-source) Jones terms.
+    - :math:`B_{pqs}` represents a coherency matrix.
+    - :math:`G_{p}` represents direction-independent Jones terms.
 
-    Generally, :math:`A_{ps}` and :math:`G_{p}` should be formed by creating
+    Generally, :math:`E_{ps}` and :math:`G_{p}` should be formed by creating
     Jones terms using the `RIME API <rime-api-anchor_>`_ functions
     and combining them together with :func:`~numpy.einsum`.
 
@@ -193,4 +193,4 @@ multiplex_docs = _MP_DOCSTRING(
     """)
 
 
-multiplex.__doc__ = doc_tuple_to_str(multiplex_docs)
+predict_vis.__doc__ = doc_tuple_to_str(predict_vis_docs)

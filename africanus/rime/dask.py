@@ -14,8 +14,8 @@ from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
-from .multiplexing import multiplex_docs
-from .multiplexing import multiplex as np_multiplex
+from .predict import predict_vis_docs
+from .predict import predict_vis as np_predict_vis
 
 
 from ..util import corr_shape as corr_shape_fn
@@ -46,7 +46,7 @@ if not have_requirements or on_rtd():
                       spline_order=1, mode='nearest'):
         raise MissingPackageException(*_package_requirements)
 
-    def multiplex(time_index, antenna1, antenna2,
+    def predict_vis(time_index, antenna1, antenna2,
                   ant1_jones, ant2_jones, row_jones,
                   g1_jones, g2_jones):
         raise MissingPackageException(*_package_requirements)
@@ -189,11 +189,11 @@ else:
                             mode=mode,
                             dtype=beam.dtype)
 
-    def multiplex(time_index, antenna1, antenna2,
+    def predict_vis(time_index, antenna1, antenna2,
                   ant1_jones, ant2_jones, row_jones,
                   g1_jones, g2_jones):
 
-        @wraps(np_multiplex)
+        @wraps(np_predict_vis)
         def _wrapper(time_index, antenna1, antenna2,
                      ant1_jones, ant2_jones, row_jones,
                      g1_jones, g2_jones):
@@ -201,7 +201,7 @@ else:
             # Normalise the time index
             time_index -= time_index.min()
 
-            return np_multiplex(time_index, antenna1, antenna2,
+            return np_predict_vis(time_index, antenna1, antenna2,
                                 ant1_jones[0][0], ant2_jones[0][0],
                                 row_jones[0], g1_jones[0], g2_jones[0])
 
@@ -218,7 +218,7 @@ else:
         cdims = tuple("corr-%d" % i for i in range(len(row_jones.shape[3:])))
         ajones_dims = ("src", "row", "ant", "chan") + cdims
 
-        # In the case multiplex, the "row" and "time" dimensions
+        # In the case predict_vis, the "row" and "time" dimensions
         # are intimately related -- a contiguous series of rows
         # are related to a contiguous series of timesteps.
         # This means that the number of chunks of these
@@ -230,7 +230,7 @@ else:
         token = da.core.tokenize(time_index, antenna1, antenna2,
                                  ant1_jones, ant2_jones, row_jones,
                                  g1_jones, g2_jones)
-        name = "-".join(("multiplex", token))
+        name = "-".join(("predict_vis", token))
         dsk = da.core.top(_wrapper, name, ("row", "chan") + cdims,
                           time_index.name, ("row",),
                           antenna1.name, ("row",),
@@ -291,8 +291,8 @@ beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                    ":class:`dask.array.Array`")])
 
 
-dask_mp_docs = OrderedDict((k, getattr(multiplex_docs, k)) for k
-                           in multiplex_docs._fields)
+dask_mp_docs = OrderedDict((k, getattr(predict_vis_docs, k)) for k
+                           in predict_vis_docs._fields)
 
 dask_mp_docs['notes'] += (
     """* The ``ant`` dimension should only contain a single chunk equal
@@ -345,7 +345,7 @@ dask_mp_docs['notes'] += (
 """)
 
 
-multiplex.__doc__ = doc_tuple_to_str(dask_mp_docs,
+predict_vis.__doc__ = doc_tuple_to_str(dask_mp_docs,
                                      [(":class:`numpy.ndarray`",
                                        ":class:`dask.array.Array`"),
                                       (":func:`~numpy.einsum`",

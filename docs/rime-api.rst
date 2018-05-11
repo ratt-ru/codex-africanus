@@ -9,12 +9,16 @@ It describes the response of an interferometer to a sky model.
 
 .. math::
 
-    V_{pq} = G_{p} \left( \sum_{s} E_{ps} L_{p} K_{ps} B_{s} K_{qs}^H L_{q}^H E_{qs}^H \right) G_{q}^H
+    V_{pq} = G_{p} \left(
+        \sum_{s} E_{ps} L_{p} K_{ps}
+        B_{s}
+        K_{qs}^H L_{q}^H E_{qs}^H
+        \right) G_{q}^H
 
 where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
-- :math:`G_{p}` represents direction independent effects.
-- :math:`E_{ps}` represents direction dependent effects.
+- :math:`G_{p}` represents direction-independent effects.
+- :math:`E_{ps}` represents direction-dependent effects.
 - :math:`L_{p}` represents the feed rotation.
 - :math:`K_{ps}` represents the phase delay term.
 - :math:`B_{s}` represents the brightness matrix.
@@ -39,7 +43,7 @@ Numpy
 .. currentmodule:: africanus.rime
 
 .. autosummary::
-    multiplex
+    predict_vis
     phase_delay
     brightness
     parallactic_angles
@@ -47,7 +51,7 @@ Numpy
     transform_sources
     beam_cube_dde
 
-.. autofunction:: multiplex
+.. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles
@@ -61,7 +65,7 @@ Dask
 .. currentmodule:: africanus.rime.dask
 
 .. autosummary::
-    multiplex
+    predict_vis
     phase_delay
     brightness
     parallactic_angles
@@ -70,7 +74,7 @@ Dask
     beam_cube_dde
 
 
-.. autofunction:: multiplex
+.. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles
