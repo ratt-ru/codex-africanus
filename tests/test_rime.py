@@ -279,7 +279,7 @@ def test_brightness_shape():
 
 def test_jones_2x2_mul():
     import numpy as np
-    from africanus.rime.multiplexing import jones_2x2_mul
+    from africanus.rime.predict import jones_2x2_mul
 
     rf = lambda *a, **kw: np.random.random(*a, **kw)
     rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
@@ -299,9 +299,9 @@ def test_jones_2x2_mul():
     ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
 ])
-def test_multiplex(corr):
+def test_predict_vis(corr):
     import numpy as np
-    from africanus.rime import multiplex
+    from africanus.rime import predict_vis
 
     corr_shape, einsum_sig1, einsum_sig2 = corr
 
@@ -327,7 +327,7 @@ def test_multiplex(corr):
 
     assert ant1.size == r
 
-    model_vis = multiplex(time_idx, ant1, ant2,
+    model_vis = predict_vis(time_idx, ant1, ant2,
               a1_jones, a2_jones, bl_jones,
               g1_jones, g2_jones)
 
@@ -490,11 +490,11 @@ def test_dask_feed_rotation():
     ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
 ])
-def test_dask_multiplex(corr):
+def test_dask_predict_vis(corr):
     import dask.array as da
     import numpy as np
-    from africanus.rime import multiplex as np_multiplex
-    from africanus.rime.dask import multiplex
+    from africanus.rime import predict_vis as np_predict_vis
+    from africanus.rime.dask import predict_vis
 
     corr_shape, einsum_sig1, einsum_sig2 = corr
 
@@ -521,7 +521,7 @@ def test_dask_multiplex(corr):
 
     assert ant1.size == r
 
-    np_model_vis = np_multiplex(time_idx, ant1, ant2,
+    np_model_vis = np_predict_vis(time_idx, ant1, ant2,
                                 a1_jones, a2_jones, bl_jones,
                                 g1_jones, g2_jones)
 
@@ -542,7 +542,7 @@ def test_dask_multiplex(corr):
     da_g1_jones = da.from_array(g1_jones, chunks=(tc,ac,cc) + corr_shape)
     da_g2_jones = da.from_array(g2_jones, chunks=(tc,ac,cc) + corr_shape)
 
-    model_vis = multiplex(da_time_idx, da_ant1, da_ant2,
+    model_vis = predict_vis(da_time_idx, da_ant1, da_ant2,
                         da_a1_jones, da_a2_jones, da_bl_jones,
                         da_g1_jones, da_g2_jones)
 
