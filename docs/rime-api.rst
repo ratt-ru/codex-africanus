@@ -1,7 +1,10 @@
-Radio Interferometer Measurement Equation (RIME)
-------------------------------------------------
+.. _rime-api-anchor:
 
-Functions used to compute the terms of the RIME.
+Radio Interferometer Measurement Equation
+-----------------------------------------
+
+Functions used to compute the terms of the
+Radio Interferometer Measurement Equation (RIME).
 It describes the response of an interferometer to a sky model.
 
 .. math::
@@ -36,6 +39,7 @@ Numpy
 .. currentmodule:: africanus.rime
 
 .. autosummary::
+    multiplex
     phase_delay
     brightness
     parallactic_angles
@@ -43,6 +47,7 @@ Numpy
     transform_sources
     beam_cube_dde
 
+.. autofunction:: multiplex
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles
@@ -56,6 +61,7 @@ Dask
 .. currentmodule:: africanus.rime.dask
 
 .. autosummary::
+    multiplex
     phase_delay
     brightness
     parallactic_angles
@@ -64,6 +70,7 @@ Dask
     beam_cube_dde
 
 
+.. autofunction:: multiplex
 .. autofunction:: phase_delay
 .. autofunction:: brightness
 .. autofunction:: parallactic_angles
