@@ -5,7 +5,7 @@ History
 0.1.3 (2018-03-28)
 ------------------
 
-* Implement RIME visibility predict (:pr:`24`)
+* Implement RIME visibility predict (:pr:`24`, :pr:`25`)
 * Direct Fourier Transform (:pr:`19`)
 * Parallactic Angle computation (:pr:`15`)
 * Implement Feed Rotation term (:pr:`14`)
