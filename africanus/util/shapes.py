@@ -15,15 +15,16 @@ def corr_shape(ncorr, corr_shape):
     ncorr : integer
         Number of correlations
     corr_shape : {'flat', 'matrix'}
-        If ``flat`` returns a single dimension.
-        If ``matrix`` returns a square matrix of dimensions
+        Shape of output correlations
+
 
     Returns
     -------
     tuple
         Shape tuple describing the correlation dimensions
-        If ``flat`` returns :code:`(ncorr,)`
-        If ``matrix`` returns
+
+        * If ``flat`` returns :code:`(ncorr,)`
+        * If ``matrix`` returns
 
             * :code:`(1,)` if :code:`ncorr == 1`
             * :code:`(2,)` if :code:`ncorr == 2`
