@@ -27,7 +27,14 @@ def zernike_rad( m, n, rho):
     return radial_component
 
 @numba.jit(nogil=True, nopython=True)
-def zernike(m, n, rho, phi):
+def zernike(j, rho, phi):
+    j += 1
+    n = 0
+    j1 = j-1
+    while (j1 > n):
+        n += 1
+        j1 -= n
+    m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1)%2)) / 2.0 ))
     if (m > 0): return zernike_rad(m, n, rho) * np.cos(m * phi)
     if (m < 0): return zernike_rad(-m, n, rho) * np.sin(-m * phi)
     return zernike_rad(0, n, rho)
@@ -38,28 +45,46 @@ def _convert_coords(l, m):
     return rho, phi
 
 @numba.jit(nogil=True, nopython=True)
-def zernike_dde(coords, m, n):
+def zernike_dde(coords, coeffs, noll_index):
     """
-    Parameters:
-    -----------
-    coords: source coordinates of shape (3, src, time, ant, chan)
-    m and n: the two variables describing the order of the Zernicke function
-    Returns:
-    --------
-    Zernicke polynomial with shape (src, time, ant, chan).
+    Evaluate Zernicke Polynomials defined by coefficients ``coeffs`
+    at the specified coordinates ``coords``.
+
+    Parameters
+    ---------------
+    coords : :class:`numpy.ndarray`
+       Coordinates at which to evaluate the zernicke polynomials.
+       Has shape :code:`(3, source, time, ant, chan)`. The three components in
+       the first dimension represent l, m and frequency coordinates, respectively.
+    coeffs : :class:`numpy.ndarray`
+      Zernicke polynomial coefficients.
+      Has shape :code:`(ant, chan, poly)` where ``poly`` is the number of
+      polynomial coefficients.
+    noll_index : :class:`numpy.ndarray`
+      Noll index associated with each polynomial coefficient.
+      Has shape :code:`(ant, chan, poly)`.
+
+    Returns
+    ----------
+    :class:`numpy.ndarray`
+       complex values with shape :code:`(source, time, ant, chan)`
     """
-    if len(coords) != 3:
-        raise ValueError("coords must be of shape (3, src, time, ant, chan).")
-    _, nsrc, ntime, na, nchan = coords.shape
-    zernike_coeffs = np.empty((nsrc, ntime, na, nchan))
-    for h in range(nsrc):
-        for i in range(ntime):
-            for j in range(na):
-                for k in range(nchan):
-                    l_coord, m_coord = coords[0, h, i, j, k], coords[1, h, i, j, k]
-                    rho, phi = _convert_coords(l_coord, m_coord)
-                    zernike_value = zernike( m, n, rho, phi)
-                    zernike_coeffs[h,i,j,k] = zernike_value
-    return zernike_coeffs
+    _, sources, times, ants, chans = coords.shape
+    _,_, npoly = coeffs.shape
 
+    result = np.empty((sources,times,ants,chans), np.complex128)
 
+    for s in range(sources):
+        for t in range(times):
+            for a in range(ants):
+                for c in range(chans):
+                    l, m, freq = coords[:,s,t,a,c]
+                    rho, phi = _convert_coords(l,m)
+                    zcoeff = coeffs[a,c]
+                    zernike_sum = 0
+                    for i in range(npoly):
+                        coeff = zcoeff[i]
+                        j = noll_index[a,c,i]
+                        zernike_sum += coeff * zernike(j, rho, phi)
+                    result[s,t,a,c] = zernike_sum   
+    return result
