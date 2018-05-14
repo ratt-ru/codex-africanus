@@ -339,9 +339,19 @@ dask_mp_docs['notes'] += (
             times = ms.getcol("TIME")
             unique_times, chunks = np.unique(times, return_counts=True)
 
-      4. It is a good idea to aggregate multiple ``row`` and ``time``
-         chunks into chunks large enough for functions to be supplied
-         with sufficient data to drop the GIL for a good period of time.
+      4. Use :func:`~africanus.util.shapes.aggregate_chunks`
+         to aggregate multiple ``row`` and ``time``
+         chunks into chunks large enough such that functions operating
+         on the resulting data can drop the GIL and spend time
+         processing the data. Expanding the previous example:
+
+         .. code-block:: python
+
+            # Aggregate row
+            utimes = unique_times.size
+            time_chunks = (1,)*utimes
+            # Aggregate row chunks into chunks <= 10000
+            aggregate_chunks((chunks, time_chunks), (10000, utimes))
 """)
 
 
