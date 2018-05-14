@@ -124,17 +124,17 @@ predict_vis_docs = _MP_DOCSTRING(
     .. math::
 
         V_{pq} = G_{p} \\left(
-            \\sum_{s} A_{ps} B_{pqs} A_{qs}^H
+            \\sum_{s} A_{ps} X_{pqs} A_{qs}^H
             \\right) G_{q}^H
 
     where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
     - :math:`E_{ps}` represents direction-dependent (per-source) Jones terms.
-    - :math:`B_{pqs}` represents a coherency matrix.
+    - :math:`X_{pqs}` represents a coherency matrix (per-source).
     - :math:`G_{p}` represents direction-independent Jones terms.
 
-    Generally, :math:`E_{ps}` and :math:`G_{p}` should be formed by creating
-    Jones terms using the `RIME API <rime-api-anchor_>`_ functions
+    Generally, :math:`E_{ps}`, :math:`G_{p}`, :math:`X_{pqs}`
+    should be formed by using the `RIME API <rime-api-anchor_>`_ functions
     and combining them together with :func:`~numpy.einsum`.
 
     **Please read the Notes**
@@ -175,14 +175,14 @@ predict_vis_docs = _MP_DOCSTRING(
         Per-source Jones terms for the second antenna.
         shape :code:`(source,time,ant,chan,corr_1,corr_2)`
     row_jones : :class:`numpy.ndarray`
-        Per-source Jones term for the row (baseline).
-        shape :code:`(source,row,chan,corr_1,corr_2)`
+        Per-source coherency matrix for the row (baseline)
+        with shape :code:`(source,row,chan,corr_1,corr_2)`
     g1_jones : :class:`numpy.ndarray`
-        Jones terms for the first antenna of the baseline.
-        shape :code:`(time,ant,chan,corr_1,corr_2)`
+        Jones terms for the first antenna of the baseline
+        with shape :code:`(time,ant,chan,corr_1,corr_2)`
     g2_jones : :class:`numpy.ndarray`
-        Jones terms for the second antenna of the baseline.
-        shape :code:`(time,ant,chan,corr_1,corr_2)`
+        Jones terms for the second antenna of the baseline
+        with shape :code:`(time,ant,chan,corr_1,corr_2)`
     """,
 
     returns="""

@@ -349,6 +349,7 @@ dask_mp_docs['notes'] += (
 
             # Aggregate row
             utimes = unique_times.size
+            # Single chunk for each unique time
             time_chunks = (1,)*utimes
             # Aggregate row chunks into chunks <= 10000
             aggregate_chunks((chunks, time_chunks), (10000, utimes))
