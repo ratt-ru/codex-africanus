@@ -7,8 +7,10 @@ Shapes
 .. currentmodule:: africanus.util.shapes
 
 .. autosummary::
+    aggregate_chunks
     corr_shape
 
+.. autofunction:: africanus.util.shapes.aggregate_chunks
 .. autofunction:: africanus.util.shapes.corr_shape
 
 
