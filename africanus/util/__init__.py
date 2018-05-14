@@ -24,7 +24,7 @@ def corr_shape(ncorr, corr_shape):
         if ncorr == 1:
             return (1,)
         elif ncorr == 2:
-            return (2, 1)
+            return (2,)
         elif ncorr == 4:
             return (2, 2)
         else:
