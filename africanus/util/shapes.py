@@ -42,7 +42,7 @@ def aggregate_chunks(chunks, max_chunks):
     if not all(len(chunks[0]) == len(c) for c in chunks):
         raise ValueError("Number of chunks do not match")
 
-    agg_chunks = [[] for _ in  max_chunks]
+    agg_chunks = [[] for _ in max_chunks]
     agg_chunk_counts = [0] * len(max_chunks)
     chunk_scratch = [0] * len(max_chunks)
     ndim = len(chunks[0])
@@ -115,4 +115,3 @@ def corr_shape(ncorr, corr_shape):
             raise ValueError("ncorr not in (1, 2, 4)")
     else:
         raise ValueError("corr_shape must be 'flat' or 'matrix'")
-
