@@ -13,7 +13,7 @@ except ImportError:
 import numba
 import numpy as np
 
-from africanus.util import corr_shape
+from africanus.util.shapes import corr_shape
 
 
 @numba.njit(nogil=True, cache=True)

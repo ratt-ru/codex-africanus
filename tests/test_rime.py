@@ -54,7 +54,7 @@ def test_brightness():
 
     # Linear (I and Q)
     B = brightness(stokes, polarisation_type='linear')
-    expected = np.asarray([[[1+2], [1-2]], [[5+6], [5-6]]])
+    expected = np.asarray([[1+2, 1-2], [5+6, 5-6]])
     assert np.all(B == expected)
 
     # Circular (I and V) produce the same result as linear
@@ -261,7 +261,7 @@ def test_brightness_shape():
         # 2 polarisation case
         assert brightness(np.random.random((10,5,3,2)),
             polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,2,1)
+            corr_shape='matrix').shape == (10,5,3,2)
 
         assert brightness(np.random.random((10,5,3,2)),
             polarisation_type=pol_type,
@@ -448,7 +448,7 @@ def test_dask_brightness_shape():
 
         assert brightness(stokes,
             polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,2,1)
+            corr_shape='matrix').shape == (10,5,3,2)
 
         assert brightness(stokes,
             polarisation_type=pol_type,

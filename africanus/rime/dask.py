@@ -18,7 +18,7 @@ from .predict import predict_vis_docs
 from .predict import predict_vis as np_predict_vis
 
 
-from ..util import corr_shape as corr_shape_fn
+from ..util.shapes import corr_shape as corr_shape_fn
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
 
