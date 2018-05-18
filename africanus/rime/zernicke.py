@@ -1,9 +1,10 @@
 import numba
 import numpy as np
+import math
 
 @numba.jit(nogil=True, nopython=True)
 def fac(x):
-    if x < 0: return -1 * x
+    if x < 0: raise ValueError()
     if x == 0: return 1
     factorial = 1
     for i in range(1, x):
@@ -17,9 +18,8 @@ def pre_fac(k, n, m):
 @numba.jit(nogil=True, nopython=True)
 def zernike_rad( m, n, rho):
     if (n < 0 or m < 0 or abs(m) > n):
-        raise ValueError
-    if ((n-m) % 2):
-        return rho*0.0
+        raise ValueError    
+
         
     radial_component = 0
     for k in range((n-m)/2+1):
@@ -34,14 +34,14 @@ def zernike(j, rho, phi):
     while (j1 > n):
         n += 1
         j1 -= n
-    m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1)%2)) / 2.0 ))
+    m = (-1)**j * ((n % 2) + 2 * (j1+((n+1)%2)) / 2.0 )
     if (m > 0): return zernike_rad(m, n, rho) * np.cos(m * phi)
     if (m < 0): return zernike_rad(-m, n, rho) * np.sin(-m * phi)
     return zernike_rad(0, n, rho)
 
 @numba.jit(nogil=True, nopython=True)
 def _convert_coords(l, m):
-    rho, phi = np.sqrt(l * l + m * m), np.arctan(m / l)
+    rho, phi = np.sqrt(l **2 + m **2), np.arctan2(m, l)
     return rho, phi
 
 @numba.jit(nogil=True, nopython=True)
