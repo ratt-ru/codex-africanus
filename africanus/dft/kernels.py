@@ -39,7 +39,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
                     # @simon does this really make a difference?
                     # I thought a complex exponential is evaluated
                     # as a sum of sin and cos anyway
-                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]
+                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]/(n+1)
 
         return vis_of_im
 
@@ -69,10 +69,10 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
                     p = real_phase * frequency[chan]
 
                     im_of_vis[source,
-                              chan] += np.cos(p) * vis[row, chan].real - \
-                        np.sin(p) * vis[row, chan].imag
+                              chan] += (np.cos(p) * vis[row, chan].real - \
+                        np.sin(p) * vis[row, chan].imag)/(n+1)
                     # Note for the adjoint we don't need the imaginary part
-                    # and we can elude the call to exp
+                    # and we can elide the call to exp
 
         return im_of_vis
 
