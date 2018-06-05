@@ -53,6 +53,7 @@ def test_vis_to_im():
     x = np.linspace(-0.1, 0.1, npix)
     ll, mm = np.meshgrid(x, x)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
+    n = np.sqrt(1 - lm[:, 0]**2 - lm[:, 1]**2)
     wsum = 1.0
 
     frequency = np.linspace(1.0, 2.0, nchan, endpoint=True)
@@ -60,7 +61,7 @@ def test_vis_to_im():
     image = vis_to_im(vis, uvw, lm, frequency)
 
     for i in range(nchan):
-        assert np.all(image[:, i] == wsum)
+        assert np.all(image[:, i] == wsum/n)
 
 
 def test_adjointness():
@@ -154,3 +155,7 @@ def test_vis_to_im_dask():
     image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask)
 
     assert np.allclose(image, image_dask)
+
+if __name__=="__main__":
+    test_vis_to_im()
+    test_im_to_vis()

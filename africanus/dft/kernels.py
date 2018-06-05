@@ -69,8 +69,8 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
                     p = real_phase * frequency[chan]
 
                     im_of_vis[source,
-                              chan] += (np.cos(p) * vis[row, chan].real - \
-                        np.sin(p) * vis[row, chan].imag)/(n+1)
+                              chan] += (np.cos(p) * vis[row, chan].real -
+                                        np.sin(p) * vis[row, chan].imag)/(n+1)
                     # Note for the adjoint we don't need the imaginary part
                     # and we can elide the call to exp
 
@@ -92,7 +92,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1)} \\cdot I_s }
+        {\\Large \\sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
 
     """,  # noqa
 
