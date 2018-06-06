@@ -92,7 +92,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
+        {\\Large \\sum_s \\frac{1}{n_s} e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
 
     """,  # noqa
 
@@ -134,7 +134,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_n e^{ 2 \\pi i (u_n l + v_n m + w_n (n - 1))} \\cdot V_n}
+        {\\Large \\sum_k \\frac{1}{n} e^{ 2 \\pi i (u_k l + v_k m + w_k (n - 1))} \\cdot V_k}
 
     """,  # noqa
 
