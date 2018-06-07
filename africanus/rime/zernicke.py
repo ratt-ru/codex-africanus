@@ -4,10 +4,10 @@ import math
 
 @numba.jit(nogil=True, nopython=True)
 def fac(x):
-    if x < 0: raise ValueError()
+    if x < 0: raise ValueError("Factorial input is negative.")
     if x == 0: return 1
     factorial = 1
-    for i in range(1, x):
+    for i in range(1, x + 1):
         factorial *= i
     return factorial
 
@@ -18,30 +18,30 @@ def pre_fac(k, n, m):
 @numba.jit(nogil=True, nopython=True)
 def zernike_rad( m, n, rho):
     if (n < 0 or m < 0 or abs(m) > n):
-        raise ValueError    
-
-        
+        raise ValueError("m and n values are incorrect.")
     radial_component = 0
     for k in range((n-m)/2+1):
-        radial_component = radial_component + pre_fac(k, n, m) * rho **(n - 2.0 * k)
+        radial_component += pre_fac(k, n, m) * rho **(n - 2.0 * k)
     return radial_component
 
 @numba.jit(nogil=True, nopython=True)
 def zernike(j, rho, phi):
+    if rho > 1:
+        return 0 + 0j
     j += 1
     n = 0
     j1 = j-1
     while (j1 > n):
         n += 1
         j1 -= n
-    m = (-1)**j * ((n % 2) + 2 * (j1+((n+1)%2)) / 2.0 )
+    m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1)%2)) / 2.0 ))
     if (m > 0): return zernike_rad(m, n, rho) * np.cos(m * phi)
     if (m < 0): return zernike_rad(-m, n, rho) * np.sin(-m * phi)
     return zernike_rad(0, n, rho)
 
 @numba.jit(nogil=True, nopython=True)
 def _convert_coords(l, m):
-    rho, phi = np.sqrt(l **2 + m **2), np.arctan2(m, l)
+    rho, phi = (l**2 + m **2) **0.5, np.arctan2(l, m)
     return rho, phi
 
 @numba.jit(nogil=True, nopython=True)
@@ -86,5 +86,5 @@ def zernike_dde(coords, coeffs, noll_index):
                         coeff = zcoeff[i]
                         j = noll_index[a,c,i]
                         zernike_sum += coeff * zernike(j, rho, phi)
-                    result[s,t,a,c] = zernike_sum   
+                    result[s,t,a,c] = zernike_sum
     return result
