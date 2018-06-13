@@ -40,7 +40,7 @@ def test_im_to_vis():
 
 def test_vis_to_im():
     """
-    Still thinking of a better test here but we can do here but the simplest test 
+    Still thinking of a better test here but the simplest test 
     does exactly the same as the above. If we have an auto-correlation we expect 
     to measure a flat image with value wsum
     """
@@ -135,7 +135,7 @@ def test_vis_to_im_dask():
 
     nchan = 11
 
-    vis = np.ones([100, nchan], dtype=np.complex128)
+    vis = np.ones([1, nchan], dtype=np.complex128)
     uvw = np.zeros([1, 3], dtype=np.float64)
     npix = 5
     x = np.linspace(-0.1, 0.1, npix)
@@ -152,10 +152,6 @@ def test_vis_to_im_dask():
     frequency_dask = da.from_array(frequency, chunks=4)
     vis_dask = da.from_array(vis, chunks=(25, 4))
 
-    image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask)
+    image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask).compute()
 
     assert np.allclose(image, image_dask)
-
-if __name__=="__main__":
-    test_vis_to_im()
-    test_im_to_vis()
