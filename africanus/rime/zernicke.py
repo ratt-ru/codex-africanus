@@ -2,7 +2,7 @@ import numba
 import numpy as np
 import math
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def fac(x):
     if x < 0: raise ValueError("Factorial input is negative.")
     if x == 0: return 1
@@ -11,11 +11,11 @@ def fac(x):
         factorial *= i
     return factorial
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def pre_fac(k, n, m):
     return (-1.0)**k * fac(n-k) / ( fac(k) * fac( (n+m)/2.0 - k ) * fac( (n-m)/2.0 - k ))
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def zernike_rad( m, n, rho):
     if (n < 0 or m < 0 or abs(m) > n):
         raise ValueError("m and n values are incorrect.")
@@ -24,7 +24,7 @@ def zernike_rad( m, n, rho):
         radial_component += pre_fac(k, n, m) * rho **(n - 2.0 * k)
     return radial_component
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def zernike(j, rho, phi):
     if rho > 1:
         return 0 + 0j
@@ -35,19 +35,21 @@ def zernike(j, rho, phi):
         n += 1
         j1 -= n
     m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1)%2)) / 2.0 ))
-    if (m > 0): return zernike_rad(m, n, rho) * np.cos(m * phi)
-    if (m < 0): return zernike_rad(-m, n, rho) * np.sin(-m * phi)
+    if (m > 0): 
+        return zernike_rad(m, n, rho) * np.cos(m * phi)
+    if (m < 0): 
+        return zernike_rad(-m, n, rho) * np.sin(-m * phi)
     return zernike_rad(0, n, rho)
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l, m):
     rho, phi = (l**2 + m **2) **0.5, np.arctan2(l, m)
     return rho, phi
 
-@numba.jit(nogil=True, nopython=True)
+@numba.jit(nogil=True, nopython=True, cache=True)
 def zernike_dde(coords, coeffs, noll_index):
     """
-    Evaluate Zernicke Polynomials defined by coefficients ``coeffs`
+    Evaluate Zernicke Polynomials defined by coefficients ``coeffs``
     at the specified coordinates ``coords``.
 
     Parameters

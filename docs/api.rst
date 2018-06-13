@@ -13,6 +13,7 @@ Numpy
 .. autofunction:: africanus.rime.feed_rotation
 .. autofunction:: africanus.rime.transform_sources
 .. autofunction:: africanus.rime.beam_cube_dde
+.. autofunction:: africanus.rime.zernicke
 
 Dask
 ~~~~

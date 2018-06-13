@@ -1,45 +1,12 @@
 import numpy as np
 import pytest
-import matplotlib.pyplot as plt
-"""
-def test_zernike_dde():
-    from africanus.rime import zernike_dde
-    nsrc = 10
-    ntime = 10
-    na = 4
-    nchan = 10
-    npoly=4
 
-
-    lm = np.random.random(size=(nsrc,2))
-    frequency = np.linspace(.856e9, .856e8*2, nchan)
-
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, npoly))
-    noll_indices = np.empty((na, nchan, npoly))
-
-    for c in range(nchan):
-        for a in range(na):
-            coeffs[a,c] = [1,2,3,4]
-            noll_indices[a,c] = [5,3,4,2]
-            for t in range(ntime):
-                for s in range(nsrc):
-                    l_coord, m_coord = lm[s]
-                    for c in range(nchan):
-                        coords[0, s, t, a, c] = l_coord
-                        coords[1, s, t, a, c] = m_coord
-                        coords[2, s, t, a, c] = frequency[c]
-    zernike_value = zernike_dde(coords, coeffs, noll_indices)
-    assert zernike_value.shape == (nsrc, ntime, na, nchan)
-"""
-    
-def test_zernike_func_xx_corr(coeff_xx, index_xx, eidos_data_xx):
+def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
-    nchan = 1
     nchan = 1
     thresh = 15
     npoly = thresh
@@ -58,25 +25,24 @@ def test_zernike_func_xx_corr(coeff_xx, index_xx, eidos_data_xx):
 
     #Assign Values to coeffs and noll_indices
     coeffs[0,0,:] = coeff_xx[:thresh]
-    noll_indices[0,0,:] = index_xx[:thresh]
+    noll_indices[0,0,:] = noll_index_xx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
     coords[1, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 1]
-    coords[2, 0:nsrc, 0, 0, 0] = np.zeros(nsrc)
+    coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
     assert np.allclose(eidos_data_xx, zernike_vals)
 
     
-def test_zernike_func_xy_corr(coeff_xy, index_xy, eidos_data_xy):
+def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
-    nchan = 1
     nchan = 1
     thresh = 8
     npoly = thresh
@@ -95,12 +61,12 @@ def test_zernike_func_xy_corr(coeff_xy, index_xy, eidos_data_xy):
 
     #Assign Values to coeffs and noll_indices
     coeffs[0,0,:] = coeff_xy[:thresh]
-    noll_indices[0,0,:] = index_xy[:thresh]
+    noll_indices[0,0,:] = noll_index_xy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
     coords[1, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 1]
-    coords[2, 0:nsrc, 0, 0, 0] = np.zeros(nsrc)
+    coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
@@ -108,13 +74,12 @@ def test_zernike_func_xy_corr(coeff_xy, index_xy, eidos_data_xy):
 
 
     
-def test_zernike_func_yx_corr(coeff_yx, index_yx, eidos_data_yx):
+def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
-    nchan = 1
     nchan = 1
     thresh = 8
     npoly = thresh
@@ -133,25 +98,24 @@ def test_zernike_func_yx_corr(coeff_yx, index_yx, eidos_data_yx):
 
     #Assign Values to coeffs and noll_indices
     coeffs[0,0,:] = coeff_yx[:thresh]
-    noll_indices[0,0,:] = index_yx[:thresh]
+    noll_indices[0,0,:] = noll_index_yx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
     coords[1, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 1]
-    coords[2, 0:nsrc, 0, 0, 0] = np.zeros(nsrc)
+    coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
     assert np.allclose(eidos_data_yx, zernike_vals)
 
     
-def test_zernike_func_yy_corr(coeff_yy, index_yy, eidos_data_yy):
+def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
-    nchan = 1
     nchan = 1
     thresh = 15
     npoly = thresh
@@ -170,12 +134,12 @@ def test_zernike_func_yy_corr(coeff_yy, index_yy, eidos_data_yy):
 
     #Assign Values to coeffs and noll_indices
     coeffs[0,0,:] = coeff_yy[:thresh]
-    noll_indices[0,0,:] = index_yy[:thresh]
+    noll_indices[0,0,:] = noll_index_yy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
     coords[1, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 1]
-    coords[2, 0:nsrc, 0, 0, 0] = np.zeros(nsrc)
+    coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
@@ -223,17 +187,17 @@ def coeff_yy():
         0.01785803+0.00319331j])
 
 @pytest.fixture
-def index_xx():
+def noll_index_xx():
     return np.array([10,  3, 21, 36,  0, 55, 16, 28, 37, 46, 23,  6, 15,  2,  5,  7, 57])
 
 @pytest.fixture
-def index_xy():
+def noll_index_xy():
     return np.array([12, 28, 22,  4, 38, 16, 46, 15,  7])
 @pytest.fixture
-def index_yx():
+def noll_index_yx():
     return np.array([12, 22,  4, 15, 29, 38,  7, 45])
 @pytest.fixture
-def index_yy():
+def noll_index_yy():
     return np.array([10,  3, 21, 36,  0, 55, 28, 16, 11, 23, 37, 46,  6,  2, 15,  5, 29])
 
 @pytest.fixture
