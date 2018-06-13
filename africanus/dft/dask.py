@@ -53,16 +53,19 @@ else:
         """ Dask wrapper for phase_delay_adjoint function """
         @wraps(np_vis_to_im)
         def _wrapper(vis, uvw, lm, frequency, dtype_):
-            return np_vis_to_im(vis[0], uvw[0][0], lm[0], frequency,
-                                dtype=dtype_)
+            return np_vis_to_im(vis, uvw[0], lm[0], frequency,
+                                dtype=dtype_)[None, :]
 
-        return da.core.atop(_wrapper, ("source", "chan"),
-                            vis, ("row", "chan"),
-                            uvw, ("row", "(u,v,w)"),
-                            lm, ("source", "(l,m)"),
-                            frequency, ("chan",),
-                            dtype=dtype,
-                            dtype_=dtype)
+        ims = da.core.atop(_wrapper, ("row", "source", "chan"),
+                           vis, ("row", "chan"),
+                           uvw, ("row", "(u,v,w)"),
+                           lm, ("source", "(l,m)"),
+                           frequency, ("chan",),
+                           adjust_chunks={"row": 1},
+                           dtype=dtype,
+                           dtype_=dtype)
+
+        return ims.sum(axis=0)
 
 
 im_to_vis.__doc__ = doc_tuple_to_str(im_to_vis_docs,

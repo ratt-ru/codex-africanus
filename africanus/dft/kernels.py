@@ -39,7 +39,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
                     # @simon does this really make a difference?
                     # I thought a complex exponential is evaluated
                     # as a sum of sin and cos anyway
-                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]
+                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]/(n+1)
 
         return vis_of_im
 
@@ -69,10 +69,10 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
                     p = real_phase * frequency[chan]
 
                     im_of_vis[source,
-                              chan] += np.cos(p) * vis[row, chan].real - \
-                        np.sin(p) * vis[row, chan].imag
+                              chan] += (np.cos(p) * vis[row, chan].real -
+                                        np.sin(p) * vis[row, chan].imag)/(n+1)
                     # Note for the adjoint we don't need the imaginary part
-                    # and we can elude the call to exp
+                    # and we can elide the call to exp
 
         return im_of_vis
 
@@ -92,7 +92,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1)} \\cdot I_s }
+        {\\Large \\sum_s \\frac{1}{n_s} e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
 
     """,  # noqa
 
@@ -134,7 +134,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_n e^{ 2 \\pi i (u_n l + v_n m + w_n (n - 1))} \\cdot V_n}
+        {\\Large \\sum_k \\frac{1}{n} e^{ 2 \\pi i (u_k l + v_k m + w_k (n - 1))} \\cdot V_k}
 
     """,  # noqa
 
