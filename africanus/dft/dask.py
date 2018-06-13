@@ -57,13 +57,13 @@ else:
                                 dtype=dtype_)[None, :]
 
         ims = da.core.atop(_wrapper, ("row", "source", "chan"),
-                            vis, ("row", "chan"),
-                            uvw, ("row", "(u,v,w)"),
-                            lm, ("source", "(l,m)"),
-                            frequency, ("chan",),
-                            adjust_chunks={"row": 1},
-                            dtype=dtype,
-                            dtype_=dtype)
+                           vis, ("row", "chan"),
+                           uvw, ("row", "(u,v,w)"),
+                           lm, ("source", "(l,m)"),
+                           frequency, ("chan",),
+                           adjust_chunks={"row": 1},
+                           dtype=dtype,
+                           dtype_=dtype)
 
         return ims.sum(axis=0)
 

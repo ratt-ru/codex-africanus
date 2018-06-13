@@ -135,8 +135,8 @@ def test_vis_to_im_dask():
 
     nchan = 11
 
-    vis = np.ones([1, nchan], dtype=np.complex128)
-    uvw = np.zeros([1, 3], dtype=np.float64)
+    vis = np.ones([100, nchan], dtype=np.complex128)
+    uvw = np.zeros([100, 3], dtype=np.float64)
     npix = 5
     x = np.linspace(-0.1, 0.1, npix)
     ll, mm = np.meshgrid(x, x)
