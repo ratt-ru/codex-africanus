@@ -1,11 +1,15 @@
 API
 ===
 
-Radio Interferometer Measurement Equation
------------------------------------------
+.. toctree::
+    :maxdepth: 1
 
-Numpy
-~~~~~
+    rime-api.rst
+    dft-api.rst
+    gridding-api.rst
+    conv-filter-api.rst
+    deconv-api.rst
+    util-api.rst
 
 .. autofunction:: africanus.rime.phase_delay
 .. autofunction:: africanus.rime.brightness
@@ -60,3 +64,4 @@ Utilities
 
 .. autofunction:: africanus.util.beams.beam_filenames
 .. autofunction:: africanus.util.beams.beam_grids
+

@@ -5,6 +5,9 @@ History
 0.1.3 (2018-03-28)
 ------------------
 
+* Added division by :math:`n` to DFT. Fixed dask chunking issue. Updated test_vis_to_im_dask (:pr:`29`)
+* Implement RIME visibility predict (:pr:`24`, :pr:`25`)
+* Direct Fourier Transform (:pr:`19`)
 * Parallactic Angle computation (:pr:`15`)
 * Implement Feed Rotation term (:pr:`14`)
 * Swap gridding correlation dimensions (:pr:`13`)
