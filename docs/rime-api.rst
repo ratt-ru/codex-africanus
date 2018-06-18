@@ -50,6 +50,7 @@ Numpy
     feed_rotation
     transform_sources
     beam_cube_dde
+    zernicke
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
@@ -58,6 +59,7 @@ Numpy
 .. autofunction:: feed_rotation
 .. autofunction:: transform_sources
 .. autofunction:: beam_cube_dde
+.. autofunction:: zernicke
 
 Dask
 ~~~~
