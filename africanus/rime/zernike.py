@@ -58,11 +58,11 @@ def _convert_coords(l, m):
 
 
 if on_rtd():
-    def zernicke_dde(coords, coeffs, noll_index):
+    def zernike_dde(coords, coeffs, noll_index):
         pass
 else:
     @numba.jit(nogil=True, nopython=True, cache=True)
-    def zernicke_dde(coords, coeffs, noll_index):
+    def zernike_dde(coords, coeffs, noll_index):
         _, sources, times, ants, chans = coords.shape
         _, _, npoly = coeffs.shape
 
@@ -91,7 +91,7 @@ at the specified coordinates ``coords``.
 Parameters
 ---------------
 coords : :class:`numpy.ndarray`
-   Coordinates at which to evaluate the zernicke polynomials.
+   Coordinates at which to evaluate the zernike polynomials.
    Has shape :code:`(3, source, time, ant, chan)`. The three components in
    the first dimension represent
    l, m and frequency coordinates, respectively.
@@ -109,4 +109,4 @@ Returns
    complex values with shape :code:`(source, time, ant, chan)`
 """)
 
-zernicke_dde.__doc__ = _ZERNICKE_DOCSTRING
+zernike_dde.__doc__ = _ZERNICKE_DOCSTRING
