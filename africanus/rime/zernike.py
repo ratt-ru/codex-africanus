@@ -4,6 +4,7 @@ import math
 
 from ..util.docs import on_rtd
 
+
 @numba.jit(nogil=True, nopython=True, cache=True)
 def fac(x):
     if x < 0:
@@ -84,7 +85,7 @@ else:
         return result
 
 _ZERNICKE_DOCSTRING = (
-"""
+    """
 Evaluate Zernicke Polynomials defined by coefficients ``coeffs``
 at the specified coordinates ``coords``.
 
