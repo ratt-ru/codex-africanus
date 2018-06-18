@@ -31,6 +31,8 @@ def test_transform_sources():
 def test_dask_transform_sources():
     import dask.array as da
 
+    from africanus.rime.dask import transform_sources as dask_xform_src
+    from africanus.rime import transform_sources as np_xform_src
 
 
     src = 10
