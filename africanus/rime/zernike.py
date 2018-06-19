@@ -2,8 +2,6 @@ import numba
 import numpy as np
 import math
 
-from ..util.docs import on_rtd
-
 
 @numba.jit(nogil=True, nopython=True, cache=True)
 def fac(x):
