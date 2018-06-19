@@ -160,10 +160,8 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
     assert np.allclose(eidos_data_yy, zernike_vals)
 
 
-from africanus.rime.dask import have_requirements
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
-def test_dask_zernike(coeff_xx, noll_index_xx):
-    """ Tests that we can call zernicke_dde with multiple dimensions """
+def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
+    """ Tests that we can call zernike_dde with multiple dimensions """
     from africanus.rime.dask import zernike_dde
     from africanus.rime import zernike_dde as np_zernike_dde
 
@@ -195,8 +193,51 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
     noll_indices[:] = noll_index_xx[:npoly]
 
     # I left 0 as all the freq values
-    coords[0, :, :, :, :] = lm[0:nsrc, 0, None, None, None]
-    coords[1, :, :, :, :] = lm[0:nsrc, 1, None, None, None]
+    coords[0, :, :, :, :] = lm[:, 0, None, None, None]
+    coords[1, :, :, :, :] = lm[:, 1, None, None, None]
+    coords[2, :, :, :, :] = 0
+
+    vals = np_zernike_dde(coords, coeffs, noll_indices)
+    assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
+
+
+from africanus.rime.dask import have_requirements
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+def test_dask_zernike(coeff_xx, noll_index_xx):
+    """ Tests that dask zernike_dde agrees with numpy zernike_dde """
+    from africanus.rime.dask import zernike_dde
+    from africanus.rime import zernike_dde as np_zernike_dde
+
+    import dask.array as da
+
+    npix = 17
+    nsrc = npix ** 2
+    ntime = 10
+    na = 7
+    nchan = 8
+    corr1 = 2
+    corr2 = 2
+    npoly = 17
+
+    # Linear (l,m) grid
+    nx, ny = npix, npix
+    grid = (np.indices((nx, ny), dtype=np.float) - nx//2) * 2 / nx
+    ll, mm =  grid[0], grid[1]
+
+    lm = np.vstack((ll.flatten(),mm.flatten())).T
+
+    # Initializing coords, coeffs, and noll_indices
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
+
+    # Assign Values to coeffs and noll_indices
+    coeffs[:] = coeff_xx[:npoly]
+    noll_indices[:] = noll_index_xx[:npoly]
+
+    # I left 0 as all the freq values
+    coords[0, :, :, :, :] = lm[:, 0, None, None, None]
+    coords[1, :, :, :, :] = lm[:, 1, None, None, None]
     coords[2, :, :, :, :] = 0
 
     vals = np_zernike_dde(coords, coeffs, noll_indices)
