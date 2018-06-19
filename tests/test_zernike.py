@@ -195,9 +195,9 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
     noll_indices[:] = noll_index_xx[:npoly]
 
     # I left 0 as all the freq values
-    coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
-    coords[1, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 1]
-    coords[2, 0:nsrc, 0, 0, 0] = 0
+    coords[0, :, :, :, :] = lm[0:nsrc, 0, None, None, None]
+    coords[1, :, :, :, :] = lm[0:nsrc, 1, None, None, None]
+    coords[2, :, :, :, :] = 0
 
     vals = np_zernike_dde(coords, coeffs, noll_indices)
     assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
