@@ -16,6 +16,7 @@ from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
 from .predict import predict_vis_docs
 from .predict import predict_vis as np_predict_vis
+from .zernike import zernike_dde as np_zernike_dde
 
 
 from ..util.shapes import corr_shape as corr_shape_fn
@@ -44,6 +45,9 @@ if not have_requirements or on_rtd():
 
     def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                       spline_order=1, mode='nearest'):
+        raise MissingPackageException(*_package_requirements)
+
+    def zernike_dde(coords, coeffs, noll_index):
         raise MissingPackageException(*_package_requirements)
 
     def predict_vis(time_index, antenna1, antenna2,
@@ -189,6 +193,27 @@ else:
                             mode=mode,
                             dtype=beam.dtype)
 
+    def zernike_dde(coords, coeffs, noll_index):
+        ncorrs = len(coeffs.shape[2:-1])
+        corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
+
+        @wraps(np_zernike_dde)
+        def _wrapper(coords, coeffs, noll_index):
+            # coords loses "three" dim
+            # coeffs loses "poly" dim
+            # noll_index loses "poly" dim
+            return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
+
+        return da.core.atop(_wrapper,
+                            ("source", "time", "ant", "chan") + corr_dims,
+                            coords,
+                            ("three", "source", "time", "ant", "chan"),
+                            coeffs,
+                            ("ant", "chan") + corr_dims + ("poly",),
+                            noll_index,
+                            ("ant", "chan") + corr_dims + ("poly",),
+                            dtype=coeffs.dtype)
+
     def predict_vis(time_index, antenna1, antenna2,
                     ant1_jones, ant2_jones, row_jones,
                     g1_jones, g2_jones):
@@ -288,6 +313,10 @@ transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
 
 beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                  [(":class:`numpy.ndarray`",
+                                   ":class:`dask.array.Array`")])
+
+zernike_dde.__doc__ = mod_docs(np_zernike_dde.__doc__,
+                               [(":class:`numpy.ndarray`",
                                    ":class:`dask.array.Array`")])
 
 

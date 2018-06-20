@@ -5,8 +5,10 @@ History
 0.1.3 (2018-03-28)
 ------------------
 
-* Zernicke Polynomial Direction Dependent Effects (:pr:`18`)
-* Added division by :math:`n` to DFT. Fixed dask chunking issue. Updated test_vis_to_im_dask (:pr:`29`)
+* Zernike Polynomial Direction Dependent Effects (:pr:`18`, :pr:`30`)
+* Added division by :math:`n` to DFT.
+  Fixed dask chunking issue.
+  Updated test_vis_to_im_dask (:pr:`29`).
 * Implement RIME visibility predict (:pr:`24`, :pr:`25`)
 * Direct Fourier Transform (:pr:`19`)
 * Parallactic Angle computation (:pr:`15`)
@@ -17,7 +19,7 @@ History
 * Implement RIME Phase Delay term (:pr:`8`)
 * Support user supplied grids (:pr:`7`)
 * Add dask wrappers to the gridder and degridder (:pr:`4`)
-* Add weights to gridder/degridder and remove psf function (:pr:`2`)
+* Add weights to gridder/degridder and remove PSF function (:pr:`2`)
 
 0.1.2 (2018-03-28)
 ------------------

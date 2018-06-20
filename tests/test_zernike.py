@@ -1,13 +1,17 @@
 import numpy as np
 import pytest
 
+
+
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
+    """ Tests reconstruction of xx correlation against eidos """
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
     nchan = 1
+    ncorr = 1
     thresh = 15
     npoly = thresh
 
@@ -18,14 +22,14 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
 
     lm = np.vstack((ll.flatten(),mm.flatten())).T
 
-    # Initializing coords, coeffs, and noll_indices 
+    # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, npoly))
+    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, ncorr, npoly))
 
     #Assign Values to coeffs and noll_indices
-    coeffs[0,0,:] = coeff_xx[:thresh]
-    noll_indices[0,0,:] = noll_index_xx[:thresh]
+    coeffs[0,0,0,:] = coeff_xx[:thresh]
+    noll_indices[0,0,0,:] = noll_index_xx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -33,17 +37,20 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
-    zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
+    zernike_vals = (zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0]
+                                                    .reshape((npix, npix)))
     assert np.allclose(eidos_data_xx, zernike_vals)
 
-    
+
 def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
+    """ Tests reconstruction of xy correlation against eidos """
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
     nchan = 1
+    ncorr = 1
     thresh = 8
     npoly = thresh
 
@@ -54,14 +61,14 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
 
     lm = np.vstack((ll.flatten(),mm.flatten())).T
 
-    # Initializing coords, coeffs, and noll_indices 
+    # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, npoly))
+    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, ncorr, npoly))
 
     #Assign Values to coeffs and noll_indices
-    coeffs[0,0,:] = coeff_xy[:thresh]
-    noll_indices[0,0,:] = noll_index_xy[:thresh]
+    coeffs[0,0,0,:] = coeff_xy[:thresh]
+    noll_indices[0,0,0,:] = noll_index_xy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -69,18 +76,21 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
     coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
-    zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
+    zernike_vals = (zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0]
+                                                .reshape((npix, npix)))
     assert np.allclose(eidos_data_xy, zernike_vals)
 
 
-    
+
 def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
+    """ Tests reconstruction of yx correlation against eidos """
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
     nchan = 1
+    ncorr = 1
     thresh = 8
     npoly = thresh
 
@@ -91,14 +101,14 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
 
     lm = np.vstack((ll.flatten(),mm.flatten())).T
 
-    # Initializing coords, coeffs, and noll_indices 
+    # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, npoly))
+    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, ncorr, npoly))
 
     #Assign Values to coeffs and noll_indices
-    coeffs[0,0,:] = coeff_yx[:thresh]
-    noll_indices[0,0,:] = noll_index_yx[:thresh]
+    coeffs[0,0,0,:] = coeff_yx[:thresh]
+    noll_indices[0,0,0,:] = noll_index_yx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -106,17 +116,20 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
     coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
-    zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
+    zernike_vals = (zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0]
+                                                    .reshape((npix, npix)))
     assert np.allclose(eidos_data_yx, zernike_vals)
 
-    
+
 def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
+    """ Tests reconstruction of yy correlation against eidos """
     from africanus.rime import zernike_dde
     npix = 17
     nsrc = npix ** 2
     ntime = 1
     na = 1
     nchan = 1
+    ncorr = 1
     thresh = 15
     npoly = thresh
 
@@ -127,14 +140,14 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
     lm = np.vstack((ll.flatten(),mm.flatten())).T
 
-    # Initializing coords, coeffs, and noll_indices 
+    # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, npoly))
+    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, 1, npoly))
 
     #Assign Values to coeffs and noll_indices
-    coeffs[0,0,:] = coeff_yy[:thresh]
-    noll_indices[0,0,:] = noll_index_yy[:thresh]
+    coeffs[0,0,0,:] = coeff_yy[:thresh]
+    noll_indices[0,0,0,:] = noll_index_yy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -142,9 +155,106 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
     coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
-    zernike_vals = zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0].reshape((npix, npix))
+    zernike_vals = (zernike_dde(coords, coeffs, noll_indices)[:, 0, 0, 0]
+                                                    .reshape((npix, npix)))
     assert np.allclose(eidos_data_yy, zernike_vals)
 
+
+def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
+    """ Tests that we can call zernike_dde with multiple dimensions """
+    from africanus.rime.dask import zernike_dde
+    from africanus.rime import zernike_dde as np_zernike_dde
+
+    import dask.array as da
+
+    npix = 17
+    nsrc = npix ** 2
+    ntime = 10
+    na = 7
+    nchan = 8
+    corr1 = 2
+    corr2 = 2
+    npoly = 17
+
+    # Linear (l,m) grid
+    nx, ny = npix, npix
+    grid = (np.indices((nx, ny), dtype=np.float) - nx//2) * 2 / nx
+    ll, mm =  grid[0], grid[1]
+
+    lm = np.vstack((ll.flatten(),mm.flatten())).T
+
+    # Initializing coords, coeffs, and noll_indices
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
+
+    # Assign Values to coeffs and noll_indices
+    coeffs[:] = coeff_xx[:npoly]
+    noll_indices[:] = noll_index_xx[:npoly]
+
+    # I left 0 as all the freq values
+    coords[0, :, :, :, :] = lm[:, 0, None, None, None]
+    coords[1, :, :, :, :] = lm[:, 1, None, None, None]
+    coords[2, :, :, :, :] = 0
+
+    vals = np_zernike_dde(coords, coeffs, noll_indices)
+    assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
+
+
+from africanus.rime.dask import have_requirements
+@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
+def test_dask_zernike(coeff_xx, noll_index_xx):
+    """ Tests that dask zernike_dde agrees with numpy zernike_dde """
+    from africanus.rime.dask import zernike_dde
+    from africanus.rime import zernike_dde as np_zernike_dde
+
+    import dask.array as da
+
+    npix = 17
+    nsrc = npix ** 2
+    ntime = 10
+    na = 7
+    nchan = 8
+    corr1 = 2
+    corr2 = 2
+    npoly = 17
+
+    # Linear (l,m) grid
+    nx, ny = npix, npix
+    grid = (np.indices((nx, ny), dtype=np.float) - nx//2) * 2 / nx
+    ll, mm =  grid[0], grid[1]
+
+    lm = np.vstack((ll.flatten(),mm.flatten())).T
+
+    # Initializing coords, coeffs, and noll_indices
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
+
+    # Assign Values to coeffs and noll_indices
+    coeffs[:] = coeff_xx[:npoly]
+    noll_indices[:] = noll_index_xx[:npoly]
+
+    # I left 0 as all the freq values
+    coords[0, :, :, :, :] = lm[:, 0, None, None, None]
+    coords[1, :, :, :, :] = lm[:, 1, None, None, None]
+    coords[2, :, :, :, :] = 0
+
+    vals = np_zernike_dde(coords, coeffs, noll_indices)
+    assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
+
+    # dimension chunking strategies
+    time_c = (5,5)
+    ant_c = (4,3)
+    chan_c = (2,4,2)
+
+    coords = da.from_array(coords, (3, npix, time_c, ant_c, chan_c))
+    coeffs = da.from_array(coeffs, (ant_c, chan_c, corr1, corr2, npoly))
+    noll_indices = da.from_array(noll_indices, (ant_c, chan_c, corr1, corr2, npoly))
+
+    dask_vals = zernike_dde(coords, coeffs, noll_indices)
+
+    assert np.all(vals == dask_vals.compute())
 
 @pytest.fixture
 def coeff_xx():
