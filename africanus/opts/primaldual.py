@@ -1,25 +1,15 @@
 import numba
 import numpy as np
-from ..dft.kernels import im_to_vis, vis_to_im
 import scipy.sparse.linalg as sla
-import Tigger.SiameseInterface
-
-
-def proj_l2ball(x, eps, y):
-# projection of x onto the l2 ball centered in y with radius eps
-    p = x-y
-    p = p * np.minimum(eps/np.linalg.norm(p), np.ones_like(y))
-    p = p+y
-    return p
-
-def proj_l1_plus_pos(x, tau):
-    return np.where(x < tau, 0.0, x-tau)
+from .sub_opts import proj_l1_plus_pos, proj_l2ball, pow_method
 
 
 def primal_dual_solver(x_0, v_0, L, LT, solver='fbpd', uncert=1.0, maxiter=1000, tolerance=1e-3, tau=None, sigma=None,
                        llambda=None):
 
-    L_norm = sla.svds(L, k=1, return_singular_vectors=False)
+    npix = int(np.sqrt(x_0.shape[0]))
+
+    L_norm = pow_method(L, LT, [npix, npix])
 
     if tau is None:
         tau = 1.0/L_norm
@@ -36,7 +26,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='fbpd', uncert=1.0, maxiter=1000,
     x = x_0.flatten()
     v = np.zeros(M, dtype=np.complex128)
 
-    def fbpd():
+    def fbpd(x):
         for n in range(maxiter):
             # Calculate x update step
             x_i = x - tau*LT(v)
@@ -140,7 +130,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='fbpd', uncert=1.0, maxiter=1000,
         return x
 
     return {
-        'fbpd': fbpd(),
-        'rpd': rescaled_pd(),
-        'spd': symmetric_pd(),
+        'fbpd': fbpd(x),
+        'rpd': rescaled_pd(x),
+        'spd': symmetric_pd(x),
     }[solver]

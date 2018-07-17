@@ -15,7 +15,7 @@ from ..util.docs import doc_tuple_to_str
 
 def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
-    @numba.jit(nopython=True, nogil=True, cache=True)
+    #@numba.jit(nopython=True, nogil=True, cache=True)
     def _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im):
         # For each uvw coordinate
         for row in range(uvw.shape[0]):
@@ -51,7 +51,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
 def vis_to_im(vis, uvw, lm, frequency, dtype=None):
 
-    @numba.jit(nopython=True, nogil=True, cache=True)
+    #@numba.jit(nopython=True, nogil=True, cache=True)
     def _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis):
         # For each source
         for source in range(lm.shape[0]):
