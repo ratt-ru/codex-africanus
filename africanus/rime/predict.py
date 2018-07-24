@@ -9,8 +9,7 @@ from collections import namedtuple
 import numba
 import numpy as np
 
-from ..util.requirements import have_packages, MissingPackageException
-from ..util.docs import on_rtd, doc_tuple_to_str
+from ..util.docs import doc_tuple_to_str
 
 
 @numba.njit(nogil=True, cache=True)

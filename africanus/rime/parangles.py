@@ -68,7 +68,7 @@ else:
     _discovered_backends.append('astropy')
 
     from astropy.coordinates import (EarthLocation, SkyCoord,
-                                     AltAz, CIRS, Angle)
+                                     AltAz, CIRS)
     from astropy.time import Time
     from astropy import units
 
