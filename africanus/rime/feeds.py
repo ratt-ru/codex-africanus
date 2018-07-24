@@ -13,8 +13,6 @@ except ImportError:
 import numba
 import numpy as np
 
-from africanus.util.shapes import corr_shape
-
 
 @numba.njit(nogil=True, cache=True)
 def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
