@@ -9,77 +9,72 @@ from collections import namedtuple
 import numba
 import numpy as np
 
-from ..constants import minus_two_pi_over_c
+from ..constants import minus_two_pi_over_c, two_pi_over_c
 from ..util.docs import doc_tuple_to_str
 
 
 def im_to_vis(image, uvw, lm, frequency, dtype=None):
-
-    #@numba.jit(nopython=True, nogil=True, cache=True)
-    def _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im):
-        # For each uvw coordinate
-        for row in range(uvw.shape[0]):
-            u, v, w = uvw[row]
-
-            # For each source
-            for source in range(lm.shape[0]):
-                l, m = lm[source]
-                n = np.sqrt(1.0 - l**2 - m**2) - 1.0
-
-                # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
-
-                # Multiple in frequency for each channel
-                for chan in range(frequency.shape[0]):
-                    p = real_phase * frequency[chan]
-
-                    # Our phase input is purely imaginary
-                    # so we can can elide a call to exp
-                    # and just compute the cos and sin
-                    # @simon does this really make a difference?
-                    # I thought a complex exponential is evaluated
-                    # as a sum of sin and cos anyway
-                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]/(n+1)
-
-        return vis_of_im
-
-    vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0]),
-                         dtype=np.complex128 if dtype is None else dtype)
+    vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0]), dtype=np.complex128 if dtype is None else dtype)
 
     return _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im)
 
 
-def vis_to_im(vis, uvw, lm, frequency, dtype=None):
+@numba.jit(nopython=True, nogil=True, cache=True, debug=True)
+def _im_to_vis_impl(image, uvw, lm, frequency, vis_of_im):
+    # For each uvw coordinate
+    for row in range(uvw.shape[0]):
+        u, v, w = uvw[row]
 
-    #@numba.jit(nopython=True, nogil=True, cache=True)
-    def _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
-            n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
-            # For each uvw coordinate
-            for row in range(uvw.shape[0]):
-                u, v, w = uvw[row]
+            n = np.sqrt(1.0 - l**2 - m**2) - 1.0
 
-                # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = -minus_two_pi_over_c * (l * u + m * v + n * w)
+            # e^(-2*pi*(l*u + m*v + n*w)/c)
+            real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
 
-                # Multiple in frequency for each channel
-                for chan in range(frequency.shape[0]):
-                    p = real_phase * frequency[chan]
+            # Multiple in frequency for each channel
+            for chan in range(frequency.shape[0]):
+                p = real_phase * frequency[chan] * 1.0j
+                # Our phase input is purely imaginary
+                # so we can can elide a call to exp
+                # and just compute the cos and sin
+                # @simon does this really make a difference?
+                # I thought a complex exponential is evaluated
+                # as a sum of sin and cos anyway
+                vis_of_im[row, chan] += np.exp(p)*image[source, chan]
 
-                    im_of_vis[source,
-                              chan] += (np.cos(p) * vis[row, chan].real -
-                                        np.sin(p) * vis[row, chan].imag)/(n+1)
-                    # Note for the adjoint we don't need the imaginary part
-                    # and we can elide the call to exp
+    return vis_of_im
 
-        return im_of_vis
 
-    im_of_vis = np.zeros((lm.shape[0], frequency.shape[0]),
-                         dtype=np.float64 if dtype is None else dtype)
+def vis_to_im(vis, uvw, lm, frequency, dtype=None):
+    im_of_vis = np.zeros((lm.shape[0], frequency.shape[0]), dtype=np.float64 if dtype is None else dtype)
 
     return _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis)
+
+
+@numba.jit(nopython=True, nogil=True, cache=True, debug=True)
+def _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis):
+    # For each source
+    for source in range(lm.shape[0]):
+        l, m = lm[source]
+        n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
+        # For each uvw coordinate
+        for row in range(uvw.shape[0]):
+            u, v, w = uvw[row]
+
+            # e^(-2*pi*(l*u + m*v + n*w)/c)
+            real_phase = two_pi_over_c * (l * u + m * v + n * w)
+
+            # Multiple in frequency for each channel
+            for chan in range(frequency.shape[0]):
+                p = real_phase * frequency[chan] * 1.0j
+
+                im_of_vis[source, chan] += (np.exp(p) * vis[row, chan]).real #(np.cos(p) * vis[row, chan].real - np.sin(p) * vis[row, chan].imag)
+                # Note for the adjoint we don't need the imaginary part
+                # and we can elide the call to exp
+
+    return im_of_vis
 
 
 _DFT_DOCSTRING = namedtuple(

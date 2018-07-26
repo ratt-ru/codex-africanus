@@ -1,3 +1,10 @@
+import xarrayms
+from africanus.dft.kernels import im_to_vis, vis_to_im
+from astropy.io import fits
+import numpy as np
+from matplotlib import pyplot as plt
+from casacore.tables import table as tbl
+
 import numba
 import numpy as np
 from .sub_opts import *
@@ -6,7 +13,7 @@ from .sub_opts import *
 def primal_dual_solver(x_0, v_0, L, LT, wsum, solver='fbpd', uncert=1.0, maxiter=2000, tolerance=1e-6, tau=None, sigma=None,
                        llambda=None):
 
-    L_norm = pow_method(L, LT, [x_0.shape[0], 1])#/1e90
+    L_norm = pow_method(L, LT, [x_0.shape[0], 1])
     print('The norm of the response: ', L_norm)
 
     if tau is None:

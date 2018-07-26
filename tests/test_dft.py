@@ -40,8 +40,8 @@ def test_im_to_vis():
 
 def test_vis_to_im():
     """
-    Still thinking of a better test here but the simplest test 
-    does exactly the same as the above. If we have an auto-correlation we expect 
+    Still thinking of a better test here but the simplest test
+    does exactly the same as the above. If we have an auto-correlation we expect
     to measure a flat image with value wsum
     """
     from africanus.dft.kernels import vis_to_im
@@ -61,13 +61,13 @@ def test_vis_to_im():
     image = vis_to_im(vis, uvw, lm, frequency)
 
     for i in range(nchan):
-        assert np.all(image[:, i] == wsum/n)
+        assert np.all(image[:, i] == wsum)
 
 
 def test_adjointness():
     """
-    She is the mother of all tests. The DFT should be perfectly self adjoint up to 
-    machine precision. 
+    She is the mother of all tests. The DFT should be perfectly self adjoint up to
+    machine precision.
     """
     from africanus.dft.kernels import im_to_vis as R
     from africanus.dft.kernels import vis_to_im as RH
@@ -77,7 +77,7 @@ def test_adjointness():
     Nvis = 1000
     Nchan = 1
 
-    uvw = np.random.random(size=(Nvis,3))
+    uvw = np.random.random(size=(Nvis, 3))
     x = np.linspace(-0.1, 0.1, Npix)
     ll, mm = np.meshgrid(x, x)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
@@ -89,6 +89,7 @@ def test_adjointness():
     LHS = gamma2.T.dot(R(gamma1, uvw, lm, frequency))
     RHS = RH(gamma2, uvw, lm, frequency).T.dot(gamma1)
 
+    print(np.abs(LHS - RHS))
     assert np.all(np.abs(LHS - RHS) < 1e-5)
 
 from africanus.rime.dask import have_requirements
@@ -155,3 +156,6 @@ def test_vis_to_im_dask():
     image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask).compute()
 
     assert np.allclose(image, image_dask)
+
+if __name__=="__main__":
+    test_adjointness()
