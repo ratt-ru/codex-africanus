@@ -72,13 +72,13 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
 
             # Iterate over v/y
             for conv_v in filter_index:
-                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
+                v_idx = conv_v*cf.oversample + frac_v
                 grid_v = disc_v + conv_v + ny // 2
 
                 # Iterate over u/x
                 for conv_u in filter_index:
-                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
-                    conv_weight = v_tap*u_tap
+                    u_idx = conv_u*cf.oversample + frac_u
+                    conv_weight = cf.filter_taps[v_idx, u_idx]
                     grid_u = disc_u + conv_u + nx // 2
 
                     for c in range(flat_corrs):      # correlation
@@ -242,13 +242,15 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
             frac_u = int(base_frac_u*cf.oversample)
             frac_v = int(base_frac_v*cf.oversample)
 
+            # Iterate over v/y
             for conv_v in filter_index:
-                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
+                v_idx = conv_v*cf.oversample + frac_v
                 grid_v = disc_v + conv_v + ny // 2
 
+                # Iterate over u/x
                 for conv_u in filter_index:
-                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
-                    conv_weight = v_tap * u_tap
+                    u_idx = conv_u*cf.oversample + frac_u
+                    conv_weight = cf.filter_taps[v_idx, u_idx]
                     grid_u = disc_u + conv_u + nx // 2
 
                     # Correlation
