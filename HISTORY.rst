@@ -4,7 +4,9 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
-
+* Fixed bug in im_to_vis. Added more tests for im_to_vis.
+  Removed division by :math:`n` since it is trivial to reinstate
+  after the fact. (:pr:`34`)
 * Move numba implementations out of API functions. (:pr:`33`)
 * Zernike Polynomial Direction Dependent Effects (:pr:`18`, :pr:`30`)
 * Added division by :math:`n` to DFT.
