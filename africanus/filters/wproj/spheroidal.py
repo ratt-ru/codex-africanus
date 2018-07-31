@@ -11,6 +11,22 @@ import numpy as np
 from africanus.constants import c as lightspeed
 
 
+@numba.jit(nopython=True, nogil=True, cache=True)
+def _gen_coeffs(x, y, order):
+    ncols = (order+1)**2
+    coeffs = np.empty((x.size, ncols), dtype=x.dtype)
+    c = 0
+
+    for i in range(order+1):
+        for j in range(order+1):
+            for k in range(x.size):
+                coeffs[k, c] = x[k]**i * y[k]**j
+
+            c += 1
+
+    return coeffs
+
+
 def polyfit2d(x, y, z, order=3):
     """
     Given ``x`` and ``y`` data points and ``z``, some
@@ -19,22 +35,6 @@ def polyfit2d(x, y, z, order=3):
 
     Derived from https://stackoverflow.com/a/7997925
     """
-
-    @numba.jit(nopython=True, nogil=True, cache=True)
-    def _gen_coeffs(x, y, order):
-        ncols = (order+1)**2
-        coeffs = np.empty((x.size, ncols), dtype=x.dtype)
-        c = 0
-
-        for i in range(order+1):
-            for j in range(order+1):
-                for k in range(x.size):
-                    coeffs[k, c] = x[k]**i * y[k]**j
-
-                c += 1
-
-        return coeffs
-
     return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=None)[0]
 
 
@@ -425,7 +425,8 @@ if __name__ == "__main__":
             frequencies=np.linspace(.856e9, 2*.856e9, 64))
 
     cf, fcf, ifzfcf = spheroidal_aa_filter(args.npix,
-                                           args.support, args.spheroidal_support)
+                                           args.support,
+                                           args.spheroidal_support)
 
     print("Convolution filter", cf.shape)
     print("Fourier transformed Convolution Filter", fcf.shape)

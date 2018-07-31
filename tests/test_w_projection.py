@@ -11,7 +11,7 @@ def test_polyfit2d():
     x = np.random.random(npoints)
     y = np.random.random(npoints)
     z = x**2 + y**2 + 3*x**3 + y + np.random.random(npoints)
-    coeffs = polyfit2d(x,y,z,order=5)
-    rz = polyval2d(x,y,coeffs)
+    coeffs = polyfit2d(x, y, z, order=5)
+    rz = polyval2d(x, y, coeffs)
 
     assert np.allclose(z, rz)
