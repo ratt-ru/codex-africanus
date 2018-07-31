@@ -70,7 +70,7 @@ def test_im_to_vis_zero_w():
 
     assert np.allclose(vis, vis_true)
 
-def test_vis_to_im_single_baseline_and_chan():
+def test_im_to_vis_single_baseline_and_chan():
     """
     Here we check that the result is consistent for a single baseline, source and 
     channel. 
@@ -90,7 +90,7 @@ def test_vis_to_im_single_baseline_and_chan():
     vis_true = image*np.exp(minus_two_pi_over_c * frequency * 1.0j *
                             (uvw[:,0]*l + uvw[:,1]*m + uvw[:,2]*(n - 1.0)))
 
-    assert (vis == vis_true)
+    assert np.allclose(vis, vis_true)
 
 
 def test_vis_to_im():
@@ -140,9 +140,8 @@ def test_adjointness():
     gamma1 = np.random.randn(Npix**2, Nchan)
     gamma2 = np.random.randn(Nvis, Nchan)
 
-    LHS = gamma2.T.dot(R(gamma1, uvw, lm, frequency))
-    RHS = RH(gamma2, uvw, lm, frequency).T.dot(gamma1)
-
+    LHS = (gamma2.T.dot(R(gamma1, uvw, lm, frequency))).real
+    RHS = (RH(gamma2, uvw, lm, frequency).T.dot(gamma1)).real
     assert np.all(np.abs(LHS - RHS) < 1e-5)
 
 from africanus.rime.dask import have_requirements
