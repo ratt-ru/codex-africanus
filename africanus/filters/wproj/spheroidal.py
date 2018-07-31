@@ -435,12 +435,9 @@ if __name__ == "__main__":
     assert np.allclose(spheroidal_2d(args.spheroidal_support),
                        _spheroidal_2d(args.spheroidal_support))
 
-    try:
-        import matplotlib.pyplot as plt
-        from matplotlib import cm
-        from matplotlib.ticker import LinearLocator, FormatStrFormatter
-    except ImportError:
-        raise ImportError("matplotlib not installed"), None, sys.exc_info()[2]
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
     if args.display == 'cf':
         data = cf
