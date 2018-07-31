@@ -62,8 +62,8 @@ def test_im_to_vis_zero_w():
     vis_true = np.zeros([nrow, nchan], dtype=np.complex128)
 
 
-    for ch in xrange(nchan):
-        for source in xrange(nsource):
+    for ch in range(nchan):
+        for source in range(nsource):
             vis_true[:, ch] += image[source, ch]*np.exp(
                                  minus_two_pi_over_c*frequency[ch] * 1.0j *
                                  (uvw[:,0]*lm[source,0]+uvw[:,1]*lm[source,1]))
