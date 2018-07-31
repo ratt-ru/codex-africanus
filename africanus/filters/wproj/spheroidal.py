@@ -10,6 +10,7 @@ import numpy as np
 
 from africanus.constants import c as lightspeed
 
+
 def polyfit2d(x, y, z, order=3):
     """
     Given ``x`` and ``y`` data points and ``z``, some
@@ -28,13 +29,14 @@ def polyfit2d(x, y, z, order=3):
         for i in range(order+1):
             for j in range(order+1):
                 for k in range(x.size):
-                    coeffs[k,c] = x[k]**i * y[k]**j
+                    coeffs[k, c] = x[k]**i * y[k]**j
 
                 c += 1
 
         return coeffs
 
     return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=None)[0]
+
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def polyval2d(x, y, coeffs):
@@ -70,6 +72,7 @@ def polyval2d(x, y, coeffs):
 # The above support width is generally
 # much smaller than the filter support sizes
 
+
 P = np.array([
     [8.203343e-2, -3.644705e-1, 6.278660e-1, -5.335581e-1, 2.312756e-1],
     [4.028559e-3, -3.697768e-2, 1.021332e-1, -1.201436e-1, 6.412774e-2]])
@@ -77,6 +80,7 @@ P = np.array([
 Q = np.array([
     [1.0000000e0, 8.212018e-1, 2.078043e-1],
     [1.0000000e0, 9.599102e-1, 2.918724e-1]])
+
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def spheroidal_2d(npix, factor=1.0):
@@ -95,7 +99,7 @@ def spheroidal_2d(npix, factor=1.0):
                 poly = 1
                 end = 1.00
             else:
-                result[y,x] = 0.0
+                result[y, x] = 0.0
                 continue
 
             sP = P[poly]
@@ -107,20 +111,21 @@ def spheroidal_2d(npix, factor=1.0):
             top = sP[0]
             del_nu_sqrd_pow = del_nu_sqrd
 
-            for i in range(1,5):
+            for i in range(1, 5):
                 top += sP[i]*del_nu_sqrd_pow
                 del_nu_sqrd_pow *= del_nu_sqrd
 
             bot = sQ[0]
             del_nu_sqrd_pow = del_nu_sqrd
 
-            for i in range(1,3):
+            for i in range(1, 3):
                 bot += sQ[i]*del_nu_sqrd_pow
                 del_nu_sqrd_pow *= del_nu_sqrd
 
-            result[y,x] = (1.0 - nu_sqrd) * (top/bot)
+            result[y, x] = (1.0 - nu_sqrd) * (top/bot)
 
     return result
+
 
 def _spheroidal_2d(npix, factor=1.0):
     """ Numpy implementation of spheroidal_2d """
@@ -128,7 +133,7 @@ def _spheroidal_2d(npix, factor=1.0):
 
     assert np.all(x == np.linspace(-1, 1, npix, endpoint=True)**2)
 
-    r = np.sqrt(x[:,None] + x[None,:])*factor
+    r = np.sqrt(x[:, None] + x[None, :])*factor
 
     bin1 = np.logical_and(r >= 0.0, r < 0.75)
     bin2 = np.logical_and(r >= 0.75, r <= 1.00)
@@ -140,10 +145,10 @@ def _spheroidal_2d(npix, factor=1.0):
 
         nu_sqrd = nu**2
         del_nu_sqrd = nu_sqrd - end*end
-        powers = del_nu_sqrd[:,None]**np.arange(5)
+        powers = del_nu_sqrd[:, None]**np.arange(5)
 
-        top = np.sum(sP[None,:]*powers, axis=1)
-        bot = np.sum(sQ[None,:]*powers[:,0:3], axis=1)
+        top = np.sum(sP[None, :]*powers, axis=1)
+        bot = np.sum(sQ[None, :]*powers[:, 0:3], axis=1)
 
         return (1.0 - nu_sqrd) * (top/bot)
 
@@ -155,6 +160,7 @@ def _spheroidal_2d(npix, factor=1.0):
 
     return result
 
+
 def zero_pad(img, npix):
     """ Zero pad ``img`` up to ``npix`` """
 
@@ -165,7 +171,7 @@ def zero_pad(img, npix):
 
     for dim, npix_ in zip(img.shape, npix):
         # Pad and half-pad amount
-        p = npix_  - dim
+        p = npix_ - dim
         hp = p // 2
 
         # Pad the imagew
@@ -195,6 +201,7 @@ def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
 
     return cf, fcf, ifzfcf
 
+
 def delta_n_coefficients(l0, m0, radius=1., order=4):
     """
     Returns polynomical coefficients representing the difference
@@ -221,6 +228,7 @@ def delta_n_coefficients(l0, m0, radius=1., order=4):
 
     return Cl, Cm, coeff
 
+
 @numba.jit(nopython=True, nogil=True, cache=True)
 def reorganise_convolution_filter(cf, oversampling):
     """
@@ -242,15 +250,17 @@ def reorganise_convolution_filter(cf, oversampling):
     """
     support = cf.shape[0]//oversampling
     result = np.empty((oversampling, oversampling, support, support),
-                                                    dtype=cf.dtype)
+                      dtype=cf.dtype)
 
     for i in range(oversampling):
         for j in range(oversampling):
-            result[i,j,:,:] = cf[i::oversampling, j::oversampling]
+            result[i, j, :, :] = cf[i::oversampling, j::oversampling]
 
     return result.reshape(cf.shape)
 
 # Find maximum support
+
+
 def find_max_support(radius, maxw, min_wave):
     """
     Find the maximum support
@@ -265,7 +275,7 @@ def find_max_support(radius, maxw, min_wave):
     # Compute l, m and n-1 over the area of maximum support
     ex = radius*np.sqrt(2.)
     l, m = np.mgrid[-ex:ex:max_support*1j, -ex:ex:max_support*1j]
-    n_1 = np.sqrt(1.0 - l**2 - m **2) - 1.0
+    n_1 = np.sqrt(1.0 - l**2 - m ** 2) - 1.0
 
     # Compute the w term
     w = np.exp(-2.0*1j*np.pi*(maxw/min_wave)*n_1)*spheroidal_w
@@ -290,10 +300,10 @@ def find_max_support(radius, maxw, min_wave):
 
     return max_support
 
+
 def wplanes(nwplanes, cell_size, support, maxw,
             npix, oversampling,
             lmshift, frequencies):
-
     """
     Compute w projection planes and their conjugates
 
@@ -339,7 +349,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
 
     # Create supports for each w plane
     w_supports = np.linspace(support, max(max_support, support),
-                            nwplanes, dtype=np.int64)
+                             nwplanes, dtype=np.int64)
 
     # Make any even support odd
     w_supports[w_supports % 2 == 0] += 1
@@ -364,7 +374,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
         # Fit n-1 for this w plane using
         # delta n polynomial coefficients
         ex = radius - radius/w_support
-        l, m = np.mgrid[-ex:ex:w_support*1j,-ex:ex:w_support*1j]
+        l, m = np.mgrid[-ex:ex:w_support*1j, -ex:ex:w_support*1j]
         n_1 = polyval2d(l, m, poly_coeffs)
 
         # Multiply in complex exponential
@@ -387,14 +397,15 @@ def wplanes(nwplanes, cell_size, support, maxw,
 
         # Cast to complex64, ensure aligned and contiguous
         fzw = np.require(fzw.astype(np.complex64),
-                                requirements=["A", "C"])
+                         requirements=["A", "C"])
         fzw_conj = np.require(fzw_conj.astype(np.complex64),
-                                requirements=["A", "C"])
+                              requirements=["A", "C"])
 
         wplanes.append(fzw)
         wplanes_conj.append(fzw_conj)
 
     return wplanes, wplanes_conj
+
 
 if __name__ == "__main__":
     import argparse
@@ -404,29 +415,27 @@ if __name__ == "__main__":
     p.add_argument("-np", "--npix", default=129, type=int)
     p.add_argument("-s", "--support", default=11, type=int)
     p.add_argument("-ss", "--spheroidal-support", default=111, type=int)
-    p.add_argument("-d", "--display", default="cf", choices=["cf", "fcf", "ifzfcf"])
+    p.add_argument("-d", "--display", default="cf",
+                   choices=["cf", "fcf", "ifzfcf"])
 
     args = p.parse_args()
 
-    test_polyfit2d()
-
     wplanes(nwplanes=5, cell_size=10, support=15, maxw=30000, npix=101,
-        oversampling=11, lmshift=None,
-        frequencies=np.linspace(.856e9, 2*.856e9, 64))
+            oversampling=11, lmshift=None,
+            frequencies=np.linspace(.856e9, 2*.856e9, 64))
 
     cf, fcf, ifzfcf = spheroidal_aa_filter(args.npix,
-                        args.support, args.spheroidal_support)
+                                           args.support, args.spheroidal_support)
 
     print("Convolution filter", cf.shape)
     print("Fourier transformed Convolution Filter", fcf.shape)
     print("Inverse Fourier transform of Zero-padded fcf", ifzfcf.shape)
 
     assert np.allclose(spheroidal_2d(args.spheroidal_support),
-                    _spheroidal_2d(args.spheroidal_support))
+                       _spheroidal_2d(args.spheroidal_support))
 
     try:
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
         from matplotlib import cm
         from matplotlib.ticker import LinearLocator, FormatStrFormatter
     except ImportError:
@@ -441,8 +450,7 @@ if __name__ == "__main__":
     else:
         raise ValueError("Invalid choice %s" % args.display)
 
-
-    X, Y = np.mgrid[-1:1:1j*data.shape[0],-1:1:1j*data.shape[1]]
+    X, Y = np.mgrid[-1:1:1j*data.shape[0], -1:1:1j*data.shape[1]]
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
