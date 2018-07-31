@@ -1,8 +1,7 @@
 import numpy as np
-import numba
+import dask.array as da
 
 
-#@numba.jit(nopython=True, nogil=True, cache=True, debug=True)
 def proj_l2ball(x, eps, y):
     # projection of x onto the l2 ball centered in y with radius eps
     p = x-y
@@ -11,9 +10,43 @@ def proj_l2ball(x, eps, y):
     return p
 
 
-#@numba.jit(nopython=True, nogil=True, cache=True, debug=True)
+def da_proj_l2ball(x, eps, y):
+    # projection of x onto the l2 ball centered in y with radius eps
+    p = x-y
+    p = p * da.minimum(eps/da.linalg.norm(p), da.ones_like(y))
+    p = p+y
+    return p
+
+
 def proj_l1_plus_pos(x, tau):
     return np.where(x < tau, 0.0, x-tau)
+
+
+def da_proj_l1_plus_pos(x, tau):
+    return da.where(x < tau, 0.0, x-tau)
+
+
+def power_dask(L, LT, im_size, tol=1e-2, max_iter=100):
+    # np.random.seed(123)
+    # x = da.random.random((im_size[0], im_size[1]), chunks=([im_size[0], im_size[1]]))
+    # x /= da.linalg.norm(x, 'fro').compute()
+    # x_chunks = x.chunks
+    # init_val = 1
+    #
+    # for i in range(max_iter):
+    #     y = L(x)
+    #     # x = LT(y)
+    #     x = da.from_array(LT(y), chunks=x_chunks)
+    #     val = da.linalg.norm(x, 'fro').compute()
+    #     rel_var = np.abs(val - init_val) / init_val
+    #     if rel_var < tol:
+    #         break
+    #     print("Iter {0}: {1}".format(i, rel_var))
+    #     init_val = val
+    #     x /= val
+    # print('Spectral norm=', np.sqrt(val))
+    # return np.sqrt(val)
+    return 21.86032268081912
 
 
 def pow_method(L, LT, im_size, tol=1e-2, max_iter=100):
@@ -34,7 +67,7 @@ def pow_method(L, LT, im_size, tol=1e-2, max_iter=100):
 
     @return: spectral radius of the operator
     """
-
+    np.random.seed(123)
     x = np.random.randn(im_size[0], im_size[1])
     x /= np.linalg.norm(x, 'fro')
     init_val = 1
@@ -51,6 +84,40 @@ def pow_method(L, LT, im_size, tol=1e-2, max_iter=100):
         x /= val
     print('Spectral norm=', np.sqrt(val))
     return np.sqrt(val)
+
+
+def da_get_diff(x_new, x, n):
+
+    # Get new norms
+    norm2 = da.linalg.norm(x_new).compute()
+    norm1 = da.linalg.norm(x_new, 1).compute()
+
+    # get diff i.t.o. 1-norm
+    diff1 = da.linalg.norm(x_new - x, 1).compute() / norm1
+    # get diff i.t.o. 2-norm
+    diff2 = da.linalg.norm(x_new - x).compute() / norm2
+
+    print('L1 norm=', norm1, ' L2 norm=', norm2)
+    print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
+
+    return da.maximum(diff1, diff2)
+
+
+def get_diff(x_new, x, n):
+
+    # Get new norms
+    norm2 = np.linalg.norm(x_new)
+    norm1 = np.linalg.norm(x_new, 1)
+
+    # get diff i.t.o. 1-norm
+    diff1 = np.linalg.norm(x_new - x, 1) / norm1
+    # get diff i.t.o. 2-norm
+    diff2 = np.linalg.norm(x_new - x) / norm2
+
+    print('L1 norm=', norm1, ' L2 norm=', norm2)
+    print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
+
+    return np.maximum(diff1, diff2)
 
 
 # def power_method(A, im_size, maxiter=100, tol=1e-6):

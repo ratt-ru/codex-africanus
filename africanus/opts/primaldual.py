@@ -1,77 +1,55 @@
-import numba
-import numpy as np
 from .sub_opts import *
 
 
-def primal_dual_solver(x_0, v_0, L, LT, wsum, solver='fbpd', uncert=1.0, maxiter=2000, tolerance=1e-6, tau=None, sigma=None,
-                       llambda=None):
+def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, maxiter=2000, tolerance=1e-3, tau=None,
+                       sigma=None, llambda=None):
 
-    L_norm = pow_method(L, LT, [x_0.shape[0], 1])#/1e90
+    M = v_0.size  # dimension of data
+    eps = np.sqrt(2 * M + 2 * np.sqrt(4 * M)) * uncert  # the width of the epsilon ball for the data
+
+    if dask:
+        L_norm = power_dask(L, LT, x_0.shape)
+        l2ball = lambda v_i: da_proj_l2ball(v_i, eps, v_0)
+        l1 = lambda x, t: da_proj_l1_plus_pos(x, t)
+        differ = lambda x_new, x, n: da_get_diff(x_new, x, n)
+    else:
+        L_norm = pow_method(L, LT, x_0.shape)
+        l2ball = lambda v_i: proj_l2ball(v_i, eps, v_0)
+        l1 = lambda x, t: proj_l1_plus_pos(x, t)
+        differ = lambda x_new, x, n: get_diff(x_new, x, n)
+
     print('The norm of the response: ', L_norm)
 
     if tau is None:
-        tau = 1.0/(2*np.sqrt(L_norm))
+        tau = 0.95/(2*np.sqrt(L_norm))
 
     if sigma is None:
-        sigma = 1.0/np.sqrt(L_norm)
+        sigma = 0.95/np.sqrt(L_norm)
 
     if llambda is None:
         llambda = 1
 
     print("Tau: ", tau, ", Sigma: ", sigma, ", Lambda: ", llambda)
 
-    M = v_0.size  # dimension of data
-    eps = np.sqrt(2 * M + 2 * np.sqrt(4 * M)) * uncert  # the width of the epsilon ball for the data
-
-    # print({
-    #     'fbpd': "Using Forward-Back Primal-Dual",
-    #     'rpd': "Using Rescaled Primal-Dual",
-    #     'spd': "Using Symmetric Primal-Dual",
-    # }[solver])
-
-    def fbpd(x, v):
-        # Calculate x update step
-        x_i = x - tau*LT(v)
-        p_n = proj_l1_plus_pos(x_i, tau)
-
-        # Calculate v update step
-        v_i = v + sigma * L(2 * p_n - x)
-        q_n = proj_l2ball(v_i, eps, v)
-
-        return x + llambda * (p_n - x), v + llambda * (q_n - v)
-
-    def rescaled_pd(x, v):
-        # Calculate x update step
-        x_i = x - tau*sigma*LT(v)
-        p_n = proj_l1_plus_pos(x_i, tau)
-
-        # Calculate v update step
-        v_i = v + L(2*p_n - x)
-        q_n = proj_l2ball(v_i, eps, v)
-
-        # Update x and v
-        return x + llambda * (p_n - x), v + llambda * (q_n - v)
-
-    def rescaled_sym_pd():
-        print("Using Rescaled Symmetric Primal Dual")
+    def fbpd():
+        print("Using Forward-Back Primal-Dual")
         x = x_0.copy()
         v = v_0.copy()
 
         for n in range(maxiter):
             # Calculate x update step
-            v_i = v + sigma * L(x)
-            q_n = v_i - proj_l2ball(v_i, eps, v_0)
+            x_i = x - tau*LT(v)
+            p_n = l1(x_i, tau)
 
             # Calculate v update step
-            x_i = x - tau * sigma * LT(2 * q_n - v) / wsum
-            p_n = proj_l1_plus_pos(x_i, tau)
+            v_i = v + sigma * L(2*p_n - x)
+            q_n = v_i - l2ball(v_i/sigma)
 
             # Update x and v
             x_new = x + llambda * (p_n - x)
             v_new = v + llambda * (q_n - v)
 
-
-            diff = get_diff(x_new, x, n)
+            diff = differ(x_new, x, n)
 
             # Set new values to current values
             x = x_new
@@ -82,37 +60,97 @@ def primal_dual_solver(x_0, v_0, L, LT, wsum, solver='fbpd', uncert=1.0, maxiter
 
         return x
 
-    def symmetric_pd(x, v):
-        # Calculate v update step
-        v_i = v + sigma * L(x)
-        q_n = proj_l2ball(v_i / sigma, eps, v_0)
+    def rescaled_pd():
+        print("Using Rescaled Primal-Dual")
+        x = x_0.copy()
+        v = v_0.copy()/sigma
 
-        # Calculate v update step
-        x_i = x - tau * LT(2 * q_n - v) / wsum
-        p_n = proj_l1_plus_pos(x_i, tau)
+        for n in range(maxiter):
+            # Calculate x update step
+            x_i = x - tau*sigma*LT(v)
+            p_n = l1(x_i, tau)
 
-        #return x + llambda*(p_n - x), v + llambda*(q_n - v)
-        return p_n, q_n
+            # Calculate v update step
+            v_i = v + L(2*p_n - x)
+            q_n = v_i - l2ball(v_i)
 
-    return rescaled_sym_pd()
-    #     {
-    #     'fbpd': lambda: fbpd(x, v),
-    #     'rpd': lambda: rescaled_pd(x, v),
-    #     'spd': lambda: symmetric_pd(x, v),
-    # }[solver]()
+            # Update x and v
+            x_new = x + llambda * (p_n - x)
+            v_new = v + llambda * (q_n - v)
 
-def get_diff(x_new, x, n):
+            diff = differ(x_new, x, n)
 
-    # Get new norms
-    norm2 = np.linalg.norm(x_new)
-    norm1 = np.linalg.norm(x_new, 1)
+            # Set new values to current values
+            x = x_new
+            v = v_new
 
-    # get diff i.t.o. 1-norm
-    diff1 = np.linalg.norm(x_new - x, 1) / norm1
-    # get diff i.t.o. 2-norm
-    diff2 = np.linalg.norm(x_new - x) / norm2
+            if diff < tolerance:
+                break
 
-    print('L1 norm=', norm1, ' L2 norm=', norm2)
-    print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
+        return x
 
-    return np.maximum(diff1, diff2)
+    def rescaled_sym_pd():
+        print("Using Rescaled Symmetric Primal Dual")
+        x = x_0.copy()
+        v = v_0.copy()/sigma
+
+        for n in range(maxiter):
+            # Calculate x update step
+            v_i = v + sigma * L(x)
+            q_n = v_i - l2ball(v_i)
+
+            # Calculate v update step
+            x_i = x - tau * sigma * LT(2 * q_n - v)
+            p_n = l1(x_i, tau)
+
+            # Update x and v
+            x_new = x + llambda * (p_n - x)
+            v_new = v + llambda * (q_n - v)
+
+            diff = differ(x_new, x, n)
+
+            # Set new values to current values
+            x = x_new
+            v = v_new
+
+            if diff < tolerance:
+                break
+
+        return x
+
+    def symmetric_pd():
+        print("Using Symmetric Primal-Dual")
+        x = x_0.copy()
+        v = v_0.copy()
+
+        for n in range(maxiter):
+            # Calculate v update step
+            v_i = v + sigma * L(x)
+            q_n = v_i - l2ball(v_i / sigma)
+
+            # Calculate v update step
+            x_i = x - tau * LT(2 * q_n - v)
+            p_n = l1(x_i, tau)
+
+            # Update x and v
+            x_new = x + llambda * (p_n - x)
+            v_new = v + llambda * (q_n - v)
+
+            diff = differ(x_new, x, n)
+
+            # Set new values to current values
+            x = x_new
+            v = v_new
+
+            if diff < tolerance:
+                break
+
+        return x
+
+    return {
+        'fbpd': lambda: fbpd(),
+        'rpd': lambda: rescaled_pd(),
+        'spd': lambda: symmetric_pd(),
+        'rspd': lambda: rescaled_sym_pd(),
+    }[solver]()
+
