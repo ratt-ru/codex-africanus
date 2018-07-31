@@ -193,7 +193,7 @@ def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
     fcf = fcf[start:end, start:end].copy()
 
     # Inverse fourier transform of the cut
-    #if_cut_fcf = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(fcf)))
+    # if_cut_fcf = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(fcf)))
 
     # Pad and ifft2 the fourier transformed convolution filter
     zfcf = zero_pad(fcf, npix)
