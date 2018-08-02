@@ -118,3 +118,21 @@ else:
     plt.title("DIRTY")
     plt.colorbar()
     plt.show(True)
+
+# Introduce a "correlation"
+dirty = dirty[:, :, None]
+
+with pt.table(args.ms) as T:
+    # For each chunk of rows
+    for r in list(range(0, T.nrows(), args.row_chunks)):
+        # number of rows to read on this iteration
+        nrow = min(args.row_chunks, T.nrows() - r)
+
+        # Get MS data
+        uvw = T.getcol("UVW", startrow=r, nrow=nrow)
+
+        # Just use natural weights
+        natural_weight = np.ones((nrow, nchan, 1), dtype=np.float64)
+
+        # Produce visibilities for this chunk of UVW coordinates
+        vis = degrid(dirty, uvw, natural_weight, ref_wave, conv_filter)
