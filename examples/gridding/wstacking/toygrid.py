@@ -35,6 +35,11 @@ def create_parser():
 args = create_parser().parse_args()
 
 
+# Obtain reference wavelength from the first spectral window
+with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
+    freq = SPW.getcol("CHAN_FREQ")[0]
+    ref_wave = lightspeed / freq
+
 CELL_SIZE = 6  # 6 arc seconds
 ARCSEC2RAD = np.deg2rad(1.0/(60.*60.))
 UV_SCALE = args.npix * CELL_SIZE * ARCSEC2RAD
@@ -49,8 +54,8 @@ MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
 """.format(ms=args.ms)
 
 with pt.taql(query) as Q:
-    wmin = Q.getcol("WMIN")
-    wmax = Q.getcol("WMAX")
+    wmin = Q.getcol("WMIN") * freq.min() / lightspeed
+    wmax = Q.getcol("WMAX") * freq.min() / lightspeed
 
 lmn = radec_to_lmn(np.deg2rad([[-1, -1], [1, 1]]), np.zeros((2,)))
 
@@ -72,12 +77,6 @@ grid_n = np.sqrt(1. - grid_l[:, None]**2 - grid_m[None, :]**2) - 1
 psf_l = np.linspace(cmin[0], cmax[0], 2*args.npix)
 psf_m = np.linspace(cmin[1], cmax[1], 2*args.npix)
 psf_n = np.sqrt(1. - psf_l[:, None]**2 - psf_m[None, :]**2) - 1
-
-# Obtain reference wavelength from the first spectral window
-with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
-    freq = SPW.getcol("CHAN_FREQ")[0]
-    ref_wave = lightspeed / freq
-
 
 dirties = None
 psfs = None
