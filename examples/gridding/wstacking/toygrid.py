@@ -40,9 +40,14 @@ with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
     freq = SPW.getcol("CHAN_FREQ")[0]
     ref_wave = lightspeed / freq
 
+
+# Similarity Theorem (https://www.cv.nrao.edu/course/astr534/FTSimilarity.html)
+# Scale UV coordinates
 CELL_SIZE = 6  # 6 arc seconds
 ARCSEC2RAD = np.deg2rad(1.0/(60.*60.))
 UV_SCALE = args.npix * CELL_SIZE * ARCSEC2RAD
+
+# Convolution Filter
 conv_filter = convolution_filter(3, 63, "sinc")
 
 
