@@ -16,7 +16,7 @@ except ImportError:
 import numba
 import numpy as np
 
-from ...util.docs import on_rtd
+from africanus.util.docs import on_rtd
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)

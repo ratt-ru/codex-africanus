@@ -24,11 +24,11 @@ def cell_size(nl, nm, umax, vmax):
     vmax : float
         Maximum ``V`` coordinate in wavelengths.
 
-
     Returns
     -------
     tuple
-        Cell size in the l and m dimensions
+        Cell size of the l and m dimensions
+        of shape :code:`(2,)`
     """
     return np.array([umax / (2.*nl), vmax / (2.*nm)])
 
@@ -42,6 +42,12 @@ def uv_scale(nl, nm, umax, vmax):
     the size of the grid in ``l`` and ``m``
     and the maximum ``U`` and ``V`` coordinate.
 
+    Used for converting UVW coordinates in wavelengths
+    to grid space in order to satisfy the
+    `Similarity Theorem
+    <https://www.cv.nrao.edu/course/astr534/FTSimilarity.html>`_.
+
+
     Parameters
     ----------
     nl : int
@@ -53,10 +59,9 @@ def uv_scale(nl, nm, umax, vmax):
     vmax : float
         Maximum ``V`` coordinate in wavelengths.
 
-
     Returns
     -------
     tuple
-        Cell size in the l and m dimensions
+        UV scaling parameters of shape :code:`(2,)`
     """
     return _ARCSEC2RAD * cell_size(nl, nm, umax, vmax) * np.array([nl, nm])

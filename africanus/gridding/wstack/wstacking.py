@@ -8,6 +8,7 @@ from operator import mul
 import numba
 import numpy as np
 
+from africanus.util.docs import on_rtd
 from africanus.gridding.simple.gridding import (
                 numba_grid as simple_numba_grid)
 
@@ -70,25 +71,36 @@ def w_stacking_bins(w_min, w_max, w_layers):
     return np.linspace(w_min, w_max, w_layers + 1)
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def w_stacking_centroids(w_bins):
-    r"""
-    Returns the W coordinate centroids for each
-    W layer. Computed from bins produced by
-    :func:`w_stacking_bins`.
-
-    Parameters
-    ----------
-    w_bins : :class:`numpy.ndarray`
-        W stacking bins of shape :code:`(nw + 1,)`
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        W-coordinate centroids of shape :code:`(nw,)`
-        in wavelengths.
-    """
+def _w_stacking_centroids(w_bins):
     return (w_bins[1:] + w_bins[:1]) / 2.0
+
+
+WSTACK_DOCS = r"""
+Returns the W coordinate centroids for each
+W layer. Computed from bins produced by
+:func:`w_stacking_bins`.
+
+Parameters
+----------
+w_bins : :class:`numpy.ndarray`
+    W stacking bins of shape :code:`(nw + 1,)`
+
+Returns
+-------
+:class:`numpy.ndarray`
+    W-coordinate centroids of shape :code:`(nw,)`
+    in wavelengths.
+"""
+
+
+if on_rtd():
+    def w_stacking_centroids(w_bins):
+        pass
+else:
+    w_stacking_centroids = numba.njit(
+        nogil=True, cache=True)(_w_stacking_centroids)
+
+w_stacking_centroids.__doc__ = WSTACK_DOCS
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
