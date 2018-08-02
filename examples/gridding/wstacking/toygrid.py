@@ -49,8 +49,8 @@ MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
 """.format(ms=args.ms)
 
 with pt.taql(query) as Q:
-    wmin = Q.getcol("WMIN")*UV_SCALE
-    wmax = Q.getcol("WMAX")*UV_SCALE
+    wmin = Q.getcol("WMIN")
+    wmax = Q.getcol("WMAX")
 
 lmn = radec_to_lmn(np.deg2rad([[-1, -1], [1, 1]]), np.zeros((2,)))
 
