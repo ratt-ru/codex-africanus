@@ -14,7 +14,7 @@ ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
                                             'no_taps', 'filter_taps'])
 """
 :class:`collections.namedtuple` containing attributes
-defining a Convolution Filter. A namedtuple is used
+defining a 2D Convolution Filter. A namedtuple is used
 because they're easier to use when using
 ``nopython`` mode in :mod:`numba`.
 
@@ -40,13 +40,13 @@ because they're easier to use when using
 
 .. attribute:: filter_taps
 
-    Filter taps
+    2D filter taps with shape (v, u)
 """
 
 
 def convolution_filter(half_support, oversampling_factor, filter_type):
     """
-    Create a 1D Convolution Filter suitable
+    Create a 2D Convolution Filter suitable
     for use with gridding and degridding functions.
 
     Parameters
@@ -88,6 +88,9 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
         filter_taps /= np.pi*taps_eps
     else:
         raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
+
+    # Expand filter taps to 2D
+    filter_taps = np.outer(filter_taps, filter_taps)
 
     return ConvolutionFilter(half_support, oversampling_factor,
                              full_sup_wo_padding, full_sup,

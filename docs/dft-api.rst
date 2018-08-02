@@ -15,7 +15,9 @@ defined as
 
 where :math:`u,v,w` are data (visibility :math:`V`) space
 coordinates and :math:`l,m,n` are signal (image :math:`I`)
-space coordinates.
+space coordinates. We adopt the convention where we
+absorb the fixed coordinate :math:`n` in the denominator
+into the image.
 Note that the data space coordinates have an implicit
 dependence on frequency and time and that the image
 has an implicit dependence on frequency.
@@ -23,7 +25,7 @@ The discretised form of the DFT can be written as
 
 .. math::
 
-    V(u,v,w) = \sum_s \frac{1}{n_s} e^{-2 \pi i
+    V(u,v,w) = \sum_s e^{-2 \pi i
         (u l_s + v m_s + w (n_s - 1))} \cdot I_s
 
 where :math:`s` labels the source (or pixel) location.
@@ -34,29 +36,27 @@ This can be cast into a matrix equation as follows
     V = R I
 
 where :math:`R` is the operator that maps an
-image to visibility space (note that the
-coordinate :math:`n_s` gets absorbed into
-the definition of :math:`R`). An imaging
-algorithm also requires the adjoint denoted
-:math:`R^\dagger` which is simply the
-complex conjugate transpose of :math:`R`
-(note that this implies there is a similar
-factor of :math:`\frac{1}{n}` involved in
-the definition of :math:`R^\dagger`). The
-dirty image is obtained by applying the
+image to visibility space. This mapping is
+implemented by the :func:`~africanus.dft.im_to_vis`
+function.
+An imaging algorithm also requires the adjoint
+denoted :math:`R^\dagger` which is simply the
+complex conjugate transpose of :math:`R`.
+The dirty image is obtained by applying the
 adjoint operator to the visibilities
 
 .. math::
 
     I^D = R^\dagger V
 
-Note that, since our definition of
-:math:`R^\dagger` contains the factor of
-:math:`\frac{1}{n}`, this notion of the
-dirty image differs from that usually
-encountered in radio astronomy but is
-required to ensure that the operator
-is self-adjoint.
+This is implemented by the
+:func:`~africanus.dft.vis_to_im`
+function.
+Note that an imaging algorithm using these
+operators will actually reconstruct
+:math:`\frac{I}{n}` but that it is trivial
+to obtain :math:`I` since :math:`n` is
+known at each location in the image.
 
 
 Numpy
