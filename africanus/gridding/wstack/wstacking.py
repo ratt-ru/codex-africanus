@@ -25,9 +25,9 @@ def w_stacking_layers(w_min, w_max, l, m):
     Parameters
     ----------
     w_min : float
-        Minimum W coordinate
+        Minimum W coordinate in wavelengths.
     w_max : float
-        Maximum W coordinate
+        Maximum W coordinate in wavelengths.
     l : :class:`numpy.ndarray`
         l coordinates
     m : :class:`numpy.ndarray`
@@ -56,9 +56,9 @@ def w_stacking_bins(w_min, w_max, w_layers):
     Parameters
     ----------
     w_min : float
-        Minimum W coordinate
+        Minimum W coordinate in wavelengths.
     w_max : float
-        Maximum W coordinate
+        Maximum W coordinate in wavelengths.
     w_layers : int
         Number of w layers
 
@@ -85,7 +85,8 @@ def w_stacking_centroids(w_bins):
     Returns
     -------
     :class:`numpy.ndarray`
-        W-coordinate centroids of shape :code:`(nw,)`.
+        W-coordinate centroids of shape :code:`(nw,)`
+        in wavelengths.
     """
     return (w_bins[1:] + w_bins[:1]) / 2.0
 
