@@ -103,12 +103,16 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     assert len(grids) == w_bins.shape[0]
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
 
-    w_bin_values = w_stacking_centroids(w_bins)
+    w_values = w_stacking_centroids(w_bins)
 
-    for i, (w_value, grid) in enumerate(zip(w_bin_values, grids)):
+    for i, (w_value, grid) in enumerate(zip(w_values, grids)):
+        # The row mask for this layer
         mask = bin_indices == i
+
+        # Set w coordinate to that of the layer
         discretised_uvw = uvw[mask, ...]
         discretised_uvw[:, 2] = w_value
+
         simple_numba_grid(vis[mask, ...],
                           discretised_uvw,
                           flags[mask, ...],
