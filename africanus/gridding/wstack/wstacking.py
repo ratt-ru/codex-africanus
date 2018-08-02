@@ -104,7 +104,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
     w_bin_values = w_stacking_centroids(w_bins)
 
-    for i, (w_value, grid) in enumerate(zip(grids, w_bin_values)):
+    for i, (w_value, grid) in enumerate(zip(w_bin_values, grids)):
         mask = bin_indices == i
         discretised_uvw = uvw[mask, ...]
         discretised_uvw[:, 2] = w_value
