@@ -39,12 +39,25 @@ Dask
 W Stacking
 ~~~~~~~~~~
 
-Implements W-Stacking.
+Implements W-Stacking as described in `WSClean <wsclean_>`_.
 
 .. currentmodule:: africanus.gridding.wstack
 
 .. autosummary::
-    w_stacking_layers
+    w_stacking_bins
 
-.. autofunction:: w_stacking_layers
+.. autofunction:: w_stacking_bins
 
+.. _wsclean: https://academic.oup.com/mnras/article/444/1/606/1010067
+
+Utilities
+~~~~~~~~~
+
+.. currentmodule:: africanus.gridding.util
+
+.. autosummary::
+    cell_size
+    uv_scale
+
+.. autofunction:: cell_size
+.. autofunction:: uv_scale

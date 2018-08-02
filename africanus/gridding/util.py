@@ -9,7 +9,8 @@ import numpy as np
 def cell_size(nl, nm, umax, vmax):
     r"""
     Returns the cell size in ``l`` and ``m``,
-    given the maximum ``U`` and ``V`` coordinate.
+    given the size of the grid
+    and the maximum ``U`` and ``V`` coordinate.
 
 
     Parameters
@@ -19,9 +20,9 @@ def cell_size(nl, nm, umax, vmax):
     nm : int
         Number of pixels in ``m``
     umax : float
-        Maximum U coordinate
+        Maximum ``U`` coordinate
     vmax : float
-        Maximum V coordinate
+        Maximum ``V`` coordinate
 
 
     Returns
@@ -38,7 +39,8 @@ _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 def uv_scale(nl, nm, umax, vmax):
     r"""
     Returns the UV scaling parameters given
-    the maximum ``U`` and ``V`` coordinate.
+    the size of the grid in ``l`` and ``m``
+    and the maximum ``U`` and ``V`` coordinate.
 
     Parameters
     ----------
@@ -47,9 +49,9 @@ def uv_scale(nl, nm, umax, vmax):
     nm : int
         Number of pixels in ``m``
     umax : float
-        Maximum U coordinate
+        Maximum ``U`` coordinate
     vmax : float
-        Maximum V coordinate
+        Maximum ``V`` coordinate
 
 
     Returns
