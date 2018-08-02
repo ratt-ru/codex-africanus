@@ -95,7 +95,7 @@ else:
 psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
 
 # Normalised Amplitude
-psf = np.absolute(psf_fft.real)
+psf = np.abs(psf_fft.real)
 psf = (psf / psf.max())
 
 # Scale the dirty image by the psf

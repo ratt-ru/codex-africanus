@@ -153,7 +153,7 @@ for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
     psf_fft = psf_fft*np.exp(2*np.pi*1j*centroid*(psf_n))
     psf_sum += psf_fft
 
-psf = np.absolute(psf_sum)
+psf = np.abs(psf_sum.real)
 psf = psf / psf.max()
 
 dirty = dirty_sum / (psf.max() * 4.)
