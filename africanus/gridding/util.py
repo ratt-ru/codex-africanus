@@ -20,9 +20,9 @@ def cell_size(nl, nm, umax, vmax):
     nm : int
         Number of pixels in ``m``
     umax : float
-        Maximum ``U`` coordinate
+        Maximum ``U`` coordinate in wavelengths.
     vmax : float
-        Maximum ``V`` coordinate
+        Maximum ``V`` coordinate in wavelengths.
 
 
     Returns
@@ -49,9 +49,9 @@ def uv_scale(nl, nm, umax, vmax):
     nm : int
         Number of pixels in ``m``
     umax : float
-        Maximum ``U`` coordinate
+        Maximum ``U`` coordinate in wavelengths.
     vmax : float
-        Maximum ``V`` coordinate
+        Maximum ``V`` coordinate in wavelengths.
 
 
     Returns
@@ -59,5 +59,4 @@ def uv_scale(nl, nm, umax, vmax):
     tuple
         Cell size in the l and m dimensions
     """
-
-    return _ARCSEC2RAD * cell_size(nl, nm, umax, vmax)
+    return _ARCSEC2RAD * cell_size(nl, nm, umax, vmax) * np.array([nl, nm])
