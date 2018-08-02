@@ -101,10 +101,14 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     assert len(grids) == w_bins.shape[0]
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
 
-    for i, grid in enumerate(grids):
+    w_bin_values = w_stacking_centroids(w_bins)
+
+    for i, (w_value, grid) in enumerate(zip(grids, w_bin_values)):
         mask = bin_indices == i
+        discretised_uvw = uvw[mask, ...]
+        discretised_uvw[:, 2] = w_value
         simple_numba_grid(vis[mask, ...],
-                          uvw[mask, ...],
+                          discretised_uvw,
                           flags[mask, ...],
                           weights[mask, ...],
                           ref_wave,
