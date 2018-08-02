@@ -112,7 +112,8 @@ def w_bin_masks(uvw, w_bins):
 @numba.jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
                convolution_filter, w_bins, grids):
-    assert len(grids) == w_bins.shape[0]
+
+    assert len(grids) == w_bins.shape[0] - 1
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
 
     w_values = w_stacking_centroids(w_bins)
@@ -172,7 +173,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution filter
     w_bins : :class:`numpy.ndarray`
-        W coordinate bins of shape :code:`(nw,)`
+        W coordinate bins of shape :code:`(nw + 1,)`
     nx : integer, optional
         Size of the grid's X dimension
     ny : integer, optional
@@ -195,7 +196,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
 
     # Create grid of flatten correlations or reshape
     if grids is None:
-        nw = w_bins.shape[0]
+        nw = w_bins.shape[0] - 1
         grids = [np.zeros((ny, nx) + corrs, dtype=vis.dtype)
                  for _ in range(nw)]
     elif not isinstance(grids, list):
