@@ -59,7 +59,7 @@ else:
         grid_flat_corrs = reduce(mul, grid.shape[2:])
         weight_flat_corrs = reduce(mul, weights.shape[2:])
 
-        assert grid_flat_corrs == weight_flat_corrs, (grid_flat_corrs, weight_flat_corrs)
+        assert grid_flat_corrs == weight_flat_corrs
         assert uvw.shape[0] == weights.shape[0]
         assert weights.shape[1] == ref_wave.shape[0]
 

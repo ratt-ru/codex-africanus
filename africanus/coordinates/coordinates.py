@@ -34,7 +34,7 @@ def _nb_radec_to_lmn(radec, phase_centre):
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def _nb_lm_to_radec(lmn, phase_centre):
-    assert lmn.ndim ==2 and lmn.shape[1] == 3
+    assert lmn.ndim == 2 and lmn.shape[1] == 3
     assert phase_centre.ndim == 1 and phase_centre.shape[0] == 2
 
     radec = np.empty(shape=(lmn.shape[0], 2), dtype=lmn.dtype)
