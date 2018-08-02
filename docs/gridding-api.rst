@@ -48,11 +48,13 @@ Implements W-Stacking as described in `WSClean <wsclean_>`_.
     w_stacking_bins
     w_stacking_centroids
     grid
+    degrid
 
 .. autofunction:: w_stacking_layers
 .. autofunction:: w_stacking_bins
 .. autofunction:: w_stacking_centroids
 .. autofunction:: grid
+.. autofunction:: degrid
 
 .. _wsclean: https://academic.oup.com/mnras/article/444/1/606/1010067
 

@@ -1,6 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+
+Implements W-Stacking as described in `WSClean <wsclean_>`_.
+
+
+1. The range of W coordinates is binned into a linear space
+   of ``W-layers``.
+1. Grid visibilities onto the ``W-layer`` associated with
+   their binned W coordinates.
+2. The inverse FFT is applied to each layer.
+3. Apply a direction dependent phase shift to each layer.
+4. Sum the layers together
+5. Apply a final scaling factor.
+
+.. _wsclean: https://academic.oup.com/mnras/article/444/1/606/1010067
+
+"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -13,6 +31,7 @@ import pyrap.tables as pt
 
 from africanus.coordinates import (radec_to_lmn)
 from africanus.gridding.wstack import (grid,
+                                       degrid,
                                        w_stacking_layers,
                                        w_stacking_bins,
                                        w_stacking_centroids)
@@ -97,6 +116,8 @@ with pt.table(args.ms) as T:
         # number of rows to read on this iteration
         nrow = min(args.row_chunks, T.nrows() - r)
 
+        logging.info("Gridding rows %d-%d", r, r + nrow)
+
         # Get MS data
         data = T.getcol("DATA", startrow=r, nrow=nrow)
         uvw = T.getcol("UVW", startrow=r, nrow=nrow)
@@ -162,11 +183,20 @@ for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
     psf_fft = psf_fft*np.exp(2*np.pi*1j*centroid*(psf_n))
     psf_sum += psf_fft
 
+grid_final_factor = (1 - grid_n) / (wmax - wmin)
+psf_final_factor = (1 - psf_n) / (wmax - wmin)
+
+dirty_sum *= grid_final_factor
+psf_sum *= psf_final_factor
+
+# Normalised Amplitude
 psf = np.abs(psf_sum.real)
 psf = psf / psf.max()
 
+# Scale the dirty image by the psf
+# x4 because the N**2 FFT normalization factor
+# on a square image double the size
 dirty = dirty_sum / (psf.max() * 4.)
-dirty = dirty * (1 - grid_n) / (wmax - wmin)
 
 # Display image if we have matplotlib
 try:
@@ -179,3 +209,39 @@ else:
     plt.title("DIRTY")
     plt.colorbar()
     plt.show(True)
+
+# Reverse application of final gridding factor
+dirty = (dirty[:, :] / grid_final_factor)[:, :, None]
+vis_grids = []
+
+# FFT and apply inverse factor for each W layer
+for w, centroid in enumerate(w_centroids):
+    ncorr = dirty.shape[2]
+
+    vis_grid = np.empty(dirty.shape, np.complex64)
+
+    for c in range(ncorr):
+        vis_grid[:, :, c] = np.fft.ifftshift(dirty[:, :, c])
+        vis_grid[:, :, c] = np.fft.fft2(vis_grid[:, :, c])
+        vis_grid[:, :, c] = np.fft.fftshift(vis_grid[:, :, c])
+        vis_grid[:, :, c] /= np.exp(2*np.pi*1j*centroid*(grid_n))
+
+    vis_grids.append(vis_grid)
+
+with pt.table(args.ms) as T:
+    # For each chunk of rows
+    for r in list(range(0, T.nrows(), args.row_chunks)):
+        # number of rows to read on this iteration
+        nrow = min(args.row_chunks, T.nrows() - r)
+
+        logging.info("Degridding rows %d-%d", r, r + nrow)
+
+        # Get MS data
+        uvw = T.getcol("UVW", startrow=r, nrow=nrow)
+
+        # Just use natural weights
+        natural_weight = np.ones((nrow, nchan, 1), dtype=np.float64)
+
+        # Produce visibilities for this chunk of UVW coordinates
+        vis = degrid(vis_grids, uvw, natural_weight, ref_wave,
+                     conv_filter, w_bins)

@@ -10,7 +10,8 @@ import numpy as np
 
 from africanus.util.docs import on_rtd
 from africanus.gridding.simple.gridding import (
-                numba_grid as simple_numba_grid)
+                numba_grid as simple_numba_grid,
+                degrid as simple_numba_degrid)
 
 
 def w_stacking_layers(w_min, w_max, l, m):
@@ -208,3 +209,86 @@ def grid(vis, uvw, flags, weights, ref_wave,
 
     return numba_grid(vis, uvw, flags, weights, ref_wave,
                       convolution_filter, w_bins, grids)
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def numba_degrid(grids, uvw, weights, ref_wave,
+                 convolution_filter, w_bins, vis):
+
+    assert len(grids) == w_bins.shape[0] - 1
+    bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
+
+    w_values = w_stacking_centroids(w_bins)
+
+    for i, (w_value, grid) in enumerate(zip(w_values, grids)):
+        # The row mask for this layer
+        mask = bin_indices == i
+
+        # Set w coordinate to that of the layer
+        discretised_uvw = uvw[mask, ...]
+        discretised_uvw[:, 2] = w_value
+
+        vis[mask, ...] = simple_numba_degrid(grid,
+                                             discretised_uvw,
+                                             weights[mask, ...],
+                                             ref_wave,
+                                             convolution_filter)
+
+    return vis
+
+
+def degrid(grids, uvw, weights, ref_wave,
+           convolution_filter, w_bins,
+           dtype=np.complex64):
+    """
+    Convolutional degridder (continuum)
+
+    Variable numbers of correlations are supported.
+
+    * :code:`(ny, nx, corr_1, corr_2)` ``grid`` will result in a
+      :code:`(row, chan, corr_1, corr_2)` ``vis``
+
+    * :code:`(ny, nx, corr_1)` ``grid`` will result in a
+      :code:`(row, chan, corr_1)` ``vis``
+
+    Parameters
+    ----------
+    grids : list of np.ndarray
+        float or complex grid of visibilities
+        of shape :code:`(ny, nx, corr_1, corr_2)`
+    uvw : np.ndarray
+        float64 array of UVW coordinates of shape :code:`(row, 3)`
+    weights : np.ndarray
+        float32 or float64 array of weights. Set this to
+        ``np.ones_like(vis, dtype=np.float32)`` as default.
+    ref_wave : np.ndarray
+        float64 array of wavelengths of shape :code:`(chan,)`
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
+        Convolution Filter
+    w_bins : :class:`numpy.ndarray`
+        W coordinate bins of shape :code:`(nw + 1,)`
+    dtype : :class:`numpy.dtype`, optional
+        Numpy type of the resulting array. Defaults to
+        :class:`numpy.complex64`.
+
+    Returns
+    -------
+    np.ndarray
+        :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
+    """
+    corrs = grids[0].shape[2:]
+    nrow = uvw.shape[0]
+    nchan = ref_wave.shape[0]
+
+    # Flatten the correlation dimensions
+    flat_corrs = reduce(mul, corrs)
+
+    # Create output visibilities
+    vis = np.empty((nrow, nchan, flat_corrs), dtype=dtype)
+
+    grids = [g.reshape(g.shape[0:2] + (flat_corrs,)) for g in grids]
+
+    numba_degrid(grids, uvw, weights, ref_wave,
+                 convolution_filter, w_bins, vis)
+
+    return vis.reshape((nrow, nchan) + corrs)
