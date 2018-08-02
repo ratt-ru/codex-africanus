@@ -4,20 +4,25 @@ import numpy as np
 iFs = np.fft.ifftshift
 Fs = np.fft.fftshift
 
-def PSF_response(image, PSF, pad_size):
 
-    PSF_pad = np.pad(PSF, pad_size, mode='constant')
-    PSF_hat = Fs(np.fft.fft2(iFs(PSF_pad)))
+def F(x):
+    return Fs(np.fft.fft2(iFs(x), norm='ortho'))
 
-    # im_pad = np.pad(image, pad_size, mode='constant')
-    im_hat = Fs(np.fft.fft2(iFs(image)))
+
+def iF(x):
+    return Fs(np.fft.ifft2(iFs(x), norm='ortho'))
+
+
+def PSF_response(image, PSF_hat):
+
+    im_hat = F(image)
 
     vis = PSF_hat*im_hat
 
-    return vis  # .real[pad_size[0]:-pad_size[0], pad_size[1]:-pad_size[1]]
+    return vis
 
 
-def PSF_adjoint(vis, PSF, pad_size):
+def PSF_adjoint(vis, PSF_hat):
     """
     Perform the adjoint operator of the PSF convolution; a cross correlation
     :param vis:
@@ -26,15 +31,6 @@ def PSF_adjoint(vis, PSF, pad_size):
     :return:
     """
 
-    # sigma = np.diag(weights.flatten())
+    im_pad = iF(PSF_hat.conj()*vis)
 
-    # vis_pad = np.pad(vis, pad_size, mode='constant')
-    # vis_hat = Fs(np.fft.ifft2(iFs(vis)))
-    # vis_conj = vis.conj()
-
-    PSF_pad = np.pad(PSF, pad_size, mode='constant')
-    PSF_hat = Fs(np.fft.fft2(iFs(PSF_pad)))
-
-    im_pad = Fs(np.fft.ifft2(iFs(PSF_hat*vis)))
-
-    return im_pad  # [pad_size[0]:-pad_size[0], pad_size[1]:-pad_size[1]]
+    return im_pad

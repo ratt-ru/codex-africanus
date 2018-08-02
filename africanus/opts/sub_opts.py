@@ -27,26 +27,25 @@ def da_proj_l1_plus_pos(x, tau):
 
 
 def power_dask(L, LT, im_size, tol=1e-2, max_iter=100):
-    # np.random.seed(123)
-    # x = da.random.random((im_size[0], im_size[1]), chunks=([im_size[0], im_size[1]]))
-    # x /= da.linalg.norm(x, 'fro').compute()
-    # x_chunks = x.chunks
-    # init_val = 1
-    #
-    # for i in range(max_iter):
-    #     y = L(x)
-    #     # x = LT(y)
-    #     x = da.from_array(LT(y), chunks=x_chunks)
-    #     val = da.linalg.norm(x, 'fro').compute()
-    #     rel_var = np.abs(val - init_val) / init_val
-    #     if rel_var < tol:
-    #         break
-    #     print("Iter {0}: {1}".format(i, rel_var))
-    #     init_val = val
-    #     x /= val
-    # print('Spectral norm=', np.sqrt(val))
-    # return np.sqrt(val)
-    return 21.86032268081912
+    np.random.seed(123)
+    x = da.random.random((im_size[0], im_size[1]), chunks=([im_size[0], im_size[1]]))
+    x /= da.linalg.norm(x, 'fro').compute()
+    x_chunks = x.chunks
+    init_val = 1
+
+    for i in range(max_iter):
+        y = L(x)
+        # x = LT(y)
+        x = da.from_array(LT(y), chunks=x_chunks)
+        val = da.linalg.norm(x, 'fro').compute()
+        rel_var = np.abs(val - init_val) / init_val
+        if rel_var < tol:
+            break
+        print("Iter {0}: {1}".format(i, rel_var))
+        init_val = val
+        x /= val
+    print('Spectral norm=', np.sqrt(val))
+    return np.sqrt(val)
 
 
 def pow_method(L, LT, im_size, tol=1e-2, max_iter=100):

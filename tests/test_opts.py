@@ -5,6 +5,7 @@
 
 import numpy as np
 from africanus.dft.kernels import im_to_vis, vis_to_im
+from africanus.reduction.psf_redux import PSF_adjoint, PSF_response, F
 from astropy.io import fits
 import xarrayms
 import matplotlib.pyplot as plt
@@ -32,7 +33,7 @@ from africanus.opts.primaldual import primal_dual_solver as pds
 Tests to see if there is any great difference between the model image image and the resolved image
 """
 
-npix = 256
+npix = 257
 
 
 def radec_to_lm(ra0, dec0, ra, dec):
@@ -40,6 +41,7 @@ def radec_to_lm(ra0, dec0, ra, dec):
     l = (np.cos(dec) * np.sin(delta_ra))
     m = (np.sin(dec) * np.cos(dec0) - np.cos(dec) * np.sin(dec0) * np.cos(delta_ra))
     return l, m
+
 
 # generate lm-coordinates
 ra_pos = 3.15126500e-05
@@ -57,7 +59,7 @@ freq = frequency/ref_freq
 
 data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
 
-nrow = 5000
+nrow = 1000
 nchan = 1
 
 for ds in xarrayms.xds_from_ms(data_path):
@@ -67,42 +69,46 @@ for ds in xarrayms.xds_from_ms(data_path):
 
 vis = Vdat[0:nrow, 0:nchan, 0]
 
-
-PSF = vis_to_im(weights, uvw, lm, freq)
-
 wsum = sum(weights)  # PSF.max()
 
-
-
 L = lambda image: im_to_vis(image, uvw, lm, freq)
-LT = lambda v: vis_to_im(v, uvw, lm, freq)
+LT = lambda v: vis_to_im(v, uvw, lm, freq)/wsum
+
+PSF = LT(weights)
+
+PSF = PSF.reshape([npix, npix])
+padding = [npix//2, npix//2]
+PSF_pad = np.pad(PSF, padding, mode='constant')
+PSF_hat = F(PSF_pad)
+
+P = lambda image: PSF_response(image, PSF_hat)
+PT = lambda image: PSF_adjoint(image, PSF_hat)
 
 dirty = LT(vis)
-
-test = L(dirty)
-print(vis - test)
+dirty = dirty.reshape([npix, npix])
+dirty = np.pad(dirty, padding, mode='constant')
 
 start = np.zeros_like(dirty)
-start[int(npix**2/2),] = 10
+start[npix, npix] = 10
 
-cleaned = pds(start, vis, L, LT, wsum, solver='spd')
+cleaned = pds(start, P(dirty), P, PT, solver='rspd', maxiter=19).real
 
 plt.figure('ID')
-plt.imshow(dirty.reshape(npix, npix)/wsum)
+plt.imshow(dirty)
 plt.colorbar()
 
 plt.figure('IM')
-plt.imshow(cleaned.reshape(npix, npix))
+plt.imshow(cleaned)
 plt.colorbar()
 
 plt.show()
 
-hdu = fits.PrimaryHDU(dirty.reshape(npix, npix))
+hdu = fits.PrimaryHDU(dirty)
 hdul = fits.HDUList([hdu])
 hdul.writeto('/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/dirty.fits', overwrite=True)
 hdul.close()
 
-hdu = fits.PrimaryHDU(cleaned.reshape(npix, npix))
+hdu = fits.PrimaryHDU(cleaned)
 hdul = fits.HDUList([hdu])
 hdul.writeto('/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/recovered.fits', overwrite=True)
 hdul.close()
