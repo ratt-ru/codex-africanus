@@ -17,8 +17,4 @@ def test_radec_to_lmn():
     result = lmn_to_radec(lmn, phase_centre)
     result = (result + np.pi) % (2 * np.pi) - np.pi
 
-    print(radec)
-    print(result)
-    print(np.abs(radec - result))
-
     assert np.allclose(result, radec)
