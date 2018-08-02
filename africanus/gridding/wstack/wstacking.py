@@ -70,6 +70,7 @@ def w_stacking_bins(w_min, w_max, w_layers):
     return np.linspace(w_min, w_max, w_layers + 1)
 
 
+@numba.jit(nopython=True, nogil=True, cache=True)
 def w_stacking_centroids(w_bins):
     r"""
     Returns the W coordinate centroids for each
