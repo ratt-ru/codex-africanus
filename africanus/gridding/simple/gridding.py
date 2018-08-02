@@ -20,13 +20,18 @@ from ...util.docs import on_rtd
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def _nb_grid(vis, uvw, flags, weights, ref_wave,
-             convolution_filter, grid):
+def numba_grid(vis, uvw, flags, weights, ref_wave,
+               convolution_filter, grid):
     """
     See :func:"~africanus.gridding.simple.gridding._grid" for
     documentation.
     """
     cf = convolution_filter
+
+    # Shape checks
+    assert vis.shape[0] == uvw.shape[0] == flags.shape[0] == weights.shape[0]
+    assert vis.shape[1] == flags.shape[1] == weights.shape[1]
+    assert vis.shape[2] == flags.shape[2] == weights.shape[2]
 
     nrow, nchan = vis.shape[0:2]
     assert nchan == ref_wave.shape[0]
@@ -158,8 +163,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
         ny, nx = grid.shape[0:2]
         grid = grid.reshape((ny, nx) + flat_corrs)
 
-    return _nb_grid(vis, uvw, flags, weights, ref_wave,
-                    convolution_filter, grid)
+    return numba_grid(vis, uvw, flags, weights, ref_wave,
+                      convolution_filter, grid)
 
 
 def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
@@ -206,15 +211,14 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
     for corr in corrs:
         flat_corrs *= corr
 
-    vis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
-    grid = grid.reshape((ny, nx, flat_corrs))
-    weights = weights.reshape((nrow, nchan, flat_corrs))
+    fvis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
+    fgrid = grid.reshape((ny, nx, flat_corrs))
+    fweights = weights.reshape((nrow, nchan, flat_corrs))
 
-    assert vis.shape[1] == ref_wave.shape[0]
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
-    for r in range(uvw.shape[0]):                 # row (vis)
-        for f in range(vis.shape[1]):             # channel
+    for r in range(fvis.shape[0]):                 # row (vis)
+        for f in range(fvis.shape[1]):             # channel
 
             scaled_u = uvw[r, 0] / ref_wave[f]
             scaled_v = uvw[r, 1] / ref_wave[f]
@@ -255,11 +259,11 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
                     # Correlation
                     for c in range(flat_corrs):
-                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
-                                         conv_weight *
-                                         weights[r, f, c])
+                        fvis[r, f, c] += (fgrid[grid_v, grid_u, c] *
+                                          conv_weight *
+                                          fweights[r, f, c])
 
-    return vis.reshape((nrow, nchan) + corrs)
+    return fvis.reshape((nrow, nchan) + corrs)
 
 # jit the functions if this is not RTD otherwise
 # use the private funcs for generating docstrings
@@ -267,6 +271,5 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
 if not on_rtd():
     degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
-    # degrid = _degrid
 else:
     degrid = _degrid

@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from operator import mul
+
 from .gridding import (grid as np_grid_fn, degrid as np_degrid_fn)
 from ...util.docs import on_rtd, mod_docs
 from ...util.requirements import have_packages, MissingPackageException
@@ -53,6 +55,13 @@ else:
 
     def degrid(grid, uvw, weights, ref_wave, convolution_filter):
         """ Documentation below """
+
+        grid_flat_corrs = reduce(mul, grid.shape[2:])
+        weight_flat_corrs = reduce(mul, weights.shape[2:])
+
+        assert grid_flat_corrs == weight_flat_corrs, (grid_flat_corrs, weight_flat_corrs)
+        assert uvw.shape[0] == weights.shape[0]
+        assert weights.shape[1] == ref_wave.shape[0]
 
         # Creation correlation dimension strings for each correlation
         corrs = tuple('corr-%d' for i in range(len(grid.shape[2:])))
