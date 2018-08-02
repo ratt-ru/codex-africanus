@@ -54,13 +54,18 @@ conv_filter = convolution_filter(3, 63, "sinc")
 # Determine Minimum and Maximum W
 query = """
 SELECT
+MAX([SELECT UVW[0] FROM {ms}]) AS UMAX,
+MAX([SELECT UVW[1] FROM {ms}]) AS VMAX,
 MIN([SELECT UVW[2] FROM {ms}]) AS WMIN,
 MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
 """.format(ms=args.ms)
 
 with pt.taql(query) as Q:
-    wmin = Q.getcol("WMIN") * freq.min() / lightspeed
-    wmax = Q.getcol("WMAX") * freq.min() / lightspeed
+    factor = freq.min() / lightspeed
+    umax = Q.getcol("UMAX").item() * factor
+    vmax = Q.getcol("UMAX").item() * factor
+    wmin = Q.getcol("WMIN").item() * factor
+    wmax = Q.getcol("WMAX").item() * factor
 
 lmn = radec_to_lmn(np.deg2rad([[-1, -1], [1, 1]]), np.zeros((2,)))
 
