@@ -39,7 +39,7 @@ def w_stacking_layers(w_min, w_max, l, m):
         Number of w-layers
     """
     max_val = (1.0 - np.sqrt(1 - l[None, :]**2 - m[:, None]**2)).max()
-    return np.ceil(2*np.pi*(w_max - w_min)/max_val).astype(np.int32).item()
+    return np.ceil(2*np.pi*(w_max - w_min)*max_val).astype(np.int32).item()
 
 
 def w_stacking_bins(w_min, w_max, w_layers):
