@@ -73,18 +73,13 @@ conv_filter = convolution_filter(3, 63, "sinc")
 # Determine Minimum and Maximum W
 query = """
 SELECT
-MAX([SELECT UVW[0] FROM {ms}]) AS UMAX,
-MAX([SELECT UVW[1] FROM {ms}]) AS VMAX,
 MIN([SELECT UVW[2] FROM {ms}]) AS WMIN,
 MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
 """.format(ms=args.ms)
 
 with pt.taql(query) as Q:
-    factor = freq.min() / lightspeed
-    umax = Q.getcol("UMAX").item() * factor
-    vmax = Q.getcol("UMAX").item() * factor
-    wmin = Q.getcol("WMIN").item() * factor
-    wmax = Q.getcol("WMAX").item() * factor
+    wmin = Q.getcol("WMIN").item()
+    wmax = Q.getcol("WMAX").item()
 
 lmn = radec_to_lmn(np.deg2rad([[-1, -1], [1, 1]]), np.zeros((2,)))
 
@@ -94,7 +89,7 @@ else:
     w_layers = args.n_wlayers
 
 logging.info("%d W layers", w_layers)
-w_bins = w_stacking_bins(wmin, wmax, w_layers)
+w_bins = w_stacking_bins(wmin*UV_SCALE, wmax*UV_SCALE, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
 
 cmin, cmax = lmn
