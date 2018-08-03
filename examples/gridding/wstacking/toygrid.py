@@ -162,19 +162,22 @@ for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
 
     ncorr = dirty.shape[2]
 
-    # FFT each correlation and then restack
-    fft_shifts = [np.fft.ifftshift(dirty[:, :, p]) for p in range(ncorr)]
-    ffts = [np.fft.ifft2(shift) for shift in fft_shifts]
-    dirty_fft = [np.fft.fftshift(fft) for fft in ffts]
+    # FFT each correlation
+    fft = np.empty_like(dirty)
+    grid_factor = np.exp(2*np.pi*1j*centroid*(grid_n))
 
-    dirty_fft = [df*np.exp(2*np.pi*1j*centroid*(grid_n)) for df in dirty_fft]
+    for c in range(ncorr):
+        fft[:, :, c] = np.fft.ifftshift(dirty[:, :, c])
+        fft[:, :, c] = np.fft.ifft2(fft[:, :, c])
+        fft[:, :, c] = np.fft.fftshift(fft[:, :, c])
+        fft[:, :, c] *= grid_factor
 
     # Dirty image composed of the diagonal correlations
     # (XX: I+Q, YY: I - Q) => X+Y = 2I
     if ncorr == 1:
-        dirty = dirty_fft[0].real
+        dirty = fft[:, :, 0].real
     else:
-        dirty = (dirty_fft[0].real + dirty_fft[ncorr-1].real)*0.5
+        dirty = (fft[:, :, 0].real + fft[:, :, ncorr-1].real)*0.5
 
     dirty_sum += dirty
 
@@ -219,12 +222,13 @@ for w, centroid in enumerate(w_centroids):
     ncorr = dirty.shape[2]
 
     vis_grid = np.empty(dirty.shape, np.complex64)
+    grid_factor = np.exp(2*np.pi*1j*centroid*(grid_n))
 
     for c in range(ncorr):
-        vis_grid[:, :, c] = np.fft.ifftshift(dirty[:, :, c])
+        vis_grid[:, :, c] = np.fft.fftshift(dirty[:, :, c])
         vis_grid[:, :, c] = np.fft.fft2(vis_grid[:, :, c])
-        vis_grid[:, :, c] = np.fft.fftshift(vis_grid[:, :, c])
-        vis_grid[:, :, c] /= np.exp(2*np.pi*1j*centroid*(grid_n))
+        vis_grid[:, :, c] = np.fft.ifftshift(vis_grid[:, :, c])
+        vis_grid[:, :, c] /= grid_factor
 
     vis_grids.append(vis_grid)
 
