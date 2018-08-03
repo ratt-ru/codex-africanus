@@ -186,20 +186,21 @@ for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
     psf_fft = psf_fft*np.exp(2*np.pi*1j*centroid*(psf_n))
     psf_sum += psf_fft
 
-grid_final_factor = (1 - grid_n) / (wmax - wmin)
-psf_final_factor = (1 - psf_n) / (wmax - wmin)
+grid_final_factor = (1 + grid_n)  # / (wmax - wmin)
+psf_final_factor = (1 + psf_n)  # / (wmax - wmin)
 
 dirty_sum *= grid_final_factor
 psf_sum *= psf_final_factor
 
 # Normalised Amplitude
-psf = np.abs(psf_sum.real)
+#psf = np.abs(psf_sum.real)
+psf = psf.real
 psf = psf / psf.max()
 
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
-dirty = dirty_sum / (psf.max() * 4.)
+dirty = dirty_sum.real / (psf.max() * 4.)
 
 # Display image if we have matplotlib
 try:

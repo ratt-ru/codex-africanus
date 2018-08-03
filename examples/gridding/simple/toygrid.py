@@ -99,13 +99,14 @@ else:
 psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
 
 # Normalised Amplitude
-psf = np.abs(psf_fft.real)
+#psf = np.abs(psf_fft.real)
+psf = psf.real
 psf = (psf / psf.max())
 
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
-dirty = dirty / (psf.max() * 4.)
+dirty = dirty.real / (psf.max() * 4.)
 
 # Display image if we have matplotlib
 try:
