@@ -11,7 +11,7 @@ import numpy as np
 from africanus.util.docs import on_rtd
 from africanus.gridding.simple.gridding import (
                 numba_grid as simple_numba_grid,
-                degrid as simple_numba_degrid)
+                numba_degrid as simple_numba_degrid)
 
 
 def w_stacking_layers(w_min, w_max, l, m):

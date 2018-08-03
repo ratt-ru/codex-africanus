@@ -16,14 +16,12 @@ except ImportError:
 import numba
 import numpy as np
 
-from africanus.util.docs import on_rtd
-
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
                convolution_filter, grid):
     """
-    See :func:"~africanus.gridding.simple.gridding._grid" for
+    See :func:"~africanus.gridding.simple.gridding.grid" for
     documentation.
     """
     cf = convolution_filter
@@ -167,37 +165,11 @@ def grid(vis, uvw, flags, weights, ref_wave,
                       convolution_filter, grid)
 
 
-def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
+@numba.jit(nopython=True, nogil=True, cache=True)
+def numba_degrid(grid, uvw, weights, ref_wave, convolution_filter):
     """
-    Convolutional degridder (continuum)
-
-    Variable numbers of correlations are supported.
-
-    * :code:`(ny, nx, corr_1, corr_2)` ``grid`` will result in a
-      :code:`(row, chan, corr_1, corr_2)` ``vis``
-
-    * :code:`(ny, nx, corr_1)` ``grid`` will result in a
-      :code:`(row, chan, corr_1)` ``vis``
-
-    Parameters
-    ----------
-    grid : np.ndarray
-        float or complex grid of visibilities
-        of shape :code:`(ny, nx, corr_1, corr_2)`
-    uvw : np.ndarray
-        float64 array of UVW coordinates of shape :code:`(row, 3)`
-    weights : np.ndarray
-        float32 or float64 array of weights. Set this to
-        ``np.ones_like(vis, dtype=np.float32)`` as default.
-    ref_wave : np.ndarray
-        float64 array of wavelengths of shape :code:`(chan,)`
-    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
-        Convolution Filter
-
-    Returns
-    -------
-    np.ndarray
-        :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
+    See :func:"~africanus.gridding.simple.gridding.degrid" for
+    documentation.
     """
     cf = convolution_filter
 
@@ -265,11 +237,37 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
     return fvis.reshape((nrow, nchan) + corrs)
 
-# jit the functions if this is not RTD otherwise
-# use the private funcs for generating docstrings
 
+def degrid(grid, uvw, weights, ref_wave, convolution_filter):
+    """
+    Convolutional degridder (continuum)
 
-if not on_rtd():
-    degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
-else:
-    degrid = _degrid
+    Variable numbers of correlations are supported.
+
+    * :code:`(ny, nx, corr_1, corr_2)` ``grid`` will result in a
+      :code:`(row, chan, corr_1, corr_2)` ``vis``
+
+    * :code:`(ny, nx, corr_1)` ``grid`` will result in a
+      :code:`(row, chan, corr_1)` ``vis``
+
+    Parameters
+    ----------
+    grid : np.ndarray
+        float or complex grid of visibilities
+        of shape :code:`(ny, nx, corr_1, corr_2)`
+    uvw : np.ndarray
+        float64 array of UVW coordinates of shape :code:`(row, 3)`
+    weights : np.ndarray
+        float32 or float64 array of weights. Set this to
+        ``np.ones_like(vis, dtype=np.float32)`` as default.
+    ref_wave : np.ndarray
+        float64 array of wavelengths of shape :code:`(chan,)`
+    convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
+        Convolution Filter
+
+    Returns
+    -------
+    np.ndarray
+        :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
+    """
+    return numba_degrid(grid, uvw, weights, ref_wave, convolution_filter)
