@@ -143,10 +143,12 @@ def grid(vis, uvw, flags, weights, ref_wave,
          nx=1024, ny=1024,
          grids=None):
     """
-    Convolutional gridder which grids visibilities ``vis``
-    at the specified ``uvw`` coordinates and
-    ``ref_wave`` reference wavelengths using
-    the specified ``convolution_filter``.
+    Convolutional W-stacking gridder.
+
+    This function grids visibilities ``vis`` onto multiple
+    grids, each associated with a W-layer defined by ``w_bins``.
+    The W coordinate of the ``uvw`` array is used to bin the visibility
+    into the appropriate grid.
 
     Variable numbers of correlations are supported.
 
@@ -180,8 +182,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
     ny : integer, optional
         Size of the grid's Y dimension
     grids : list of np.ndarray, optional
-        list of complex64/complex128 arrays, each with shape
-        :code:`(ny, nx, corr_1, corr_2)`
+        list of complex arrays of length :code:`nw`,
+        each with shape :code:`(ny, nx, corr_1, corr_2)`.
         If supplied, this array will be used as the gridding target,
         and ``nx`` and ``ny`` will be derived from the grid's
         dimensions.
@@ -189,8 +191,9 @@ def grid(vis, uvw, flags, weights, ref_wave,
     Returns
     -------
     list of np.ndarray
-        :code:`(ny, nx, corr_1, corr_2)` complex ndarray of
-        gridded visibilities. The number of correlations may vary,
+        list of complex arrays of gridded visibilities, of length :code:`nw`,
+        each with shape :code:`(ny, nx, corr_1, corr_2)`.
+        The number of correlations may vary,
         depending on the shape of vis.
     """
     corrs = vis.shape[2:]
@@ -241,7 +244,7 @@ def degrid(grids, uvw, weights, ref_wave,
            convolution_filter, w_bins,
            dtype=np.complex64):
     """
-    Convolutional degridder (continuum)
+    Convolutional W-stacking degridder (continuum)
 
     Variable numbers of correlations are supported.
 
@@ -254,7 +257,7 @@ def degrid(grids, uvw, weights, ref_wave,
     Parameters
     ----------
     grids : list of np.ndarray
-        float or complex grid of visibilities
+        list of visibility grids of length :code:`nw`.
         of shape :code:`(ny, nx, corr_1, corr_2)`
     uvw : np.ndarray
         float64 array of UVW coordinates of shape :code:`(row, 3)`
