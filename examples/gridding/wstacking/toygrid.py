@@ -128,7 +128,7 @@ with pt.table(args.ms) as T:
         # Just use natural weights
         natural_weight = np.ones_like(data, dtype=np.float64)
 
-        # Accumulate visibilities into the dirties image
+        # Accumulate visibilities into the dirty image
         dirties = grid(data,
                        uvw*UV_SCALE,
                        flag,
@@ -139,7 +139,7 @@ with pt.table(args.ms) as T:
                        ny=args.npix, nx=args.npix,
                        grids=dirties)
 
-        # For PSF, flag entire visibilitiy if any correlations are flagged
+        # For PSF, flag entire visibility if any correlations are flagged
         psf_flag = np.any(flag, axis=2, keepdims=True)
 
         # Accumulate PSF using unity visibilities
