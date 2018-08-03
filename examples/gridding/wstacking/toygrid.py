@@ -214,7 +214,7 @@ else:
     plt.show(True)
 
 # Reverse application of final gridding factor
-dirty = (dirty[:, :] / grid_final_factor)[:, :, None]
+dirty = (dirty / grid_final_factor)[:, :, None]
 vis_grids = []
 
 # FFT and apply inverse factor for each W layer
