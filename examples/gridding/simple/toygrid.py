@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import logging
 
 import numpy as np
 import pyrap.tables as pt
@@ -13,6 +14,8 @@ import pyrap.tables as pt
 from africanus.gridding.simple import grid, degrid
 from africanus.constants import c as lightspeed
 from africanus.filters import convolution_filter
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def create_parser():
@@ -107,6 +110,8 @@ psf = (psf / psf.max())
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
 dirty = dirty.real / (psf.max() * 4.)
+
+logging.info("Dirty maximum %.6f" % dirty.max())
 
 # Display image if we have matplotlib
 try:

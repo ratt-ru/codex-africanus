@@ -197,6 +197,8 @@ psf = psf / psf.max()
 # on a square image double the size
 dirty = dirty_sum.real / (psf.max() * 4.)
 
+logging.info("Dirty maximum %.6f" % dirty.max())
+
 # Display image if we have matplotlib
 try:
     import matplotlib.pyplot as plt
