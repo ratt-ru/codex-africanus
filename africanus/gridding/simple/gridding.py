@@ -16,10 +16,12 @@ except ImportError:
 import numba
 import numpy as np
 
+_ARCSEC2RAD = np.deg2rad(1.0/(60*60))
+
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
-               convolution_filter, grid):
+               convolution_filter, cell_size, grid):
     """
     See :func:"~africanus.gridding.simple.gridding.grid" for
     documentation.
@@ -38,6 +40,13 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     ny, nx = grid.shape[0:2]
     flat_corrs = grid.shape[2]
 
+    # Similarity Theorem
+    # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
+    # Scale UV coordinates
+    # Note u => x and v => y
+    u_scale = _ARCSEC2RAD * cell_size * nx
+    v_scale = _ARCSEC2RAD * cell_size * ny
+
     # Flatten correlation dimension for easier loop handling
     fvis = vis.reshape((nrow, nchan, flat_corrs))
     fflags = flags.reshape((nrow, nchan, flat_corrs))
@@ -47,8 +56,8 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            scaled_u = uvw[r, 0] / ref_wave[f]
-            scaled_v = uvw[r, 1] / ref_wave[f]
+            scaled_u = uvw[r, 0] * u_scale / ref_wave[f]
+            scaled_v = uvw[r, 1] * v_scale / ref_wave[f]
 
             disc_u = int(np.round(scaled_u))
             disc_v = int(np.round(scaled_v))
@@ -99,6 +108,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
 def grid(vis, uvw, flags, weights, ref_wave,
          convolution_filter,
+         cell_size,
          nx=1024, ny=1024,
          grid=None):
     """
@@ -120,6 +130,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
         complex visibility array of shape :code:`(row, chan, corr_1, corr_2)`
     uvw : np.ndarray
         float64 array of UVW coordinates of shape :code:`(row, 3)`
+        in wavelengths.
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
@@ -132,6 +143,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
         float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution filter
+    cell_size : float
+        Cell size in arcseconds.
     nx : integer, optional
         Size of the grid's X dimension
     ny : integer, optional
@@ -162,41 +175,35 @@ def grid(vis, uvw, flags, weights, ref_wave,
         grid = grid.reshape((ny, nx) + flat_corrs)
 
     return numba_grid(vis, uvw, flags, weights, ref_wave,
-                      convolution_filter, grid)
+                      convolution_filter, cell_size, grid)
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def numba_degrid(grid, uvw, weights, ref_wave, convolution_filter):
+def numba_degrid(grid, uvw, weights, ref_wave,
+                 convolution_filter, cell_size, vis):
     """
     See :func:"~africanus.gridding.simple.gridding.degrid" for
     documentation.
     """
     cf = convolution_filter
+    ny, nx, flat_corrs = grid.shape
 
-    ny, nx = grid.shape[0:2]
-    corrs = grid.shape[2:]
-    nchan = ref_wave.shape[0]
-    nrow = uvw.shape[0]
-
-    flat_corrs = 1
-
-    for corr in corrs:
-        flat_corrs *= corr
-
-    fvis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
-    fgrid = grid.reshape((ny, nx, flat_corrs))
-    fweights = weights.reshape((nrow, nchan, flat_corrs))
+    # Similarity Theorem
+    # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
+    # Scale UV coordinates
+    # Note u => x and v => y
+    u_scale = _ARCSEC2RAD * cell_size * nx
+    v_scale = _ARCSEC2RAD * cell_size * ny
 
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
-    for r in range(fvis.shape[0]):                 # row (vis)
-        for f in range(fvis.shape[1]):             # channel
+    for r in range(uvw.shape[0]):                 # row (vis)
+        for f in range(vis.shape[1]):             # channel (freq)
+            scaled_u = uvw[r, 0] * u_scale / ref_wave[f]
+            scaled_v = uvw[r, 1] * v_scale / ref_wave[f]
 
-            scaled_u = uvw[r, 0] / ref_wave[f]
-            scaled_v = uvw[r, 1] / ref_wave[f]
-
-            disc_u = int(round(scaled_u))
-            disc_v = int(round(scaled_v))
+            disc_u = int(np.round(scaled_u))
+            disc_v = int(np.round(scaled_v))
 
             extent_v = disc_v + ny // 2
             extent_u = disc_u + nx // 2
@@ -231,14 +238,15 @@ def numba_degrid(grid, uvw, weights, ref_wave, convolution_filter):
 
                     # Correlation
                     for c in range(flat_corrs):
-                        fvis[r, f, c] += (fgrid[grid_v, grid_u, c] *
-                                          conv_weight *
-                                          fweights[r, f, c])
+                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
+                                         conv_weight *
+                                         weights[r, f, c])
 
-    return fvis.reshape((nrow, nchan) + corrs)
+    return vis
 
 
-def degrid(grid, uvw, weights, ref_wave, convolution_filter):
+def degrid(grid, uvw, weights, ref_wave,
+           convolution_filter, cell_size, dtype=np.complex64):
     """
     Convolutional degridder (continuum)
 
@@ -257,6 +265,7 @@ def degrid(grid, uvw, weights, ref_wave, convolution_filter):
         of shape :code:`(ny, nx, corr_1, corr_2)`
     uvw : np.ndarray
         float64 array of UVW coordinates of shape :code:`(row, 3)`
+        in wavelengths.
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
@@ -264,10 +273,29 @@ def degrid(grid, uvw, weights, ref_wave, convolution_filter):
         float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution Filter
+    cell_size : float
+        Cell size in arcseconds.
+    dtype : :class:`numpy.dtype`
+        Data type of the visibilities
 
     Returns
     -------
     np.ndarray
         :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
     """
-    return numba_degrid(grid, uvw, weights, ref_wave, convolution_filter)
+    nrow = uvw.shape[0]
+    nchan = ref_wave.shape[0]
+    corrs = flat_corrs = grid.shape[2:]
+
+    # Flatten if necessary
+    if len(corrs) > 1:
+        flat_corrs = (reduce(mul, corrs),)
+        grid = grid.reshape(grid.shape[:2] + flat_corrs)
+        weights = weights.reshape(weights.shape[:2] + flat_corrs)
+
+    vis = np.zeros((nrow, nchan) + flat_corrs, dtype=dtype)
+
+    vis = numba_degrid(grid, uvw, weights, ref_wave,
+                       convolution_filter, cell_size, vis)
+
+    return vis.reshape(weights.shape[:2] + corrs)

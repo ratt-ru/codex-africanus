@@ -39,9 +39,7 @@ def test_w_stacking_gridder():
     nchan = 4
     nvis = npix*npix
 
-    CELL_SIZE = 6  # 6 arcseconds
-    ARCSEC2RAD = np.deg2rad(1./(60*60))
-    UV_SCALE = npix * CELL_SIZE * ARCSEC2RAD
+    cell_size = 6  # 6 arcseconds
 
     vis = rc((nvis, nchan) + corr)
 
@@ -61,12 +59,14 @@ def test_w_stacking_gridder():
     nlayers = w_stacking_layers(w_min, w_max, lmn[:, 0], lmn[:, 1])
     w_bins = w_stacking_bins(w_min, w_max, nlayers)
 
-    grids = grid(vis, uvw*UV_SCALE, flags, weights, ref_wave,
+    grids = grid(vis, uvw, flags, weights, ref_wave,
                  conv_filter, w_bins,
-                 nx=1024, ny=1024,
+                 cell_size,
+                 nx=nx, ny=ny,
                  grids=None)
 
-    grids = grid(vis, uvw*UV_SCALE, flags, weights, ref_wave,
+    grids = grid(vis, uvw, flags, weights, ref_wave,
                  conv_filter, w_bins,
-                 nx=1024, ny=1024,
+                 cell_size,
+                 nx=nx, ny=ny,
                  grids=grids)

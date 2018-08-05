@@ -23,6 +23,7 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-rc", "--row-chunks", default=10000, type=int)
     p.add_argument("-np", "--npix", default=1024, type=int)
+    p.add_argument("-sc", "--cell-size", default=6, type=float)
     return p
 
 
@@ -30,9 +31,6 @@ args = create_parser().parse_args()
 
 # Similarity Theorem (https://www.cv.nrao.edu/course/astr534/FTSimilarity.html)
 # Scale UV coordinates
-CELL_SIZE = 6  # 6 arc seconds
-ARCSEC2RAD = np.deg2rad(1.0/(60*60))
-UV_SCALE = args.npix * CELL_SIZE * ARCSEC2RAD
 
 # Convolution Filter
 conv_filter = convolution_filter(3, 63, "sinc")
@@ -63,11 +61,12 @@ with pt.table(args.ms) as T:
 
         # Accumulate visibilities into the dirty image
         dirty = grid(data,
-                     uvw*UV_SCALE,
+                     uvw,
                      flag,
                      natural_weight,
                      ref_wave,
                      conv_filter,
+                     args.cell_size,
                      ny=args.npix, nx=args.npix,
                      grid=dirty)
 
@@ -76,12 +75,13 @@ with pt.table(args.ms) as T:
 
         # Accumulate PSF using unity visibilities
         psf = grid(np.ones_like(psf_flag, dtype=dirty.dtype),
-                   uvw*UV_SCALE,
+                   uvw,
                    psf_flag,
                    np.ones_like(psf_flag, dtype=natural_weight.dtype),
                    ref_wave,
                    conv_filter,
-                   ny=args.npix*2, nx=args.npix*2,
+                   0.5*args.cell_size,
+                   ny=2*args.npix, nx=2*args.npix,
                    grid=psf)
 
 ncorr = dirty.shape[2]
@@ -101,8 +101,7 @@ else:
 # FFT the PSF
 psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
 
-# Normalised Amplitude
-#psf = np.abs(psf_fft.real)
+# Normalise the PSF
 psf = psf.real
 psf = (psf / psf.max())
 
@@ -141,4 +140,5 @@ with pt.table(args.ms) as T:
         natural_weight = np.ones((nrow, nchan, 1), dtype=np.float64)
 
         # Produce visibilities for this chunk of UVW coordinates
-        vis = degrid(dirty, uvw, natural_weight, ref_wave, conv_filter)
+        vis = degrid(dirty, uvw, natural_weight, ref_wave,
+                     conv_filter, args.cell_size)

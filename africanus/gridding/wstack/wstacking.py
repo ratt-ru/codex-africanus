@@ -112,7 +112,7 @@ def w_bin_masks(uvw, w_bins):
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
-               convolution_filter, w_bins, grids):
+               convolution_filter, w_bins, cell_size, grids):
 
     assert len(grids) == w_bins.shape[0] - 1
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
@@ -133,6 +133,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
                           weights[mask, ...],
                           ref_wave,
                           convolution_filter,
+                          cell_size,
                           grid)
 
     return grids
@@ -140,6 +141,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
 def grid(vis, uvw, flags, weights, ref_wave,
          convolution_filter, w_bins,
+         cell_size,
          nx=1024, ny=1024,
          grids=None):
     """
@@ -177,6 +179,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
         Convolution filter
     w_bins : :class:`numpy.ndarray`
         W coordinate bins of shape :code:`(nw + 1,)`
+    cell_size : float
+        Cell size in arcseconds.
     nx : integer, optional
         Size of the grid's X dimension
     ny : integer, optional
@@ -211,12 +215,12 @@ def grid(vis, uvw, flags, weights, ref_wave,
     grids = [g.reshape(g.shape[0:2] + flat_corrs) for g in grids]
 
     return numba_grid(vis, uvw, flags, weights, ref_wave,
-                      convolution_filter, w_bins, grids)
+                      convolution_filter, w_bins, cell_size, grids)
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def numba_degrid(grids, uvw, weights, ref_wave,
-                 convolution_filter, w_bins, vis):
+def numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
+                 w_bins, cell_size, vis):
 
     assert len(grids) == w_bins.shape[0] - 1
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
@@ -235,13 +239,14 @@ def numba_degrid(grids, uvw, weights, ref_wave,
                                              discretised_uvw,
                                              weights[mask, ...],
                                              ref_wave,
-                                             convolution_filter)
+                                             convolution_filter,
+                                             cell_size)
 
     return vis
 
 
 def degrid(grids, uvw, weights, ref_wave,
-           convolution_filter, w_bins,
+           convolution_filter, w_bins, cell_size,
            dtype=np.complex64):
     """
     Convolutional W-stacking degridder (continuum)
@@ -270,6 +275,8 @@ def degrid(grids, uvw, weights, ref_wave,
         Convolution Filter
     w_bins : :class:`numpy.ndarray`
         W coordinate bins of shape :code:`(nw + 1,)`
+    cell_size : float
+        Cell size in arcseconds.
     dtype : :class:`numpy.dtype`, optional
         Numpy type of the resulting array. Defaults to
         :class:`numpy.complex64`.
@@ -291,7 +298,7 @@ def degrid(grids, uvw, weights, ref_wave,
 
     grids = [g.reshape(g.shape[0:2] + (flat_corrs,)) for g in grids]
 
-    numba_degrid(grids, uvw, weights, ref_wave,
-                 convolution_filter, w_bins, vis)
+    numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
+                 w_bins, cell_size, vis)
 
     return vis.reshape((nrow, nchan) + corrs)

@@ -26,7 +26,7 @@ else:
     import dask.array as da
 
     def grid(vis, uvw, flags, weights, ref_wave,
-             convolution_filter, nx=1024, ny=1024):
+             convolution_filter, cell_size, nx=1024, ny=1024):
         """ Documentation below """
 
         # Creation correlation dimension strings for each correlation
@@ -37,6 +37,7 @@ else:
         def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter):
             return np_grid_fn(vis[0], uvw[0], flags[0], weights[0],
                               ref_wave[0], convolution_filter,
+                              cell_size,
                               nx=nx, ny=ny)[None, :]
 
         # Get grids, stacked by row
@@ -54,7 +55,7 @@ else:
         # Sum grids over the row dimension to produce (ny, nx, corr_1, corr_2)
         return grids.sum(axis=0)
 
-    def degrid(grid, uvw, weights, ref_wave, convolution_filter):
+    def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
         """ Documentation below """
 
         grid_flat_corrs = reduce(mul, grid.shape[2:])
@@ -74,6 +75,7 @@ else:
                             ref_wave, ("chan",),
                             concatenate=True,
                             convolution_filter=convolution_filter,
+                            cell_size=cell_size,
                             dtype=np.complex64)
 
 grid.__doc__ = mod_docs(np_grid_fn.__doc__,

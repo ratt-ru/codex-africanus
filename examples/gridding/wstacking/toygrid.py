@@ -47,6 +47,7 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-rc", "--row-chunks", default=10000, type=int)
     p.add_argument("-np", "--npix", default=1024, type=int)
+    p.add_argument("-sc", "--cell-size", default=6, type=float)
     p.add_argument("-nw", "--n-wlayers", type=int)
     return p
 
@@ -59,12 +60,6 @@ with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
     freq = SPW.getcol("CHAN_FREQ")[0]
     ref_wave = lightspeed / freq
 
-
-# Similarity Theorem (https://www.cv.nrao.edu/course/astr534/FTSimilarity.html)
-# Scale UV coordinates
-CELL_SIZE = 6  # 6 arc seconds
-ARCSEC2RAD = np.deg2rad(1.0/(60.*60.))
-UV_SCALE = args.npix * CELL_SIZE * ARCSEC2RAD
 
 # Convolution Filter
 conv_filter = convolution_filter(3, 63, "sinc")
@@ -89,7 +84,7 @@ else:
     w_layers = args.n_wlayers
 
 logging.info("%d W layers", w_layers)
-w_bins = w_stacking_bins(wmin*UV_SCALE, wmax*UV_SCALE, w_layers)
+w_bins = w_stacking_bins(wmin, wmax, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
 
 cmin, cmax = lmn
@@ -125,12 +120,13 @@ with pt.table(args.ms) as T:
 
         # Accumulate visibilities into the dirty image
         dirties = grid(data,
-                       uvw*UV_SCALE,
+                       uvw,
                        flag,
                        natural_weight,
                        ref_wave,
                        conv_filter,
                        w_bins,
+                       args.cell_size,
                        ny=args.npix, nx=args.npix,
                        grids=dirties)
 
@@ -139,13 +135,14 @@ with pt.table(args.ms) as T:
 
         # Accumulate PSF using unity visibilities
         psfs = grid(np.ones_like(psf_flag, dtype=dirties[0].dtype),
-                    uvw*UV_SCALE,
+                    uvw,
                     psf_flag,
                     np.ones_like(psf_flag, dtype=natural_weight.dtype),
                     ref_wave,
                     conv_filter,
                     w_bins,
-                    ny=args.npix*2, nx=args.npix*2,
+                    0.5*args.cell_size,
+                    ny=2*args.npix, nx=2*args.npix,
                     grids=psfs)
 
 dirty_sum = np.zeros(dirties[0].shape[0:2], dtype=dirties[0].real.dtype)
@@ -187,8 +184,7 @@ psf_final_factor = (1 + psf_n)  # / (wmax - wmin)
 dirty_sum *= grid_final_factor
 psf_sum *= psf_final_factor
 
-# Normalised Amplitude
-#psf = np.abs(psf_sum.real)
+# Normalise the PSF
 psf = psf.real
 psf = psf / psf.max()
 
@@ -246,4 +242,4 @@ with pt.table(args.ms) as T:
 
         # Produce visibilities for this chunk of UVW coordinates
         vis = degrid(vis_grids, uvw, natural_weight, ref_wave,
-                     conv_filter, w_bins)
+                     conv_filter, w_bins, args.cell_size)
