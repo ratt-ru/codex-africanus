@@ -80,7 +80,7 @@ def convolution_filter(half_support, oversampling_factor,
     if filter_type == 'kaiser-bessel':
         # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
         beta = kwargs.pop('beta', 14.0)
-        param = 1 - (2 * taps / half_support)**2
+        param = 1 - (2 * taps / full_sup)**2
         param[param < 0] = 0  # Zero negative numbers
         filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
     else:
