@@ -149,12 +149,14 @@ def test_psf_subtraction2():
     import numpy as np
     from numpy.fft import fft2, fftshift, ifft2, ifftshift
 
+    np.random.seed(50)
+
     corr = (1,)
     chan = 16
     rows = 200
-    ny = nx = 127
+    ny = nx = 513
 
-    cell_size = 10  # 6 arcseconds
+    cell_size = 6  # 6 arcseconds
 
     rf = lambda *a, **kw: np.random.random(*a, **kw)
 
@@ -163,8 +165,25 @@ def test_psf_subtraction2():
 
     # Random UVW coordinates
     uvw = np.empty((rows, 3), dtype=np.float64)
-    uvw[:, :2] = np.random.random((rows, 2))*128
-    uvw[:, 2] = np.random.random(rows)*10
+    uvw[:, :2] = np.random.random((rows, 2))*64
+    uvw[:, 2] = np.random.random(rows)*5
+
+    umin, umax = uvw[:, 0].min(), uvw[:, 0].max()
+    vmin, vmax = uvw[:, 1].min(), uvw[:, 1].max()
+
+    umin *= ref_wave[-1]
+    umax *= ref_wave[-1]
+
+    vmin *= ref_wave[-1]
+    vmax *= ref_wave[-1]
+
+    _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
+
+    assert cell_size*_ARCSEC2RAD < 1.0 / (2*umax)
+    assert cell_size*_ARCSEC2RAD < 1.0 / (2*vmax)
+
+    # assert cell_size*_ARCSEC2RAD*nx >= (1.0 / np.abs(vmin))
+    # assert cell_size*_ARCSEC2RAD*ny >= (1.0 / np.abs(umin))
 
     image = np.zeros((ny, nx), dtype=np.float64)
 
@@ -174,12 +193,13 @@ def test_psf_subtraction2():
 
     image[ny // 2, nx // 2] = 1
 
-    conv_filter = convolution_filter(3, 63, "sinc")
+    conv_filter = convolution_filter(3, 7, "sinc")
     weights = np.ones(shape=(rows, chan) + corr, dtype=np.float64)
     flags = np.zeros_like(weights, dtype=np.uint8)
 
     # V = R(I)
-    fft_image = ifftshift(fft2(fftshift(image), norm="ortho"))
+    # fft_image = ifftshift(fft2(fftshift(image), norm="ortho"))
+    fft_image = fftshift(fft2(ifftshift(image)))
 
     # I^D = R+(V)
     vis = degrid(fft_image[:, :, None], uvw, weights, ref_wave,
@@ -190,23 +210,28 @@ def test_psf_subtraction2():
     grid_vis = grid(vis, uvw, flags, weights, ref_wave,
                     conv_filter, cell_size, ny=ny, nx=nx)
 
-    dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]), norm="ortho")).real
+    # dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]), norm="ortho")).real
+    dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]))).real
 
     # PSF = R+(1)
+    conv_filter = convolution_filter(3, 15, "sinc")
     grid_unity = grid(np.ones_like(vis), uvw, flags, weights, ref_wave,
-                      conv_filter, cell_size, ny=2*ny, nx=2*nx)
+                      conv_filter, cell_size, ny=2*ny + 1, nx=2*nx + 1)
 
-    psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]), norm="ortho")).real
-
-    #dirty *= weights.sum()
-    #psf *= weights.sum()
+    # psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]), norm="ortho")).real
+    psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]))).real
 
     # Test that we have gridded something
     assert np.any(dirty != 0.0)
     assert np.any(psf != 0.0)
 
     # Extract the centre of the squared PSF
-    centre_psf = psf[ny - ny//2:1 + ny + ny//2, nx - nx//2:1 + nx + nx//2]
+    centre_psf = psf[ny - ny//2:1 + ny + ny//2, nx - nx//2:1 + nx + nx//2].copy()
+
+    #centre_psf = psf[ny - ny//2 - 1:ny + ny//2, nx - nx//2 - 1:nx + nx//2].copy()
+
+    # Normalise by size
+    centre_psf *= 4
 
     assert centre_psf.shape == dirty.shape
 
@@ -217,22 +242,22 @@ def test_psf_subtraction2():
     else:
 
         plt.subplot(1, 4, 1)
-        plt.imshow(dirty, interpolation="nearest", cmap="cubehelix")
+        plt.imshow(dirty, cmap="cubehelix")
         plt.title("DIRTY")
         plt.colorbar()
 
         plt.subplot(1, 4, 2)
-        plt.imshow(centre_psf, interpolation="nearest", cmap="cubehelix")
+        plt.imshow(centre_psf, cmap="cubehelix")
         plt.title("CENTRE PSF")
         plt.colorbar()
 
         plt.subplot(1, 4, 3)
-        plt.imshow(dirty / centre_psf, interpolation="nearest", cmap="cubehelix")
-        plt.title("DIRTY / CENTRE PSF")
+        plt.imshow(dirty - centre_psf, cmap="cubehelix")
+        plt.title("DIRTY - CENTRE PSF")
         plt.colorbar()
 
         plt.subplot(1, 4, 4)
-        plt.imshow(psf, interpolation="nearest", cmap="cubehelix")
+        plt.imshow(psf, cmap="cubehelix")
         plt.title("PSF")
         plt.colorbar()
 
