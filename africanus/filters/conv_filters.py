@@ -44,8 +44,9 @@ because they're easier to use when using
 """
 
 
-def convolution_filter(half_support, oversampling_factor, filter_type):
-    """
+def convolution_filter(half_support, oversampling_factor,
+                       filter_type, **kwargs):
+    r"""
     Create a 2D Convolution Filter suitable
     for use with gridding and degridding functions.
 
@@ -57,8 +58,13 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
     oversampling_factor : integer
         Number of spaces in-between grid-steps
         (improves gridding/degridding accuracy)
-    filter_type : {'sinc', 'box', 'gaussian'}
-        Filter type
+    filter_type : {'kaiser-bessel'}
+        Filter type. See `Convolution Filters <convolution-filter-api_>`_
+        for further information.
+    beta : float, optional
+        Beta shape parameter for
+        `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
+        Defaults to ``14.0``.
 
     Returns
     -------
@@ -71,23 +77,14 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
 
     taps = np.arange(no_taps)/float(oversampling_factor) - full_sup / 2
 
-    if filter_type == 'box':
-        filter_taps = np.empty_like(taps, dtype=np.float64)
-        condition = (taps >= -0.5) & (taps <= 0.5)
-        filter_taps[condition] = 1
-        filter_taps[np.invert(condition)] = 0
-    elif filter_type == 'sinc':
-        filter_taps = np.sinc(taps)
-    elif filter_type == 'gaussian_sinc':
-        alpha_1 = 1.55
-        alpha_2 = 2.52
-        taps_eps = taps + 1e-11
-
-        filter_taps = np.exp(-(taps/alpha_2)**2)
-        filter_taps *= np.sin(np.pi*taps_eps/alpha_1)
-        filter_taps /= np.pi*taps_eps
+    if filter_type == 'kaiser-bessel':
+        # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
+        beta = kwargs.pop('beta', 14.0)
+        param = 1 - (2 * taps / half_support)**2
+        param[param < 0] = 0  # Zero negative numbers
+        filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
     else:
-        raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
+        raise ValueError("Expected one of {'kaiser-bessel'}")
 
     # Expand filter taps to 2D
     filter_taps = np.outer(filter_taps, filter_taps)
