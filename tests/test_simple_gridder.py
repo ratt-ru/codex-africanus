@@ -18,7 +18,7 @@ def test_degridder_gridder():
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
 
-    conv_filter = convolution_filter(3, 63, "sinc")
+    conv_filter = convolution_filter(3, 21, "kaiser-bessel")
     nx = ny = npix = 257
     corr = (2, 2)
     chan = 4
@@ -112,7 +112,7 @@ def test_psf_subtraction():
     # Indicate all visibilities are unflagged
     flags = np.zeros_like(vis, dtype=np.bool)
 
-    conv_filter = convolution_filter(3, 63, "sinc")
+    conv_filter = convolution_filter(3, 21, "kaiser-bessel")
 
     # Compute PSF of (ny, nx)
     psf = grid(vis, uvw, flags, weights, ref_wave,
@@ -302,7 +302,7 @@ def test_dask_degridder_gridder():
 
     weights = da.random.random(vis_shape, chunks=vis_chunks)
 
-    conv_filter = convolution_filter(3, 63, "sinc")
+    conv_filter = convolution_filter(3, 21, "kaiser-bessel")
 
     vis_grid = grid(vis, uvw, flags, weights, ref_wave, conv_filter,
                     cell_size, ny, nx)
