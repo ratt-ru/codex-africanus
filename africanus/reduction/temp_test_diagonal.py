@@ -1,10 +1,10 @@
 import xarrayms
 from africanus.dft.kernels import im_to_vis, vis_to_im
-import numpy as np
 import matplotlib.pyplot as plt
 from africanus.reduction.psf_redux import *
 
 
+# rad/dec to lm coordinates (straight from fundamentals)
 def radec_to_lm(ra0, dec0, ra, dec):
     delta_ra = ra - ra0
     l = (np.cos(dec) * np.sin(delta_ra))
@@ -12,7 +12,12 @@ def radec_to_lm(ra0, dec0, ra, dec):
 
     return l, m
 
+
+# how big our data set is going to be
 npix = 30
+nrow = 100
+nchan = 1
+
 
 # generate lm-coordinates
 ra_pos = 3.15126500e-05
@@ -28,11 +33,8 @@ frequency = np.array([1.06e9])
 ref_freq = 1
 freq = frequency/ref_freq
 
+# read in data file (not on the git so must be changed!)
 data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
-
-nrow = 100
-nchan = 1
-
 for ds in xarrayms.xds_from_ms(data_path):
     Vdat = ds.DATA.data.compute()
     uvw = ds.UVW.data.compute()[0:nrow, :]
@@ -40,33 +42,22 @@ for ds in xarrayms.xds_from_ms(data_path):
 
 vis = Vdat[0:nrow, 0:nchan, 0]
 
+# normalisation factor (equal to max(PSF))
 wsum = sum(weights)
 
+# Turn DFT into lambda functions for easy, single input access
 L = lambda image: im_to_vis(image, uvw, lm, freq)
 LT = lambda visibility: vis_to_im(visibility, uvw, lm, freq)
 
+# Generate the PSF using DFT
 PSF = LT(weights).reshape([npix, npix])
 
-dirty = np.random.randn(npix, npix)
-start = np.random.randn(npix, npix)
-
+# Add in padding to the images if needed and transform the PSF to make life easier
 padding = [(npix**2 - npix)//2, (npix**2 - npix)//2]
-dirty = np.pad(dirty, padding, mode='constant')
-start = np.pad(start, padding, mode='constant')
 PSF_pad = np.pad(PSF, padding, mode='constant')
 PSF_hat = F(PSF_pad)
 
-# R = lambda v: PSF_response(v, PSF_hat)
-# RH = lambda v: PSF_adjoint(v, PSF_hat)
-
-# Rx = R(start).flatten()
-# Ry = RH(dirty).flatten()
-#
-# LHS = dirty.flatten().T.dot(Rx)
-# RHS = Ry.conj().T.dot(start.flatten())
-#
-# print(np.abs(LHS - RHS))
-
+# Generate FFT and DFT matrices
 R = np.zeros([nrow, npix**2], dtype='complex128')
 F = np.zeros([npix**2, npix**2], dtype='complex128')
 for k in range(nrow):
@@ -89,12 +80,12 @@ for u in range(npix**2):
         j, k = jk[v]
         F[u, v] += np.exp(-2j*np.pi*(j*l + k*m))/np.sqrt(F_norm)
 
+# Generate adjoint matrices (conjugate transpose)
 RH = R.conj().T
 FH = F.conj().T
-#
-w = np.diag(weights.flatten())
 
 
+# Mostly here for reference, calculating the NC of the DFT using the operators and FFT matrix
 def M(vec):
     T0 = FH.dot(vec).real.reshape([vec.shape[0], 1])
     T1 = L(T0)
@@ -105,42 +96,51 @@ def M(vec):
     return T5
 
 
-print(R.shape, FH.shape)
+# Calculate NC matrix of
 T0 = R.dot(FH)
+w = np.diag(weights.flatten())
 T1 = w.dot(T0)
 T2 = RH.dot(T1)
 M_mat = F.dot(T2).real
-
-
-def PSF_probe(vec):
-    T0 = FH.dot(vec)
-    T1 = F.dot(T0)
-    PSFH = F.dot(PSF.flatten())
-    T2 = PSFH*T1
-    T3 = FH.dot(T2)
-    T4 = F.dot(T3)
-    return T4
-
-# plt.figure('Noise Covariance of DFT Matrix')
-# plt.imshow(covariance_mat)
-# plt.colorbar()
-
-
-D_vec = diag_probe(PSF_probe, npix**2).real
 M_vec = np.diagonal(M_mat)
+
+
+# the PSF probe: the commented code is what I was doing before, the uncommented is what I did today which yields much
+# closer results to the main y=x line, though it still has a few zero values
+def PSF_probe(vec):
+    p = PSF_hat.dot(vec).real
+    # T0 = FH.dot(vec)
+    # T1 = F.dot(T0)
+    # PSFH = F.dot(PSF.flatten())
+    # T2 = PSFH*T1
+    # T3 = FH.dot(T2)
+    # T4 = F.dot(T3)
+    # print('Method diff ', max(abs(T4-p)))
+    return p
+
+
+# doing the probing and calculating the PSF diagonal
+D_vec = diag_probe(PSF_probe, npix**2).real  # not sure if should be taking abs or not, but I get a lot of negatives
+
+# Set up y=x line
 _min = min(min(D_vec), min(M_vec))
 _max = max(max(D_vec), max(M_vec))
-print(_min, _max)
 x = np.linspace(_min, _max, npix**2)
 
+# plot diagonal comparison (lots of zeros in here when the probe uses PSF_hat)
 plt.figure('Values of PSF NC vs FRRF NC')
 plt.plot(x, x, 'k')
 plt.scatter(M_vec, D_vec, marker='x')
-# plt.figure('Noise Covariance of DFT')
-# plt.imshow(M_mat)
-# plt.colorbar()
-#
-# plt.figure('Noise Covariance of PSF')
-# plt.imshow(D)
-# plt.colorbar()
+
+# plot DFT NC
+plt.figure('Noise Covariance of DFT')
+plt.imshow(M_mat)
+plt.colorbar()
+
+# plot PSF NC from probing
+plt.figure('Noise Covariance of PSF')
+D = np.diag(D_vec)
+plt.imshow(D)
+plt.colorbar()
+
 plt.show()

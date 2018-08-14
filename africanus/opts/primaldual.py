@@ -1,11 +1,12 @@
 from .sub_opts import *
 
 
-def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, maxiter=2000, tolerance=1e-3, tau=None,
+def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, maxiter=2000, tolerance=1e-6, tau=None,
                        sigma=None, llambda=None):
 
-    M = v_0.size  # dimension of data
+    M = v_0.shape[0]  # dimension of data
     eps = np.sqrt(2 * M + 2 * np.sqrt(4 * M)) * uncert  # the width of the epsilon ball for the data
+    print(eps)
 
     if dask:
         L_norm = power_dask(L, LT, x_0.shape)
@@ -18,13 +19,11 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, m
         l1 = lambda x, t: proj_l1_plus_pos(x, t)
         differ = lambda x_new, x, n: get_diff(x_new, x, n)
 
-    print('The norm of the response: ', L_norm)
-
     if tau is None:
-        tau = 0.95/(2*np.sqrt(L_norm))
+        tau = 0.95/(np.sqrt(L_norm))
 
     if sigma is None:
-        sigma = 0.95/np.sqrt(L_norm)
+        sigma = 0.95/(np.sqrt(L_norm))
 
     if llambda is None:
         llambda = 1

@@ -48,7 +48,7 @@ def power_dask(L, LT, im_size, tol=1e-2, max_iter=100):
     return np.sqrt(val)
 
 
-def pow_method(L, LT, im_size, tol=1e-2, max_iter=100):
+def pow_method(L, LT, im_size, tol=1e-6, max_iter=100):
     """
     @author: mjiang
     ming.jiang@epfl.ch
@@ -91,6 +91,11 @@ def da_get_diff(x_new, x, n):
     norm2 = da.linalg.norm(x_new).compute()
     norm1 = da.linalg.norm(x_new, 1).compute()
 
+    if norm1 == 0:
+        norm1 = 1
+    if norm2 == 0:
+        norm2 = 1
+
     # get diff i.t.o. 1-norm
     diff1 = da.linalg.norm(x_new - x, 1).compute() / norm1
     # get diff i.t.o. 2-norm
@@ -107,6 +112,11 @@ def get_diff(x_new, x, n):
     # Get new norms
     norm2 = np.linalg.norm(x_new)
     norm1 = np.linalg.norm(x_new, 1)
+
+    if norm1 == 0:
+        norm1 = 1
+    if norm2 == 0:
+        norm2 = 1
 
     # get diff i.t.o. 1-norm
     diff1 = np.linalg.norm(x_new - x, 1) / norm1

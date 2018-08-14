@@ -59,7 +59,7 @@ freq = frequency/ref_freq
 
 data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
 
-nrow = 1000
+nrow = 500
 nchan = 1
 
 for ds in xarrayms.xds_from_ms(data_path):
@@ -78,27 +78,29 @@ PSF = LT(weights)
 
 PSF = PSF.reshape([npix, npix])
 padding = [npix//2, npix//2]
-PSF_pad = np.pad(PSF, padding, mode='constant')
-PSF_hat = F(PSF_pad)
+#PSF_pad = np.pad(PSF, padding, mode='constant')
+PSF_hat = F(PSF)
 
 P = lambda image: PSF_response(image, PSF_hat)
 PT = lambda image: PSF_adjoint(image, PSF_hat)
 
 dirty = LT(vis)
 dirty = dirty.reshape([npix, npix])
-dirty = np.pad(dirty, padding, mode='constant')
+#dirty = np.pad(dirty, padding, mode='constant')
 
 start = np.zeros_like(dirty)
-start[npix, npix] = 10
+start[npix//2, npix//2] = 10
 
-cleaned = pds(start, P(dirty), P, PT, solver='rspd', maxiter=19).real
+cleaned = pds(start, dirty, P, PT, solver='rspd', maxiter=200).real/wsum
+
+print(sum(sum(cleaned)))
 
 plt.figure('ID')
-plt.imshow(dirty)
+plt.imshow(dirty)#.reshape([npix, npix]))
 plt.colorbar()
 
 plt.figure('IM')
-plt.imshow(cleaned)
+plt.imshow(cleaned)#.reshape([npix, npix]))
 plt.colorbar()
 
 plt.show()
