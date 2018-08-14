@@ -8,6 +8,7 @@ from itertools import product
 import pytest
 
 from africanus.constants import c as lightspeed
+from africanus.gridding.util import estimate_cell_size
 
 
 def test_degridder_gridder():
@@ -101,8 +102,6 @@ def test_psf_subtraction(plot):
     def rf(*args, **kwargs):
         return np.random.random(*args, **kwargs)
 
-    _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
-
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
 
@@ -115,23 +114,15 @@ def test_psf_subtraction(plot):
     umin, umax = np.abs([uvw[:, 0].min(), uvw[:, 0].max()]) / wavelengths[-1]
     vmin, vmax = np.abs([uvw[:, 1].min(), uvw[:, 1].max()]) / wavelengths[-1]
 
-    uv_max = max(umax, vmax)
-
-    cell_size_rad = 1.0 / (2 * uv_max * 5)
-    cell_size = np.rad2deg(cell_size_rad)*(60*60)
-
-    assert cell_size*_ARCSEC2RAD < 1.0 / (2*umax)
-    assert cell_size*_ARCSEC2RAD < 1.0 / (2*vmax)
-
-    assert cell_size*_ARCSEC2RAD*nx >= (1.0 / np.abs(vmax))
-    assert cell_size*_ARCSEC2RAD*ny >= (1.0 / np.abs(umax))
+    cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1], wavelengths,
+                                   factor=3, ny=ny, nx=nx).max()
 
     # We have an even number of pixels
     assert ny % 2 == 0 and 2*(ny // 2) == ny
     assert nx % 2 == 0 and 2*(nx // 2) == nx
     assert ny == nx
 
-    # Create image with a single
+    # Create image with a single point
     image = np.zeros((ny, nx), dtype=np.float64)
     image[ny // 2, nx // 2] = 1
 
