@@ -33,7 +33,7 @@ def test_w_stacking_gridder():
     radec = np.asarray([[-np.pi / 4, np.pi / 4]])
     lmn = radec_to_lmn(radec, np.asarray([0, 0]))
 
-    conv_filter = convolution_filter(3, 63, "sinc")
+    conv_filter = convolution_filter(3, 63, "kaiser-bessel")
     nx = ny = npix = 257
     corr = (2, 2)
     nchan = 4
