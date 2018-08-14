@@ -64,7 +64,6 @@ def convolution_filter(half_support, oversampling_factor,
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
-        Defaults to ``14.0``.
 
     Returns
     -------
@@ -79,8 +78,25 @@ def convolution_filter(half_support, oversampling_factor,
 
     if filter_type == 'kaiser-bessel':
         # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
-        beta = kwargs.pop('beta', 14.0)
-        param = 1 - (2 * taps / full_sup)**2
+        try:
+            beta = kwargs.pop('beta')
+        except KeyError:
+            # NOTE(bmerry)
+            # Puts the first null of the taper function
+            # at the edge of the image
+            beta = np.pi * np.sqrt(0.25 * full_sup**2 - 1.0)
+            # Move the null outside the image,
+            # to avoid numerical instabilities.
+            # This will cause a small amount of aliasing at the edges,
+            # which ideally should be handled by clipping the image.
+            beta *= 1.2
+
+        # Sanity check
+        M = full_sup
+        hM = M // 2
+        assert np.all(-hM <= taps) & np.all(taps <= hM)
+
+        param = 1 - (2 * taps / M)**2
         param[param < 0] = 0  # Zero negative numbers
         filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
     else:
