@@ -75,7 +75,7 @@ def convolution_filter(half_support, oversampling_factor,
     full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
 
-    taps = np.arange(no_taps)/float(oversampling_factor) - full_sup // 2
+    taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
 
     if filter_type == 'kaiser-bessel':
         # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
