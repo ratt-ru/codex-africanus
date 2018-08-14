@@ -44,8 +44,9 @@ because they're easier to use when using
 """
 
 
-def convolution_filter(half_support, oversampling_factor, filter_type):
-    """
+def convolution_filter(half_support, oversampling_factor,
+                       filter_type, **kwargs):
+    r"""
     Create a 2D Convolution Filter suitable
     for use with gridding and degridding functions.
 
@@ -57,8 +58,12 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
     oversampling_factor : integer
         Number of spaces in-between grid-steps
         (improves gridding/degridding accuracy)
-    filter_type : {'sinc', 'box', 'gaussian'}
-        Filter type
+    filter_type : {'kaiser-bessel'}
+        Filter type. See `Convolution Filters <convolution-filter-api_>`_
+        for further information.
+    beta : float, optional
+        Beta shape parameter for
+        `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
 
     Returns
     -------
@@ -69,25 +74,34 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
     full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
 
-    taps = np.arange(no_taps)/float(oversampling_factor) - full_sup // 2
+    taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
 
-    if filter_type == 'box':
-        filter_taps = np.empty_like(taps, dtype=np.float64)
-        condition = (taps >= -0.5) & (taps <= 0.5)
-        filter_taps[condition] = 1
-        filter_taps[np.invert(condition)] = 0
-    elif filter_type == 'sinc':
-        filter_taps = np.sinc(taps)
-    elif filter_type == 'gaussian_sinc':
-        alpha_1 = 1.55
-        alpha_2 = 2.52
-        taps_eps = taps + 1e-11
+    if filter_type == 'kaiser-bessel':
+        # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
+        try:
+            beta = kwargs.pop('beta')
+        except KeyError:
+            # NOTE(bmerry)
+            # Puts the first null of the taper function
+            # at the edge of the image
+            beta = np.pi * np.sqrt(0.25 * full_sup**2 - 1.0)
+            # Move the null outside the image,
+            # to avoid numerical instabilities.
+            # This will cause a small amount of aliasing at the edges,
+            # which ideally should be handled by clipping the image.
+            beta *= 1.2
 
-        filter_taps = np.exp(-(taps/alpha_2)**2)
-        filter_taps *= np.sin(np.pi*taps_eps/alpha_1)
-        filter_taps /= np.pi*taps_eps
+        # Sanity check
+        M = full_sup
+        hM = M // 2
+        assert np.all(-hM <= taps) & np.all(taps <= hM)
+
+        param = 1 - (2 * taps / M)**2
+        param[param < 0] = 0  # Zero negative numbers
+        filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
+        filter_taps /= np.trapz(filter_taps, taps)
     else:
-        raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
+        raise ValueError("Expected one of {'kaiser-bessel'}")
 
     # Expand filter taps to 2D
     filter_taps = np.outer(filter_taps, filter_taps)
