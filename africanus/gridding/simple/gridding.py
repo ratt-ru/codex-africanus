@@ -76,20 +76,20 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             one_half_sup = 1 + cf.half_sup
 
             # Compute fractional u and v
-            base_frac_u = one_half_sup + disc_u - scaled_u
-            base_frac_v = one_half_sup + disc_v - scaled_v
+            base_frac_u = disc_u - scaled_u
+            base_frac_v = disc_v - scaled_v
 
-            frac_u = int(base_frac_u*cf.oversample)
-            frac_v = int(base_frac_v*cf.oversample)
+            frac_u = int(np.round(base_frac_u*cf.oversample))
+            frac_v = int(np.round(base_frac_v*cf.oversample))
 
             # Iterate over v/y
             for conv_v in filter_index:
-                v_idx = conv_v*cf.oversample + frac_v
+                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
                 grid_v = disc_v + conv_v + ny // 2
 
                 # Iterate over u/x
                 for conv_u in filter_index:
-                    u_idx = conv_u*cf.oversample + frac_u
+                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
                     conv_weight = cf.filter_taps[v_idx, u_idx]
                     grid_u = disc_u + conv_u + nx // 2
 
@@ -219,20 +219,20 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             one_half_sup = 1 + cf.half_sup
 
             # Compute fractional u and v
-            base_frac_u = one_half_sup + disc_u - scaled_u
-            base_frac_v = one_half_sup + disc_v - scaled_v
+            base_frac_u = disc_u - scaled_u
+            base_frac_v = disc_v - scaled_v
 
-            frac_u = int(base_frac_u*cf.oversample)
-            frac_v = int(base_frac_v*cf.oversample)
+            frac_u = int(np.round(base_frac_u*cf.oversample))
+            frac_v = int(np.round(base_frac_v*cf.oversample))
 
             # Iterate over v/y
             for conv_v in filter_index:
-                v_idx = conv_v*cf.oversample + frac_v
+                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
                 grid_v = disc_v + conv_v + ny // 2
 
                 # Iterate over u/x
                 for conv_u in filter_index:
-                    u_idx = conv_u*cf.oversample + frac_u
+                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
                     conv_weight = cf.filter_taps[v_idx, u_idx]
                     grid_u = disc_u + conv_u + nx // 2
 
