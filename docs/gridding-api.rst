@@ -64,8 +64,6 @@ Utilities
 .. currentmodule:: africanus.gridding.util
 
 .. autosummary::
-    cell_size
-    uv_scale
+    estimate_cell_size
 
-.. autofunction:: cell_size
-.. autofunction:: uv_scale
+.. autofunction:: estimate_cell_size
