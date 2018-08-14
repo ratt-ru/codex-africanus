@@ -135,6 +135,7 @@ def test_psf_subtraction():
     assert np.all(centre_vis == psf)
 
 
+@pytest.mark.skip
 def test_psf_subtraction2():
     """
     Test that we can create the PSF with the gridder.
