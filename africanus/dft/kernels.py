@@ -69,8 +69,7 @@ def _vis_to_im_impl(vis, uvw, lm, frequency, im_of_vis):
             # Multiple in frequency for each channel
             for chan in range(frequency.shape[0]):
                 p = real_phase * frequency[chan] * 1.0j
-
-                im_of_vis[source, chan] += (np.exp(p) * vis[row, chan]).real #(np.cos(p) * vis[row, chan].real - np.sin(p) * vis[row, chan].imag)
+                im_of_vis[source, chan] += (np.exp(p) * vis[row, chan]).real
                 # Note for the adjoint we don't need the imaginary part
                 # and we can elide the call to exp
 
@@ -87,7 +86,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_s \\frac{1}{n_s} e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
+        {\\Large \\sum_s e^{-2 \\pi i (u l_s + v m_s + w (n_s - 1))} \\cdot I_s }
 
     """,  # noqa
 
@@ -129,7 +128,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
 
     .. math::
 
-        {\\Large \\sum_k \\frac{1}{n} e^{ 2 \\pi i (u_k l + v_k m + w_k (n - 1))} \\cdot V_k}
+        {\\Large \\sum_k e^{ 2 \\pi i (u_k l + v_k m + w_k (n - 1))} \\cdot V_k}
 
     """,  # noqa
 
