@@ -20,7 +20,10 @@ API
 
 .. currentmodule:: africanus.filters
 
-.. autodata:: ConvolutionFilter
+.. autosummary::
+    convolution_filter
 
 
 .. autofunction:: convolution_filter
+.. autodata:: ConvolutionFilter
+

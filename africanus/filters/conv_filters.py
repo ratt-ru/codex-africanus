@@ -64,6 +64,11 @@ def convolution_filter(half_support, oversampling_factor,
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
+        If not provided, the following heuristic is used:
+
+        .. math::
+
+            beta = 1.2 \pi \sqrt{0.25 W^2 - 1.0 }
 
     Returns
     -------
