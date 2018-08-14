@@ -99,6 +99,7 @@ def convolution_filter(half_support, oversampling_factor,
         param = 1 - (2 * taps / M)**2
         param[param < 0] = 0  # Zero negative numbers
         filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
+        filter_taps /= np.trapz(filter_taps, taps)
     else:
         raise ValueError("Expected one of {'kaiser-bessel'}")
 
