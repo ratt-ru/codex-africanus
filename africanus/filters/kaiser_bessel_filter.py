@@ -55,7 +55,7 @@ def kaiser_bessel(taps, full_support, beta):
     Returns
     -------
     :class:`numpy.ndarray`
-        Kaiser Bessel filter
+        Kaiser Bessel filter of shape :code:`(taps,)`
     """
 
     # Sanity check
@@ -68,7 +68,24 @@ def kaiser_bessel(taps, full_support, beta):
     return np.i0(beta * np.sqrt(param)) / np.i0(beta)
 
 
-def kaiser_bessel_fourier(n, full_support, beta):
+def kaiser_bessel_fourier(positions, full_support, beta):
+    r"""
+    Computes the Fourier Transform of a 1D Kaiser Bessel filter.
+
+    Parameters
+    ----------
+    positions : :class:`numpy.ndarray`
+        Filter positions
+    full_support : int
+        Full support of the associated convolution filter.
+    beta : float
+        Kaiser bessel shape parameter
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Array of shape :code:`(positions,)
+    """
     alpha = beta / np.pi
-    inner = np.lib.scimath.sqrt((full_support * n)**2 - alpha * alpha)
+    inner = np.lib.scimath.sqrt((full_support * positions)**2 - alpha * alpha)
     return full_support * np.sinc(inner).real / np.i0(beta)
