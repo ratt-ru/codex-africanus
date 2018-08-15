@@ -4,16 +4,21 @@ Convolution Filters
 -------------------
 
 Convolution filters suitable for use in gridding and degridding.
-Currently, only the Kaiser Bessel filter,
-a good approximation of the Prolate Spheroidals, is provided.
 
 .. _kaiser-bessel-filter:
 
 Kaiser Bessel
 ~~~~~~~~~~~~~
 
-See https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html.
+The `Kaiser Bessel
+<https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html>`_
+function.
 
+
+Sinc
+~~~~
+
+The `Sinc <https://en.wikipedia.org/wiki/Sinc_function>`_ function.
 
 API
 ~~~

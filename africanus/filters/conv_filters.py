@@ -58,17 +58,18 @@ def convolution_filter(half_support, oversampling_factor,
     oversampling_factor : integer
         Number of spaces in-between grid-steps
         (improves gridding/degridding accuracy)
-    filter_type : {'kaiser-bessel'}
+    filter_type : {'kaiser-bessel', 'sinc'}
         Filter type. See `Convolution Filters <convolution-filter-api_>`_
         for further information.
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
-        If not provided, the following heuristic is used:
+        If not provided, the following heuristic is used,
+        with :math:`W` denoting the full support:
 
         .. math::
 
-            beta = 1.2 \pi \sqrt{0.25 W^2 - 1.0 }
+            \beta = 1.2 \pi \sqrt{0.25 \text{ W }^2 - 1.0 }
 
     Returns
     -------
@@ -81,7 +82,9 @@ def convolution_filter(half_support, oversampling_factor,
 
     taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
 
-    if filter_type == 'kaiser-bessel':
+    if filter_type == 'sinc':
+        filter_taps = np.sinc(taps)
+    elif filter_type == 'kaiser-bessel':
         # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
         try:
             beta = kwargs.pop('beta')
