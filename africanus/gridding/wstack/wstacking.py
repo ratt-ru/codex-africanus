@@ -235,12 +235,20 @@ def numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
         discretised_uvw = uvw[mask, ...]
         discretised_uvw[:, 2] = w_value
 
-        vis[mask, ...] = simple_numba_degrid(grid,
-                                             discretised_uvw,
-                                             weights[mask, ...],
-                                             ref_wave,
-                                             convolution_filter,
-                                             cell_size)
+        row, _ = discretised_uvw.shape
+        _, chan, corr = vis.shape
+
+        res_vis = np.zeros((row, chan, corr), dtype=grid.dtype)
+
+        simple_numba_degrid(grid,
+                            discretised_uvw,
+                            weights[mask, ...],
+                            ref_wave,
+                            convolution_filter,
+                            cell_size,
+                            res_vis)
+
+        vis[mask, ...] = res_vis
 
     return vis
 
