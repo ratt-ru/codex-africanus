@@ -8,6 +8,9 @@ import collections
 
 import numpy as np
 
+from .kaiser_bessel_filter import (kaiser_bessel,
+                                   estimate_kaiser_bessel_beta)
+
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
                                            ['half_sup', 'oversample',
                                             'full_sup_wo_padding', 'full_sup',
@@ -54,7 +57,8 @@ def convolution_filter(half_support, oversampling_factor,
     ----------
     half_support : integer
         Half support (N) of the filter. The filter has a
-        full support of N*2 + 1 taps
+        full support of N*2 + 3 taps.
+        Two of the taps exist as padding.
     oversampling_factor : integer
         Number of spaces in-between grid-steps
         (improves gridding/degridding accuracy)
@@ -64,12 +68,6 @@ def convolution_filter(half_support, oversampling_factor,
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
-        If not provided, the following heuristic is used,
-        with :math:`W` denoting the full support:
-
-        .. math::
-
-            \beta = 1.2 \pi \sqrt{0.25 \text{ W }^2 - 1.0 }
 
     Returns
     -------
@@ -89,24 +87,11 @@ def convolution_filter(half_support, oversampling_factor,
         try:
             beta = kwargs.pop('beta')
         except KeyError:
-            # NOTE(bmerry)
-            # Puts the first null of the taper function
-            # at the edge of the image
-            beta = np.pi * np.sqrt(0.25 * full_sup**2 - 1.0)
-            # Move the null outside the image,
-            # to avoid numerical instabilities.
-            # This will cause a small amount of aliasing at the edges,
-            # which ideally should be handled by clipping the image.
-            beta *= 1.2
+            beta = estimate_kaiser_bessel_beta(full_sup)
 
-        # Sanity check
-        M = full_sup
-        hM = M // 2
-        assert np.all(-hM <= taps) & np.all(taps <= hM)
+        filter_taps = kaiser_bessel(taps, full_sup, beta)
 
-        param = 1 - (2 * taps / M)**2
-        param[param < 0] = 0  # Zero negative numbers
-        filter_taps = np.i0(beta * np.sqrt(param)) / np.i0(beta)
+        # Normalise by integrating
         filter_taps /= np.trapz(filter_taps, taps)
     else:
         raise ValueError("Expected one of {'kaiser-bessel'}")
