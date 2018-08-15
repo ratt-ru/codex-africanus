@@ -14,7 +14,7 @@ import pyrap.tables as pt
 from africanus.gridding.simple import grid, degrid
 from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
-from africanus.filters import convolution_filter
+from africanus.filters import convolution_filter, taper as filter_taper
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,6 +32,8 @@ args = create_parser().parse_args()
 
 # Convolution Filter
 conv_filter = convolution_filter(7, 15, "kaiser-bessel")
+
+taper = filter_taper("kaiser-bessel", args.npix, args.npix, conv_filter)
 
 # Determine UVW Coordinate extents
 query = """
@@ -131,6 +133,8 @@ psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
 # Normalise the PSF
 psf = psf.real
 psf = (psf / psf.max())
+
+dirty *= taper
 
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor

@@ -37,7 +37,7 @@ from africanus.gridding.wstack import (grid,
                                        w_stacking_centroids)
 from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
-from africanus.filters import convolution_filter
+from africanus.filters import (convolution_filter, taper as filter_taper)
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -66,7 +66,7 @@ with pt.table("::".join((args.ms, "FIELD"))) as FIELD:
 
 # Convolution Filter
 conv_filter = convolution_filter(3, 63, "kaiser-bessel")
-
+taper = filter_taper("kaiser-bessel", args.npix, args.npix, conv_filter)
 
 # Determine UVW Coordinate extents
 query = """
@@ -213,6 +213,8 @@ psf_sum *= psf_final_factor
 # Normalise the PSF
 psf = psf.real
 psf = psf / psf.max()
+
+dirty /= taper
 
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
