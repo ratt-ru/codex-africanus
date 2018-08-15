@@ -35,6 +35,7 @@ from africanus.gridding.wstack import (grid,
                                        w_stacking_layers,
                                        w_stacking_bins,
                                        w_stacking_centroids)
+from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
 from africanus.filters import convolution_filter
 
@@ -47,7 +48,7 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-rc", "--row-chunks", default=10000, type=int)
     p.add_argument("-np", "--npix", default=1024, type=int)
-    p.add_argument("-sc", "--cell-size", default=6, type=float)
+    p.add_argument("-sc", "--cell-size", type=float)
     p.add_argument("-nw", "--n-wlayers", type=int)
     return p
 
@@ -58,34 +59,59 @@ args = create_parser().parse_args()
 # Obtain reference wavelength from the first spectral window
 with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
     freq = SPW.getcol("CHAN_FREQ")[0]
-    ref_wave = lightspeed / freq
+    wavelength = lightspeed / freq
 
+with pt.table("::".join((args.ms, "FIELD"))) as FIELD:
+    phase_centre = FIELD.getcol("PHASE_DIR")[0][0]
 
 # Convolution Filter
-conv_filter = convolution_filter(3, 63, "sinc")
+conv_filter = convolution_filter(3, 63, "kaiser-bessel")
 
 
-# Determine Minimum and Maximum W
+# Determine UVW Coordinate extents
 query = """
 SELECT
+MIN([SELECT ABS(UVW[0]) FROM {ms}]) AS ABS_UMIN,
+MAX([SELECT ABS(UVW[0]) FROM {ms}]) as ABS_UMAX,
+MIN([SELECT ABS(UVW[1]) FROM {ms}]) AS ABS_VMIN,
+MAX([SELECT ABS(UVW[1]) FROM {ms}]) as ABS_VMAX,
 MIN([SELECT UVW[2] FROM {ms}]) AS WMIN,
 MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
 """.format(ms=args.ms)
 
 with pt.taql(query) as Q:
+    umin = Q.getcol("ABS_UMIN").item()
+    umax = Q.getcol("ABS_UMAX").item()
+    vmin = Q.getcol("ABS_VMIN").item()
+    vmax = Q.getcol("ABS_VMAX").item()
     wmin = Q.getcol("WMIN").item()
     wmax = Q.getcol("WMAX").item()
 
-lmn = radec_to_lmn(np.deg2rad([[-1, -1], [1, 1]]), np.zeros((2,)))
+if args.cell_size:
+    cell_size = args.cell_size
+else:
+    cell_size = estimate_cell_size(umax, vmax, wavelength, factor=3,
+                                   ny=args.npix, nx=args.npix).max()
+
+cell_size_rad = np.deg2rad(cell_size / (60*60))
+
+rad_u = cell_size_rad * args.npix
+rad_v = cell_size_rad * args.npix
+
+low = phase_centre - [rad_u, rad_v]
+high = phase_centre + [rad_u, rad_v]
+
+lmn = radec_to_lmn(np.asarray([low, high]), phase_centre)
 
 if args.n_wlayers is None:
     w_layers = w_stacking_layers(wmin, wmax, lmn[:, 0], lmn[:, 1])
 else:
     w_layers = args.n_wlayers
 
-logging.info("%d W layers", w_layers)
 w_bins = w_stacking_bins(wmin, wmax, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
+logging.info("%d W layers at %s", w_layers, w_centroids)
+logging.info("Chose a cell_size of %s" % cell_size)
 
 cmin, cmax = lmn
 
@@ -123,10 +149,10 @@ with pt.table(args.ms) as T:
                        uvw,
                        flag,
                        natural_weight,
-                       ref_wave,
+                       wavelength,
                        conv_filter,
                        w_bins,
-                       args.cell_size,
+                       cell_size,
                        ny=args.npix, nx=args.npix,
                        grids=dirties)
 
@@ -138,10 +164,10 @@ with pt.table(args.ms) as T:
                     uvw,
                     psf_flag,
                     np.ones_like(psf_flag, dtype=natural_weight.dtype),
-                    ref_wave,
+                    wavelength,
                     conv_filter,
                     w_bins,
-                    0.5*args.cell_size,
+                    cell_size,
                     ny=2*args.npix, nx=2*args.npix,
                     grids=psfs)
 
@@ -241,5 +267,5 @@ with pt.table(args.ms) as T:
         natural_weight = np.ones((nrow, nchan, 1), dtype=np.float64)
 
         # Produce visibilities for this chunk of UVW coordinates
-        vis = degrid(vis_grids, uvw, natural_weight, ref_wave,
-                     conv_filter, w_bins, args.cell_size)
+        vis = degrid(vis_grids, uvw, natural_weight, wavelength,
+                     conv_filter, w_bins, cell_size)

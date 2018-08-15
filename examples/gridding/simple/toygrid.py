@@ -12,6 +12,7 @@ import numpy as np
 import pyrap.tables as pt
 
 from africanus.gridding.simple import grid, degrid
+from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
 from africanus.filters import convolution_filter
 
@@ -29,16 +30,40 @@ def create_parser():
 
 args = create_parser().parse_args()
 
-# Similarity Theorem (https://www.cv.nrao.edu/course/astr534/FTSimilarity.html)
-# Scale UV coordinates
-
 # Convolution Filter
-conv_filter = convolution_filter(3, 63, "sinc")
+conv_filter = convolution_filter(7, 15, "kaiser-bessel")
+
+# Determine UVW Coordinate extents
+query = """
+SELECT
+MIN([SELECT ABS(UVW[0]) FROM {ms}]) AS ABS_UMIN,
+MAX([SELECT ABS(UVW[0]) FROM {ms}]) as ABS_UMAX,
+MIN([SELECT ABS(UVW[1]) FROM {ms}]) AS ABS_VMIN,
+MAX([SELECT ABS(UVW[1]) FROM {ms}]) as ABS_VMAX,
+MIN([SELECT UVW[2] FROM {ms}]) AS WMIN,
+MAX([SELECT UVW[2] FROM {ms}]) AS WMAX
+""".format(ms=args.ms)
+
+with pt.taql(query) as Q:
+    umin = Q.getcol("ABS_UMIN").item()
+    umax = Q.getcol("ABS_UMAX").item()
+    vmin = Q.getcol("ABS_VMIN").item()
+    vmax = Q.getcol("ABS_VMAX").item()
+    wmin = Q.getcol("WMIN").item()
+    wmax = Q.getcol("WMAX").item()
+
 
 # Obtain reference wavelength from the first spectral window
 with pt.table("::".join((args.ms, "SPECTRAL_WINDOW"))) as SPW:
     freq = SPW.getcol("CHAN_FREQ")[0]
-    ref_wave = lightspeed / freq
+    wavelength = lightspeed / freq
+
+if args.cell_size:
+    cell_size = args.cell_size
+else:
+    cell_size = estimate_cell_size(umax, vmax, wavelength, factor=3,
+                                   ny=args.npix, nx=args.npix).max()
+
 
 dirty = None
 psf = None
@@ -48,6 +73,8 @@ with pt.table(args.ms) as T:
     for r in list(range(0, T.nrows(), args.row_chunks)):
         # number of rows to read on this iteration
         nrow = min(args.row_chunks, T.nrows() - r)
+
+        logging.info("Gridding rows %d-%d", r, r + nrow)
 
         # Get MS data
         data = T.getcol("DATA", startrow=r, nrow=nrow)
@@ -64,7 +91,7 @@ with pt.table(args.ms) as T:
                      uvw,
                      flag,
                      natural_weight,
-                     ref_wave,
+                     wavelength,
                      conv_filter,
                      args.cell_size,
                      ny=args.npix, nx=args.npix,
@@ -78,7 +105,7 @@ with pt.table(args.ms) as T:
                    uvw,
                    psf_flag,
                    np.ones_like(psf_flag, dtype=natural_weight.dtype),
-                   ref_wave,
+                   wavelength,
                    conv_filter,
                    0.5*args.cell_size,
                    ny=2*args.npix, nx=2*args.npix,
@@ -133,6 +160,8 @@ with pt.table(args.ms) as T:
         # number of rows to read on this iteration
         nrow = min(args.row_chunks, T.nrows() - r)
 
+        logging.info("Degridding rows %d-%d", r, r + nrow)
+
         # Get MS data
         uvw = T.getcol("UVW", startrow=r, nrow=nrow)
 
@@ -140,5 +169,5 @@ with pt.table(args.ms) as T:
         natural_weight = np.ones((nrow, nchan, 1), dtype=np.float64)
 
         # Produce visibilities for this chunk of UVW coordinates
-        vis = degrid(dirty, uvw, natural_weight, ref_wave,
+        vis = degrid(dirty, uvw, natural_weight, wavelength,
                      conv_filter, args.cell_size)
