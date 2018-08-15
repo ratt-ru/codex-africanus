@@ -9,6 +9,7 @@ API
     gridding-api.rst
     conv-filter-api.rst
     deconv-api.rst
+    coordinates-api.rst
     util-api.rst
 
 
