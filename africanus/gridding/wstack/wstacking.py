@@ -55,6 +55,12 @@ def w_stacking_bins(w_min, w_max, w_layers):
 
         w_bins = np.digitize(w, bins) - 1
 
+    Note
+    ----
+
+    A small epsilon is added to ``w_max`` to force this
+    W coordinate into the last bin.
+
     Parameters
     ----------
     w_min : float
@@ -69,7 +75,7 @@ def w_stacking_bins(w_min, w_max, w_layers):
     :class:`numpy.ndarray`
         W-coordinate bins of shape :code:`(nw + 1,)`.
     """
-    return np.linspace(w_min, w_max, w_layers + 1)
+    return np.linspace(w_min, w_max + 1e-12, w_layers + 1)
 
 
 def _w_stacking_centroids(w_bins):
@@ -117,7 +123,14 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     assert len(grids) == w_bins.shape[0] - 1
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
 
+    if np.any(bin_indices < 0):
+        raise ValueError("bin_index < 0")
+
+    if np.any(bin_indices >= len(grids)):
+        raise ValueError("bin_index >= len(grids)")
+
     w_values = w_stacking_centroids(w_bins)
+    assert len(grids) == w_values.shape[0]
 
     for i, (w_value, grid) in enumerate(zip(w_values, grids)):
         # The row mask for this layer
@@ -225,7 +238,14 @@ def numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
     assert len(grids) == w_bins.shape[0] - 1
     bin_indices = np.digitize(uvw[:, 2], w_bins) - 1
 
+    if np.any(bin_indices < 0):
+        raise ValueError("bin_index < 0")
+
+    if np.any(bin_indices >= len(grids)):
+        raise ValueError("bin_index >= len(grids)")
+
     w_values = w_stacking_centroids(w_bins)
+    assert len(grids) == w_values.shape[0]
 
     for i, (w_value, grid) in enumerate(zip(w_values, grids)):
         # The row mask for this layer
