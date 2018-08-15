@@ -7,9 +7,9 @@ import numpy as np
 
 def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
     r"""
-    Estimate the cell size in arcseconds given the
+    Estimate the cell size in arcseconds given
     baseline ``u`` and ``v`` coordinates, as well
-    as the ``wavelengths``.
+    as the ``wavelengths``, :math:`\lambda`.
 
     The cell size is computed as:
 
@@ -17,11 +17,11 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
 
         \Delta u = 1.0 / \left( 2 \times \text{ factor }
                                   \times \max (\vert u \vert)
-                                  / \text{ wavelength} \right)
+                                  / \min( \lambda) \right)
 
         \Delta v = 1.0 / \left( 2 \times \text{ factor }
                                   \times \max (\vert v \vert)
-                                  / \text{ wavelength} \right)
+                                  / \min( \lambda) \right)
 
 
     If ``ny`` and ``nx`` are provided the following checks are performed
@@ -29,9 +29,9 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
 
     .. math::
 
-        \Delta u * \text{ ny } \leq \left(1.0 / \max (\vert u \vert) \right)
+        \Delta u * \text{ ny } \leq \min (\lambda) / \min (\vert u \vert)
 
-        \Delta v * \text{ nx } \leq \left(1.0 / \max (\vert v \vert) \right)
+        \Delta v * \text{ nx } \leq \min (\lambda) / \min (\vert v \vert)
 
     Parameters
     ----------
@@ -59,34 +59,46 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
         Cell size of ``u`` and ``v`` in arcseconds with shape :code:`(2,)`
     """
     if isinstance(u, np.ndarray):
-        umax = np.abs(u).max()
+        abs_u = np.abs(u)
+        umax = abs_u.max()
+        umin = abs_u.min()
     elif isinstance(u, float):
-        umax = abs(u)
+        umax = umin = abs(u)
     else:
         raise TypeError("Invalid u type %s" % type(u))
 
     if isinstance(v, np.ndarray):
-        vmax = np.abs(v).max()
+        abs_v = np.abs(v)
+        vmax = abs_v.max()
+        vmin = abs_v.min()
     elif isinstance(v, float):
-        vmax = abs(v)
+        vmax = vmin = abs(v)
     else:
         raise TypeError("Invalid v type %s" % type(v))
 
     if isinstance(wavelength, np.ndarray):
         wave_max = wavelength.max()
+        wave_min = wavelength.min()
     elif isinstance(wavelength, float):
-        wave_max = wavelength
+        wave_max = wave_min = wavelength
     else:
         raise TypeError("Invalid wavelength type %s" % type(v))
 
-    u_cell_size = 1.0 / (2.0 * factor * umax / wave_max)
-    v_cell_size = 1.0 / (2.0 * factor * vmax / wave_max)
+    umax /= wave_min
+    vmax /= wave_min
+    umin /= wave_min
+    vmin /= wave_min
 
-    if ny is not None and u_cell_size*ny < (1.0 / umax):
-        raise ValueError("u_cell_size*ny < (1.0 / umax)")
+    u_cell_size = 1.0 / (2.0 * factor * umax)
+    v_cell_size = 1.0 / (2.0 * factor * vmax)
 
-    if nx is not None and v_cell_size*nx < (1.0 / vmax):
-        raise ValueError("v_cell_size*nx < (1.0 / vmax)")
+    if ny is not None and u_cell_size*ny < (1.0 / umin):
+        raise ValueError("v_cell_size*ny [%f] < (1.0 / umin) [%f]" %
+                         (u_cell_size*ny, 1.0 / umin))
+
+    if nx is not None and v_cell_size*nx < (1.0 / vmin):
+        raise ValueError("v_cell_size*nx [%f] < (1.0 / vmin) [%f]" %
+                         (v_cell_size*nx, 1.0 / vmin))
 
     # Convert radians to arcseconds
     return np.rad2deg([u_cell_size, v_cell_size])*(60*60)

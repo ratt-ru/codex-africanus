@@ -110,12 +110,9 @@ def test_psf_subtraction(plot):
     uvw[:, :2] = (rf((rows, 2)) - 0.5)*100
     uvw[:, 2] = (rf((rows,)) - 0.5)*10
 
-    # Min and Max U and V coordinates
-    umin, umax = np.abs([uvw[:, 0].min(), uvw[:, 0].max()]) / wavelengths[-1]
-    vmin, vmax = np.abs([uvw[:, 1].min(), uvw[:, 1].max()]) / wavelengths[-1]
-
-    cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1], wavelengths,
-                                   factor=3, ny=ny, nx=nx).max()
+    # Estimate cell size given UVW coordiantes and wavelengths
+    cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1],
+                                   wavelengths, factor=5).max()
 
     # We have an even number of pixels
     assert ny % 2 == 0 and 2*(ny // 2) == ny
