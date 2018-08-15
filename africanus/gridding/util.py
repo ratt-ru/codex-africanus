@@ -2,8 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import math
-
 import numpy as np
 
 
@@ -63,22 +61,26 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
     if isinstance(u, np.ndarray):
         umax = np.abs(u).max()
     elif isinstance(u, float):
-        umax = math.abs(u)
+        umax = abs(u)
     else:
         raise TypeError("Invalid u type %s" % type(u))
 
     if isinstance(v, np.ndarray):
         vmax = np.abs(v).max()
     elif isinstance(v, float):
-        vmax = math.abs(v)
+        vmax = abs(v)
     else:
         raise TypeError("Invalid v type %s" % type(v))
 
     if isinstance(wavelength, np.ndarray):
-        wavelength = wavelength.min()
+        wave_max = wavelength.max()
+    elif isinstance(wavelength, float):
+        wave_max = wavelength
+    else:
+        raise TypeError("Invalid wavelength type %s" % type(v))
 
-    u_cell_size = 1.0 / (2.0 * factor * umax / wavelength)
-    v_cell_size = 1.0 / (2.0 * factor * vmax / wavelength)
+    u_cell_size = 1.0 / (2.0 * factor * umax / wave_max)
+    v_cell_size = 1.0 / (2.0 * factor * vmax / wave_max)
 
     if ny is not None and u_cell_size*ny < (1.0 / umax):
         raise ValueError("u_cell_size*ny < (1.0 / umax)")
@@ -86,4 +88,5 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
     if nx is not None and v_cell_size*nx < (1.0 / vmax):
         raise ValueError("v_cell_size*nx < (1.0 / vmax)")
 
-    return np.array([u_cell_size / (60*60), v_cell_size / (60*60)])
+    # Convert radians to arcseconds
+    return np.rad2deg([u_cell_size, v_cell_size])*(60*60)
