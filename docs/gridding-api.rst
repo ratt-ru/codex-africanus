@@ -39,6 +39,8 @@ Dask
 W Stacking
 ~~~~~~~~~~
 
+**This is currently experimental**
+
 Implements W-Stacking as described in `WSClean <wsclean_>`_.
 
 .. currentmodule:: africanus.gridding.wstack
