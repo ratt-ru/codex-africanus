@@ -43,9 +43,9 @@ def diag_probe(A, dim, maxiter=10000, tol=1e-6, mode="Bernoulli"):
     t = np.zeros(dim, dtype='complex128')
     q = np.zeros(dim, dtype='complex128')
 
-    if mode=="Normal":
+    if mode == "Normal":
         gen_random = lambda npix: np.random.randn(npix)
-    elif mode=="Bernoulli":
+    elif mode == "Bernoulli":
         gen_random = lambda npix: np.where(np.random.random(npix) < 0.5, -1, 1)
 
     for k in range(maxiter):

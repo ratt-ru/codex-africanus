@@ -1,7 +1,8 @@
 import xarrayms
 from africanus.dft.kernels import im_to_vis, vis_to_im
 import matplotlib.pyplot as plt
-from africanus.reduction.psf_redux import *
+import numpy as np
+from africanus.reduction.psf_redux import diag_probe, F, iF
 
 
 # rad/dec to lm coordinates (straight from fundamentals)
@@ -53,13 +54,13 @@ LT = lambda visibility: vis_to_im(visibility, uvw, lm, freq)
 PSF = LT(weights).reshape([npix, npix])
 
 # Add in padding to the images if needed and transform the PSF to make life easier
-padding = [(npix**2 - npix)//2, (npix**2 - npix)//2]
+padding = [npix//2, npix//2]
 PSF_pad = np.pad(PSF, padding, mode='constant')
 PSF_hat = F(PSF_pad)
 
 # Generate FFT and DFT matrices
 R = np.zeros([nrow, npix**2], dtype='complex128')
-F = np.zeros([npix**2, npix**2], dtype='complex128')
+FT = np.zeros([npix**2, npix**2], dtype='complex128')
 for k in range(nrow):
     u, v, w = uvw[k]
 
@@ -78,69 +79,88 @@ for u in range(npix**2):
     l, m = lm[u]
     for v in range(npix**2):
         j, k = jk[v]
-        F[u, v] += np.exp(-2j*np.pi*(j*l + k*m))/np.sqrt(F_norm)
+        FT[u, v] += np.exp(-2j*np.pi*(j*l + k*m))/np.sqrt(F_norm)
 
 # Generate adjoint matrices (conjugate transpose)
 RH = R.conj().T
-FH = F.conj().T
+FH = FT.conj().T
+
+w = np.diag(weights.flatten())
 
 
 # Mostly here for reference, calculating the NC of the DFT using the operators and FFT matrix
 def M(vec):
-    T0 = FH.dot(vec).real.reshape([vec.shape[0], 1])
-    T1 = L(T0)
-    T2 = weights.dot(T1.T)
-    T3 = LT(T2)
-    T4 = F.dot(T3)
-    T5 = T4.flatten()
-    return T5
+    T0 = FH.dot(vec)
+    T1 = R.dot(T0)
+    T2 = w.dot(T1)
+    T3 = RH.dot(T2)
+    T4 = FT.dot(T3)
+    return T4.real
 
 
 # Calculate NC matrix of
 T0 = R.dot(FH)
-w = np.diag(weights.flatten())
 T1 = w.dot(T0)
 T2 = RH.dot(T1)
-M_mat = F.dot(T2).real
+M_mat = FT.dot(T2).real
 M_vec = np.diagonal(M_mat)
 
+# Pad the fourier transform and generate PSF_hat
+double_pad = [((npix*2)**2 - npix**2)//2, ((npix*2)**2 - npix**2)//2]
+F_pad = np.pad(FT, double_pad, mode='constant')
+FH_pad = np.pad(FH, double_pad, mode='constant')
+PSF_hat = F_pad.dot(PSF_pad.flatten())
 
-# the PSF probe: the commented code is what I was doing before, the uncommented is what I did today which yields much
-# closer results to the main y=x line, though it still has a few zero values
+
 def PSF_probe(vec):
-    p = PSF_hat.dot(vec).real
-    # T0 = FH.dot(vec)
-    # T1 = F.dot(T0)
-    # PSFH = F.dot(PSF.flatten())
-    # T2 = PSFH*T1
-    # T3 = FH.dot(T2)
-    # T4 = F.dot(T3)
-    # print('Method diff ', max(abs(T4-p)))
-    return p
+    # p = PSF_hat.flatten()*vec.flatten()
+    f_vec = F_pad.dot(vec.reshape(PSF_hat.shape)).flatten()
+    f_p = (PSF_hat.flatten()*f_vec).reshape(PSF_hat.shape)
+    p = FH_pad.dot(f_p)
+    return p.flatten()
 
 
-# doing the probing and calculating the PSF diagonal
-D_vec = diag_probe(PSF_probe, npix**2).real  # not sure if should be taking abs or not, but I get a lot of negatives
+im_test = np.where(np.random.random(npix**2) < 0.5, -1, 1).reshape([npix, npix])
+im_pad = np.pad(im_test, padding, mode='constant')
 
-# Set up y=x line
-_min = min(min(D_vec), min(M_vec))
-_max = max(max(D_vec), max(M_vec))
-x = np.linspace(_min, _max, npix**2)
-
-# plot diagonal comparison (lots of zeros in here when the probe uses PSF_hat)
-plt.figure('Values of PSF NC vs FRRF NC')
-plt.plot(x, x, 'k')
-plt.scatter(M_vec, D_vec, marker='x')
-
-# plot DFT NC
-plt.figure('Noise Covariance of DFT')
-plt.imshow(M_mat)
-plt.colorbar()
+im_psf = PSF_probe(im_pad).real
+im_psf = im_psf.reshape(im_pad.shape)[padding[0]:-padding[0], padding[1]:-padding[1]]
+im_frrf = M(im_test.flatten()).reshape([npix, npix])
 
 # plot PSF NC from probing
-plt.figure('Noise Covariance of PSF')
-D = np.diag(D_vec)
-plt.imshow(D)
-plt.colorbar()
+x = np.linspace(np.min(im_frrf), np.max(im_frrf), im_frrf.size)
+plt.figure('product differences')
+plt.plot(x, x, 'k')
+plt.scatter(im_psf, im_frrf, marker='x')
+
+# # doing the probing and calculating the PSF diagonal
+# D_vec = diag_probe(PSF_probe, PSF_hat.size).real
+#
+# # reshaping and removing padding from D_vec created by the PSF
+# D_vec = D_vec.reshape(im_pad.shape)[padding[0]:-padding[0], padding[1]:-padding[1]]
+# D_vec = D_vec.flatten()
+#
+# # Set up y=x line
+# _min = min(min(D_vec), min(M_vec))
+# _max = max(max(D_vec), max(M_vec))
+# x = np.linspace(_min, _max, D_vec.shape[0])
+#
+# print(M_vec.shape, D_vec.shape)
+#
+# # plot diagonal comparison (lots of zeros in here when the probe uses PSF_hat)
+# plt.figure('Values of PSF NC vs FRRF NC')
+# plt.plot(x, x, 'k')
+# plt.scatter(M_vec, D_vec, marker='x')
+#
+# # plot DFT NC
+# plt.figure('Noise Covariance of DFT')
+# plt.imshow(M_mat)
+# plt.colorbar()
+#
+# # plot PSF NC from probing
+# plt.figure('Noise Covariance of PSF')
+# D = np.diag(D_vec)
+# plt.imshow(D)
+# plt.colorbar()
 
 plt.show()
