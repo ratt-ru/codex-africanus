@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from future_builtins import zip
+
 from collections import namedtuple
 
 import numba
@@ -113,12 +115,12 @@ def transformer(inputs, outputs):
 
         for (c1, c2), (a, s1, s2) in deps.items():
             try:
-                c1 = zip(*np.where(inputs == c1))[0]
+                c1 = list(zip(*np.where(inputs == c1)))[0]
             except IndexError:
                 continue
 
             try:
-                c2 = zip(*np.where(inputs == c2))[0]
+                c2 = list(zip(*np.where(inputs == c2)))[0]
             except IndexError:
                 continue
 
