@@ -4,6 +4,8 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Implement Kaiser Bessel filter (:pr:`38`)
+* Implement W-stacking gridder/degridder (:pr:`38`)
 * Use 2D filters by default (:pr:`37`)
 * Fixed bug in im_to_vis. Added more tests for im_to_vis.
   Removed division by :math:`n` since it is trivial to reinstate
