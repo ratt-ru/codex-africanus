@@ -10,13 +10,12 @@ def radec_to_lm(ra0, dec0, ra, dec):
     delta_ra = ra - ra0
     l = (np.cos(dec) * np.sin(delta_ra))
     m = (np.sin(dec) * np.cos(dec0) - np.cos(dec) * np.sin(dec0) * np.cos(delta_ra))
-
     return l, m
 
 
 # how big our data set is going to be
-npix = 30
-nrow = 100
+npix = 33
+nrow = 500
 nchan = 1
 
 
@@ -43,6 +42,8 @@ for ds in xarrayms.xds_from_ms(data_path):
 
 vis = Vdat[0:nrow, 0:nchan, 0]
 
+c = 2.99792458e8
+
 # normalisation factor (equal to max(PSF))
 wsum = sum(weights)
 
@@ -55,8 +56,6 @@ PSF = LT(weights).reshape([npix, npix])
 
 # Add in padding to the images if needed and transform the PSF to make life easier
 padding = [npix//2, npix//2]
-PSF_pad = np.pad(PSF, padding, mode='constant')
-PSF_hat = F(PSF_pad)
 
 # Generate FFT and DFT matrices
 R = np.zeros([nrow, npix**2], dtype='complex128')
@@ -67,7 +66,7 @@ for k in range(nrow):
     for j in range(npix**2):
         l, m = lm[j]
         n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
-        R[k, j] = np.exp(-2j*np.pi*freq[0]*(u*l + v*m + w*n))/np.sqrt(wsum)
+        R[k, j] = np.exp(-2j*np.pi*(freq[0]/c)*(u*l + v*m + w*n))
 #
 delta = lm[1, 0]-lm[0, 0]
 F_norm = npix**2
@@ -88,50 +87,74 @@ FH = FT.conj().T
 w = np.diag(weights.flatten())
 
 
+def plot(im, stage):
+    plt.figure(stage)
+    plt.imshow(im.reshape([npix, npix]).real)
+    plt.colorbar()
+
+
 # Mostly here for reference, calculating the NC of the DFT using the operators and FFT matrix
 def M(vec):
     T0 = FH.dot(vec)
     T1 = R.dot(T0)
     T2 = w.dot(T1)
-    T3 = RH.dot(T2)
+    T3 = RH.dot(T2).real
     T4 = FT.dot(T3)
-    return T4.real
-
-
-# Calculate NC matrix of
-T0 = R.dot(FH)
-T1 = w.dot(T0)
-T2 = RH.dot(T1)
-M_mat = FT.dot(T2).real
-M_vec = np.diagonal(M_mat)
-
-# Pad the fourier transform and generate PSF_hat
-double_pad = [((npix*2)**2 - npix**2)//2, ((npix*2)**2 - npix**2)//2]
-F_pad = np.pad(FT, double_pad, mode='constant')
-FH_pad = np.pad(FH, double_pad, mode='constant')
-PSF_hat = F_pad.dot(PSF_pad.flatten())
+    return T4/npix
 
 
 def PSF_probe(vec):
-    # p = PSF_hat.flatten()*vec.flatten()
-    f_vec = F_pad.dot(vec.reshape(PSF_hat.shape)).flatten()
-    f_p = (PSF_hat.flatten()*f_vec).reshape(PSF_hat.shape)
-    p = FH_pad.dot(f_p)
-    return p.flatten()
+    T0 = FH.dot(vec)
+    PSF_hat = FT.dot(PSF.flatten())
+    T1 = FT.dot(T0)
+    T2 = (PSF_hat.conj()*T1)
+    T3 = FH.dot(T2).real
+    T4 = FT.dot(T3)
+    return T4
 
 
-im_test = np.where(np.random.random(npix**2) < 0.5, -1, 1).reshape([npix, npix])
-im_pad = np.pad(im_test, padding, mode='constant')
+# Test that RH and LT produce the same value
+test_ones = np.ones_like(weights)
+test0 = RH.dot(test_ones).real
+test1 = LT(test_ones).real
+test2 = abs(test0 - test1)
+print("Sum of difference between RH and LT: ", sum(test2.flatten()))
 
-im_psf = PSF_probe(im_pad).real
-im_psf = im_psf.reshape(im_pad.shape)[padding[0]:-padding[0], padding[1]:-padding[1]]
-im_frrf = M(im_test.flatten()).reshape([npix, npix])
+# Test self adjointness of R RH
+gamma1 = np.random.randn(npix**2)
+gamma2 = np.random.randn(weights.size)
 
-# plot PSF NC from probing
-x = np.linspace(np.min(im_frrf), np.max(im_frrf), im_frrf.size)
-plt.figure('product differences')
+LHS = gamma2.T.dot(R.dot(gamma1)).real
+RHS = RH.dot(gamma2).T.dot(gamma1).real
+
+print("Self adjointness of R: ", np.abs(LHS - RHS))
+
+# Test self adjointness of FT FH
+gamma1 = np.random.randn(npix**2)
+gamma2 = np.random.randn(npix**2)
+
+LHS = gamma2.T.dot(FT.dot(gamma1)).real
+RHS = FH.dot(gamma2).T.dot(gamma1).real
+
+print("Self adjointness of FT: ", np.abs(LHS - RHS))
+
+# Test that PSF convolution and M give the same answer
+vec = np.ones(npix**2)
+# vec = np.zeros([npix, npix])
+# vec[npix//4:npix-npix//4, npix//4:npix-npix//4] = np.ones((npix//2+1)**2).reshape([npix//2+1, npix//2+1])
+im_psf = PSF_probe(vec.flatten()).real
+im_frrf = M(vec.flatten()).real
+
+x = np.linspace(np.min(im_psf), np.max(im_psf), im_psf.size)
+plt.figure('Difference between PSF convolution and M')
 plt.plot(x, x, 'k')
 plt.scatter(im_psf, im_frrf, marker='x')
+
+########################################################################################################################
+
+# plt.figure('Noise Covariance of DFT')
+# plt.imshow(im_frrf.reshape([npix, npix]))
+# plt.colorbar()
 
 # # doing the probing and calculating the PSF diagonal
 # D_vec = diag_probe(PSF_probe, PSF_hat.size).real

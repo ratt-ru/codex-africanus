@@ -67,7 +67,7 @@ start = np.zeros_like(dirty)
 start[int(npix**2/2), 0] = 10
 start_dask = da.from_array(start, chunks=(npix**2))
 
-cleaned = pdd(start_dask, vis_dask, L_d, LT_d, solver='spd', dask=True, maxiter=10)
+cleaned = pdd(start_dask, vis_dask, L_d, LT_d, solver='rspd', dask=True, maxiter=10)
 
 plt.figure('ID Dask')
 plt.imshow(dirty.reshape(npix, npix))

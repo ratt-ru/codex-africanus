@@ -3,8 +3,9 @@
 
 """Tests for `codex-africanus` package."""
 
+import dask.array as da
 import numpy as np
-from africanus.dft.kernels import im_to_vis, vis_to_im
+from africanus.dft.dask import im_to_vis, vis_to_im
 from africanus.reduction.psf_redux import PSF_adjoint, PSF_response, F
 from astropy.io import fits
 import xarrayms
@@ -59,7 +60,7 @@ freq = frequency/ref_freq
 
 data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
 
-nrow = 500
+nrow = 1000
 nchan = 1
 
 for ds in xarrayms.xds_from_ms(data_path):
@@ -71,10 +72,18 @@ vis = Vdat[0:nrow, 0:nchan, 0]
 
 wsum = sum(weights)  # PSF.max()
 
-L = lambda image: im_to_vis(image, uvw, lm, freq)
-LT = lambda v: vis_to_im(v, uvw, lm, freq)/wsum
+chunk = nrow//10
 
-PSF = LT(weights)
+uvw_dask = da.from_array(uvw, chunks=(chunk, 3))
+lm_dask = da.from_array(lm, chunks=(npix**2, 2))
+frequency_dask = da.from_array(freq, chunks=nchan)
+vis_dask = da.from_array(vis, chunks=(chunk, nchan))
+weights_dask = da.from_array(weights, chunks=(chunk, nchan))
+
+L = lambda image: im_to_vis(image, uvw_dask, lm_dask, frequency_dask).compute()
+LT = lambda v: vis_to_im(v, uvw_dask, lm_dask, frequency_dask).compute()/wsum
+
+PSF = LT(weights_dask)
 
 PSF = PSF.reshape([npix, npix])
 padding = [npix//2, npix//2]
@@ -91,9 +100,7 @@ dirty = dirty.reshape([npix, npix])
 start = np.zeros_like(dirty)
 start[npix//2, npix//2] = 10
 
-cleaned = pds(start, dirty, P, PT, solver='rspd', maxiter=200).real/wsum
-
-print(sum(sum(cleaned)))
+cleaned = pds(start, dirty, P, PT, solver='rspd', maxiter=200).real/np.abs(np.sum(PSF))
 
 plt.figure('ID')
 plt.imshow(dirty)#.reshape([npix, npix]))

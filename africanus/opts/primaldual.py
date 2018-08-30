@@ -6,7 +6,6 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, m
 
     M = v_0.shape[0]  # dimension of data
     eps = np.sqrt(2 * M + 2 * np.sqrt(4 * M)) * uncert  # the width of the epsilon ball for the data
-    print(eps)
 
     if dask:
         L_norm = power_dask(L, LT, x_0.shape)
@@ -23,7 +22,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, m
         tau = 0.95/(np.sqrt(L_norm))
 
     if sigma is None:
-        sigma = 0.95/(np.sqrt(L_norm))
+        sigma = 0.95/(2*np.sqrt(L_norm))
 
     if llambda is None:
         llambda = 1
@@ -91,11 +90,11 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, m
     def rescaled_sym_pd():
         print("Using Rescaled Symmetric Primal Dual")
         x = x_0.copy()
-        v = v_0.copy()/sigma
+        v = v_0.copy()
 
         for n in range(maxiter):
             # Calculate x update step
-            v_i = v + sigma * L(x)
+            v_i = v + sigma*L(x)
             q_n = v_i - l2ball(v_i)
 
             # Calculate v update step
