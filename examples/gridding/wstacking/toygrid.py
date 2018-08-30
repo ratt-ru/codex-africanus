@@ -98,8 +98,8 @@ cell_size_rad = np.deg2rad(cell_size / (60*60))
 rad_u = cell_size_rad * args.npix
 rad_v = cell_size_rad * args.npix
 
-low = phase_centre - [rad_u, rad_v]
-high = phase_centre + [rad_u, rad_v]
+low = phase_centre - [rad_u / 2, rad_v / 2]
+high = phase_centre + [rad_u / 2, rad_v / 2]
 
 lmn = radec_to_lmn(np.asarray([low, high]), phase_centre)
 
@@ -111,7 +111,7 @@ else:
 w_bins = w_stacking_bins(wmin, wmax, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
 logging.info("%d W layers at %s", w_layers, w_centroids)
-logging.info("Chose a cell_size of %s" % cell_size)
+logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
 
 cmin, cmax = lmn
 
@@ -214,14 +214,23 @@ psf_sum *= psf_final_factor
 psf = psf.real
 psf = psf / psf.max()
 
-dirty /= taper
-
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
 dirty = dirty_sum.real / (psf.max() * 4.)
+dirty /= taper
 
 logging.info("Dirty maximum %.6f" % dirty.max())
+
+# Save image if we have astropy
+try:
+    from astropy.io import fits
+except ImportError:
+    pass
+else:
+    hdu = fits.PrimaryHDU(dirty)
+    with fits.HDUList([hdu]) as hdul:
+        hdul.writeto('wstack-dirty.fits', overwrite=True)
 
 # Display image if we have matplotlib
 try:
