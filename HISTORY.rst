@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Add simple dask gridder example (:pr:`42`)
 * Implement Kaiser Bessel filter (:pr:`38`)
 * Implement W-stacking gridder/degridder (:pr:`38`)
 * Use 2D filters by default (:pr:`37`)
