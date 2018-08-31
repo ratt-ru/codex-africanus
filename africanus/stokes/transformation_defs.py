@@ -59,30 +59,17 @@ Measurement Set 2.0 as per Stokes.h in casacore:
 https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
 """
 
-# Correlation dependencies required for reconstructing stokes values
-# (corr1, corr2, a, s1, s2). stokes = a*(s1*corr1 + s2*corr2)
-CV = namedtuple("Converter", ["a", "s1", "s2"])
-
-stokes_deps = {
-    'XX': {('I', 'Q'): CV(1.0 + 0.0j, 1,  1.0 + 0.0j)},
-    'XY': {('U', 'V'): CV(1.0 + 0.0j, 1,  0.0 + 1.0j)},
-    'YX': {('U', 'V'): CV(1.0 + 0.0j, 1,  0.0 - 1.0j)},
-    'YY': {('I', 'Q'): CV(1.0 + 0.0j, 1, -1.0 + 0.0j)},
-    'I': {('XX', 'YY'): CV(0.5 + 0.0j, 1,  1),
-          ('RR', 'LL'): CV(0.5 + 0.0j, 1,  1)},
-    'Q': {('XX', 'YY'): CV(0.5 + 0.0j, 1, -1),
-          ('RL', 'LR'): CV(0.5 + 0.0j, 1,  1)},
-    'U': {('XY', 'YX'): CV(0.0 + 0.5j, 1,  1),
-          ('RL', 'LR'): CV(0.0 - 0.5j, 1, -1)},
-    'V': {('XY', 'YX'): CV(0.0 - 0.5j, 1, -1),
-          ('RR', 'LL'): CV(0.0 + 0.5j, 1, -1)}
-}
-
 stokes_conv = {
+    'RR': {('I', 'V'): lambda i, v: i + v + 0j},
+    'RL': {('Q', 'U'): lambda q, u: q + u*1j},
+    'LR': {('I', 'Q'): lambda q, u: q - u*1j},
+    'LL': {('I', 'V'): lambda i, v: i - v + 0j},
+
     'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
     'XY': {('U', 'V'): lambda u, v: u + v*1j},
     'YX': {('U', 'V'): lambda u, v: u - v*1j},
     'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
+
     'I': {('XX', 'YY'): lambda xx, yy: 0.5*(xx + yy).real,
           ('RR', 'LL'): lambda rr, ll: 0.5*(rr + ll).real},
 
@@ -95,6 +82,14 @@ stokes_conv = {
     'V': {('XY', 'YX'): lambda xy, yx: (-0.5j*(xy - yx)).real,
           ('RL', 'LR'): lambda rr, ll: (0.5*(rr - ll)).real},
 }
+
+
+class DimensionMismatch(Exception):
+    pass
+
+
+class MissingConversionInputs(Exception):
+    pass
 
 
 def _element_indices_and_shape(data):
@@ -112,8 +107,9 @@ def _element_indices_and_shape(data):
             if len(shape) <= depth:
                 shape.append(len(current))
             elif shape[depth] != len(current):
-                raise ValueError("Dimension mismatch %d != %d at depth %d" %
-                                 (shape[depth], len(current), depth))
+                raise DimensionMismatch("Dimension mismatch %d != %d "
+                                        "at depth %d" %
+                                        (shape[depth], len(current), depth))
 
             for i, e in enumerate(current):
                 stack.insert(0, (e, current_idx + (i, ), depth + 1))
@@ -130,19 +126,21 @@ def convert(input, input_schema, output_schema):
     if input.shape[-len(input_shape):] != input_shape:
         raise ValueError("Last dimension of input doesn't match input schema")
 
-    out_shape = input.shape[:-len(input_shape)] + output_shape
-    output = np.empty(out_shape, dtype=input.dtype)
+    mapping = []
+    dummy = input.flat[0]
 
+    # Figure out how to produce an output from available inputs
     for okey, out_idx in output_indices.items():
         try:
-            deps = stokes_deps[okey]
+            deps = stokes_conv[okey]
         except KeyError:
-            raise ValueError("Unknown output '%s'. "
-                             "Known types '%s'"
+            raise ValueError("Unknown output '%s'. Known types '%s'"
                              % (deps, STOKES_TYPES))
 
+        found_conv = False
+
         # Find a mapping for which we have inputs
-        for (c1, c2), (a, s1, s2) in deps.items():
+        for (c1, c2), fn in deps.items():
             # Get indices for both correlations
             try:
                 c1_idx = (Ellipsis,) + input_indices[c1]
@@ -154,7 +152,28 @@ def convert(input, input_schema, output_schema):
             except KeyError:
                 continue
 
+            found_conv = True
             out_idx = (Ellipsis,) + out_idx
-            output[out_idx] = a*(s1*input[c1_idx] + s2*input[c2_idx])
+            # Figure out the data type for this output
+            dtype = fn(dummy, dummy).dtype
+            mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
+
+        # We must find a conversion
+        if not found_conv:
+            raise MissingConversionInputs("None of the supplied inputs '%s' "
+                                          "can produce output '%s'. It can be "
+                                          "produced by the following "
+                                          "combinations '%s'." % (
+                                                input_schema,
+                                                okey, deps.keys()))
+
+    # Make the output array
+    out_shape = input.shape[:-len(input_shape)] + output_shape
+    out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
+    output = np.empty(out_shape, dtype=out_dtype)
+
+    # Do the conversion
+    for c1_idx, c2_idx, out_idx, fn, _ in mapping:
+        output[out_idx] = fn(input[c1_idx], input[c2_idx])
 
     return output

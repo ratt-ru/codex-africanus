@@ -18,6 +18,9 @@ from africanus.stokes.transformation_defs import convert
     ([['XX', 'XY'], ['YX', 'YY']], [['I', 'Q'], ['U', 'V']]),
     (['I', 'Q', 'U', 'V'], ['XX', 'XY', 'YX', 'YY']),
     ([['I', 'Q'], ['U', 'V']], [['XX', 'XY'], ['YX', 'YY']]),
+    ([['I', 'Q'], ['U', 'V']], [['XX', 'XY', 'YX', 'YY']]),
+    ([['I', 'Q'], ['U', 'V']], [['RR', 'RL', 'LR', 'LL']]),
+    (['I', 'V'], ['RR', 'LL']),
     (['I', 'Q'], ['XX', 'YY']),
 ])
 @pytest.mark.parametrize("vis_shape", [
