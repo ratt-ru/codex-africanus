@@ -76,8 +76,8 @@ stokes_conv = {
     'U': {('XY', 'YX'): lambda xy, yx: (xy + yx).real / 2,
           ('RL', 'LR'): lambda rl, lr: (rl - lr).imag / 2},
 
-    'V': {('XY', 'YX'): lambda xy, yx: (0.5*(xy - yx)).imag,
-          ('RR', 'LL'): lambda rr, ll: (0.5*(rr - ll)).real},
+    'V': {('XY', 'YX'): lambda xy, yx: (xy - yx).imag / 2,
+          ('RR', 'LL'): lambda rr, ll: (rr - ll).real / 2},
 }
 
 
