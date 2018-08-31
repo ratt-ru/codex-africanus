@@ -140,6 +140,8 @@ psf = (psf / psf.max())
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
 dirty = dirty.real / (psf.max() * 4.)
+
+# Apply the taper
 dirty /= taper
 
 logging.info("Dirty maximum %.6f" % dirty.max())
