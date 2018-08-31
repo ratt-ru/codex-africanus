@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Stokes/Correlation conversion (:pr:`41`)
 * Fix gridding examples (:pr:`43`)
 * Add simple dask gridder example (:pr:`42`)
 * Implement Kaiser Bessel filter (:pr:`38`)
