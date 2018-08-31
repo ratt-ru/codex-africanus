@@ -9,7 +9,6 @@ from functools import wraps
 
 from .phase import phase_delay_docs
 from .phase import phase_delay as np_phase_delay
-from .bright import brightness as np_brightness
 from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
@@ -19,7 +18,6 @@ from .predict import predict_vis as np_predict_vis
 from .zernike import zernike_dde as np_zernike_dde
 
 
-from ..util.shapes import corr_shape as corr_shape_fn
 from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
 from ..util.requirements import have_packages, MissingPackageException
 
@@ -28,9 +26,6 @@ have_requirements = have_packages(*_package_requirements)
 
 if not have_requirements or on_rtd():
     def phase_delay(uvw, lm, frequency, dtype=None):
-        raise MissingPackageException(*_package_requirements)
-
-    def brightness(stokes, polarisation_type=None, corr_shape=None):
         raise MissingPackageException(*_package_requirements)
 
     def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
@@ -76,42 +71,6 @@ else:
                             frequency, ("chan",),
                             dtype=dtype,
                             dtype_=dtype)
-
-    def brightness(stokes, polarisation_type=None, corr_shape=None):
-        if corr_shape is None:
-            corr_shape = 'flat'
-
-        # Separate shape into head and tail
-        head, npol = stokes.shape[:-1], stokes.shape[-1]
-
-        if not npol == stokes.chunks[-1][0]:
-            raise ValueError("The polarisation dimension "
-                             "of the 'stokes' array "
-                             "may not be chunked "
-                             "(the chunk size must match "
-                             "the dimension size).")
-
-        # Create unique strings for the head dimensions
-        head_dims = tuple("head-%d" % i for i in range(len(head)))
-        # Figure out what our correlation shape should look like
-        corr_shapes = corr_shape_fn(npol, corr_shape)
-        # Create unique strings for the correlation dimensions
-        corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
-        # We're introducing new axes for the correlations
-        # with a fixed shape
-        new_axes = {d: s for d, s in zip(corr_dims, corr_shapes)}
-
-        @wraps(np_brightness)
-        def _wrapper(stokes):
-            return np_brightness(stokes[0],
-                                 polarisation_type=polarisation_type,
-                                 corr_shape=corr_shape)
-
-        return da.core.atop(_wrapper, head_dims + corr_dims,
-                            stokes, head_dims + ("pol",),
-                            new_axes=new_axes,
-                            dtype=np.complex64 if stokes.dtype == np.float32
-                            else np.complex128)
 
     def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
         @wraps(np_parangles)
