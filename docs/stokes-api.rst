@@ -1,5 +1,5 @@
-Stokes to Correlation Conversion
---------------------------------
+Stokes Conversion
+-----------------
 
 Utilities for converting back and forth between
 stokes parameters and correlations

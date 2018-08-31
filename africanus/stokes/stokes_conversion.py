@@ -218,7 +218,7 @@ STOKES_DOCS = """
         vis.shape == (10, 4, 2, 2)
 
         stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
-                                ['I', 'Q', 'U, 'V'])
+                                ['I', 'Q', 'U', 'V'])
 
         assert stokes.shape == (10, 4, 4)
 
