@@ -10,6 +10,7 @@ API
     conv-filter-api.rst
     deconv-api.rst
     coordinates-api.rst
+    stokes-api.rst
     util-api.rst
 
 

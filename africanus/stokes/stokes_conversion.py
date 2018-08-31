@@ -168,6 +168,8 @@ def stokes_convert(input, input_schema, output_schema):
     -------
     :class:`numpy.ndarray`
         Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
+        The type may be floating point or promoted to complex
+        depending on the combinations in ``output``.
     """
 
     input_indices, input_shape = _element_indices_and_shape(input_schema)
