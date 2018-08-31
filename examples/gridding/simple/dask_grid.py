@@ -24,7 +24,7 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-np", "--npix", default=1024, type=int)
     p.add_argument("-nc", "--chunks", default=10000, type=int)
-    p.add_argument("-sc", "--cell-size", default=6, type=float)
+    p.add_argument("-sc", "--cell-size", type=float)
     return p
 
 
@@ -73,7 +73,7 @@ dirty = grid(xds.DATA.data,
              natural_weights,
              wavelength,
              conv_filter,
-             args.cell_size,
+             cell_size,
              ny=args.npix, nx=args.npix)
 
 
@@ -94,7 +94,7 @@ psf = grid(da.ones_like(psf_flags, dtype=xds.DATA.data.dtype),
            da.ones_like(psf_flags, dtype=natural_weights.dtype),
            wavelength,
            conv_filter,
-           args.cell_size,
+           cell_size,
            ny=2*args.npix, nx=2*args.npix)
 
 # Should only be one correlation
@@ -136,13 +136,15 @@ else:
     prof.visualize()
 
 
-# Save image if we have imageio
+# Save image if we have astropy
 try:
-    from imageio import imwrite
+    from astropy.io import fits
 except ImportError:
     pass
 else:
-    imwrite('outfile.jpg', dirty)
+    hdu = fits.PrimaryHDU(dirty)
+    with fits.HDUList([hdu]) as hdul:
+        hdul.writeto('simple-dask-dirty.fits', overwrite=True)
 
 # Display image if we have matplotlib
 try:
@@ -168,7 +170,7 @@ degrid_weights = da.ones(weight_shape, dtype=natural_weights.dtype,
 
 # Construct the visibility dask array
 vis = degrid(dirty, xds.UVW.data, degrid_weights, wavelength,
-             conv_filter, args.cell_size)
+             conv_filter, cell_size)
 
 # But only degrid the first 1000 visibilities
 vis[:1000].compute()
