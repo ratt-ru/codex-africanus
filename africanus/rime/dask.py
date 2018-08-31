@@ -254,10 +254,6 @@ phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
                                        [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`")])
 
-brightness.__doc__ = mod_docs(np_brightness.__doc__,
-                              [(":class:`numpy.ndarray`",
-                                ":class:`dask.array.Array`")])
-
 parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
                                       [(":class:`numpy.ndarray`",
                                         ":class:`dask.array.Array`")])
