@@ -4,12 +4,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple, OrderedDict
+from collections import OrderedDict
 
-import numba
 import numpy as np
-
-from ..compatibility import zip
 
 STOKES_TYPES = [
     "Undefined",
@@ -70,16 +67,16 @@ stokes_conv = {
     'YX': {('U', 'V'): lambda u, v: u - v*1j},
     'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
 
-    'I': {('XX', 'YY'): lambda xx, yy: 0.5*(xx + yy).real,
-          ('RR', 'LL'): lambda rr, ll: 0.5*(rr + ll).real},
+    'I': {('XX', 'YY'): lambda xx, yy: (xx + yy).real / 2,
+          ('RR', 'LL'): lambda rr, ll: (rr + ll).real / 2},
 
-    'Q': {('XX', 'YY'): lambda xx, yy: 0.5*(xx - yy).real,
-          ('RL', 'LR'): lambda rl, lr: 0.5*(rl + lr).real},
+    'Q': {('XX', 'YY'): lambda xx, yy: (xx - yy).real / 2,
+          ('RL', 'LR'): lambda rl, lr: (rl + lr).real / 2},
 
-    'U': {('XY', 'YX'): lambda xy, yx: (0.5j*(xy + yx)).imag,
-          ('RL', 'LR'): lambda rl, lr: (-0.5j*(rl - lr)).real},
+    'U': {('XY', 'YX'): lambda xy, yx: (xy + yx).real / 2,
+          ('RL', 'LR'): lambda rl, lr: (rl - lr).imag / 2},
 
-    'V': {('XY', 'YX'): lambda xy, yx: (-0.5j*(xy - yx)).real,
+    'V': {('XY', 'YX'): lambda xy, yx: (0.5*(xy - yx)).imag,
           ('RR', 'LL'): lambda rr, ll: (0.5*(rr - ll)).real},
 }
 
