@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 
-from africanus.stokes.transformation_defs import convert
+from africanus.stokes.stokes_conversion import stokes_convert
 
 
 @pytest.mark.parametrize("input_schema, output_schema", [
@@ -38,7 +38,7 @@ def test_stokes_schemas(input_schema, output_schema, vis_shape):
     vis = vis.reshape(shape)
     vis = vis + vis*1j
 
-    xformed_vis = convert(vis, input_schema, output_schema)
+    xformed_vis = stokes_convert(vis, input_schema, output_schema)
     assert xformed_vis.shape == vis_shape + output_shape
 
 
@@ -46,31 +46,31 @@ def test_stokes_conversion():
     I, Q, U, V = [1.0, 2.0, 3.0, 4.0]
 
     # Check conversion to linear
-    vis = convert(np.asarray([[I, Q, U, V]]),
-                  ['I', 'Q', 'U', 'V'],
-                  ['XX', 'XY', 'YX', 'YY'])
+    vis = stokes_convert(np.asarray([[I, Q, U, V]]),
+                         ['I', 'Q', 'U', 'V'],
+                         ['XX', 'XY', 'YX', 'YY'])
 
     XX, XY, YX, YY = vis[0]
     assert np.all(vis == [[I + Q, U + V*1j, U - V*1j, I - Q]])
 
     # Check conversion to circular
-    vis = convert(np.asarray([[I, Q, U, V]]),
-                  ['I', 'Q', 'U', 'V'],
-                  ['RR', 'RL', 'LR', 'LL'])
+    vis = stokes_convert(np.asarray([[I, Q, U, V]]),
+                         ['I', 'Q', 'U', 'V'],
+                         ['RR', 'RL', 'LR', 'LL'])
 
     RR, RL, LR, LL = vis[0]
     assert np.all(vis == [[I + V, Q + U*1j, Q - U*1j, I - V]])
 
     # linear to stokes
-    stokes = convert(np.asarray([[XX, XY, YX, YY]]),
-                     ['XX', 'XY', 'YX', 'YY'],
-                     ['I', 'Q', 'U', 'V'])
+    stokes = stokes_convert(np.asarray([[XX, XY, YX, YY]]),
+                            ['XX', 'XY', 'YX', 'YY'],
+                            ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
     # circular to stokes
-    stokes = convert(np.asarray([[RR, RL, LR, LL]]),
-                     ['RR', 'RL', 'LR', 'LL'],
-                     ['I', 'Q', 'U', 'V'])
+    stokes = stokes_convert(np.asarray([[RR, RL, LR, LL]]),
+                            ['RR', 'RL', 'LR', 'LL'],
+                            ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
