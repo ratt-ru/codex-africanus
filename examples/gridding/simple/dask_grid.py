@@ -63,7 +63,7 @@ else:
 
 
 # Convolution Filter
-conv_filter = convolution_filter(7, 15, "kaiser-bessel")
+conv_filter = convolution_filter(3, 63, "kaiser-bessel")
 
 natural_weights = da.ones_like(xds.DATA.data, dtype=np.float64)
 
