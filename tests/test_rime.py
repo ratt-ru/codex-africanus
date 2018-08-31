@@ -7,6 +7,7 @@ import numpy as np
 
 import pytest
 
+
 def test_phase_delay():
     from africanus.rime import phase_delay
 
@@ -37,55 +38,6 @@ def test_phase_delay():
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-def test_brightness():
-    import numpy as np
-    from africanus.rime import brightness
-
-    # One stokes
-    stokes = np.asarray([[1], [5]])
-    B = brightness(stokes, polarisation_type='linear')
-    assert np.all(B == [[1],[5]])
-
-    B = brightness(stokes, polarisation_type='circular')
-    assert np.all(B == [[1],[5]])
-
-    # Two stokes parameters
-    stokes = np.asarray([[1, 2], [5, 6]], dtype=np.float64)
-
-    # Linear (I and Q)
-    B = brightness(stokes, polarisation_type='linear')
-    expected = np.asarray([[1+2, 1-2], [5+6, 5-6]])
-    assert np.all(B == expected)
-
-    # Circular (I and V) produce the same result as linear
-    B = brightness(stokes, polarisation_type='circular')
-    assert np.all(B == expected)
-
-    B = brightness(stokes, polarisation_type='linear', corr_shape='flat')
-    assert np.all(B==expected.reshape(2,2))
-
-    # Four stokes parameters
-    stokes = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.float64)
-
-    # Linear (I,Q,U,V)
-    B = brightness(stokes, polarisation_type='linear')
-    expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
-                            [5+6,7+8*1j,7-8*1j,5-6]])
-    assert np.all(B==expected.reshape(2,2,2))
-
-    # Circular (I,Q,U,V)
-    B = brightness(stokes, polarisation_type='circular')
-    expected = np.asarray([[1+4, 2+3*1j, 2-3*1j, 1-4],
-                            [5+8,6+7*1j,6-7*1j,5-8]])
-    assert np.all(B==expected.reshape(2,2,2))
-
-    # Test correlation shape
-    B = brightness(stokes, polarisation_type='linear', corr_shape='flat')
-    expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
-                            [5+6,7+8*1j,7-8*1j,5-6]]).reshape(2,4)
-    assert np.all(B==expected)
-
-
 def test_feed_rotation():
     import numpy as np
     from africanus.rime import feed_rotation
@@ -106,6 +58,7 @@ def test_feed_rotation():
 
 
 import math
+
 
 def _julian_day(year, month, day):
     """
@@ -129,6 +82,7 @@ def _julian_day(year, month, day):
     return (367*year - int(7*(year + int((month+9)/12))/4)
             - int((3*(int(year + (month - 9)/7)/100)+1)/4)
             + int(275*month/9) + day + 1721028.5)
+
 
 def _modified_julian_date(year, month, day):
     """
@@ -244,37 +198,6 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     diff = np.abs((astro_pa - casa_pa).wrap_at(180*units.deg))
     assert np.all(np.abs(diff) < Angle(rtol))
 
-def test_brightness_shape():
-    import numpy as np
-    from africanus.rime import brightness
-
-    for pol_type in ('linear', 'circular'):
-        # 4 polarisation case
-        assert brightness(np.random.random((10,5,3,4)),
-            polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,2,2)
-
-        assert brightness(np.random.random((10,5,3,4)),
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,4)
-
-        # 2 polarisation case
-        assert brightness(np.random.random((10,5,3,2)),
-            polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,2)
-
-        assert brightness(np.random.random((10,5,3,2)),
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,2)
-
-        # 1 polarisation case
-        assert brightness(np.random.random((10,5,3,1)),
-            polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,1)
-
-        assert brightness(np.random.random((10,5,3,1)),
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,1)
 
 
 def test_jones_2x2_mul():
@@ -399,74 +322,6 @@ def test_dask_parallactic_angles(observation, wsrt_ants, backend):
 
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
-def test_dask_brightness():
-    import dask.array as da
-    import numpy as np
-    from africanus.rime.dask import brightness
-
-    stokes = np.asarray([[1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.float64)
-    da_stokes = da.from_array(stokes, (1,4))
-
-    B = brightness(da_stokes, polarisation_type='linear')
-    expected = np.asarray([[1+2, 3+4*1j, 3-4*1j, 1-2],
-                            [5+6,7+8*1j,7-8*1j,5-6]])
-    assert np.all(B.compute()==expected)
-
-    # Test correlation shape
-    B = brightness(da_stokes, polarisation_type='linear', corr_shape='matrix')
-    assert np.all(B.compute()==expected.reshape(2,2,2))
-
-
-    B = brightness(da_stokes, polarisation_type='circular')
-    expected = np.asarray([[1+4, 2+3*1j, 2-3*1j, 1-4],
-                            [5+8,6+7*1j,6-7*1j,5-8]])
-
-    # Test correlation shape
-    B = brightness(da_stokes, polarisation_type='circular', corr_shape='matrix')
-    assert np.all(B.compute()==expected.reshape(2,2,2))
-
-
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
-def test_dask_brightness_shape():
-    import dask.array as da
-    from africanus.rime.dask import brightness
-
-    for pol_type in ('linear', 'circular'):
-        # 4 polarisation case
-        stokes = da.random.random((10,5,3,4),chunks=(5,(2,3),(2,1),4))
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='matrix').compute().shape == (10,5,3,2,2)
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,4)
-
-        # 2 polarisation case
-        stokes = da.random.random((10,5,3,2),chunks=(5,(2,3),(2,1),2))
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,2)
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,2)
-
-        # 1 polarisation case
-        stokes = da.random.random((10,5,3,1),chunks=(5,(2,3),(2,1),1))
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='matrix').shape == (10,5,3,1)
-
-        assert brightness(stokes,
-            polarisation_type=pol_type,
-            corr_shape='flat').shape == (10,5,3,1)
-
-
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_feed_rotation():
     import dask.array as da
     import numpy as np
@@ -481,7 +336,6 @@ def test_dask_feed_rotation():
 
     np_fr = np_feed_rotation(parangles, feed_type='circular')
     assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='circular'))
-
 
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
