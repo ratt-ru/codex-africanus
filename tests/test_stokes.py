@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 
 
-from africanus.stokes.transformation_defs import transformer
+from africanus.stokes.transformation_defs import convert
 
 
-@pytest.mark.parametrize("in_outs", [
+@pytest.mark.parametrize("input_schema, output_schema", [
     ([['XX'], ['YY']], ['I', 'Q']),
     (['XX', 'YY'], ['I', 'Q']),
     (['XX', 'XY', 'YX', 'YY'], ['I', 'Q', 'U', 'V']),
@@ -20,19 +20,20 @@ from africanus.stokes.transformation_defs import transformer
     ([['I', 'Q'], ['U', 'V']], [['XX', 'XY'], ['YX', 'YY']]),
     (['I', 'Q'], ['XX', 'YY']),
 ])
-def test_stokes_conversion(in_outs):
-    inputs, outputs = in_outs
-    xform = transformer(inputs, outputs)
+@pytest.mark.parametrize("vis_shape", [
+    (10, 5, 3),
+    (6, 8),
+    (15,),
+])
+def test_stokes_conversion(input_schema, output_schema, vis_shape):
+    input_shape = np.asarray(input_schema).shape
+    output_shape = np.asarray(output_schema).shape
 
-    input_shape = np.asarray(inputs).shape
-    output_shape = np.asarray(outputs).shape
+    shape = vis_shape + input_shape
 
-    nvis = 10
-    vis_shape = (nvis,) + input_shape
-
-    vis = np.arange(1.0, np.product(vis_shape) + 1.0)
-    vis = vis.reshape(vis_shape)
+    vis = np.arange(1.0, np.product(shape) + 1.0)
+    vis = vis.reshape(shape)
     vis = vis + vis*1j
 
-    xformed_vis = xform(vis)
-    assert xformed_vis.shape == (nvis,) + output_shape
+    xformed_vis = convert(vis, input_schema, output_schema)
+    assert xformed_vis.shape == vis_shape + output_shape

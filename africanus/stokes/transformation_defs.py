@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 import numba
 import numpy as np
@@ -78,82 +78,83 @@ stokes_deps = {
           ('RR', 'LL'): CV(0.0 + 0.5j, 1, -1)}
 }
 
-# stokes_conv = {
-#     'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
-#     'XY': {('U', 'V'): lambda u, v: u + v*1j},
-#     'YX': {('U', 'V'): lambda u, v: u - v*1j},
-#     'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
-#     'I': {('XX', 'YY'): lambda xx, yy: 0.5*(xx + yy).real,
-#           ('RR', 'LL'): lambda rr, ll: 0.5*(rr + ll).real},
+stokes_conv = {
+    'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
+    'XY': {('U', 'V'): lambda u, v: u + v*1j},
+    'YX': {('U', 'V'): lambda u, v: u - v*1j},
+    'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
+    'I': {('XX', 'YY'): lambda xx, yy: 0.5*(xx + yy).real,
+          ('RR', 'LL'): lambda rr, ll: 0.5*(rr + ll).real},
 
-#     'Q': {('XX', 'YY'): lambda xx, yy: 0.5*(xx - yy).real,
-#           ('RL', 'LR'): lambda rl, lr: 0.5*(rl + lr).real},
+    'Q': {('XX', 'YY'): lambda xx, yy: 0.5*(xx - yy).real,
+          ('RL', 'LR'): lambda rl, lr: 0.5*(rl + lr).real},
 
-#     'U': {('XY', 'YX'): lambda xy, yx: (0.5j*(xy + yx)).real,
-#           ('RL', 'LR'): lambda rl, lr: (-0.5j*(rl - lr)).real},
+    'U': {('XY', 'YX'): lambda xy, yx: (0.5j*(xy + yx)).real,
+          ('RL', 'LR'): lambda rl, lr: (-0.5j*(rl - lr)).real},
 
-#     'V': {('XY', 'YX'): lambda xy, yx: (-0.5j*(xy - yx)).real,
-#           ('RL', 'LR'): lambda rr, ll: (0.5*(rr - ll)).real},
-# }
+    'V': {('XY', 'YX'): lambda xy, yx: (-0.5j*(xy - yx)).real,
+          ('RL', 'LR'): lambda rr, ll: (0.5*(rr - ll)).real},
+}
 
 
-def transformer(inputs, outputs):
-    mapping = []
+def _element_indices_and_shape(data):
+    if not isinstance(data, (tuple, list)):
+        raise ValueError("data must be a tuple/list")
 
-    inputs = np.asarray(inputs)
-    outputs = np.asarray(outputs)
+    stack = [(data, (), 0)]
+    result = OrderedDict()
+    shape = []
 
-    for out_index in np.ndindex(outputs.shape):
+    while len(stack) > 0:
+        current, current_idx, depth = stack.pop()
+
+        if isinstance(current, (tuple, list)):
+            if len(shape) <= depth:
+                shape.append(len(current))
+            elif shape[depth] != len(current):
+                raise ValueError("Dimension mismatch %d != %d at depth %d" %
+                                 (shape[depth], len(current), depth))
+
+            for i, e in enumerate(current):
+                stack.insert(0, (e, current_idx + (i, ), depth + 1))
+        else:
+            result[current.upper()] = current_idx
+
+    return result, tuple(shape)
+
+
+def convert(input, input_schema, output_schema):
+    input_indices, input_shape = _element_indices_and_shape(input_schema)
+    output_indices, output_shape = _element_indices_and_shape(output_schema)
+
+    if input.shape[-len(input_shape):] != input_shape:
+        raise ValueError("Last dimension of input doesn't match input schema")
+
+    out_shape = input.shape[:-len(input_shape)] + output_shape
+    output = np.empty(out_shape, dtype=input.dtype)
+
+    for okey, out_idx in output_indices.items():
         try:
-            deps = stokes_deps[outputs[out_index]]
+            deps = stokes_deps[okey]
         except KeyError:
             raise ValueError("Unknown output '%s'. "
                              "Known types '%s'"
                              % (deps, STOKES_TYPES))
 
-        found_conv = False
-
+        # Find a mapping for which we have inputs
         for (c1, c2), (a, s1, s2) in deps.items():
+            # Get indices for both correlations
             try:
-                c1 = list(zip(*np.where(inputs == c1)))[0]
-            except IndexError:
+                c1_idx = (Ellipsis,) + input_indices[c1]
+            except KeyError:
                 continue
 
             try:
-                c2 = list(zip(*np.where(inputs == c2)))[0]
-            except IndexError:
+                c2_idx = (Ellipsis,) + input_indices[c2]
+            except KeyError:
                 continue
 
-            found_conv = True
-            break
+            out_idx = (Ellipsis,) + out_idx
+            output[out_idx] = a*(s1*input[c1_idx] + s2*input[c2_idx])
 
-        if not found_conv:
-            raise ValueError("Unable to covert output '%s'")
-
-        mapping.append((c1, c2, out_index, a, s1, s2))
-
-    mapping = tuple(mapping)
-
-    @numba.jit(nopython=True, nogil=True, cache=True)
-    def _numba_xform(input, out_shape):
-        output = np.empty(out_shape, dtype=input.dtype)
-
-        for c1, c2, o, a, s1, s2 in mapping:
-            i1_idx = (Ellipsis,) + c1
-            i2_idx = (Ellipsis,) + c2
-            o_idx = (Ellipsis,) + o
-            output[o_idx] = a*(s1*input[i1_idx] + s2*input[i2_idx])
-
-        return output
-
-    def _numpy_xform(input):
-        outer_input_shape = input.shape[-inputs.ndim:]
-
-        if outer_input_shape != inputs.shape:
-            raise ValueError("Expected last dimension(s) "
-                             "of input to be '%s' but got '%s'"
-                             % (inputs.shape, outer_input_shape))
-
-        return _numba_xform(input, input.shape[:-inputs.ndim] + outputs.shape)
-
-    return _numpy_xform
+    return output
