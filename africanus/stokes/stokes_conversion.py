@@ -119,59 +119,7 @@ def _element_indices_and_shape(data):
     return result, tuple(shape)
 
 
-def stokes_convert(input, input_schema, output_schema):
-    """
-    This function converts forward and backward
-    from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
-    and circular ``RR, RL, LR, LL`` correlations.
-
-    For example, we can convert from stokes parameters
-    to linear correlations:
-
-    .. code-block:: python
-
-        stokes.shape == (10, 4, 4)
-        vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
-                             [['XX', 'XY'], ['YX', 'YY'])
-
-        assert vis.shape == (10, 4, 2, 2)
-
-    Or circular correlations to stokes:
-
-    .. code-block:: python
-
-        vis.shape == (10, 4, 2, 2)
-
-        stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
-                                ['I', 'Q', 'U'', 'V'])
-
-        assert stokes.shape == (10, 4, 4)
-
-    ``input`` can ``output`` can be arbitrarily nested or ordered lists,
-    but the appropriate inputs must be present to produce the requested
-    outputs.
-
-    Parameters
-    ----------
-    input : :class:`numpy.ndarray`
-        Complex or floating point input data of shape
-        :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
-    input_schema : list or list of lists
-        A schema describing the :code:`icorr_1, ..., icorr_m`
-        dimension of ``input``. Must have the same shape as
-        the last dimensions of ``input``.
-    output_schema : list or list of lists
-        A schema describing the :code:`ocorr_1, ..., ocorr_n`
-        dimension of the return value.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
-        The type may be floating point or promoted to complex
-        depending on the combinations in ``output``.
-    """
-
+def stokes_convert_setup(input, input_schema, output_schema):
     input_indices, input_shape = _element_indices_and_shape(input_schema)
     output_indices, output_shape = _element_indices_and_shape(output_schema)
 
@@ -179,7 +127,7 @@ def stokes_convert(input, input_schema, output_schema):
         raise ValueError("Last dimension of input doesn't match input schema")
 
     mapping = []
-    dummy = input.flat[0]
+    dummy = input.dtype.type(0)
 
     # Figure out how to produce an output from available inputs
     for okey, out_idx in output_indices.items():
@@ -220,13 +168,87 @@ def stokes_convert(input, input_schema, output_schema):
                                                 input_schema,
                                                 okey, deps.keys()))
 
-    # Make the output array
-    out_shape = input.shape[:-len(input_shape)] + output_shape
     out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
-    output = np.empty(out_shape, dtype=out_dtype)
 
-    # Do the conversion
+    return mapping, input_shape, output_shape, out_dtype
+
+
+def stokes_convert_impl(input, mapping, in_shape, out_shape, dtype):
+    # Make the output array
+    out_shape = input.shape[:-len(in_shape)] + out_shape
+    output = np.empty(out_shape, dtype=dtype)
+
     for c1_idx, c2_idx, out_idx, fn, _ in mapping:
         output[out_idx] = fn(input[c1_idx], input[c2_idx])
 
     return output
+
+
+def stokes_convert(input, input_schema, output_schema):
+    """ See STOKES_DOCS below """
+
+    # Do the conversion
+    mapping, in_shape, out_shape, dtype = stokes_convert_setup(input,
+                                                               input_schema,
+                                                               output_schema)
+
+    return stokes_convert_impl(input, mapping, in_shape, out_shape, dtype)
+
+
+STOKES_DOCS = """
+    This function converts forward and backward
+    from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
+    and circular ``RR, RL, LR, LL`` correlations.
+
+    For example, we can convert from stokes parameters
+    to linear correlations:
+
+    .. code-block:: python
+
+        stokes.shape == (10, 4, 4)
+        vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
+                             [['XX', 'XY'], ['YX', 'YY'])
+
+        assert vis.shape == (10, 4, 2, 2)
+
+    Or circular correlations to stokes:
+
+    .. code-block:: python
+
+        vis.shape == (10, 4, 2, 2)
+
+        stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
+                                ['I', 'Q', 'U'', 'V'])
+
+        assert stokes.shape == (10, 4, 4)
+
+    ``input`` can ``output`` can be arbitrarily nested or ordered lists,
+    but the appropriate inputs must be present to produce the requested
+    outputs.
+
+    Parameters
+    ----------
+    input : {array_type}
+        Complex or floating point input data of shape
+        :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
+    input_schema : list or list of lists
+        A schema describing the :code:`icorr_1, ..., icorr_m`
+        dimension of ``input``. Must have the same shape as
+        the last dimensions of ``input``.
+    output_schema : list or list of lists
+        A schema describing the :code:`ocorr_1, ..., ocorr_n`
+        dimension of the return value.
+
+    Returns
+    -------
+    {array_type}
+        Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
+        The type may be floating point or promoted to complex
+        depending on the combinations in ``output``.
+    """
+
+try:
+    stokes_convert.__doc__ = (STOKES_DOCS
+                              .format(array_type=":class:`numpy.ndarray`"))
+except AttributeError:
+    pass

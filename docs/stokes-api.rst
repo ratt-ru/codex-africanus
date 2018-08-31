@@ -13,3 +13,13 @@ Numpy
     stokes_convert
 
 .. autofunction:: stokes_convert
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.stokes.dask
+
+.. autosummary::
+    stokes_convert
+
+.. autofunction:: stokes_convert
