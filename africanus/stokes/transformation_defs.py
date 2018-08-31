@@ -62,7 +62,7 @@ https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
 stokes_conv = {
     'RR': {('I', 'V'): lambda i, v: i + v + 0j},
     'RL': {('Q', 'U'): lambda q, u: q + u*1j},
-    'LR': {('I', 'Q'): lambda q, u: q - u*1j},
+    'LR': {('Q', 'U'): lambda q, u: q - u*1j},
     'LL': {('I', 'V'): lambda i, v: i - v + 0j},
 
     'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
@@ -76,11 +76,11 @@ stokes_conv = {
     'Q': {('XX', 'YY'): lambda xx, yy: 0.5*(xx - yy).real,
           ('RL', 'LR'): lambda rl, lr: 0.5*(rl + lr).real},
 
-    'U': {('XY', 'YX'): lambda xy, yx: (0.5j*(xy + yx)).real,
+    'U': {('XY', 'YX'): lambda xy, yx: (0.5j*(xy + yx)).imag,
           ('RL', 'LR'): lambda rl, lr: (-0.5j*(rl - lr)).real},
 
     'V': {('XY', 'YX'): lambda xy, yx: (-0.5j*(xy - yx)).real,
-          ('RL', 'LR'): lambda rr, ll: (0.5*(rr - ll)).real},
+          ('RR', 'LL'): lambda rr, ll: (0.5*(rr - ll)).real},
 }
 
 
@@ -119,7 +119,57 @@ def _element_indices_and_shape(data):
     return result, tuple(shape)
 
 
-def convert(input, input_schema, output_schema):
+def stokes_convert(input, input_schema, output_schema):
+    """
+    This function converts forward and backward
+    from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
+    and circular ``RR, RL, LR, LL`` correlations.
+
+    For example, we can convert from stokes parameters
+    to linear correlations:
+
+    .. code-block:: python
+
+        stokes.shape == (10, 4, 4)
+        vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
+                             [['XX', 'XY'], ['YX', 'YY'])
+
+        assert vis.shape == (10, 4, 2, 2)
+
+    Or circular correlations to stokes:
+
+    .. code-block:: python
+
+        vis.shape == (10, 4, 2, 2)
+
+        stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
+                                ['I', 'Q', 'U'', 'V'])
+
+        assert stokes.shape == (10, 4, 4)
+
+    ``input`` can ``output`` can be arbitrarily nested or ordered lists,
+    but the appropriate inputs must be present to produce the requested
+    outputs.
+
+    Parameters
+    ----------
+    input : :class:`numpy.ndarray`
+        Complex or floating point input data of shape
+        :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
+    input_schema : list or list of lists
+        A schema describing the :code:`icorr_1, ..., icorr_m`
+        dimension of ``input``. Must have the same shape as
+        the last dimensions of ``input``.
+    output_schema : list or list of lists
+        A schema describing the :code:`ocorr_1, ..., ocorr_n`
+        dimension of the return value.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
+    """
+
     input_indices, input_shape = _element_indices_and_shape(input_schema)
     output_indices, output_shape = _element_indices_and_shape(output_schema)
 
@@ -157,6 +207,7 @@ def convert(input, input_schema, output_schema):
             # Figure out the data type for this output
             dtype = fn(dummy, dummy).dtype
             mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
+            break
 
         # We must find a conversion
         if not found_conv:
