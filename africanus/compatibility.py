@@ -16,11 +16,15 @@ if PY3:
     range = range
     reduce = functools.reduce
     zip = zip
+    unicode = str
+    string_types = (str,)
 elif PY2:
     import __builtin__ as builtins
     range = xrange
     reduce = reduce
     from itertools import izip as zip
+    unicode = unicode
+    string_types = (basestring,)
 
 else:
     raise ValueError("Unknown python version %s" % (sys.version_info,))
