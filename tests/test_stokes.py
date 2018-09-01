@@ -9,7 +9,8 @@ import pytest
 
 
 from africanus.stokes.stokes_conversion import (
-                stokes_convert as np_stokes_convert)
+                stokes_convert as np_stokes_convert,
+                STOKES_TYPE_MAP as smap)
 
 
 _stokes_corr_cases = [
@@ -25,8 +26,13 @@ _stokes_corr_cases = [
     (['I', 'Q'], ['XX', 'YY']),
 ]
 
+_stokes_corr_int_cases = [
+    ([[smap['XX'], smap['YY']], [smap['I'], smap['Q']]])
+]
 
-@pytest.mark.parametrize("input_schema, output_schema", _stokes_corr_cases)
+
+@pytest.mark.parametrize("input_schema, output_schema",
+                         _stokes_corr_cases + _stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_shape", [
     (10, 5, 3),
     (6, 8),
@@ -49,7 +55,7 @@ def test_stokes_schemas(input_schema, output_schema, vis_shape):
 def test_stokes_conversion():
     I, Q, U, V = [1.0, 2.0, 3.0, 4.0]
 
-    # Check conversion to linear
+    # Check conversion to linear (string)
     vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
                             ['I', 'Q', 'U', 'V'],
                             ['XX', 'XY', 'YX', 'YY'])
@@ -57,7 +63,14 @@ def test_stokes_conversion():
     XX, XY, YX, YY = vis[0]
     assert np.all(vis == [[I + Q, U + V*1j, U - V*1j, I - Q]])
 
-    # Check conversion to circular
+    # Check conversion to linear (integer)
+    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
+                            [smap[x] for x in ('I', 'Q', 'U', 'V')],
+                            [smap[x] for x in ('XX', 'XY', 'YX', 'YY')])
+
+    assert np.all(vis == [[I + Q, U + V*1j, U - V*1j, I - Q]])
+
+    # Check conversion to circular (string)
     vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
                             ['I', 'Q', 'U', 'V'],
                             ['RR', 'RL', 'LR', 'LL'])
@@ -65,22 +78,44 @@ def test_stokes_conversion():
     RR, RL, LR, LL = vis[0]
     assert np.all(vis == [[I + V, Q + U*1j, Q - U*1j, I - V]])
 
-    # linear to stokes
+    # Check conversion to circular (integer)
+    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
+                            [smap[x] for x in ('I', 'Q', 'U', 'V')],
+                            [smap[x] for x in ('RR', 'RL', 'LR', 'LL')])
+
+    assert np.all(vis == [[I + V, Q + U*1j, Q - U*1j, I - V]])
+
+    # linear to stokes (string)
     stokes = np_stokes_convert(np.asarray([[XX, XY, YX, YY]]),
                                ['XX', 'XY', 'YX', 'YY'],
                                ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
-    # circular to stokes
+    # linear to stokes  (integer)
+    stokes = np_stokes_convert(np.asarray([[XX, XY, YX, YY]]),
+                               [smap[x] for x in ('XX', 'XY', 'YX', 'YY')],
+                               [smap[x] for x in ('I', 'Q', 'U', 'V')])
+
+    assert np.all(stokes == [[I, Q, U, V]])
+
+    # circular to stokes (string)
     stokes = np_stokes_convert(np.asarray([[RR, RL, LR, LL]]),
                                ['RR', 'RL', 'LR', 'LL'],
                                ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
+    # circular to stokes (intger)
+    stokes = np_stokes_convert(np.asarray([[RR, RL, LR, LL]]),
+                               [smap[x] for x in ('RR', 'RL', 'LR', 'LL')],
+                               [smap[x] for x in ('I', 'Q', 'U', 'V')])
 
-@pytest.mark.parametrize("input_schema, output_schema", _stokes_corr_cases)
+    assert np.all(stokes == [[I, Q, U, V]])
+
+
+@pytest.mark.parametrize("input_schema, output_schema",
+                         _stokes_corr_cases + _stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_shape, vis_chunks", [
     ((10, 5, 3), (5, (2, 3), 3)),
     ((6, 8), (3, 4)),

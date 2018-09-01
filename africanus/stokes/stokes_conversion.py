@@ -5,8 +5,12 @@ from __future__ import division
 from __future__ import print_function
 
 from collections import OrderedDict
+from pprint import pformat
+from textwrap import fill
 
 import numpy as np
+
+from ..compatibility import string_types
 
 STOKES_TYPES = [
     "Undefined",
@@ -44,15 +48,22 @@ STOKES_TYPES = [
     "Pangle"]
 """
 List of stokes types as defined in
-Measurement Set 2.0 as per Stokes.h in casacore:
+Measurement Set 2.0 and Stokes.h in casacore:
 https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
 """
 
 
 STOKES_TYPE_MAP = {k: i for i, k in enumerate(STOKES_TYPES)}
 """
-Map of stokes type enumerations as defined in
-Measurement Set 2.0 as per Stokes.h in casacore:
+Map of stokes type to enumeration as defined in
+Measurement Set 2.0 and Stokes.h in casacore:
+https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
+"""
+
+STOKES_ID_MAP = {v: k for k, v in STOKES_TYPE_MAP.items()}
+"""
+Map of stokes ID to stokes type string as defined in
+Measurement Set 2.0 and Stokes.h in casacore:
 https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
 """
 
@@ -100,7 +111,9 @@ def _element_indices_and_shape(data):
     while len(stack) > 0:
         current, current_idx, depth = stack.pop()
 
+        # If we have a tuple/list, recurse further
         if isinstance(current, (tuple, list)):
+            # First do shape inference
             if len(shape) <= depth:
                 shape.append(len(current))
             elif shape[depth] != len(current):
@@ -108,10 +121,31 @@ def _element_indices_and_shape(data):
                                         "at depth %d" %
                                         (shape[depth], len(current), depth))
 
+            # Insert each sequence element on the stack
             for i, e in enumerate(current):
                 stack.insert(0, (e, current_idx + (i, ), depth + 1))
+
+        # String
+        elif isinstance(current, string_types):
+            try:
+                result[current.upper()] = current_idx
+            except KeyError:
+                raise ValueError("Invalid stokes type '%s'."
+                                 "Valid types %s"
+                                 % (current, pformat(STOKES_TYPE_MAP)))
+        # We have a CASA integer Stokes ID, convert to string
+        elif isinstance(current, int):
+            try:
+                str_current = STOKES_ID_MAP[current]
+            except KeyError as e:
+                raise ValueError("Invalid stokes id %d. "
+                                 "Valid id's %s"
+                                 % (current, pformat(STOKES_ID_MAP)))
+
+            result[str_current.upper()] = current_idx
         else:
-            result[current.upper()] = current_idx
+            raise TypeError("Invalid type %s for stokes %s"
+                            % (type(current), current))
 
     return result, tuple(shape)
 
@@ -193,59 +227,85 @@ def stokes_convert(input, input_schema, output_schema):
 
 
 STOKES_DOCS = """
-    This function converts forward and backward
-    from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
-    and circular ``RR, RL, LR, LL`` correlations.
+This function converts forward and backward
+from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
+and circular ``RR, RL, LR, LL`` correlations.
 
-    For example, we can convert from stokes parameters
-    to linear correlations:
+For example, we can convert from stokes parameters
+to linear correlations:
 
-    .. code-block:: python
+.. code-block:: python
 
-        stokes.shape == (10, 4, 4)
-        vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
-                             [['XX', 'XY'], ['YX', 'YY'])
+    stokes.shape == (10, 4, 4)
+    vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
+                         [['XX', 'XY'], ['YX', 'YY'])
 
-        assert vis.shape == (10, 4, 2, 2)
+    assert vis.shape == (10, 4, 2, 2)
 
-    Or circular correlations to stokes:
+Or circular correlations to stokes:
 
-    .. code-block:: python
+.. code-block:: python
 
-        vis.shape == (10, 4, 2, 2)
+    vis.shape == (10, 4, 2, 2)
 
-        stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
-                                ['I', 'Q', 'U', 'V'])
+    stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
+                            ['I', 'Q', 'U', 'V'])
 
-        assert stokes.shape == (10, 4, 4)
+    assert stokes.shape == (10, 4, 4)
 
-    ``input`` can ``output`` can be arbitrarily nested or ordered lists,
-    but the appropriate inputs must be present to produce the requested
-    outputs.
+``input`` can ``output`` can be arbitrarily nested or ordered lists,
+but the appropriate inputs must be present to produce the requested
+outputs.
 
-    Parameters
-    ----------
-    input : {array_type}
-        Complex or floating point input data of shape
-        :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
-    input_schema : list or list of lists
-        A schema describing the :code:`icorr_1, ..., icorr_m`
-        dimension of ``input``. Must have the same shape as
-        the last dimensions of ``input``.
-    output_schema : list or list of lists
-        A schema describing the :code:`ocorr_1, ..., ocorr_n`
-        dimension of the return value.
+The elements of ``input`` and ``output`` may be strings or integers
+representing stokes parameters or correlations. See the Notes
+for a full list.
 
-    Returns
-    -------
-    {array_type}
-        Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
-        The type may be floating point or promoted to complex
-        depending on the combinations in ``output``.
-    """
+
+Notes
+-----
+
+Only stokes parameters, linear and circular correlations are
+currently handled, but the full list of id's and strings as defined
+in the `CASA documentation
+<https://casacore.github.io/casacore/classcasacore_1_1Stokes.html>`_
+is:
+
+.. code-block:: python
+
+    {stokes_type_map}
+
+Parameters
+----------
+input : {{array_type}}
+    Complex or floating point input data of shape
+    :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
+input_schema : list
+    A schema describing the :code:`icorr_1, ..., icorr_m`
+    dimension of ``input``. Must have the same shape as
+    the last dimensions of ``input``.
+output_schema : list
+    A schema describing the :code:`ocorr_1, ..., ocorr_n`
+    dimension of the return value.
+
+Returns
+-------
+{{array_type}}
+    Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
+    The type may be floating point or promoted to complex
+    depending on the combinations in ``output``.
+"""
+
+# Fill in the STOKES TYPES
+_map_str = ", ".join(["%s: %d" % (t, i) for i, t in enumerate(STOKES_TYPES)])
+_map_str = "{{ " + _map_str + " }}"
+# Indent must match docstrings
+_map_str = fill(_map_str, initial_indent='', subsequent_indent=' '*8)
+STOKES_DOCS = STOKES_DOCS.format(stokes_type_map=_map_str)
+del _map_str
 
 try:
-    stokes_convert.__doc__ = (STOKES_DOCS
-                              .format(array_type=":class:`numpy.ndarray`"))
+    stokes_docs = STOKES_DOCS.format(array_type=":class:`numpy.ndarray`")
+    stokes_convert.__doc__ = stokes_docs
 except AttributeError:
     pass
