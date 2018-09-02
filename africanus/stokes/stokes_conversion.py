@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from pprint import pformat
 from textwrap import fill
 
@@ -108,11 +108,11 @@ def _element_indices_and_shape(data):
     shape = []
 
     # Each stack element is (list, index, depth)
-    stack = [(data, (), 0)]
+    queue = deque([(data, (), 0)])
     result = OrderedDict()
 
-    while len(stack) > 0:
-        current, current_idx, depth = stack.pop()
+    while len(queue) > 0:
+        current, current_idx, depth = queue.popleft()
 
         # First do shape inference
         if len(shape) <= depth:
@@ -125,7 +125,7 @@ def _element_indices_and_shape(data):
         for i, e in enumerate(current):
             # Found a list, recurse
             if isinstance(e, (tuple, list)):
-                stack.insert(0, (e, current_idx + (i, ), depth + 1))
+                queue.append((e, current_idx + (i, ), depth + 1))
             # String
             elif isinstance(e, string_types):
                 if e in result:
