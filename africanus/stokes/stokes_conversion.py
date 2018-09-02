@@ -102,50 +102,52 @@ class MissingConversionInputs(Exception):
 
 def _element_indices_and_shape(data):
     if not isinstance(data, (tuple, list)):
-        raise ValueError("data must be a tuple/list")
+        data = [data]
 
+    # Shape of the data
+    shape = []
+
+    # Each stack element is (list, index, depth)
     stack = [(data, (), 0)]
     result = OrderedDict()
-    shape = []
 
     while len(stack) > 0:
         current, current_idx, depth = stack.pop()
 
-        # If we have a tuple/list, recurse further
-        if isinstance(current, (tuple, list)):
-            # First do shape inference
-            if len(shape) <= depth:
-                shape.append(len(current))
-            elif shape[depth] != len(current):
-                raise DimensionMismatch("Dimension mismatch %d != %d "
-                                        "at depth %d" %
-                                        (shape[depth], len(current), depth))
+        # First do shape inference
+        if len(shape) <= depth:
+            shape.append(len(current))
+        elif shape[depth] != len(current):
+            raise DimensionMismatch("Dimension mismatch %d != %d at depth %d"
+                                    % (shape[depth], len(current), depth))
 
-            # Insert each sequence element on the stack
-            for i, e in enumerate(current):
+        # Handle each sequence element
+        for i, e in enumerate(current):
+            # Found a list, recurse
+            if isinstance(e, (tuple, list)):
                 stack.insert(0, (e, current_idx + (i, ), depth + 1))
+            # String
+            elif isinstance(e, string_types):
+                if e in result:
+                    raise ValueError("'%s' defined multiple times" % e)
 
-        # String
-        elif isinstance(current, string_types):
-            try:
-                result[current.upper()] = current_idx
-            except KeyError:
-                raise ValueError("Invalid stokes type '%s'."
-                                 "Valid types %s"
-                                 % (current, pformat(STOKES_TYPE_MAP)))
-        # We have a CASA integer Stokes ID, convert to string
-        elif isinstance(current, int):
-            try:
-                str_current = STOKES_ID_MAP[current]
-            except KeyError as e:
-                raise ValueError("Invalid stokes id %d. "
-                                 "Valid id's %s"
-                                 % (current, pformat(STOKES_ID_MAP)))
+                result[e] = current_idx + (i, )
+            # We have a CASA integer Stokes ID, convert to string
+            elif isinstance(e, int):
+                try:
+                    e = STOKES_ID_MAP[e]
+                except KeyError:
+                    raise ValueError("Invalid id '%d'. "
+                                     "Valid id's '%s'"
+                                     % (e, pformat(STOKES_ID_MAP)))
 
-            result[str_current.upper()] = current_idx
-        else:
-            raise TypeError("Invalid type %s for stokes %s"
-                            % (type(current), current))
+                if e in result:
+                    raise ValueError("'%s' defined multiple times" % e)
+
+                result[e] = current_idx + (i, )
+            else:
+                raise TypeError("Invalid type '%s' for element '%s'"
+                                % (type(e), e))
 
     return result, tuple(shape)
 
