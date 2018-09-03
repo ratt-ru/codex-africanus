@@ -1,6 +1,16 @@
 Utilities
 ---------
 
+Requirements Handling
+~~~~~~~~~~~~~~~~~~~~~
+
+.. currentmodule:: africanus.util.requirements
+
+.. autosummary::
+    requires_optional
+
+.. autofunction:: africanus.util.requirements.requires_optional
+
 Shapes
 ~~~~~~
 
