@@ -7,6 +7,7 @@ import numpy as np
 
 import pytest
 
+
 def test_im_to_vis_phase_centre():
     """
     The simplest test here is to see if a single source at the phase centre
@@ -37,6 +38,7 @@ def test_im_to_vis_phase_centre():
         assert np.all(tmp.real < 1e-13)
         assert np.all(tmp.imag < 1e-13)
 
+
 def test_im_to_vis_zero_w():
     """
     This test checks that the result matches the analytic result in the case when 
@@ -56,19 +58,19 @@ def test_im_to_vis_zero_w():
     image = I0[:, None] * (frequency/ref_freq)**(-0.7)
     l = 0.001 + 0.1*np.random.random(nsource)
     m = 0.001 + 0.1*np.random.random(nsource)
-    lm = np.vstack((l,m)).T
+    lm = np.vstack((l, m)).T
     vis = im_to_vis(image, uvw, lm, frequency)
 
     vis_true = np.zeros([nrow, nchan], dtype=np.complex128)
-
 
     for ch in range(nchan):
         for source in range(nsource):
             vis_true[:, ch] += image[source, ch]*np.exp(
                                  minus_two_pi_over_c*frequency[ch] * 1.0j *
-                                 (uvw[:,0]*lm[source,0]+uvw[:,1]*lm[source,1]))
+                                 (uvw[:, 0]*lm[source, 0]+uvw[:, 1]*lm[source, 1]))
 
     assert np.allclose(vis, vis_true)
+
 
 def test_im_to_vis_single_baseline_and_chan():
     """
@@ -88,7 +90,7 @@ def test_im_to_vis_single_baseline_and_chan():
     vis = im_to_vis(image, uvw, lm, frequency)
 
     vis_true = image*np.exp(minus_two_pi_over_c * frequency * 1.0j *
-                            (uvw[:,0]*l + uvw[:,1]*m + uvw[:,2]*(n - 1.0)))
+                            (uvw[:, 0]*l + uvw[:, 1]*m + uvw[:, 2]*(n - 1.0)))
 
     assert np.allclose(vis, vis_true)
 
@@ -131,7 +133,7 @@ def test_adjointness():
     Nvis = 1000
     Nchan = 1
 
-    uvw = np.random.random(size=(Nvis,3))
+    uvw = np.random.random(size=(Nvis, 3))
     x = np.linspace(-0.1, 0.1, Npix)
     ll, mm = np.meshgrid(x, x)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
@@ -144,7 +146,9 @@ def test_adjointness():
     RHS = (RH(gamma2, uvw, lm, frequency).T.dot(gamma1)).real
     assert np.all(np.abs(LHS - RHS) < 1e-11)
 
+
 from africanus.rime.dask import have_requirements
+
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_im_to_vis_dask():
@@ -175,7 +179,8 @@ def test_im_to_vis_dask():
     image_dask = da.from_array(image, chunks=(npix**2, 4))
 
     vis = np_im_to_vis(image, uvw, lm, frequency)
-    vis_dask = dask_im_to_vis(image_dask, uvw_dask, lm_dask, frequency_dask).compute()
+    vis_dask = dask_im_to_vis(image_dask, uvw_dask,
+                              lm_dask, frequency_dask).compute()
 
     assert np.allclose(vis, vis_dask)
 
@@ -205,6 +210,7 @@ def test_vis_to_im_dask():
     frequency_dask = da.from_array(frequency, chunks=4)
     vis_dask = da.from_array(vis, chunks=(25, 4))
 
-    image_dask = dask_vis_to_im(vis_dask, uvw_dask, lm_dask, frequency_dask).compute()
+    image_dask = dask_vis_to_im(
+        vis_dask, uvw_dask, lm_dask, frequency_dask).compute()
 
     assert np.allclose(image, image_dask)

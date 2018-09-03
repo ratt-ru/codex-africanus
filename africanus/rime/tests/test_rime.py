@@ -11,8 +11,8 @@ import pytest
 def test_phase_delay():
     from africanus.rime import phase_delay
 
-    uvw = np.random.random(size=(100,3))
-    lm = np.random.random(size=(10,2))
+    uvw = np.random.random(size=(100, 3))
+    lm = np.random.random(size=(10, 2))
     frequency = np.linspace(.856e9, .856e9*2, 64, endpoint=True)
 
     from africanus.constants import minus_two_pi_over_c
@@ -20,7 +20,7 @@ def test_phase_delay():
     # Test complex phase at a particular index in the output
     uvw_i, lm_i, freq_i = 2, 3, 5
 
-    u, v, w = [1,2,3]
+    u, v, w = [1, 2, 3]
     l, m = [0.1, 0.2]
     freq = 0.856e9
 
@@ -48,13 +48,13 @@ def test_feed_rotation():
 
     fr = feed_rotation(parangles, feed_type='linear')
     np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10,5,2,2))
+    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
     fr = feed_rotation(parangles, feed_type='circular')
     zeros = np.zeros_like(pa_sin)
     np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
                         zeros, pa_cos + 1j*pa_sin], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10,5,2,2))
+    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
 
 import math
@@ -102,6 +102,7 @@ def _modified_julian_date(year, month, day):
 
     return _julian_day(year, month, day) - 2400000.5
 
+
 def _observation_endpoints(year, month, date, hour_duration):
     """
     Start and end points of an observation starting on
@@ -117,24 +118,25 @@ def _observation_endpoints(year, month, date, hour_duration):
 
     return (start, end)
 
+
 @pytest.fixture
 def wsrt_ants():
     """ Westerbork antenna positions """
     return np.array([
-           [ 3828763.10544699,   442449.10566454,  5064923.00777   ],
-           [ 3828746.54957258,   442592.13950824,  5064923.00792   ],
-           [ 3828729.99081359,   442735.17696417,  5064923.00829   ],
-           [ 3828713.43109885,   442878.2118934 ,  5064923.00436   ],
-           [ 3828696.86994428,   443021.24917264,  5064923.00397   ],
-           [ 3828680.31391933,   443164.28596862,  5064923.00035   ],
-           [ 3828663.75159173,   443307.32138056,  5064923.00204   ],
-           [ 3828647.19342757,   443450.35604638,  5064923.0023    ],
-           [ 3828630.63486201,   443593.39226634,  5064922.99755   ],
-           [ 3828614.07606798,   443736.42941621,  5064923.        ],
-           [ 3828609.94224429,   443772.19450029,  5064922.99868   ],
-           [ 3828601.66208572,   443843.71178407,  5064922.99963   ],
-           [ 3828460.92418735,   445059.52053929,  5064922.99071   ],
-           [ 3828452.64716351,   445131.03744105,  5064922.98793   ]],
+           [3828763.10544699,   442449.10566454,  5064923.00777],
+           [3828746.54957258,   442592.13950824,  5064923.00792],
+           [3828729.99081359,   442735.17696417,  5064923.00829],
+           [3828713.43109885,   442878.2118934,  5064923.00436],
+           [3828696.86994428,   443021.24917264,  5064923.00397],
+           [3828680.31391933,   443164.28596862,  5064923.00035],
+           [3828663.75159173,   443307.32138056,  5064923.00204],
+           [3828647.19342757,   443450.35604638,  5064923.0023],
+           [3828630.63486201,   443593.39226634,  5064922.99755],
+           [3828614.07606798,   443736.42941621,  5064923.],
+           [3828609.94224429,   443772.19450029,  5064922.99868],
+           [3828601.66208572,   443843.71178407,  5064922.99963],
+           [3828460.92418735,   445059.52053929,  5064922.99071],
+           [3828452.64716351,   445131.03744105,  5064922.98793]],
         dtype=np.float64)
 
 
@@ -142,12 +144,13 @@ from africanus.rime.parangles import _discovered_backends
 no_casa = 'casa' not in _discovered_backends
 no_astropy = 'astropy' not in _discovered_backends
 
+
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(no_casa,
-                        reason='python-casascore not installed')),
+                                                  reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
-                        reason="astropy not installed"))])
+                                                     reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
@@ -155,11 +158,11 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
 
     start, end = _observation_endpoints(*observation)
     time = np.linspace(start, end, 5)
-    ant = wsrt_ants[:4,:]
+    ant = wsrt_ants[:4, :]
     fc = np.random.random((2,)).astype(np.float64)
 
     pa = parallactic_angles(time, ant, fc, backend=backend)
-    assert pa.shape == (5,4)
+    assert pa.shape == (5, 4)
 
 
 @pytest.mark.skipif(no_casa or no_astropy,
@@ -184,8 +187,8 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     start, end = _observation_endpoints(*obs)
 
     time = np.linspace(start, end, 5)
-    ant = wsrt_ants[:4,:]
-    fc = np.array([ 0. , 1.04719755], dtype=np.float64)
+    ant = wsrt_ants[:4, :]
+    fc = np.array([0., 1.04719755], dtype=np.float64)
 
     astro_pa = parallactic_angles(time, ant, fc, backend='astropy')
     casa_pa = parallactic_angles(time, ant, fc, backend='casa')
@@ -199,7 +202,6 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     assert np.all(np.abs(diff) < Angle(rtol))
 
 
-
 def test_jones_2x2_mul():
     import numpy as np
     from africanus.rime.predict import jones_2x2_mul
@@ -207,9 +209,9 @@ def test_jones_2x2_mul():
     rf = lambda *a, **kw: np.random.random(*a, **kw)
     rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
 
-    a1_jones  = rc((2,2))
-    a2_jones  = rc((2,2))
-    bl_jones = rc((2,2))
+    a1_jones = rc((2, 2))
+    a2_jones = rc((2, 2))
+    bl_jones = rc((2, 2))
     out = np.empty_like(bl_jones)
 
     jones_2x2_mul(a1_jones, bl_jones, a2_jones, out)
@@ -217,10 +219,11 @@ def test_jones_2x2_mul():
     v = np.einsum("ij,jk,kl->il", a1_jones, bl_jones, a2_jones.conj())
     assert np.allclose(v, out)
 
+
 @pytest.mark.parametrize('corr', [
     ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+    ((2, 2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
 ])
 def test_predict_vis(corr):
     import numpy as np
@@ -237,38 +240,40 @@ def test_predict_vis(corr):
     c = 5       # channels
     r = 10      # rows
 
-    a1_jones = rc((s,t,a,c) + corr_shape)
-    a2_jones = rc((s,t,a,c) + corr_shape)
-    bl_jones = rc((s,r,c) + corr_shape)
-    g1_jones = rc((t,a,c) + corr_shape)
-    g2_jones = rc((t,a,c) + corr_shape)
+    a1_jones = rc((s, t, a, c) + corr_shape)
+    a2_jones = rc((s, t, a, c) + corr_shape)
+    bl_jones = rc((s, r, c) + corr_shape)
+    g1_jones = rc((t, a, c) + corr_shape)
+    g2_jones = rc((t, a, c) + corr_shape)
 
     #  Row indices into the above time/ant indexed arrays
-    time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
-    ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3])
-    ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+    time_idx = np.asarray([0, 0, 1, 1, 2, 2, 2, 2, 3, 3])
+    ant1 = np.asarray([0, 0, 0, 0, 1, 1, 1, 2, 2, 3])
+    ant2 = np.asarray([0, 1, 2, 3, 1, 2, 3, 2, 3, 3])
 
     assert ant1.size == r
 
     model_vis = predict_vis(time_idx, ant1, ant2,
-              a1_jones, a2_jones, bl_jones,
-              g1_jones, g2_jones)
+                            a1_jones, a2_jones, bl_jones,
+                            g1_jones, g2_jones)
 
-    assert model_vis.shape == (r,c) + corr_shape
+    assert model_vis.shape == (r, c) + corr_shape
 
     v = np.einsum(einsum_sig1,
-        a1_jones[:,time_idx,ant1],
-        bl_jones,
-        a2_jones[:,time_idx,ant2].conj())
+                  a1_jones[:, time_idx, ant1],
+                  bl_jones,
+                  a2_jones[:, time_idx, ant2].conj())
 
     v = np.einsum(einsum_sig2,
-        g1_jones[time_idx,ant1],
-        v,
-        g2_jones[time_idx,ant2].conj())
+                  g1_jones[time_idx, ant1],
+                  v,
+                  g2_jones[time_idx, ant2].conj())
 
     assert np.allclose(v, model_vis)
 
+
 from africanus.rime.dask import have_requirements
+
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_phase_delay():
@@ -276,11 +281,12 @@ def test_dask_phase_delay():
     from africanus.rime import phase_delay as np_phase_delay
     from africanus.rime.dask import phase_delay as dask_phase_delay
 
-    uvw = np.random.random(size=(100,3))
-    lm = np.random.random(size=(10,2))*0.01 # So that 1 > 1 - l**2 - m**2 >= 0
+    uvw = np.random.random(size=(100, 3))
+    # So that 1 > 1 - l**2 - m**2 >= 0
+    lm = np.random.random(size=(10, 2))*0.01
     frequency = np.linspace(.856e9, .856e9*2, 64, endpoint=True)
 
-    dask_uvw = da.from_array(uvw, chunks=(25,3))
+    dask_uvw = da.from_array(uvw, chunks=(25, 3))
     dask_lm = da.from_array(lm, chunks=(5, 2))
     dask_frequency = da.from_array(frequency, chunks=16)
 
@@ -295,10 +301,10 @@ def test_dask_phase_delay():
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(no_casa,
-                        reason='python-casascore not installed')),
+                                                  reason='python-casascore not installed')),
     pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
-                        reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018, 1, 1,4)])
+                                                     reason="astropy not installed"))])
+@pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     import dask.array as da
     from africanus.rime import parallactic_angles as np_parangle
@@ -306,14 +312,14 @@ def test_dask_parallactic_angles(observation, wsrt_ants, backend):
 
     start, end = _observation_endpoints(*observation)
     np_times = np.linspace(start, end, 5)
-    np_ants = wsrt_ants[:4,:]
+    np_ants = wsrt_ants[:4, :]
     np_fc = np.random.random(size=2)
 
     np_pa = np_parangle(np_times, np_ants, np_fc, backend=backend)
     np_pa = np.asarray(np_pa)
 
-    da_times = da.from_array(np_times, chunks=(2,3))
-    da_ants = da.from_array(np_ants, chunks=((2,2),3))
+    da_times = da.from_array(np_times, chunks=(2, 3))
+    da_ants = da.from_array(np_ants, chunks=((2, 2), 3))
     da_fc = da.from_array(np_fc, chunks=2)
 
     da_pa = da_parangle(da_times, da_ants, da_fc, backend=backend)
@@ -329,7 +335,7 @@ def test_dask_feed_rotation():
     from africanus.rime.dask import feed_rotation
 
     parangles = np.random.random((10, 5))
-    dask_parangles = da.from_array(parangles, chunks=(5, (2,3)))
+    dask_parangles = da.from_array(parangles, chunks=(5, (2, 3)))
 
     np_fr = np_feed_rotation(parangles, feed_type='linear')
     assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='linear'))
@@ -340,7 +346,7 @@ def test_dask_feed_rotation():
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 @pytest.mark.parametrize('corr', [
-    ((2,2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+    ((2, 2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
     ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
 ])
@@ -362,43 +368,43 @@ def test_dask_predict_vis(corr):
     c = 5       # channels
     r = 10      # rows
 
-    a1_jones = rc((s,t,a,c) + corr_shape)
-    a2_jones = rc((s,t,a,c) + corr_shape)
-    bl_jones = rc((s,r,c) + corr_shape)
-    g1_jones = rc((t,a,c) + corr_shape)
-    g2_jones = rc((t,a,c) + corr_shape)
+    a1_jones = rc((s, t, a, c) + corr_shape)
+    a2_jones = rc((s, t, a, c) + corr_shape)
+    bl_jones = rc((s, r, c) + corr_shape)
+    g1_jones = rc((t, a, c) + corr_shape)
+    g2_jones = rc((t, a, c) + corr_shape)
 
     #  Row indices into the above time/ant indexed arrays
-    time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
-    ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3])
-    ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+    time_idx = np.asarray([0, 0, 1, 1, 2, 2, 2, 2, 3, 3])
+    ant1 = np.asarray([0, 0, 0, 0, 1, 1, 1, 2, 2, 3])
+    ant2 = np.asarray([0, 1, 2, 3, 1, 2, 3, 2, 3, 3])
 
     assert ant1.size == r
 
     np_model_vis = np_predict_vis(time_idx, ant1, ant2,
-                                a1_jones, a2_jones, bl_jones,
-                                g1_jones, g2_jones)
+                                  a1_jones, a2_jones, bl_jones,
+                                  g1_jones, g2_jones)
 
     # chunk sizes
     sc = 2          # sources
-    tc = (2,1,1)    # times
-    rc = (4,4,2)    # rows
+    tc = (2, 1, 1)    # times
+    rc = (4, 4, 2)    # rows
     ac = a          # antennas
-    cc = (3,2)      # channels
+    cc = (3, 2)      # channels
 
     da_time_idx = da.from_array(time_idx, chunks=rc)
     da_ant1 = da.from_array(ant1, chunks=rc)
     da_ant2 = da.from_array(ant2, chunks=rc)
 
-    da_a1_jones = da.from_array(a1_jones, chunks=(sc,tc,ac,cc) + corr_shape)
-    da_a2_jones = da.from_array(a2_jones, chunks=(sc,tc,ac,cc) + corr_shape)
-    da_bl_jones = da.from_array(bl_jones, chunks=(sc,rc,cc) + corr_shape)
-    da_g1_jones = da.from_array(g1_jones, chunks=(tc,ac,cc) + corr_shape)
-    da_g2_jones = da.from_array(g2_jones, chunks=(tc,ac,cc) + corr_shape)
+    da_a1_jones = da.from_array(a1_jones, chunks=(sc, tc, ac, cc) + corr_shape)
+    da_a2_jones = da.from_array(a2_jones, chunks=(sc, tc, ac, cc) + corr_shape)
+    da_bl_jones = da.from_array(bl_jones, chunks=(sc, rc, cc) + corr_shape)
+    da_g1_jones = da.from_array(g1_jones, chunks=(tc, ac, cc) + corr_shape)
+    da_g2_jones = da.from_array(g2_jones, chunks=(tc, ac, cc) + corr_shape)
 
     model_vis = predict_vis(da_time_idx, da_ant1, da_ant2,
-                        da_a1_jones, da_a2_jones, da_bl_jones,
-                        da_g1_jones, da_g2_jones)
+                            da_a1_jones, da_a2_jones, da_bl_jones,
+                            da_g1_jones, da_g2_jones)
 
     model_vis = model_vis.compute()
 
@@ -411,5 +417,3 @@ def test_dask_predict_vis(corr):
             print(p, model_vis[p], np_model_vis[p])
 
     assert np.allclose(model_vis, np_model_vis)
-
-

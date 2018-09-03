@@ -240,7 +240,7 @@ def test_dask_degridder_gridder():
     uvw = da.random.random((row, 3), chunks=(row_chunk, 3))
     # 4 channels of MeerKAT L band
     wavelengths = lightspeed/da.linspace(.856e9, .856e9*2, chan,
-                                      chunks=chan_chunk)
+                                         chunks=chan_chunk)
     flags = da.random.randint(0, 1, size=vis_shape, chunks=vis_chunks)
 
     weights = da.random.random(vis_shape, chunks=vis_chunks)
