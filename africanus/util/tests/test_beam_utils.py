@@ -8,12 +8,13 @@ from __future__ import print_function
 import numpy as np
 import pytest
 
+
 @pytest.fixture
 def fits_header():
     return {
-        "SIMPLE":                  'T', # / conforms to FITS standard
-        "BITPIX":                  -64, # / array data type
-        "NAXIS":                     3, # / number of array dimensions
+        "SIMPLE":                  'T',  # / conforms to FITS standard
+        "BITPIX": -64,  # / array data type
+        "NAXIS":                     3,  # / number of array dimensions
         "NAXIS1":                  513,
         "NAXIS2":                  513,
         "NAXIS3":                   33,
@@ -26,22 +27,22 @@ def fits_header():
         "EQUINOX":               2000.0,
         "CTYPE1": 'L       ',           # points right on the sky
         "CUNIT1": 'DEG     ',
-        "CDELT1":             0.011082, # degrees
-        "CRPIX1":                  257, # reference pixel (one relative)
+        "CDELT1":             0.011082,  # degrees
+        "CRPIX1":                  257,  # reference pixel (one relative)
         "CRVAL1":      0.0110828777007,
         "CTYPE2": '-M      ',           # points up on the sky
         "CUNIT2": 'DEG     ',
-        "CDELT2":             0.011082, # degrees
-        "CRPIX2":                  257, # reference pixel (one relative)
-        "CRVAL2":   -2.14349358381E-07,
+        "CDELT2":             0.011082,  # degrees
+        "CRPIX2":                  257,  # reference pixel (one relative)
+        "CRVAL2": -2.14349358381E-07,
         "CTYPE3": 'FREQ    ',
-        "CDELT3":            1008000.0, # frequency step in Hz
-        "CRPIX3":                    1, # reference frequency postion
-        "CRVAL3":         1400256000.0, # reference frequency
+        "CDELT3":            1008000.0,  # frequency step in Hz
+        "CRPIX3":                    1,  # reference frequency postion
+        "CRVAL3":         1400256000.0,  # reference frequency
         "CTYPE4": 'STOKES  ',
         "CDELT4":                    1,
         "CRPIX4":                    1,
-        "CRVAL4":                   -5,
+        "CRVAL4": -5,
         "GFREQ1":         1400256000.0,
         "GFREQ2":    1401267006.481463,
         "GFREQ3":    1402322911.080775,
@@ -78,6 +79,7 @@ def fits_header():
                                           # something non-linear
     }
 
+
 def test_fits_axes(fits_header):
     from africanus.util.beams import BeamAxes
 
@@ -101,8 +103,8 @@ def test_fits_axes(fits_header):
     assert beam_axes.sign[1] == -1.0
 
     # GFREQS used for the frequency grid
-    gfreqs = [fits_header.get('GFREQ%d'%(i+1)) for i
-                        in range(fits_header['NAXIS3'])]
+    gfreqs = [fits_header.get('GFREQ%d' % (i+1)) for i
+              in range(fits_header['NAXIS3'])]
 
     assert np.allclose(beam_axes.grid[2], np.asarray(gfreqs))
 
@@ -117,6 +119,7 @@ def test_fits_axes(fits_header):
 
     assert np.all(g == beam_axes.grid[2])
 
+
 def test_beam_grids(fits_header):
     from africanus.util.beams import beam_grids
 
@@ -129,7 +132,7 @@ def test_beam_grids(fits_header):
     crval = hdr['CRVAL%d' % l]
     cdelt = hdr['CDELT%d' % l]
     crpix = hdr['CRPIX%d' % l] - 1  # C-indexing
-    R = np.arange(0.0, float(hdr['NAXIS%d'%l]))
+    R = np.arange(0.0, float(hdr['NAXIS%d' % l]))
 
     exp_l = (R - crpix)*cdelt + crval
     exp_l = np.deg2rad(exp_l)
@@ -139,7 +142,7 @@ def test_beam_grids(fits_header):
     crval = hdr['CRVAL%d' % m]
     cdelt = hdr['CDELT%d' % m]
     crpix = hdr['CRPIX%d' % m] - 1  # C-indexing
-    R = np.arange(0.0, float(hdr['NAXIS%d'%m]))
+    R = np.arange(0.0, float(hdr['NAXIS%d' % m]))
 
     # Check expected M. It's -M in the FITS header
     # so there's a flip in direction here
@@ -150,8 +153,8 @@ def test_beam_grids(fits_header):
     assert np.allclose(exp_m, m_grid)
 
     # GFREQS used for the frequency grid
-    gfreqs = [fits_header.get('GFREQ%d'%(i+1)) for i
-                in range(fits_header['NAXIS3'])]
+    gfreqs = [fits_header.get('GFREQ%d' % (i+1)) for i
+              in range(fits_header['NAXIS3'])]
 
     assert np.allclose(freq_grid, gfreqs)
 
@@ -188,7 +191,6 @@ def test_beam_filenames():
     }
 
 
-
 def test_inverse_interp():
     """
     Tests that interp1d handles monotically increasing
@@ -207,13 +209,13 @@ def test_inverse_interp():
 
     initial = np.stack((values, grid))
     interp = interp1d(values, grid, bounds_error=False,
-                                   fill_value='extrapolate')
-    assert np.all(initial == np.stack((values,interp(values))))
+                      fill_value='extrapolate')
+    assert np.all(initial == np.stack((values, interp(values))))
 
     # Monotonically increasing
     values = np.flipud(values)
     assert np.all(np.diff(values) > 0)
     initial = np.stack((values, grid))
     interp = interp1d(values, grid, bounds_error=False,
-                                   fill_value='extrapolate')
-    assert np.all(initial == np.stack((values,interp(values))))
+                      fill_value='extrapolate')
+    assert np.all(initial == np.stack((values, interp(values))))
