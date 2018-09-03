@@ -7,7 +7,6 @@ from __future__ import print_function
 import numpy as np
 
 from ..util.requirements import requires_optional
-from ..util.docs import on_rtd
 
 _discovered_backends = []
 _standard_backends = ['casa', 'astropy']
