@@ -7,7 +7,6 @@ import numpy as np
 
 import pytest
 
-from africanus.rime.dask import have_requirements
 from africanus.rime.parangles import _discovered_backends
 
 
@@ -275,9 +274,8 @@ def test_predict_vis(corr):
     assert np.allclose(v, model_vis)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_phase_delay():
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
     from africanus.rime import phase_delay as np_phase_delay
     from africanus.rime.dask import phase_delay as dask_phase_delay
 
@@ -297,7 +295,6 @@ def test_dask_phase_delay():
     assert np.all(np_phase == dask_phase)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(
@@ -308,7 +305,7 @@ def test_dask_phase_delay():
                                 reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
     from africanus.rime import parallactic_angles as np_parangle
     from africanus.rime.dask import parallactic_angles as da_parangle
 
@@ -329,9 +326,8 @@ def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     assert np.all(np_pa == da_pa.compute())
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_feed_rotation():
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
     import numpy as np
     from africanus.rime import feed_rotation as np_feed_rotation
     from africanus.rime.dask import feed_rotation
@@ -346,14 +342,13 @@ def test_dask_feed_rotation():
     assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='circular'))
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 @pytest.mark.parametrize('corr', [
     ((2, 2), "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
     ((1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
 ])
 def test_dask_predict_vis(corr):
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
     import numpy as np
     from africanus.rime import predict_vis as np_predict_vis
     from africanus.rime.dask import predict_vis

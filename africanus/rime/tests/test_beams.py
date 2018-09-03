@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import pytest
 
 
 def rf(*a, **kw):
@@ -37,7 +38,7 @@ def test_transform_sources():
 
 
 def test_dask_transform_sources():
-    import dask.array as da
+    da = pytest.importorskip("dask.array")
 
     from africanus.rime.dask import transform_sources as dask_xform_src
     from africanus.rime import transform_sources as np_xform_src
@@ -73,7 +74,6 @@ def test_dask_transform_sources():
 
 
 def test_beam_cube():
-
     beam_lw = 10
     beam_mh = 10
     beam_nud = 10
@@ -108,6 +108,8 @@ def test_beam_cube():
 
 
 def test_dask_beam_cube():
+    da = pytest.importorskip('dask.array')
+
     beam_lw = 10
     beam_mh = 10
     beam_nud = 10
@@ -145,8 +147,6 @@ def test_dask_beam_cube():
 
     from africanus.rime.dask import transform_sources
     from africanus.rime.dask import beam_cube_dde
-
-    import dask.array as da
 
     # Dask source transform variables
     dask_lm = da.from_array(lm, chunks=(src_chunks, 2))
