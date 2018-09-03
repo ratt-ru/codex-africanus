@@ -6,7 +6,14 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import pytest
+
+
+def rf(*a, **kw):
+    return np.random.random(*a, **kw)
+
+
+def rc(*a, **kw):
+    return rf(*a, **kw) + 1j*rf(*a, **kw)
 
 
 def test_transform_sources():
@@ -66,21 +73,15 @@ def test_dask_transform_sources():
 
 
 def test_beam_cube():
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
-    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
 
     beam_lw = 10
     beam_mh = 10
     beam_nud = 10
 
     src = 10
-    src_chunks = (1, 2, 3, 4)
     time = 5
-    time_chunks = (2, 3)
     ants = 4
-    ant_chunks = (2, 2)
     chans = 8
-    chan_chunks = (5, 3)
 
     # Source Transform variables
     lm = np.random.random(size=(src, 2))
@@ -107,9 +108,6 @@ def test_beam_cube():
 
 
 def test_dask_beam_cube():
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
-    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
-
     beam_lw = 10
     beam_mh = 10
     beam_nud = 10
