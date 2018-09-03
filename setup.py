@@ -26,9 +26,9 @@ if on_rtd:
     requirements += []
 else:
     requirements += [
+        'decorator',
         'numpy >= 1.14.0',
-        'numba >= 0.38.0',
-        'scipy >= 1.0.1']
+        'numba >= 0.38.0']
 
 setup_requirements = ['pytest-runner', ]
 
