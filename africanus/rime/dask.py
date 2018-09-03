@@ -37,14 +37,15 @@ except ImportError:
         pass
 
 
+@wraps(np_phase_delay)
+def _phase_delay_wrap(uvw, lm, frequency, dtype_):
+    return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
+
+
 @requires_optional('dask.array')
 def phase_delay(uvw, lm, frequency, dtype=np.complex128):
     """ Dask wrapper for phase_delay function """
-    @wraps(np_phase_delay)
-    def _wrapper(uvw, lm, frequency, dtype_):
-        return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
-
-    return da.core.atop(_wrapper, ("source", "row", "chan"),
+    return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
                         uvw, ("row", "(u,v,w)"),
                         lm, ("source", "(l,m)"),
                         frequency, ("chan",),
@@ -52,13 +53,15 @@ def phase_delay(uvw, lm, frequency, dtype=np.complex128):
                         dtype_=dtype)
 
 
+@wraps(np_parangles)
+def _parangle_wrapper(t, ap, fc, **kw):
+    return np_parangles(t, ap[0], fc[0], **kw)
+
+
 @requires_optional('dask.array')
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
-    @wraps(np_parangles)
-    def _wrapper(t, ap, fc, **kw):
-        return np_parangles(t, ap[0], fc[0], **kwargs)
 
-    return da.core.atop(_wrapper, ("time", "ant"),
+    return da.core.atop(_parangle_wrapper, ("time", "ant"),
                         times, ("time",),
                         antenna_positions, ("ant", "xyz"),
                         field_centre, ("fc",),
@@ -86,21 +89,22 @@ def feed_rotation(parallactic_angles, feed_type):
                         dtype=dtype)
 
 
+@wraps(np_transform_sources)
+def _xform_wrap(lm, parallactic_angles, pointing_errors,
+                antenna_scaling, frequency, dtype_):
+    return np_transform_sources(lm[0], parallactic_angles,
+                                pointing_errors[0], antenna_scaling,
+                                frequency, dtype=dtype_)
+
+
 @requires_optional('dask.array')
 def transform_sources(lm, parallactic_angles, pointing_errors,
                       antenna_scaling, frequency, dtype=None):
 
-    @wraps(np_transform_sources)
-    def _wrapper(lm, parallactic_angles, pointing_errors,
-                 antenna_scaling, frequency, dtype_):
-        return np_transform_sources(lm[0], parallactic_angles,
-                                    pointing_errors[0], antenna_scaling,
-                                    frequency, dtype=dtype_)
-
     if dtype is None:
         dtype = np.float64
 
-    return da.core.atop(_wrapper, ("comp", "src", "time", "ant", "chan"),
+    return da.core.atop(_xform_wrap, ("comp", "src", "time", "ant", "chan"),
                         lm, ("src", "lm"),
                         parallactic_angles, ("time", "ant"),
                         pointing_errors, ("time", "ant", "lm"),
@@ -111,16 +115,17 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
                         dtype_=dtype)
 
 
+@wraps(np_beam_cude_dde)
+def _beam_wrapper(beam, coords, l_grid, m_grid, freq_grid,
+                  spline_order=1, mode='nearest'):
+    return np_beam_cude_dde(beam[0][0][0], coords[0],
+                            l_grid[0], m_grid[0], freq_grid[0],
+                            spline_order=spline_order, mode=mode)
+
+
 @requires_optional('dask.array')
 def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                   spline_order=1, mode='nearest'):
-
-    @wraps(np_beam_cude_dde)
-    def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
-                 spline_order=1, mode='nearest'):
-        return np_beam_cude_dde(beam[0][0][0], coords[0],
-                                l_grid[0], m_grid[0], freq_grid[0],
-                                spline_order=spline_order, mode=mode)
 
     coord_shapes = coords.shape[1:]
     corr_shapes = beam.shape[3:]
@@ -129,7 +134,7 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
     beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
 
-    return da.core.atop(_wrapper, coord_dims + corr_dims,
+    return da.core.atop(_beam_wrapper, coord_dims + corr_dims,
                         beam, beam_dims,
                         coords, ("coords",) + coord_dims,
                         l_grid, ("beam_lw",),
@@ -140,19 +145,20 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                         dtype=beam.dtype)
 
 
+@wraps(np_zernike_dde)
+def _zernike_wrapper(coords, coeffs, noll_index):
+    # coords loses "three" dim
+    # coeffs loses "poly" dim
+    # noll_index loses "poly" dim
+    return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
+
+
 @requires_optional('dask.array')
 def zernike_dde(coords, coeffs, noll_index):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
 
-    @wraps(np_zernike_dde)
-    def _wrapper(coords, coeffs, noll_index):
-        # coords loses "three" dim
-        # coeffs loses "poly" dim
-        # noll_index loses "poly" dim
-        return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
-
-    return da.core.atop(_wrapper,
+    return da.core.atop(_zernike_wrapper,
                         ("source", "time", "ant", "chan") + corr_dims,
                         coords,
                         ("three", "source", "time", "ant", "chan"),
@@ -163,22 +169,23 @@ def zernike_dde(coords, coeffs, noll_index):
                         dtype=coeffs.dtype)
 
 
+@wraps(np_predict_vis)
+def _predict_wrapper(time_index, antenna1, antenna2,
+                     ant1_jones, ant2_jones, row_jones,
+                     g1_jones, g2_jones):
+
+    # Normalise the time index
+    time_index -= time_index.min()
+
+    return np_predict_vis(time_index, antenna1, antenna2,
+                          ant1_jones[0][0], ant2_jones[0][0],
+                          row_jones[0], g1_jones[0], g2_jones[0])
+
+
 @requires_optional('dask.array')
 def predict_vis(time_index, antenna1, antenna2,
                 ant1_jones, ant2_jones, row_jones,
                 g1_jones, g2_jones):
-
-    @wraps(np_predict_vis)
-    def _wrapper(time_index, antenna1, antenna2,
-                 ant1_jones, ant2_jones, row_jones,
-                 g1_jones, g2_jones):
-
-        # Normalise the time index
-        time_index -= time_index.min()
-
-        return np_predict_vis(time_index, antenna1, antenna2,
-                              ant1_jones[0][0], ant2_jones[0][0],
-                              row_jones[0], g1_jones[0], g2_jones[0])
 
     if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
         raise ValueError("Subdivision of antenna dimension into "
@@ -206,7 +213,7 @@ def predict_vis(time_index, antenna1, antenna2,
                              ant1_jones, ant2_jones, row_jones,
                              g1_jones, g2_jones)
     name = "-".join(("predict_vis", token))
-    dsk = da.core.top(_wrapper, name, ("row", "chan") + cdims,
+    dsk = da.core.top(_predict_wrapper, name, ("row", "chan") + cdims,
                       time_index.name, ("row",),
                       antenna1.name, ("row",),
                       antenna2.name, ("row",),
