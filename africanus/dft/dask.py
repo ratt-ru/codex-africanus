@@ -21,13 +21,15 @@ except ImportError:
     pass
 
 
+@wraps(np_im_to_vis)
+def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
+    return np_im_to_vis(image[0], uvw[0], lm[0][0],
+                        frequency, dtype=dtype_)
+
+
 @requires_optional('dask.array')
 def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
     """ Dask wrapper for phase_delay function """
-    @wraps(np_im_to_vis)
-    def _wrapper(image, uvw, lm, frequency, dtype_):
-        return np_im_to_vis(image[0], uvw[0], lm[0][0],
-                            frequency, dtype=dtype_)
     if lm.chunks[0][0] != lm.shape[0]:
         raise ValueError("lm chunks must match lm shape "
                          "on first axis")
@@ -37,7 +39,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
     if image.chunks[0][0] != lm.chunks[0][0]:
         raise ValueError("Image chunks and lm chunks must "
                          "match on first axis")
-    return da.core.atop(_wrapper, ("row", "chan"),
+    return da.core.atop(_im_to_vis_wrapper, ("row", "chan"),
                         image, ("source", "chan"),
                         uvw, ("row", "(u,v,w)"),
                         lm, ("source", "(l,m)"),
@@ -46,15 +48,17 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
                         dtype_=dtype)
 
 
+@wraps(np_vis_to_im)
+def _vis_to_im_wrapper(vis, uvw, lm, frequency, dtype_):
+    return np_vis_to_im(vis, uvw[0], lm[0], frequency,
+                        dtype=dtype_)[None, :]
+
+
 @requires_optional('dask.array')
 def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
     """ Dask wrapper for phase_delay_adjoint function """
-    @wraps(np_vis_to_im)
-    def _wrapper(vis, uvw, lm, frequency, dtype_):
-        return np_vis_to_im(vis, uvw[0], lm[0], frequency,
-                            dtype=dtype_)[None, :]
 
-    ims = da.core.atop(_wrapper, ("row", "source", "chan"),
+    ims = da.core.atop(_vis_to_im_wrapper, ("row", "source", "chan"),
                        vis, ("row", "chan"),
                        uvw, ("row", "(u,v,w)"),
                        lm, ("source", "(l,m)"),
