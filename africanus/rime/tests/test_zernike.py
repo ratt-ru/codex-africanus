@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
 
-from africanus.rime.dask import have_requirements
-
 
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     """ Tests reconstruction of xx correlation against eidos """
@@ -162,10 +160,7 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
 def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     """ Tests that we can call zernike_dde with multiple dimensions """
-    from africanus.rime.dask import zernike_dde
     from africanus.rime import zernike_dde as np_zernike_dde
-
-    import dask.array as da
 
     npix = 17
     nsrc = npix ** 2
@@ -201,13 +196,12 @@ def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_zernike(coeff_xx, noll_index_xx):
     """ Tests that dask zernike_dde agrees with numpy zernike_dde """
+    da = pytest.importorskip("dask.array")
+
     from africanus.rime.dask import zernike_dde
     from africanus.rime import zernike_dde as np_zernike_dde
-
-    import dask.array as da
 
     npix = 17
     nsrc = npix ** 2

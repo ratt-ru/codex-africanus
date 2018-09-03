@@ -8,7 +8,6 @@ from itertools import product
 import numpy as np
 import pytest
 
-from africanus.gridding.simple.dask import have_requirements
 from africanus.constants import c as lightspeed
 from africanus.gridding.util import estimate_cell_size
 
@@ -209,12 +208,11 @@ def test_psf_subtraction(plot):
     assert np.allclose(centre_psf, centre_dirty, rtol=1e-64)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_degridder_gridder():
     from africanus.filters import convolution_filter
     from africanus.gridding.simple.dask import grid, degrid
 
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
 
     row = 100
     chan = 16

@@ -18,237 +18,229 @@ from .predict import predict_vis as np_predict_vis
 from .zernike import zernike_dde as np_zernike_dde
 
 
-from ..util.docs import on_rtd, doc_tuple_to_str, mod_docs
-from ..util.requirements import have_packages, MissingPackageException
+from ..util.docs import doc_tuple_to_str, mod_docs
+from ..util.requirements import requires_optional
 
-_package_requirements = ('dask.array', 'toolz')
-have_requirements = have_packages(*_package_requirements)
+import numpy as np
 
-if not have_requirements or on_rtd():
-    def phase_delay(uvw, lm, frequency, dtype=None):
-        raise MissingPackageException(*_package_requirements)
-
-    def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
-        raise MissingPackageException(*_package_requirements)
-
-    def feed_rotation(parallactic_angles, feed_type=None):
-        raise MissingPackageException(*_package_requirements)
-
-    def transform_sources(lm, parallactic_angles, pointing_errors,
-                          antenna_scaling, dtype=None):
-        raise MissingPackageException(*_package_requirements)
-
-    def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
-                      spline_order=1, mode='nearest'):
-        raise MissingPackageException(*_package_requirements)
-
-    def zernike_dde(coords, coeffs, noll_index):
-        raise MissingPackageException(*_package_requirements)
-
-    def predict_vis(time_index, antenna1, antenna2,
-                    ant1_jones, ant2_jones, row_jones,
-                    g1_jones, g2_jones):
-        raise MissingPackageException(*_package_requirements)
-
-else:
-    import numpy as np
+try:
     import dask.array as da
+except ImportError:
+    pass
 
+try:
+    import cytoolz as toolz
+except ImportError:
     try:
-        import cytoolz as toolz
-    except ImportError:
         import toolz
+    except ImportError:
+        pass
 
-    def phase_delay(uvw, lm, frequency, dtype=np.complex128):
-        """ Dask wrapper for phase_delay function """
-        @wraps(np_phase_delay)
-        def _wrapper(uvw, lm, frequency, dtype_):
-            return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
 
-        return da.core.atop(_wrapper, ("source", "row", "chan"),
-                            uvw, ("row", "(u,v,w)"),
-                            lm, ("source", "(l,m)"),
-                            frequency, ("chan",),
-                            dtype=dtype,
-                            dtype_=dtype)
+@requires_optional('dask.array')
+def phase_delay(uvw, lm, frequency, dtype=np.complex128):
+    """ Dask wrapper for phase_delay function """
+    @wraps(np_phase_delay)
+    def _wrapper(uvw, lm, frequency, dtype_):
+        return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
 
-    def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
-        @wraps(np_parangles)
-        def _wrapper(t, ap, fc, **kw):
-            return np_parangles(t, ap[0], fc[0], **kwargs)
+    return da.core.atop(_wrapper, ("source", "row", "chan"),
+                        uvw, ("row", "(u,v,w)"),
+                        lm, ("source", "(l,m)"),
+                        frequency, ("chan",),
+                        dtype=dtype,
+                        dtype_=dtype)
 
-        return da.core.atop(_wrapper, ("time", "ant"),
-                            times, ("time",),
-                            antenna_positions, ("ant", "xyz"),
-                            field_centre, ("fc",),
-                            dtype=times.dtype,
-                            **kwargs)
 
-    def feed_rotation(parallactic_angles, feed_type):
-        pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
-        corr_dims = ('corr-1', 'corr-2')
+@requires_optional('dask.array')
+def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
+    @wraps(np_parangles)
+    def _wrapper(t, ap, fc, **kw):
+        return np_parangles(t, ap[0], fc[0], **kwargs)
 
-        if parallactic_angles.dtype == np.float32:
-            dtype = np.complex64
-        elif parallactic_angles.dtype == np.float64:
-            dtype = np.complex128
-        else:
-            raise ValueError("parallactic_angles have "
-                             "non-floating point dtype")
+    return da.core.atop(_wrapper, ("time", "ant"),
+                        times, ("time",),
+                        antenna_positions, ("ant", "xyz"),
+                        field_centre, ("fc",),
+                        dtype=times.dtype,
+                        **kwargs)
 
-        return da.core.atop(np_feed_rotation, pa_dims + corr_dims,
-                            parallactic_angles, pa_dims,
-                            feed_type=feed_type,
-                            new_axes={'corr-1': 2, 'corr-2': 2},
-                            dtype=dtype)
 
-    def transform_sources(lm, parallactic_angles, pointing_errors,
-                          antenna_scaling, frequency, dtype=None):
+@requires_optional('dask.array')
+def feed_rotation(parallactic_angles, feed_type):
+    pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
+    corr_dims = ('corr-1', 'corr-2')
 
-        @wraps(np_transform_sources)
-        def _wrapper(lm, parallactic_angles, pointing_errors,
-                     antenna_scaling, frequency, dtype_):
-            return np_transform_sources(lm[0], parallactic_angles,
-                                        pointing_errors[0], antenna_scaling,
-                                        frequency, dtype=dtype_)
+    if parallactic_angles.dtype == np.float32:
+        dtype = np.complex64
+    elif parallactic_angles.dtype == np.float64:
+        dtype = np.complex128
+    else:
+        raise ValueError("parallactic_angles have "
+                         "non-floating point dtype")
 
-        if dtype is None:
-            dtype = np.float64
+    return da.core.atop(np_feed_rotation, pa_dims + corr_dims,
+                        parallactic_angles, pa_dims,
+                        feed_type=feed_type,
+                        new_axes={'corr-1': 2, 'corr-2': 2},
+                        dtype=dtype)
 
-        return da.core.atop(_wrapper, ("comp", "src", "time", "ant", "chan"),
-                            lm, ("src", "lm"),
-                            parallactic_angles, ("time", "ant"),
-                            pointing_errors, ("time", "ant", "lm"),
-                            antenna_scaling, ("ant", "chan"),
-                            frequency, ("chan",),
-                            new_axes={"comp": 3},
-                            dtype=dtype,
-                            dtype_=dtype)
 
-    def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
-                      spline_order=1, mode='nearest'):
+@requires_optional('dask.array')
+def transform_sources(lm, parallactic_angles, pointing_errors,
+                      antenna_scaling, frequency, dtype=None):
 
-        @wraps(np_beam_cude_dde)
-        def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
-                     spline_order=1, mode='nearest'):
-            return np_beam_cude_dde(beam[0][0][0], coords[0],
-                                    l_grid[0], m_grid[0], freq_grid[0],
-                                    spline_order=spline_order, mode=mode)
+    @wraps(np_transform_sources)
+    def _wrapper(lm, parallactic_angles, pointing_errors,
+                 antenna_scaling, frequency, dtype_):
+        return np_transform_sources(lm[0], parallactic_angles,
+                                    pointing_errors[0], antenna_scaling,
+                                    frequency, dtype=dtype_)
 
-        coord_shapes = coords.shape[1:]
-        corr_shapes = beam.shape[3:]
-        corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
-        coord_dims = tuple("coord-%d" % i for i in range(len(coord_shapes)))
+    if dtype is None:
+        dtype = np.float64
 
-        beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
+    return da.core.atop(_wrapper, ("comp", "src", "time", "ant", "chan"),
+                        lm, ("src", "lm"),
+                        parallactic_angles, ("time", "ant"),
+                        pointing_errors, ("time", "ant", "lm"),
+                        antenna_scaling, ("ant", "chan"),
+                        frequency, ("chan",),
+                        new_axes={"comp": 3},
+                        dtype=dtype,
+                        dtype_=dtype)
 
-        return da.core.atop(_wrapper, coord_dims + corr_dims,
-                            beam, beam_dims,
-                            coords, ("coords",) + coord_dims,
-                            l_grid, ("beam_lw",),
-                            m_grid, ("beam_mh",),
-                            freq_grid, ("beam_nud",),
-                            spline_order=spline_order,
-                            mode=mode,
-                            dtype=beam.dtype)
 
-    def zernike_dde(coords, coeffs, noll_index):
-        ncorrs = len(coeffs.shape[2:-1])
-        corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
+@requires_optional('dask.array')
+def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
+                  spline_order=1, mode='nearest'):
 
-        @wraps(np_zernike_dde)
-        def _wrapper(coords, coeffs, noll_index):
-            # coords loses "three" dim
-            # coeffs loses "poly" dim
-            # noll_index loses "poly" dim
-            return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
+    @wraps(np_beam_cude_dde)
+    def _wrapper(beam, coords, l_grid, m_grid, freq_grid,
+                 spline_order=1, mode='nearest'):
+        return np_beam_cude_dde(beam[0][0][0], coords[0],
+                                l_grid[0], m_grid[0], freq_grid[0],
+                                spline_order=spline_order, mode=mode)
 
-        return da.core.atop(_wrapper,
-                            ("source", "time", "ant", "chan") + corr_dims,
-                            coords,
-                            ("three", "source", "time", "ant", "chan"),
-                            coeffs,
-                            ("ant", "chan") + corr_dims + ("poly",),
-                            noll_index,
-                            ("ant", "chan") + corr_dims + ("poly",),
-                            dtype=coeffs.dtype)
+    coord_shapes = coords.shape[1:]
+    corr_shapes = beam.shape[3:]
+    corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
+    coord_dims = tuple("coord-%d" % i for i in range(len(coord_shapes)))
 
-    def predict_vis(time_index, antenna1, antenna2,
-                    ant1_jones, ant2_jones, row_jones,
-                    g1_jones, g2_jones):
+    beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
 
-        @wraps(np_predict_vis)
-        def _wrapper(time_index, antenna1, antenna2,
-                     ant1_jones, ant2_jones, row_jones,
-                     g1_jones, g2_jones):
+    return da.core.atop(_wrapper, coord_dims + corr_dims,
+                        beam, beam_dims,
+                        coords, ("coords",) + coord_dims,
+                        l_grid, ("beam_lw",),
+                        m_grid, ("beam_mh",),
+                        freq_grid, ("beam_nud",),
+                        spline_order=spline_order,
+                        mode=mode,
+                        dtype=beam.dtype)
 
-            # Normalise the time index
-            time_index -= time_index.min()
 
-            return np_predict_vis(time_index, antenna1, antenna2,
-                                  ant1_jones[0][0], ant2_jones[0][0],
-                                  row_jones[0], g1_jones[0], g2_jones[0])
+@requires_optional('dask.array')
+def zernike_dde(coords, coeffs, noll_index):
+    ncorrs = len(coeffs.shape[2:-1])
+    corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
 
-        if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
-            raise ValueError("Subdivision of antenna dimension into "
-                             "multiple chunks is not supported.")
+    @wraps(np_zernike_dde)
+    def _wrapper(coords, coeffs, noll_index):
+        # coords loses "three" dim
+        # coeffs loses "poly" dim
+        # noll_index loses "poly" dim
+        return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
 
-        if len(ant1_jones.chunks[1]) != len(time_index.chunks[0]):
-            raise ValueError("Number of row chunks (%s) does not equal "
-                             "number of time chunks (%s)." %
-                             (time_index.chunks[0], ant1_jones.chunks[1]))
+    return da.core.atop(_wrapper,
+                        ("source", "time", "ant", "chan") + corr_dims,
+                        coords,
+                        ("three", "source", "time", "ant", "chan"),
+                        coeffs,
+                        ("ant", "chan") + corr_dims + ("poly",),
+                        noll_index,
+                        ("ant", "chan") + corr_dims + ("poly",),
+                        dtype=coeffs.dtype)
 
-        # Generate strings for the correlation dimensions
-        cdims = tuple("corr-%d" % i for i in range(len(row_jones.shape[3:])))
-        ajones_dims = ("src", "row", "ant", "chan") + cdims
 
-        # In the case predict_vis, the "row" and "time" dimensions
-        # are intimately related -- a contiguous series of rows
-        # are related to a contiguous series of timesteps.
-        # This means that the number of chunks of these
-        # two dimensions must match even though the chunk sizes may not.
-        # da.core.atop insists on matching chunk sizes.
-        # For this reason, we use the lower level da.core.top and
-        # substitute "row" for "time" in arrays such as ant1_jones
-        # and g1_jones.
-        token = da.core.tokenize(time_index, antenna1, antenna2,
-                                 ant1_jones, ant2_jones, row_jones,
-                                 g1_jones, g2_jones)
-        name = "-".join(("predict_vis", token))
-        dsk = da.core.top(_wrapper, name, ("row", "chan") + cdims,
-                          time_index.name, ("row",),
-                          antenna1.name, ("row",),
-                          antenna2.name, ("row",),
-                          ant1_jones.name, ajones_dims,
-                          ant2_jones.name, ajones_dims,
-                          row_jones.name, ("src", "row", "chan") + cdims,
-                          g1_jones.name, ("row", "ant", "chan") + cdims,
-                          g2_jones.name, ("row", "ant", "chan") + cdims,
-                          numblocks={
-                                time_index.name: time_index.numblocks,
-                                antenna1.name: antenna1.numblocks,
-                                antenna2.name: antenna2.numblocks,
-                                ant1_jones.name: ant1_jones.numblocks,
-                                ant2_jones.name: ant2_jones.numblocks,
-                                row_jones.name: row_jones.numblocks,
-                                g1_jones.name: g1_jones.numblocks,
-                                g2_jones.name: g2_jones.numblocks,
-                            })
+@requires_optional('dask.array')
+def predict_vis(time_index, antenna1, antenna2,
+                ant1_jones, ant2_jones, row_jones,
+                g1_jones, g2_jones):
 
-        # Merge input graphs into the top graph
-        dsk = toolz.merge(dsk, *(a.__dask_graph__() for a in (time_index,
-                                                              antenna1,
-                                                              antenna2,
-                                                              ant1_jones,
-                                                              ant2_jones,
-                                                              row_jones,
-                                                              g1_jones,
-                                                              g2_jones)))
+    @wraps(np_predict_vis)
+    def _wrapper(time_index, antenna1, antenna2,
+                 ant1_jones, ant2_jones, row_jones,
+                 g1_jones, g2_jones):
 
-        # We can infer output chunk sizes from row_jones
-        chunks = row_jones.chunks[1:]
+        # Normalise the time index
+        time_index -= time_index.min()
 
-        return da.Array(dsk, name, chunks, dtype=ant1_jones.dtype)
+        return np_predict_vis(time_index, antenna1, antenna2,
+                              ant1_jones[0][0], ant2_jones[0][0],
+                              row_jones[0], g1_jones[0], g2_jones[0])
+
+    if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
+        raise ValueError("Subdivision of antenna dimension into "
+                         "multiple chunks is not supported.")
+
+    if len(ant1_jones.chunks[1]) != len(time_index.chunks[0]):
+        raise ValueError("Number of row chunks (%s) does not equal "
+                         "number of time chunks (%s)." %
+                         (time_index.chunks[0], ant1_jones.chunks[1]))
+
+    # Generate strings for the correlation dimensions
+    cdims = tuple("corr-%d" % i for i in range(len(row_jones.shape[3:])))
+    ajones_dims = ("src", "row", "ant", "chan") + cdims
+
+    # In the case predict_vis, the "row" and "time" dimensions
+    # are intimately related -- a contiguous series of rows
+    # are related to a contiguous series of timesteps.
+    # This means that the number of chunks of these
+    # two dimensions must match even though the chunk sizes may not.
+    # da.core.atop insists on matching chunk sizes.
+    # For this reason, we use the lower level da.core.top and
+    # substitute "row" for "time" in arrays such as ant1_jones
+    # and g1_jones.
+    token = da.core.tokenize(time_index, antenna1, antenna2,
+                             ant1_jones, ant2_jones, row_jones,
+                             g1_jones, g2_jones)
+    name = "-".join(("predict_vis", token))
+    dsk = da.core.top(_wrapper, name, ("row", "chan") + cdims,
+                      time_index.name, ("row",),
+                      antenna1.name, ("row",),
+                      antenna2.name, ("row",),
+                      ant1_jones.name, ajones_dims,
+                      ant2_jones.name, ajones_dims,
+                      row_jones.name, ("src", "row", "chan") + cdims,
+                      g1_jones.name, ("row", "ant", "chan") + cdims,
+                      g2_jones.name, ("row", "ant", "chan") + cdims,
+                      numblocks={
+                            time_index.name: time_index.numblocks,
+                            antenna1.name: antenna1.numblocks,
+                            antenna2.name: antenna2.numblocks,
+                            ant1_jones.name: ant1_jones.numblocks,
+                            ant2_jones.name: ant2_jones.numblocks,
+                            row_jones.name: row_jones.numblocks,
+                            g1_jones.name: g1_jones.numblocks,
+                            g2_jones.name: g2_jones.numblocks,
+                        })
+
+    # Merge input graphs into the top graph
+    dsk = toolz.merge(dsk, *(a.__dask_graph__() for a in (time_index,
+                                                          antenna1,
+                                                          antenna2,
+                                                          ant1_jones,
+                                                          ant2_jones,
+                                                          row_jones,
+                                                          g1_jones,
+                                                          g2_jones)))
+
+    # We can infer output chunk sizes from row_jones
+    chunks = row_jones.chunks[1:]
+
+    return da.Array(dsk, name, chunks, dtype=ant1_jones.dtype)
+
 
 phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
                                        [(":class:`numpy.ndarray`",

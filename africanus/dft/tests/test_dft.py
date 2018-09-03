@@ -7,8 +7,6 @@ import numpy as np
 
 import pytest
 
-from africanus.rime.dask import have_requirements
-
 
 def test_im_to_vis_phase_centre():
     """
@@ -152,9 +150,8 @@ def test_adjointness():
     assert np.all(np.abs(LHS - RHS) < 1e-11)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_im_to_vis_dask():
-    import dask.array as da
+    da = pytest.importorskip("dask.array")
     from africanus.dft.kernels import im_to_vis as np_im_to_vis
     from africanus.dft.dask import im_to_vis as dask_im_to_vis
 
@@ -187,9 +184,8 @@ def test_im_to_vis_dask():
     assert np.allclose(vis, vis_dask)
 
 
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_vis_to_im_dask():
-    import dask.array as da
+    da = pytest.importorskip("dask.array")
     from africanus.dft.kernels import vis_to_im as np_vis_to_im
     from africanus.dft.dask import vis_to_im as dask_vis_to_im
 
