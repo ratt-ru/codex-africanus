@@ -5,17 +5,20 @@
 
 from itertools import product
 
+import numpy as np
 import pytest
 
+from africanus.gridding.simple.dask import have_requirements
 from africanus.constants import c as lightspeed
 from africanus.gridding.util import estimate_cell_size
 
 
+def rf(*a, **kw):
+    return np.random.random(*a, **kw)
+
+
 def test_degridder_gridder():
     """ Basic test of the gridder/degridder """
-
-    import numpy as np
-
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
 
@@ -27,8 +30,6 @@ def test_degridder_gridder():
     npoints = 10000
 
     cell_size = 6  # 6 arc seconds
-
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
 
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
@@ -89,7 +90,6 @@ def test_psf_subtraction(plot):
 
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
-    import numpy as np
     from numpy.fft import fft2, fftshift, ifft2, ifftshift
 
     np.random.seed(50)
@@ -98,9 +98,6 @@ def test_psf_subtraction(plot):
     chan = 16
     rows = 1024
     ny = nx = 512
-
-    def rf(*args, **kwargs):
-        return np.random.random(*args, **kwargs)
 
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
@@ -210,9 +207,6 @@ def test_psf_subtraction(plot):
 
     # Should be very much the same
     assert np.allclose(centre_psf, centre_dirty, rtol=1e-64)
-
-
-from africanus.gridding.simple.dask import have_requirements
 
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
