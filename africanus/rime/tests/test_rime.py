@@ -7,6 +7,17 @@ import numpy as np
 
 import pytest
 
+from africanus.rime.dask import have_requirements
+from africanus.rime.parangles import _discovered_backends
+
+
+def rf(*a, **kw):
+    return np.random.random(*a, **kw)
+
+
+def rc(*a, **kw):
+    return rf(*a, **kw) + 1j*rf(*a, **kw)
+
 
 def test_phase_delay():
     from africanus.rime import phase_delay
@@ -55,9 +66,6 @@ def test_feed_rotation():
     np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
                         zeros, pa_cos + 1j*pa_sin], axis=2)
     assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
-
-
-import math
 
 
 def _julian_day(year, month, day):
@@ -140,17 +148,18 @@ def wsrt_ants():
         dtype=np.float64)
 
 
-from africanus.rime.parangles import _discovered_backends
 no_casa = 'casa' not in _discovered_backends
 no_astropy = 'astropy' not in _discovered_backends
 
 
 @pytest.mark.parametrize('backend', [
     'test',
-    pytest.param('casa', marks=pytest.mark.skipif(no_casa,
-                                                  reason='python-casascore not installed')),
-    pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
-                                                     reason="astropy not installed"))])
+    pytest.param('casa', marks=pytest.mark.skipif(
+                    no_casa,
+                    reason='python-casascore not installed')),
+    pytest.param('astropy', marks=pytest.mark.skipif(
+                    no_astropy,
+                    reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
@@ -206,9 +215,6 @@ def test_jones_2x2_mul():
     import numpy as np
     from africanus.rime.predict import jones_2x2_mul
 
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
-    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
-
     a1_jones = rc((2, 2))
     a2_jones = rc((2, 2))
     bl_jones = rc((2, 2))
@@ -230,9 +236,6 @@ def test_predict_vis(corr):
     from africanus.rime import predict_vis
 
     corr_shape, einsum_sig1, einsum_sig2 = corr
-
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
-    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
 
     s = 2       # sources
     t = 4       # times
@@ -272,9 +275,6 @@ def test_predict_vis(corr):
     assert np.allclose(v, model_vis)
 
 
-from africanus.rime.dask import have_requirements
-
-
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_phase_delay():
     import dask.array as da
@@ -300,10 +300,12 @@ def test_dask_phase_delay():
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 @pytest.mark.parametrize('backend', [
     'test',
-    pytest.param('casa', marks=pytest.mark.skipif(no_casa,
-                                                  reason='python-casascore not installed')),
-    pytest.param('astropy', marks=pytest.mark.skipif(no_astropy,
-                                                     reason="astropy not installed"))])
+    pytest.param('casa', marks=pytest.mark.skipif(
+                                no_casa,
+                                reason='python-casascore not installed')),
+    pytest.param('astropy', marks=pytest.mark.skipif(
+                                no_astropy,
+                                reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     import dask.array as da
@@ -358,9 +360,6 @@ def test_dask_predict_vis(corr):
 
     corr_shape, einsum_sig1, einsum_sig2 = corr
 
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
-    rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
-
     # dimension sizes
     s = 2       # sources
     t = 4       # times
@@ -388,17 +387,17 @@ def test_dask_predict_vis(corr):
     # chunk sizes
     sc = 2          # sources
     tc = (2, 1, 1)    # times
-    rc = (4, 4, 2)    # rows
+    rrc = (4, 4, 2)    # rows
     ac = a          # antennas
     cc = (3, 2)      # channels
 
-    da_time_idx = da.from_array(time_idx, chunks=rc)
-    da_ant1 = da.from_array(ant1, chunks=rc)
-    da_ant2 = da.from_array(ant2, chunks=rc)
+    da_time_idx = da.from_array(time_idx, chunks=rrc)
+    da_ant1 = da.from_array(ant1, chunks=rrc)
+    da_ant2 = da.from_array(ant2, chunks=rrc)
 
     da_a1_jones = da.from_array(a1_jones, chunks=(sc, tc, ac, cc) + corr_shape)
     da_a2_jones = da.from_array(a2_jones, chunks=(sc, tc, ac, cc) + corr_shape)
-    da_bl_jones = da.from_array(bl_jones, chunks=(sc, rc, cc) + corr_shape)
+    da_bl_jones = da.from_array(bl_jones, chunks=(sc, rrc, cc) + corr_shape)
     da_g1_jones = da.from_array(g1_jones, chunks=(tc, ac, cc) + corr_shape)
     da_g2_jones = da.from_array(g2_jones, chunks=(tc, ac, cc) + corr_shape)
 
