@@ -4,10 +4,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
 import importlib
 import logging
 import sys
+
+from decorator import decorate
 
 from .docs import on_rtd
 
@@ -81,19 +82,23 @@ def requires_optional(*requirements):
     def _function_decorator(fn):
         # Return a bare wrapper if we're on RTD
         if on_rtd():
-            @wraps(fn)
-            def _wrapper(*arg, **kwargs):
+            def _wrapper(f, *arg, **kwargs):
+                """ Empty docstring """
                 pass
+
+            return decorate(fn, _wrapper)
         # We don't have requirements, produce
         # a failing wrapper
         elif not have_requirements:
-            @wraps(fn)
-            def _wrapper(*args, **kwargs):
+            def _wrapper(f, *args, **kwargs):
+                """ Empty docstring """
                 if getattr(sys, "_called_from_test", False):
                     pytest.skip("Missing requirements %s" %
                                 missing_requirements)
                 else:
                     raise MissingPackageException(*missing_requirements)
+
+            return decorate(fn, _wrapper)
         else:
             # Return the original function
             return fn
