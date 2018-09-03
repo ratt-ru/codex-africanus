@@ -7,6 +7,8 @@ import numpy as np
 
 import pytest
 
+from africanus.rime.dask import have_requirements
+
 
 def test_im_to_vis_phase_centre():
     """
@@ -41,8 +43,8 @@ def test_im_to_vis_phase_centre():
 
 def test_im_to_vis_zero_w():
     """
-    This test checks that the result matches the analytic result in the case when 
-    w = 0 for multiple channels and sources.
+    This test checks that the result matches the analytic result
+    in the case when w = 0 for multiple channels and sources.
     """
     from africanus.dft.kernels import im_to_vis
     from africanus.constants import minus_two_pi_over_c
@@ -65,17 +67,19 @@ def test_im_to_vis_zero_w():
 
     for ch in range(nchan):
         for source in range(nsource):
-            vis_true[:, ch] += image[source, ch]*np.exp(
-                                 minus_two_pi_over_c*frequency[ch] * 1.0j *
-                                 (uvw[:, 0]*lm[source, 0]+uvw[:, 1]*lm[source, 1]))
+            phase = (minus_two_pi_over_c*frequency[ch] * 1.0j *
+                     (uvw[:, 0]*lm[source, 0] +
+                      uvw[:, 1]*lm[source, 1]))
+
+            vis_true[:, ch] += image[source, ch]*np.exp(phase)
 
     assert np.allclose(vis, vis_true)
 
 
 def test_im_to_vis_single_baseline_and_chan():
     """
-    Here we check that the result is consistent for a single baseline, source and 
-    channel. 
+    Here we check that the result is consistent for
+    a single baseline, source and channel.
     """
     from africanus.dft.kernels import im_to_vis
     from africanus.constants import minus_two_pi_over_c
@@ -97,8 +101,9 @@ def test_im_to_vis_single_baseline_and_chan():
 
 def test_vis_to_im():
     """
-    Still thinking of a better test here but the simplest test 
-    does exactly the same as the above. If we have an auto-correlation we expect 
+    Still thinking of a better test here but the simplest test
+    does exactly the same as the above.
+    If we have an auto-correlation we expect
     to measure a flat image with value wsum
     """
     from africanus.dft.kernels import vis_to_im
@@ -122,8 +127,8 @@ def test_vis_to_im():
 
 def test_adjointness():
     """
-    She is the mother of all tests. The DFT should be perfectly self adjoint up to 
-    machine precision. 
+    She is the mother of all tests.
+    The DFT should be perfectly self adjoint up to machine precision.
     """
     from africanus.dft.kernels import im_to_vis as R
     from africanus.dft.kernels import vis_to_im as RH
@@ -145,9 +150,6 @@ def test_adjointness():
     LHS = (gamma2.T.dot(R(gamma1, uvw, lm, frequency))).real
     RHS = (RH(gamma2, uvw, lm, frequency).T.dot(gamma1)).real
     assert np.all(np.abs(LHS - RHS) < 1e-11)
-
-
-from africanus.rime.dask import have_requirements
 
 
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
