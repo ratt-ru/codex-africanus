@@ -33,7 +33,10 @@ extras_require = {
 extras_require['complete'] = sorted(set(sum(extras_require.values(), [])))
 
 setup_requirements = ['pytest-runner', ]
-test_requirements = ['pytest'] + extras_require['complete']
+test_requirements = (['pytest'] +
+                     extras_require['astropy'] +
+                     extras_require['dask'] +
+                     extras_require['scipy'])
 
 setup(
     author="Simon Perkins",
