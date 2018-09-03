@@ -9,12 +9,15 @@ from africanus.filters import convolution_filter
 from africanus.coordinates import radec_to_lmn
 from africanus.gridding.wstack import (w_stacking_layers,
                                        w_stacking_bins,
-                                       w_bin_masks,
                                        grid)
 
 
-rf = lambda *a, **kw: np.random.random(*a, **kw)
-rc = lambda *a, **kw: rf(*a, **kw) + 1j*rf(*a, **kw)
+def rf(*a, **kw):
+    return np.random.random(*a, **kw)
+
+
+def rc(*a, **kw):
+    return rf(*a, **kw) + 1j*rf(*a, **kw)
 
 
 def test_w_stacking_bins():
@@ -26,7 +29,7 @@ def test_w_stacking_bins():
 
     nlayers = w_stacking_layers(w_min, w_max, lmn[:, 0], lmn[:, 1])
 
-    w_bins = w_stacking_bins(w_min, w_max, nlayers)
+    w_bins = w_stacking_bins(w_min, w_max, nlayers)  # noqa
 
 
 def test_w_stacking_gridder():
