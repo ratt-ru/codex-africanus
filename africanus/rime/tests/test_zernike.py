@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from africanus.rime.dask import have_requirements
+
 
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     """ Tests reconstruction of xx correlation against eidos """
@@ -199,9 +201,6 @@ def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
 
 
-from africanus.rime.dask import have_requirements
-
-
 @pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_zernike(coeff_xx, noll_index_xx):
     """ Tests that dask zernike_dde agrees with numpy zernike_dde """
@@ -303,7 +302,8 @@ def coeff_yy():
 
 @pytest.fixture
 def noll_index_xx():
-    return np.array([10,  3, 21, 36,  0, 55, 16, 28, 37, 46, 23,  6, 15,  2,  5,  7, 57])
+    return np.array([10,  3, 21, 36,  0, 55, 16, 28, 37,
+                     46, 23,  6, 15,  2,  5,  7, 57])
 
 
 @pytest.fixture
@@ -318,7 +318,8 @@ def noll_index_yx():
 
 @pytest.fixture
 def noll_index_yy():
-    return np.array([10,  3, 21, 36,  0, 55, 28, 16, 11, 23, 37, 46,  6,  2, 15,  5, 29])
+    return np.array([10,  3, 21, 36,  0, 55, 28, 16,
+                     11, 23, 37, 46,  6,  2, 15,  5, 29])
 
 
 @pytest.fixture
