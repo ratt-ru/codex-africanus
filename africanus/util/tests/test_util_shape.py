@@ -20,7 +20,7 @@ def test_corr_shape():
     assert corr_shape(2, 'matrix') == (2,)
     assert corr_shape(4, 'matrix') == (2, 2,)
 
-    with pytest.raises(ValueError, match="ncorr not in \(1, 2, 4\)"):
+    with pytest.raises(ValueError, match=r"ncorr not in \(1, 2, 4\)"):
         corr_shape(3, 'matrix')
 
 
