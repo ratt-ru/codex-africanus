@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import argparse
 import logging
 
@@ -29,11 +36,7 @@ def create_parser():
 
 
 @requires_optional('matplotlib.pyplot', 'mpl_toolkits.mplot3d')
-def main():
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-
-    args = create_parser().parse_args()
-
+def _plot_filter(args):
     logging.info("Creating %s filter with half support of %d "
                  "and %d oversampling" %
                  (args.filter, args.half_support, args.oversample))
@@ -72,3 +75,8 @@ def main():
     fig.colorbar(surf, shrink=0.5, aspect=5)
 
     plt.show()
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    _plot_filter(create_parser().parse_args())
