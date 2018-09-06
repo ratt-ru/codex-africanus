@@ -47,6 +47,10 @@ because they're easier to use when using
 """
 
 
+class AsymmetricKernel(Exception):
+    pass
+
+
 def convolution_filter(half_support, oversampling_factor,
                        filter_type, **kwargs):
     r"""
@@ -98,6 +102,9 @@ def convolution_filter(half_support, oversampling_factor,
 
     # Expand filter taps to 2D
     filter_taps = np.outer(filter_taps, filter_taps)
+
+    if not np.all(filter_taps == filter_taps.T):
+        raise AsymmetricKernel("Kernel is asymmetric")
 
     return ConvolutionFilter(half_support, oversampling_factor,
                              full_sup_wo_padding, full_sup,
