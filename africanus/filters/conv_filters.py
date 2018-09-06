@@ -73,7 +73,8 @@ def convolution_filter(half_support, oversampling_factor,
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
     normalise : {True, False}
-        Indicates whether the filter should be normalised.
+        Indicates whether the area under the filter
+        should be normalised to 1.
         Defaults to ``True``.
 
     Returns

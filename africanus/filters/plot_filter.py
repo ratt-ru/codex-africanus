@@ -29,8 +29,12 @@ def create_parser():
                    default='kaiser-bessel')
     p.add_argument("-hs", "--half-support", default=3, type=int)
     p.add_argument("-os", "--oversample", default=63, type=int)
-    p.add_argument("-n", "--normalise", action="store_true")
-    p.add_argument("-k", "--kwargs", default="", type=parse_python_assigns)
+    p.add_argument("-nn", "--no-normalise", action="store_false",
+                   help="Don't normalise area under the filter to 1")
+    p.add_argument("-k", "--kwargs", default="", type=parse_python_assigns,
+                   help="Extra keywords arguments used to create the filter. "
+                        "For example 'beta=2.3' to specify a beta shape "
+                        "parameter for the Kaiser Bessel")
 
     return p
 
@@ -47,7 +51,7 @@ def _plot_filter(args):
     conv_filter = convolution_filter(args.half_support,
                                      args.oversample,
                                      args.filter,
-                                     normalise=args.normalise,
+                                     normalise=not args.no_normalise,
                                      **args.kwargs)
 
     data = np.abs(conv_filter.filter_taps)
