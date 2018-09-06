@@ -55,6 +55,9 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     description="Radio Astronomy Building Blocks",
+    entry_points={
+        'console_scripts': ['plot-filter=africanus.filters.plot_filter:main'],
+    },
     extras_require=extras_require,
     install_requires=requirements,
     license="GNU General Public License v2",
