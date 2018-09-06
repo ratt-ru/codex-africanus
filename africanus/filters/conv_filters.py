@@ -72,6 +72,9 @@ def convolution_filter(half_support, oversampling_factor,
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
+    normalise : {True, False}
+        Indicates whether the filter should be normalised.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -81,6 +84,8 @@ def convolution_filter(half_support, oversampling_factor,
     full_sup_wo_padding = (half_support * 2 + 1)
     full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
+
+    normalise = kwargs.pop("normalise", True)
 
     taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
 
@@ -96,9 +101,10 @@ def convolution_filter(half_support, oversampling_factor,
         filter_taps = kaiser_bessel(taps, full_sup, beta)
 
         # Normalise by integrating
-        filter_taps /= np.trapz(filter_taps, taps)
+        if normalise:
+            filter_taps /= np.trapz(filter_taps, taps)
     else:
-        raise ValueError("Expected one of {'kaiser-bessel'}")
+        raise ValueError("Expected one of {'kaiser-bessel', 'sinc'}")
 
     # Expand filter taps to 2D
     filter_taps = np.outer(filter_taps, filter_taps)
