@@ -52,17 +52,17 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         buf = np.zeros(width, dtype=kb.dtype)
         buf[:kbshift.size // 2] = kbshift[:kbshift.size // 2]
         buf[-kbshift.size // 2:] = kbshift[-kbshift.size // 2:]
-        x = np.fft.fft(buf).real
+        x = np.fft.ifft(buf).real
 
         buf = np.zeros(height, dtype=kb.dtype)
         buf[:kbshift.size // 2] = kbshift[:kbshift.size // 2]
         buf[-kbshift.size // 2:] = kbshift[-kbshift.size // 2:]
-        y = np.fft.fft(buf).real
+        y = np.fft.ifft(buf).real
 
         # First quarter of the taper
         quarter = y[:ny // 2, None] * x[None, :nx // 2]
 
-        # Create the taper of the proper by copying
+        # Create the taper by copying
         # the quarter into the appropriate bits
         taper = np.empty((ny, nx), dtype=kb.dtype)
         taper[:ny // 2, :nx // 2] = quarter[::-1, ::-1]
