@@ -98,7 +98,9 @@ def convolution_filter(half_support, oversampling_factor,
         except KeyError:
             beta = estimate_kaiser_bessel_beta(full_sup)
 
+        # Compute Kaiser Bessel and multiply in the sinc
         filter_taps = kaiser_bessel(taps, full_sup, beta)
+        filter_taps *= np.sinc(taps)
 
         # Normalise by integrating
         if normalise:
