@@ -54,16 +54,21 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
+    half_x = nx // 2
+    half_y = ny // 2
+
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            scaled_u = uvw[r, 0] * u_scale / ref_wave[f]
-            scaled_v = uvw[r, 1] * v_scale / ref_wave[f]
+            # Exact UV coordinates
+            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
+            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
 
-            disc_u = int(np.round(scaled_u))
-            disc_v = int(np.round(scaled_v))
+            # Discretised UV coordinates
+            disc_u = int(np.round(exact_u))
+            disc_v = int(np.round(exact_v))
 
-            extent_v = disc_v + ny // 2
-            extent_u = disc_u + nx // 2
+            extent_u = disc_u + half_x
+            extent_v = disc_v + half_y
 
             # Out of bounds check
             if (extent_v + cf.half_sup >= ny or
@@ -72,12 +77,12 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
                     extent_u - cf.half_sup < 0):
                 continue
 
-            # One plus half support
+            # One plus half support (our kernels have 1 pixel of extra padding)
             one_half_sup = 1 + cf.half_sup
 
             # Compute fractional u and v
-            base_frac_u = disc_u - scaled_u
-            base_frac_v = disc_v - scaled_v
+            base_frac_u = disc_u - exact_u
+            base_frac_v = disc_v - exact_v
 
             frac_u = int(np.round(base_frac_u*cf.oversample))
             frac_v = int(np.round(base_frac_v*cf.oversample))
@@ -85,13 +90,13 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             # Iterate over v/y
             for conv_v in filter_index:
                 v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
-                grid_v = disc_v + conv_v + ny // 2
+                grid_v = disc_v + conv_v + half_y
 
                 # Iterate over u/x
                 for conv_u in filter_index:
                     u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
                     conv_weight = cf.filter_taps[v_idx, u_idx]
-                    grid_u = disc_u + conv_u + nx // 2
+                    grid_u = disc_u + conv_u + half_x
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
@@ -197,16 +202,19 @@ def numba_degrid(grid, uvw, weights, ref_wave,
 
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
+    half_x = nx // 2
+    half_y = ny // 2
+
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            scaled_u = uvw[r, 0] * u_scale / ref_wave[f]
-            scaled_v = uvw[r, 1] * v_scale / ref_wave[f]
+            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
+            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
 
-            disc_u = int(np.round(scaled_u))
-            disc_v = int(np.round(scaled_v))
+            disc_u = int(np.round(exact_u))
+            disc_v = int(np.round(exact_v))
 
-            extent_v = disc_v + ny // 2
-            extent_u = disc_u + nx // 2
+            extent_v = disc_v + half_y
+            extent_u = disc_u + half_x
 
             # Out of bounds check
             if (extent_v + cf.half_sup >= ny or
@@ -219,8 +227,8 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             one_half_sup = 1 + cf.half_sup
 
             # Compute fractional u and v
-            base_frac_u = disc_u - scaled_u
-            base_frac_v = disc_v - scaled_v
+            base_frac_u = disc_u - exact_u
+            base_frac_v = disc_v - exact_v
 
             frac_u = int(np.round(base_frac_u*cf.oversample))
             frac_v = int(np.round(base_frac_v*cf.oversample))
@@ -228,13 +236,13 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             # Iterate over v/y
             for conv_v in filter_index:
                 v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
-                grid_v = disc_v + conv_v + ny // 2
+                grid_v = disc_v + conv_v + half_y
 
                 # Iterate over u/x
                 for conv_u in filter_index:
                     u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
                     conv_weight = cf.filter_taps[v_idx, u_idx]
-                    grid_u = disc_u + conv_u + nx // 2
+                    grid_u = disc_u + conv_u + half_x
 
                     # Correlation
                     for c in range(flat_corrs):
