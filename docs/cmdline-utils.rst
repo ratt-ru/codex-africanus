@@ -12,3 +12,8 @@ plot-filter
 ~~~~~~~~~~~
 
 Plots convolution filters.
+
+plot-taper
+~~~~~~~~~~
+
+Plots tapers associated with convolution filters.

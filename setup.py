@@ -56,7 +56,9 @@ setup(
     ],
     description="Radio Astronomy Building Blocks",
     entry_points={
-        'console_scripts': ['plot-filter=africanus.filters.plot_filter:main'],
+        'console_scripts': [
+            'plot-filter=africanus.filters.plot_filter:main',
+            'plot-taper=africanus.filters.plot_taper:main'],
     },
     extras_require=extras_require,
     install_requires=requirements,

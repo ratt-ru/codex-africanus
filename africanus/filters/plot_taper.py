@@ -8,7 +8,7 @@ from __future__ import print_function
 import argparse
 import logging
 
-from ..filters import convolution_filter
+from ..filters import convolution_filter, taper
 from ..util.cmdline import parse_python_assigns
 from ..util.requirements import requires_optional
 
@@ -27,6 +27,8 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("filter", choices=['kaiser-bessel', 'sinc'],
                    default='kaiser-bessel')
+    p.add_argument("-ny", default=1024, type=int)
+    p.add_argument("-nx", default=1024, type=int)
     p.add_argument("-hs", "--half-support", default=3, type=int)
     p.add_argument("-os", "--oversample", default=63, type=int)
     p.add_argument("-n", "--normalise", dest="normalise", action="store_true",
@@ -42,8 +44,17 @@ def create_parser():
 
 
 @requires_optional('matplotlib.pyplot', 'mpl_toolkits.mplot3d')
-def _plot_filter(data):
-    X, Y = np.mgrid[-1:1:1j*data.shape[0], -1:1:1j*data.shape[1]]
+def _plot_taper(data, ny, nx, beta=None):
+    hy = ny // 2
+    hx = nx // 2
+    X, Y = np.mgrid[-hy:hy:1j*data.shape[0], -hx:hx:1j*data.shape[1]]
+
+    plt.figure()
+    plt.imshow(data)
+    plt.colorbar()
+    plt.show()
+
+    return
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
@@ -69,10 +80,9 @@ def _plot_filter(data):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-
     args = create_parser().parse_args()
 
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     logging.info("Creating %s filter with half support of %d "
                  "and %d oversampling" %
                  (args.filter, args.half_support, args.oversample))
@@ -86,4 +96,8 @@ def main():
                                      normalise=args.normalise,
                                      **args.kwargs)
 
-    _plot_filter(np.abs(conv_filter.filter_taps))
+    print(args.kwargs)
+
+    data = taper("kaiser-bessel", args.ny, args.nx, conv_filter, **args.kwargs)
+
+    _plot_taper(data, args.ny, args.nx)
