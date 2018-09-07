@@ -49,13 +49,6 @@ def _plot_taper(data, ny, nx, beta=None):
     hx = nx // 2
     X, Y = np.mgrid[-hy:hy:1j*data.shape[0], -hx:hx:1j*data.shape[1]]
 
-    plt.figure()
-    plt.imshow(data)
-    plt.colorbar()
-    plt.show()
-
-    return
-
     fig = plt.figure()
     ax = fig.gca(projection='3d')
 
@@ -63,11 +56,17 @@ def _plot_taper(data, ny, nx, beta=None):
     surf = ax.plot_surface(X, Y, data, cmap=cm.coolwarm,
                            linewidth=0, antialiased=False)
 
+    xmin = -data.shape[0] // 2
+    xmax = data.shape[0] // 2
+
+    ymin = -data.shape[1] // 2
+    ymax = data.shape[1] // 2
+
     zmax = data.max()
 
     ax.plot([0, 0], [0, 0], zs=[0, 1.2*zmax], color='black')
-    ax.plot([0, 0], [-1, 1], zs=[zmax, zmax], color='black')
-    ax.plot([-1, 1], [0, 0], zs=[zmax, zmax], color='black')
+    ax.plot([0, 0], [ymin, ymax], zs=[zmax, zmax], color='black')
+    ax.plot([xmin, xmax], [0, 0], zs=[zmax, zmax], color='black')
 
     # Customize the z axis.
     ax.zaxis.set_major_locator(LinearLocator(10))
