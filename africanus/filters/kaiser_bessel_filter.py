@@ -56,7 +56,7 @@ def kaiser_bessel(u, W, beta):
     Returns
     -------
     :class:`numpy.ndarray`
-        Kaiser Bessel filter of shape :code:`(u,)`
+        Kaiser Bessel filter with the same shape as `u`
     """
 
     # Sanity check
@@ -90,7 +90,7 @@ def kaiser_bessel_with_sinc(u, W, oversample, beta, normalise=True):
     Returns
     -------
     :class:`numpy.ndarray`
-        The filter
+        Filter with the same shape as `u`
     """
     kb = kaiser_bessel(u, W, beta)
     kb *= oversample
@@ -124,7 +124,8 @@ def kaiser_bessel_fourier(x, W, beta):
     Returns
     -------
     :class:`numpy.ndarray`
-        Array of shape :code:`(x,)`
+        Fourier Transform of the Kaiser Bessel,
+        with the same shape as `x`.
     """
     term = (np.pi*W*x)**2 - beta**2
     val = np.lib.scimath.sqrt(term).real
