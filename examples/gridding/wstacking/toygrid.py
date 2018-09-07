@@ -95,13 +95,6 @@ else:
 
 cell_size_rad = np.deg2rad(cell_size / (60*60))
 
-rad_u = cell_size_rad * args.npix
-rad_v = cell_size_rad * args.npix
-
-low = phase_centre - [rad_u / 2, rad_v / 2]
-high = phase_centre + [rad_u / 2, rad_v / 2]
-
-lmn = radec_to_lmn(np.asarray([low, high]), phase_centre)
 
 if args.n_wlayers is None:
     w_layers = w_stacking_layers(wmin, wmax, lmn[:, 0], lmn[:, 1])
@@ -113,15 +106,26 @@ w_centroids = w_stacking_centroids(w_bins)
 logging.info("%d W layers at %s", w_layers, w_centroids)
 logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
 
-cmin, cmax = lmn
 
-grid_l = np.linspace(cmin[0], cmax[0], args.npix)
-grid_m = np.linspace(cmin[1], cmax[1], args.npix)
-grid_n = np.sqrt(1. - grid_l[:, None]**2 - grid_m[None, :]**2) - 1
+def phase_screen(npix):
+    y = npix - np.arange(npix) + npix // 2
+    x = npix - np.arange(npix) + npix // 2
+    y[y >= npix] -= npix
+    x[x >= npix] -= npix
+    m = ((y - npix // 2) * cell_size_rad)
+    l = ((x - npix // 2) * cell_size_rad)
 
-psf_l = np.linspace(cmin[0], cmax[0], 2*args.npix)
-psf_m = np.linspace(cmin[1], cmax[1], 2*args.npix)
-psf_n = np.sqrt(1. - psf_l[:, None]**2 - psf_m[None, :]**2) - 1
+    square = l[None, :]**2 + m[:, None]**2
+    valid = square < 1.0
+
+    n = np.empty_like(square)
+    n[valid] = np.sqrt(1.0 - square[valid]) - 1
+    n[~valid] = 0
+    return n
+
+
+grid_n = phase_screen(args.npix)
+psf_n = phase_screen(args.npix*2)
 
 dirties = None
 psfs = None
