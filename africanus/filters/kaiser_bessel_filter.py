@@ -15,7 +15,11 @@ def estimate_kaiser_bessel_beta(full_support):
 
     .. math::
 
-        \beta = 1.2 \pi \sqrt{0.25 \text{ W }^2 - 1.0 }
+        \beta = 2.34 \times W
+
+    Derived from `Nonuniform fast Fourier transforms
+    using min-max interpolation
+    <https://ieeexplore.ieee.org/document/1166689/>`_.
 
     Parameters
     ----------
@@ -25,18 +29,10 @@ def estimate_kaiser_bessel_beta(full_support):
     Returns
     -------
     float
-        kaiser Bessel beta shape parameter
+        Kaiser Bessel beta shape parameter
     """
 
-    # NOTE(bmerry)
-    # Puts the first null of the taper function
-    # at the edge of the image
-    beta = np.pi * np.sqrt(0.25 * full_support**2 - 1.0)
-    # Move the null outside the image,
-    # to avoid numerical instabilities.
-    # This will cause a small amount of aliasing at the edges,
-    # which ideally should be handled by clipping the image.
-    return beta * 1.2
+    return 2.34*full_support
 
 
 def kaiser_bessel(taps, full_support, beta):
@@ -68,7 +64,7 @@ def kaiser_bessel(taps, full_support, beta):
     return np.i0(beta * np.sqrt(param)) / np.i0(beta)
 
 
-def kaiser_bessel_fourier(positions, full_support, beta):
+def kaiser_bessel_fourier(taps, npix, beta):
     r"""
     Computes the Fourier Transform of a 1D Kaiser Bessel filter.
 
@@ -76,16 +72,17 @@ def kaiser_bessel_fourier(positions, full_support, beta):
     ----------
     positions : :class:`numpy.ndarray`
         Filter positions
-    full_support : int
-        Full support of the associated convolution filter.
+    npix : int
+        Number of pixels.
     beta : float
         Kaiser bessel shape parameter
 
     Returns
     -------
     :class:`numpy.ndarray`
-        Array of shape :code:`(positions,)
+        Array of shape :code:`(taps,)
     """
-    alpha = beta / np.pi
-    inner = np.lib.scimath.sqrt((full_support * positions)**2 - alpha * alpha)
-    return full_support * np.sinc(inner).real / np.i0(beta)
+    term = (np.pi*npix*taps)**2 - beta**2
+    val = np.lib.scimath.sqrt(term).real
+    val = np.sqrt(term)
+    return np.sin(val)/val
