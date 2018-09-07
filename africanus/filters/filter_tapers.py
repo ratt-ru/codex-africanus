@@ -6,7 +6,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from .kaiser_bessel_filter import (kaiser_bessel,
+from .kaiser_bessel_filter import (kaiser_bessel_with_sinc,
                                    estimate_kaiser_bessel_beta)
 
 
@@ -41,7 +41,8 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         # What would Andre Offringa do?
         # He would compute the numeric solution
         taps = np.arange(cf.no_taps) / cf.oversample - cf.full_sup // 2
-        kb = kaiser_bessel(taps, cf.full_sup, beta)
+        kb = kaiser_bessel_with_sinc(taps, cf.full_sup, cf.oversample,
+                                     beta, normalise=True)
         kbshift = np.fft.fftshift(kb)
 
         width = nx * cf.oversample

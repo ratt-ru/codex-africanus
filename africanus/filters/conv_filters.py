@@ -8,7 +8,7 @@ import collections
 
 import numpy as np
 
-from .kaiser_bessel_filter import (kaiser_bessel,
+from .kaiser_bessel_filter import (kaiser_bessel_with_sinc,
                                    estimate_kaiser_bessel_beta)
 
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
@@ -99,12 +99,9 @@ def convolution_filter(half_support, oversampling_factor,
             beta = estimate_kaiser_bessel_beta(full_sup)
 
         # Compute Kaiser Bessel and multiply in the sinc
-        filter_taps = kaiser_bessel(taps, full_sup, beta)
-        filter_taps *= np.sinc(taps)
-
-        # Normalise by integrating
-        if normalise:
-            filter_taps /= np.trapz(filter_taps, taps)
+        filter_taps = kaiser_bessel_with_sinc(taps, full_sup,
+                                              oversampling_factor, beta,
+                                              normalise=normalise)
     else:
         raise ValueError("Expected one of {'kaiser-bessel', 'sinc'}")
 

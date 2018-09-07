@@ -31,10 +31,14 @@ function.
 
 .. autosummary::
     kaiser_bessel
+    kaiser_bessel_with_sinc
+    kaiser_bessel_fourier
     estimate_kaiser_bessel_beta
 
 
 .. autofunction:: kaiser_bessel
+.. autofunction:: kaiser_bessel_with_sinc
+.. autofunction:: kaiser_bessel_fourier
 .. autofunction:: estimate_kaiser_bessel_beta
 
 

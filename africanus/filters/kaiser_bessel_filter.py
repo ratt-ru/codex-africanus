@@ -8,10 +8,9 @@ from __future__ import print_function
 import numpy as np
 
 
-def estimate_kaiser_bessel_beta(full_support):
+def estimate_kaiser_bessel_beta(W):
     r"""
-    Estimate the kaiser bessel beta using he following heuristic,
-    with :math:`W` denoting ``full_support``:
+    Estimate the kaiser bessel beta using the following heuristic:
 
     .. math::
 
@@ -19,70 +18,114 @@ def estimate_kaiser_bessel_beta(full_support):
 
     Derived from `Nonuniform fast Fourier transforms
     using min-max interpolation
-    <https://ieeexplore.ieee.org/document/1166689/>`_.
+    <nufft-min-max-ref_>`_.
+
+    .. _nufft-min-max-ref: https://ieeexplore.ieee.org/document/1166689/
 
     Parameters
     ----------
-    full_support : int
-        Full support of the filter
+    W : int
+        Width of the filter
 
     Returns
     -------
     float
         Kaiser Bessel beta shape parameter
     """
+    return 2.34*W
 
-    return 2.34*full_support
 
-
-def kaiser_bessel(taps, full_support, beta):
+def kaiser_bessel(u, W, beta):
     r"""
-    Compute a 1D Kaiser Bessel filter.
+    Compute a 1D Kaiser Bessel filter as defined
+    in `Selection of a Convolution Function
+    for Fourier Inversion Using Gridding
+    <kbref_>`_.
+
+    .. _kbref: https://ieeexplore.ieee.org/document/97598/
 
     Parameters
     ----------
-    taps : :class:`numpy.ndarray`
-        Filter position
-    full_support : int
-        Full support of the filter
+    u : :class:`numpy.ndarray`
+        Filter positions
+    W : int
+        Width of the filter
     beta : float, optional
         Kaiser Bessel shape parameter
 
     Returns
     -------
     :class:`numpy.ndarray`
-        Kaiser Bessel filter of shape :code:`(taps,)`
+        Kaiser Bessel filter of shape :code:`(u,)`
     """
 
     # Sanity check
-    M = full_support
-    hM = M // 2
-    assert np.all(-hM <= taps) & np.all(taps <= hM)
+    hW = W // 2
+    assert np.all(-hW <= u) & np.all(u <= hW)
 
-    param = 1 - (2 * taps / M)**2
+    param = 1 - (2 * u / W)**2
     param[param < 0] = 0  # Zero negative numbers
     return np.i0(beta * np.sqrt(param)) / np.i0(beta)
 
 
-def kaiser_bessel_fourier(taps, npix, beta):
-    r"""
-    Computes the Fourier Transform of a 1D Kaiser Bessel filter.
+def kaiser_bessel_with_sinc(u, W, oversample, beta, normalise=True):
+    """
+    Produces a filter composed of Kaiser Bessel multiplied by a sinc.
+
+    Accounts for the oversampling factor, as well as normalising the filter.
 
     Parameters
     ----------
-    positions : :class:`numpy.ndarray`
+    u : :class:`numpy.ndarray`
         Filter positions
-    npix : int
-        Number of pixels.
+    W : int
+        Width of the filter
+    oversample : int
+        Oversampling factor
+    beta : float
+        Kaiser Bessel shape parameter
+    normalise : optional, {True, False}
+        True if the filter should be normalised
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        The filter
+    """
+    kb = kaiser_bessel(u, W, beta)
+    kb *= oversample
+    kb *= np.sinc(u / oversample)
+
+    if normalise:
+        kb /= np.trapz(kb, u)
+
+    return kb
+
+
+def kaiser_bessel_fourier(x, W, beta):
+    r"""
+    Computes the Fourier Transform of a 1D Kaiser Bessel filter.
+    as defined in `Selection of a Convolution Function
+    for Fourier Inversion Using Gridding
+    <kbref_>`_.
+
+    .. _kbref: https://ieeexplore.ieee.org/document/97598/
+
+
+    Parameters
+    ----------
+    x : :class:`numpy.ndarray`
+        Filter positions
+    W : int
+        Width of the filter.
     beta : float
         Kaiser bessel shape parameter
 
     Returns
     -------
     :class:`numpy.ndarray`
-        Array of shape :code:`(taps,)
+        Array of shape :code:`(x,)`
     """
-    term = (np.pi*npix*taps)**2 - beta**2
+    term = (np.pi*W*x)**2 - beta**2
     val = np.lib.scimath.sqrt(term).real
-    val = np.sqrt(term)
     return np.sin(val)/val
