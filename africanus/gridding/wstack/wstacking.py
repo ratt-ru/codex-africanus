@@ -79,7 +79,7 @@ def w_stacking_bins(w_min, w_max, w_layers):
 
 
 def _w_stacking_centroids(w_bins):
-    return (w_bins[1:] + w_bins[:1]) / 2.0
+    return 0.5*(w_bins[:-1] + w_bins[1:])
 
 
 WSTACK_DOCS = r"""
