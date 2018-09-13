@@ -41,8 +41,7 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         # What would Andre Offringa do?
         # He would compute the numeric solution
         taps = np.arange(cf.no_taps) / cf.oversample - cf.full_sup // 2
-        kb = kaiser_bessel_with_sinc(taps, cf.full_sup, cf.oversample,
-                                     beta, normalise=True)
+        kb = kaiser_bessel_with_sinc(taps, cf.full_sup, cf.oversample, beta)
         kbshift = np.fft.fftshift(kb)
 
         width = nx * cf.oversample
@@ -72,7 +71,7 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         taper[ny // 2:, nx // 2:] = quarter[:, :]
 
         # Normalise by oversampling factor
-        taper /= cf.oversample**2
+        taper *= cf.oversample**2
 
         return taper
     else:
