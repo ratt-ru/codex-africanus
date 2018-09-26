@@ -6,96 +6,90 @@ from __future__ import print_function
 
 import numpy as np
 
-from ..util.requirements import have_packages, MissingPackageException
-from ..util.docs import on_rtd
+from ..util.requirements import requires_optional
 
 _discovered_backends = []
 _standard_backends = ['casa', 'astropy']
 
-_casa_requirements = ('pyrap.measures', 'pyrap.quanta')
-have_casa_requirements = have_packages(*_casa_requirements)
-
-if not have_casa_requirements or on_rtd():
-    def casa_parallactic_angles(times, antenna_positions, field_centre):
-        raise MissingPackageException(*_casa_requirements)
-else:
-    _discovered_backends.append('casa')
-
+try:
     import pyrap.measures
     import pyrap.quanta as pq
-
+except ImportError:
+    pass
+else:
+    _discovered_backends.append('casa')
     # Create a measures server
     meas_serv = pyrap.measures.measures()
 
-    def casa_parallactic_angles(times, antenna_positions, field_centre):
-        """
-        Computes parallactic angles per timestep for the given
-        reference antenna position and field centre.
-        """
-
-        # Create direction measure for the zenith
-        zenith = meas_serv.direction('AZELGEO', '0deg', '90deg')
-
-        # Create position measures for each antenna
-        reference_positions = [meas_serv.position(
-                                    'itrf',
-                                    *(pq.quantity(x, 'm') for x in pos))
-                               for pos in antenna_positions]
-
-        # Compute field centre in radians
-        fc_rad = meas_serv.direction('J2000', *(pq.quantity(f, 'rad')
-                                                for f in field_centre))
-
-        return np.asarray([
-            # Set current time as the reference frame
-            meas_serv.do_frame(meas_serv.epoch("UTC", pq.quantity(t, "s")))
-            and
-            [   # Set antenna position as the reference frame
-                meas_serv.do_frame(rp)
-                and
-                meas_serv.posangle(fc_rad, zenith).get_value("rad")
-                for rp in reference_positions
-            ]
-            for t in times])
-
-_astropy_requirements = ('astropy',)
-have_astropy_requirements = have_packages(*_astropy_requirements)
-
-if not have_astropy_requirements or on_rtd():
-    def astropy_parallactic_angles(times, antenna_positions, field_centre):
-        raise MissingPackageException(*_astropy_requirements)
-else:
-    _discovered_backends.append('astropy')
-
+try:
     from astropy.coordinates import (EarthLocation, SkyCoord,
                                      AltAz, CIRS)
     from astropy.time import Time
     from astropy import units
+except ImportError:
+    pass
+else:
+    _discovered_backends.append('astropy')
 
-    def astropy_parallactic_angles(times, antenna_positions, field_centre):
-        """
-        Computes parallactic angles per timestep for the given
-        reference antenna position and field centre.
-        """
-        ap = antenna_positions
-        fc = field_centre
 
-        # Convert from MJD second to MJD
-        times = Time(times / 86400.00, format='mjd', scale='utc')
+@requires_optional('pyrap.measures', 'pyrap.quanta')
+def casa_parallactic_angles(times, antenna_positions, field_centre):
+    """
+    Computes parallactic angles per timestep for the given
+    reference antenna position and field centre.
+    """
 
-        ap = EarthLocation.from_geocentric(
-            ap[:, 0], ap[:, 1], ap[:, 2], unit='m')
-        fc = SkyCoord(ra=fc[0], dec=fc[1], unit=units.rad, frame='fk5')
-        pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame='fk5')
+    # Create direction measure for the zenith
+    zenith = meas_serv.direction('AZELGEO', '0deg', '90deg')
 
-        cirs_frame = CIRS(obstime=times)
-        pole_cirs = pole.transform_to(cirs_frame)
-        fc_cirs = fc.transform_to(cirs_frame)
+    # Create position measures for each antenna
+    reference_positions = [meas_serv.position(
+                                'itrf',
+                                *(pq.quantity(x, 'm') for x in pos))
+                           for pos in antenna_positions]
 
-        altaz_frame = AltAz(location=ap[None, :], obstime=times[:, None])
-        pole_altaz = pole_cirs[:, None].transform_to(altaz_frame)
-        fc_altaz = fc_cirs[:, None].transform_to(altaz_frame)
-        return fc_altaz.position_angle(pole_altaz)
+    # Compute field centre in radians
+    fc_rad = meas_serv.direction('J2000', *(pq.quantity(f, 'rad')
+                                            for f in field_centre))
+
+    return np.asarray([
+        # Set current time as the reference frame
+        meas_serv.do_frame(meas_serv.epoch("UTC", pq.quantity(t, "s")))
+        and
+        [   # Set antenna position as the reference frame
+            meas_serv.do_frame(rp)
+            and
+            meas_serv.posangle(fc_rad, zenith).get_value("rad")
+            for rp in reference_positions
+        ]
+        for t in times])
+
+
+@requires_optional('astropy')
+def astropy_parallactic_angles(times, antenna_positions, field_centre):
+    """
+    Computes parallactic angles per timestep for the given
+    reference antenna position and field centre.
+    """
+    ap = antenna_positions
+    fc = field_centre
+
+    # Convert from MJD second to MJD
+    times = Time(times / 86400.00, format='mjd', scale='utc')
+
+    ap = EarthLocation.from_geocentric(
+        ap[:, 0], ap[:, 1], ap[:, 2], unit='m')
+    fc = SkyCoord(ra=fc[0], dec=fc[1], unit=units.rad, frame='fk5')
+    pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame='fk5')
+
+    cirs_frame = CIRS(obstime=times)
+    pole_cirs = pole.transform_to(cirs_frame)
+    fc_cirs = fc.transform_to(cirs_frame)
+
+    altaz_frame = AltAz(location=ap[None, :], obstime=times[:, None])
+    pole_altaz = pole_cirs[:, None].transform_to(altaz_frame)
+    fc_altaz = fc_cirs[:, None].transform_to(altaz_frame)
+    return fc_altaz.position_angle(pole_altaz)
 
 
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):

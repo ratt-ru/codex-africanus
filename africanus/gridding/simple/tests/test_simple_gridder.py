@@ -5,17 +5,19 @@
 
 from itertools import product
 
+import numpy as np
 import pytest
 
 from africanus.constants import c as lightspeed
 from africanus.gridding.util import estimate_cell_size
 
 
+def rf(*a, **kw):
+    return np.random.random(*a, **kw)
+
+
 def test_degridder_gridder():
     """ Basic test of the gridder/degridder """
-
-    import numpy as np
-
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
 
@@ -27,8 +29,6 @@ def test_degridder_gridder():
     npoints = 10000
 
     cell_size = 6  # 6 arc seconds
-
-    rf = lambda *a, **kw: np.random.random(*a, **kw)
 
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
@@ -89,7 +89,6 @@ def test_psf_subtraction(plot):
 
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
-    import numpy as np
     from numpy.fft import fft2, fftshift, ifft2, ifftshift
 
     np.random.seed(50)
@@ -98,9 +97,6 @@ def test_psf_subtraction(plot):
     chan = 16
     rows = 1024
     ny = nx = 512
-
-    def rf(*args, **kwargs):
-        return np.random.random(*args, **kwargs)
 
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
@@ -212,15 +208,11 @@ def test_psf_subtraction(plot):
     assert np.allclose(centre_psf, centre_dirty, rtol=1e-64)
 
 
-from africanus.gridding.simple.dask import have_requirements
-
-
-@pytest.mark.skipif(not have_requirements, reason="requirements not installed")
 def test_dask_degridder_gridder():
     from africanus.filters import convolution_filter
     from africanus.gridding.simple.dask import grid, degrid
 
-    import dask.array as da
+    da = pytest.importorskip('dask.array')
 
     row = 100
     chan = 16
@@ -240,7 +232,7 @@ def test_dask_degridder_gridder():
     uvw = da.random.random((row, 3), chunks=(row_chunk, 3))
     # 4 channels of MeerKAT L band
     wavelengths = lightspeed/da.linspace(.856e9, .856e9*2, chan,
-                                      chunks=chan_chunk)
+                                         chunks=chan_chunk)
     flags = da.random.randint(0, 1, size=vis_shape, chunks=vis_chunks)
 
     weights = da.random.random(vis_shape, chunks=vis_chunks)

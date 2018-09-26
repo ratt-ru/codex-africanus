@@ -24,14 +24,14 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-rc", "--row-chunks", default=10000, type=int)
     p.add_argument("-np", "--npix", default=1024, type=int)
-    p.add_argument("-sc", "--cell-size", default=6, type=float)
+    p.add_argument("-sc", "--cell-size", type=float)
     return p
 
 
 args = create_parser().parse_args()
 
 # Convolution Filter
-conv_filter = convolution_filter(7, 15, "kaiser-bessel")
+conv_filter = convolution_filter(3, 63, "kaiser-bessel")
 
 taper = filter_taper("kaiser-bessel", args.npix, args.npix, conv_filter)
 
@@ -66,6 +66,8 @@ else:
     cell_size = estimate_cell_size(umax, vmax, wavelength, factor=3,
                                    ny=args.npix, nx=args.npix).max()
 
+logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
+
 
 dirty = None
 psf = None
@@ -95,7 +97,7 @@ with pt.table(args.ms) as T:
                      natural_weight,
                      wavelength,
                      conv_filter,
-                     args.cell_size,
+                     cell_size,
                      ny=args.npix, nx=args.npix,
                      grid=dirty)
 
@@ -109,7 +111,7 @@ with pt.table(args.ms) as T:
                    np.ones_like(psf_flag, dtype=natural_weight.dtype),
                    wavelength,
                    conv_filter,
-                   0.5*args.cell_size,
+                   cell_size,
                    ny=2*args.npix, nx=2*args.npix,
                    grid=psf)
 
@@ -134,14 +136,26 @@ psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
 psf = psf.real
 psf = (psf / psf.max())
 
-dirty *= taper
-
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
 dirty = dirty.real / (psf.max() * 4.)
 
+# Apply the taper
+dirty /= taper
+
 logging.info("Dirty maximum %.6f" % dirty.max())
+
+# Save image if we have astropy
+try:
+    from astropy.io import fits
+except ImportError:
+    pass
+else:
+    hdu = fits.PrimaryHDU(dirty)
+    with fits.HDUList([hdu]) as hdul:
+        hdul.writeto('simple-dirty.fits', overwrite=True)
+
 
 # Display image if we have matplotlib
 try:
@@ -174,4 +188,4 @@ with pt.table(args.ms) as T:
 
         # Produce visibilities for this chunk of UVW coordinates
         vis = degrid(dirty, uvw, natural_weight, wavelength,
-                     conv_filter, args.cell_size)
+                     conv_filter, cell_size)

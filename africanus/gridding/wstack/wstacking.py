@@ -136,12 +136,8 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
         # The row mask for this layer
         mask = bin_indices == i
 
-        # Set w coordinate to that of the layer
-        discretised_uvw = uvw[mask, ...]
-        discretised_uvw[:, 2] = w_value
-
         simple_numba_grid(vis[mask, ...],
-                          discretised_uvw,
+                          uvw[mask, ...],
                           flags[mask, ...],
                           weights[mask, ...],
                           ref_wave,

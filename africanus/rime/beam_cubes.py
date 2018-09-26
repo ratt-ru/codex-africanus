@@ -9,10 +9,17 @@ from __future__ import unicode_literals
 from itertools import product
 
 import numpy as np
-from scipy import interpolate
-from scipy.ndimage import interpolation
+
+try:
+    from scipy import interpolate
+    from scipy.ndimage import interpolation
+except ImportError:
+    pass
+
+from ..util.requirements import requires_optional
 
 
+@requires_optional("scipy")
 def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                   spline_order=1, mode='nearest'):
     """

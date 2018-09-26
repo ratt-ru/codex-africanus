@@ -45,7 +45,6 @@ Numpy
 .. autosummary::
     predict_vis
     phase_delay
-    brightness
     parallactic_angles
     feed_rotation
     transform_sources
@@ -54,7 +53,6 @@ Numpy
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
-.. autofunction:: brightness
 .. autofunction:: parallactic_angles
 .. autofunction:: feed_rotation
 .. autofunction:: transform_sources
@@ -69,7 +67,6 @@ Dask
 .. autosummary::
     predict_vis
     phase_delay
-    brightness
     parallactic_angles
     feed_rotation
     transform_sources
@@ -79,7 +76,6 @@ Dask
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
-.. autofunction:: brightness
 .. autofunction:: parallactic_angles
 .. autofunction:: feed_rotation
 .. autofunction:: transform_sources

@@ -1,6 +1,6 @@
 import xarrayms
-from africanus.dft.kernels import im_to_vis, vis_to_im
-import numpy as np
+from africanus.dft.dask import im_to_vis, vis_to_im
+import dask.array as da
 import matplotlib.pyplot as plt
 from africanus.reduction.psf_redux import *
 
@@ -34,16 +34,24 @@ nrow = 100
 nchan = 1
 
 for ds in xarrayms.xds_from_ms(data_path):
-    Vdat = ds.DATA.data.compute()
+    vis = ds.DATA.data.compute()[0:nrow, 0:nchan, 0]
     uvw = ds.UVW.data.compute()[0:nrow, :]
     weights = ds.WEIGHT.data.compute()[0:nrow, 0:nchan]
 
-vis = Vdat[0:nrow, 0:nchan, 0]
-
 wsum = sum(weights)
 
-L = lambda image: im_to_vis(image, uvw, lm, freq)
-LT = lambda visibility: vis_to_im(visibility, uvw, lm, freq)
+chunk = nrow//10
+
+uvw_dask = da.from_array(uvw, chunks=(chunk, 3))
+lm_dask = da.from_array(lm, chunks=(npix**2, 2))
+frequency_dask = da.from_array(freq, chunks=nchan)
+vis_dask = da.from_array(vis, chunks=(chunk, nchan))
+weights_dask = da.from_array(weights, chunks=(chunk, nchan))
+
+L = lambda image: im_to_vis(image, uvw_dask, lm_dask, frequency_dask).compute()
+LT = lambda v: vis_to_im(v, uvw_dask, lm_dask, frequency_dask).compute()/wsum
+
+PSF = LT(weights_dask)
 
 PSF = LT(weights).reshape([npix, npix])
 

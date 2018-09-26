@@ -98,8 +98,8 @@ cell_size_rad = np.deg2rad(cell_size / (60*60))
 rad_u = cell_size_rad * args.npix
 rad_v = cell_size_rad * args.npix
 
-low = phase_centre - [rad_u, rad_v]
-high = phase_centre + [rad_u, rad_v]
+low = phase_centre - [rad_u / 2, rad_v / 2]
+high = phase_centre + [rad_u / 2, rad_v / 2]
 
 lmn = radec_to_lmn(np.asarray([low, high]), phase_centre)
 
@@ -111,7 +111,7 @@ else:
 w_bins = w_stacking_bins(wmin, wmax, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
 logging.info("%d W layers at %s", w_layers, w_centroids)
-logging.info("Chose a cell_size of %s" % cell_size)
+logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
 
 cmin, cmax = lmn
 
@@ -175,14 +175,14 @@ dirty_sum = np.zeros(dirties[0].shape[0:2], dtype=dirties[0].real.dtype)
 psf_sum = np.zeros(psfs[0].shape[0:2], dtype=psfs[0].dtype)
 
 
-for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
+for w, (dirty, psf, w_centroid) in enumerate(zip(dirties, psfs, w_centroids)):
     logging.info("FFTing W-Layer %d", w)
 
     ncorr = dirty.shape[2]
 
     # FFT each correlation
     fft = np.empty_like(dirty)
-    grid_factor = np.exp(2*np.pi*1j*centroid*(grid_n))
+    grid_factor = np.exp(2*np.pi*1j*w_centroid*(grid_n))
 
     for c in range(ncorr):
         fft[:, :, c] = np.fft.ifftshift(dirty[:, :, c])
@@ -201,7 +201,7 @@ for w, (dirty, psf, centroid) in enumerate(zip(dirties, psfs, w_centroids)):
 
     # FFT the PSF
     psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
-    psf_fft = psf_fft*np.exp(2*np.pi*1j*centroid*(psf_n))
+    psf_fft *= np.exp(2*np.pi*1j*w_centroid*(psf_n))
     psf_sum += psf_fft
 
 grid_final_factor = (1 + grid_n)  # / (wmax - wmin)
@@ -214,14 +214,25 @@ psf_sum *= psf_final_factor
 psf = psf.real
 psf = psf / psf.max()
 
-dirty /= taper
-
 # Scale the dirty image by the psf
 # x4 because the N**2 FFT normalization factor
 # on a square image double the size
 dirty = dirty_sum.real / (psf.max() * 4.)
 
+# Apply the taper
+dirty /= taper
+
 logging.info("Dirty maximum %.6f" % dirty.max())
+
+# Save image if we have astropy
+try:
+    from astropy.io import fits
+except ImportError:
+    pass
+else:
+    hdu = fits.PrimaryHDU(dirty)
+    with fits.HDUList([hdu]) as hdul:
+        hdul.writeto('wstack-dirty.fits', overwrite=True)
 
 # Display image if we have matplotlib
 try:
@@ -240,11 +251,11 @@ dirty = (dirty / grid_final_factor)[:, :, None]
 vis_grids = []
 
 # FFT and apply inverse factor for each W layer
-for w, centroid in enumerate(w_centroids):
+for w, w_centroid in enumerate(w_centroids):
     ncorr = dirty.shape[2]
 
     vis_grid = np.empty(dirty.shape, np.complex64)
-    grid_factor = np.exp(2*np.pi*1j*centroid*(grid_n))
+    grid_factor = np.exp(2*np.pi*1j*w_centroid*(grid_n))
 
     for c in range(ncorr):
         vis_grid[:, :, c] = np.fft.fftshift(dirty[:, :, c])
