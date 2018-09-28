@@ -31,7 +31,7 @@ def create_parser():
 args = create_parser().parse_args()
 
 # Convolution Filter
-conv_filter = convolution_filter(3, 63, "kaiser-bessel")
+conv_filter = convolution_filter(3, 7, "kaiser-bessel")
 
 taper = filter_taper("kaiser-bessel", args.npix, args.npix, conv_filter)
 

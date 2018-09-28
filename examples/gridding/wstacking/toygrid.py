@@ -29,7 +29,6 @@ import logging
 import numpy as np
 import pyrap.tables as pt
 
-from africanus.coordinates import (radec_to_lmn)
 from africanus.gridding.wstack import (grid,
                                        degrid,
                                        w_stacking_layers,
@@ -38,7 +37,6 @@ from africanus.gridding.wstack import (grid,
 from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
 from africanus.filters import (convolution_filter, taper as filter_taper)
-
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -65,7 +63,7 @@ with pt.table("::".join((args.ms, "FIELD"))) as FIELD:
     phase_centre = FIELD.getcol("PHASE_DIR")[0][0]
 
 # Convolution Filter
-conv_filter = convolution_filter(3, 63, "kaiser-bessel")
+conv_filter = convolution_filter(3, 7, "kaiser-bessel")
 taper = filter_taper("kaiser-bessel", args.npix, args.npix, conv_filter)
 
 # Determine UVW Coordinate extents
@@ -95,33 +93,36 @@ else:
 
 cell_size_rad = np.deg2rad(cell_size / (60*60))
 
-rad_u = cell_size_rad * args.npix
-rad_v = cell_size_rad * args.npix
-
-low = phase_centre - [rad_u / 2, rad_v / 2]
-high = phase_centre + [rad_u / 2, rad_v / 2]
-
-lmn = radec_to_lmn(np.asarray([low, high]), phase_centre)
-
 if args.n_wlayers is None:
-    w_layers = w_stacking_layers(wmin, wmax, lmn[:, 0], lmn[:, 1])
+    l = np.mgrid[-(args.npix//2):args.npix//2:1j*args.npix] * cell_size_rad
+    m = np.mgrid[-(args.npix//2):args.npix//2:1j*args.npix] * cell_size_rad
+    w_layers = w_stacking_layers(wmin, wmax, l, m)
 else:
     w_layers = args.n_wlayers
 
 w_bins = w_stacking_bins(wmin, wmax, w_layers)
 w_centroids = w_stacking_centroids(w_bins)
+logging.info("W extents [%.3f, %.3f]" % (wmin, wmax))
+logging.info("W bins %s" % (w_bins,))
 logging.info("%d W layers at %s", w_layers, w_centroids)
 logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
 
-cmin, cmax = lmn
 
-grid_l = np.linspace(cmin[0], cmax[0], args.npix)
-grid_m = np.linspace(cmin[1], cmax[1], args.npix)
-grid_n = np.sqrt(1. - grid_l[:, None]**2 - grid_m[None, :]**2) - 1
+def phase_screen(npix):
+    l = np.mgrid[-(npix//2):npix//2:1j*npix] * cell_size_rad
+    m = np.mgrid[-(npix//2):npix//2:1j*npix] * cell_size_rad
+    square = l[None, :]**2 + m[:, None]**2
+    valid = square < 1.0
 
-psf_l = np.linspace(cmin[0], cmax[0], 2*args.npix)
-psf_m = np.linspace(cmin[1], cmax[1], 2*args.npix)
-psf_n = np.sqrt(1. - psf_l[:, None]**2 - psf_m[None, :]**2) - 1
+    n = np.empty((npix, npix), dtype=square.dtype)
+    n[valid] = np.sqrt(1.0 - square[valid]) - 1.0
+    n[~valid] = 0.0
+
+    return n
+
+
+grid_n = phase_screen(args.npix)
+psf_n = phase_screen(args.npix*2)
 
 dirties = None
 psfs = None
@@ -182,7 +183,7 @@ for w, (dirty, psf, w_centroid) in enumerate(zip(dirties, psfs, w_centroids)):
 
     # FFT each correlation
     fft = np.empty_like(dirty)
-    grid_factor = np.exp(2*np.pi*1j*w_centroid*(grid_n))
+    grid_factor = np.exp(2*np.pi*1j*w_centroid*grid_n)
 
     for c in range(ncorr):
         fft[:, :, c] = np.fft.ifftshift(dirty[:, :, c])
@@ -201,7 +202,7 @@ for w, (dirty, psf, w_centroid) in enumerate(zip(dirties, psfs, w_centroids)):
 
     # FFT the PSF
     psf_fft = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(psf[:, :, 0])))
-    psf_fft *= np.exp(2*np.pi*1j*w_centroid*(psf_n))
+    psf_fft *= np.exp(2*np.pi*1j*w_centroid*psf_n)
     psf_sum += psf_fft
 
 grid_final_factor = (1 + grid_n)  # / (wmax - wmin)
@@ -255,7 +256,7 @@ for w, w_centroid in enumerate(w_centroids):
     ncorr = dirty.shape[2]
 
     vis_grid = np.empty(dirty.shape, np.complex64)
-    grid_factor = np.exp(2*np.pi*1j*w_centroid*(grid_n))
+    grid_factor = np.exp(-2*np.pi*1j*w_centroid*(grid_n))
 
     for c in range(ncorr):
         vis_grid[:, :, c] = np.fft.fftshift(dirty[:, :, c])
