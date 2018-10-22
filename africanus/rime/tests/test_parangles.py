@@ -50,13 +50,13 @@ def _modified_julian_date(year, month, day):
     return _julian_day(year, month, day) - 2400000.5
 
 
-def _observation_endpoints(year, month, date, hour_duration):
+def _observation_endpoints(year, month, day, hour_duration):
     """
     Start and end points of an observation starting on
     ``year-month-day`` and of duration ``hour_duration``
     in Modified Julian Date seconds
     """
-    start = _modified_julian_date(year, month, date)
+    start = _modified_julian_date(year, month, day)
     end = start + hour_duration / 24.
 
     # Convert to seconds
