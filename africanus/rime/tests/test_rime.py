@@ -231,37 +231,6 @@ def test_dask_phase_delay():
     assert np.all(np_phase == dask_phase)
 
 
-@pytest.mark.parametrize('backend', [
-    'test',
-    pytest.param('casa', marks=pytest.mark.skipif(
-                                no_casa,
-                                reason='python-casascore not installed')),
-    pytest.param('astropy', marks=pytest.mark.skipif(
-                                no_astropy,
-                                reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
-def test_dask_parallactic_angles(observation, wsrt_ants, backend):
-    da = pytest.importorskip('dask.array')
-    from africanus.rime import parallactic_angles as np_parangle
-    from africanus.rime.dask import parallactic_angles as da_parangle
-
-    start, end = _observation_endpoints(*observation)
-    np_times = np.linspace(start, end, 5)
-    np_ants = wsrt_ants[:4, :]
-    np_fc = np.random.random(size=2)
-
-    np_pa = np_parangle(np_times, np_ants, np_fc, backend=backend)
-    np_pa = np.asarray(np_pa)
-
-    da_times = da.from_array(np_times, chunks=(2, 3))
-    da_ants = da.from_array(np_ants, chunks=((2, 2), 3))
-    da_fc = da.from_array(np_fc, chunks=2)
-
-    da_pa = da_parangle(da_times, da_ants, da_fc, backend=backend)
-
-    assert np.all(np_pa == da_pa.compute())
-
-
 def test_dask_feed_rotation():
     da = pytest.importorskip('dask.array')
     import numpy as np
