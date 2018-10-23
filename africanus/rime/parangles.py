@@ -23,7 +23,8 @@ if have_casa_parangles:
 _standard_backends = set(['casa', 'astropy', 'test'])
 
 
-def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
+def parallactic_angles(times, antenna_positions, field_centre,
+                       backend='casa'):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
@@ -53,16 +54,6 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
     :class:`numpy.ndarray`
         Parallactic angles of shape :code:`(time,ant)`
     """
-
-    try:
-        backend = kwargs.pop('backend')
-    except KeyError:
-        try:
-            backend = _discovered_backends[0]
-        except IndexError:
-            raise ValueError("None of the standard backends "
-                             "%s are installed" % _standard_backends)
-
     if backend not in _standard_backends:
         raise ValueError("'%s' is not one of the "
                          "standard backends '%s'"
