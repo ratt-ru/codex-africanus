@@ -8,7 +8,7 @@ import collections
 
 import numpy as np
 
-from .kaiser_bessel_filter import (kaiser_bessel,
+from .kaiser_bessel_filter import (kaiser_bessel_with_sinc,
                                    estimate_kaiser_bessel_beta)
 
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
@@ -47,6 +47,10 @@ because they're easier to use when using
 """
 
 
+class AsymmetricKernel(Exception):
+    pass
+
+
 def convolution_filter(half_support, oversampling_factor,
                        filter_type, **kwargs):
     r"""
@@ -68,6 +72,9 @@ def convolution_filter(half_support, oversampling_factor,
     beta : float, optional
         Beta shape parameter for
         `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
+    normalise : {True, False}
+        Normalise the filter by the it's volume.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -77,6 +84,8 @@ def convolution_filter(half_support, oversampling_factor,
     full_sup_wo_padding = (half_support * 2 + 1)
     full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
+
+    normalise = kwargs.pop("normalise", True)
 
     taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
 
@@ -89,15 +98,18 @@ def convolution_filter(half_support, oversampling_factor,
         except KeyError:
             beta = estimate_kaiser_bessel_beta(full_sup)
 
-        filter_taps = kaiser_bessel(taps, full_sup, beta)
-
-        # Normalise by integrating
-        filter_taps /= np.trapz(filter_taps, taps)
+        # Compute Kaiser Bessel and multiply in the sinc
+        filter_taps = kaiser_bessel_with_sinc(taps, full_sup,
+                                              oversampling_factor, beta,
+                                              normalise=normalise)
     else:
-        raise ValueError("Expected one of {'kaiser-bessel'}")
+        raise ValueError("Expected one of {'kaiser-bessel', 'sinc'}")
 
     # Expand filter taps to 2D
     filter_taps = np.outer(filter_taps, filter_taps)
+
+    if not np.all(filter_taps == filter_taps.T):
+        raise AsymmetricKernel("Kernel is asymmetric")
 
     return ConvolutionFilter(half_support, oversampling_factor,
                              full_sup_wo_padding, full_sup,

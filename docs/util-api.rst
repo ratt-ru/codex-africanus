@@ -1,6 +1,17 @@
 Utilities
 ---------
 
+Command Line
+~~~~~~~~~~~~
+
+.. currentmodule:: africanus.util.cmdline
+
+.. autosummary::
+    parse_python_assigns
+
+.. autofunction:: africanus.util.cmdline.parse_python_assigns
+
+
 Requirements Handling
 ~~~~~~~~~~~~~~~~~~~~~
 

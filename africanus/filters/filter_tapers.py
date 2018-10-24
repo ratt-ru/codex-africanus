@@ -6,7 +6,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from .kaiser_bessel_filter import (kaiser_bessel_fourier,
+from .kaiser_bessel_filter import (kaiser_bessel_with_sinc,
                                    estimate_kaiser_bessel_beta)
 
 
@@ -28,23 +28,51 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
     :class:`numpy.ndarray`
         Taper of shape :code:`(ny, nx)`
     """
+    cf = conv_filter
+
     if filter_type == "sinc":
-        raise NotImplementedError("Please implement sinc support")
+        return np.ones((ny, nx))
     elif filter_type == "kaiser-bessel":
         try:
             beta = kwargs.pop('beta')
         except KeyError:
-            beta = estimate_kaiser_bessel_beta(conv_filter.full_sup)
+            beta = estimate_kaiser_bessel_beta(cf.full_sup)
 
-        py = np.arange(ny) / ny - 0.5
-        y = kaiser_bessel_fourier(py, conv_filter.full_sup, beta)
-        y *= np.sinc(y / conv_filter.oversample)
+        # What would Andre Offringa do?
+        # He would compute the numeric solution
+        taps = np.arange(cf.no_taps) / cf.oversample - cf.full_sup // 2
+        kb = kaiser_bessel_with_sinc(taps, cf.full_sup, cf.oversample, beta)
+        kbshift = np.fft.fftshift(kb)
 
-        px = np.arange(nx) / nx - 0.5
-        x = kaiser_bessel_fourier(px, conv_filter.full_sup, beta)
-        x *= np.sinc(x / conv_filter.oversample)
+        width = nx * cf.oversample
+        height = ny * cf.oversample
 
-        # Produce 2D taper
-        return y[:, None] * x[None, :]
+        # Put the first and last halves of the shifted Kaiser Bessel
+        # at each end of the output buffer, then FFT
+        buf = np.zeros(width, dtype=kb.dtype)
+        buf[:kbshift.size // 2] = kbshift[:kbshift.size // 2]
+        buf[-kbshift.size // 2:] = kbshift[-kbshift.size // 2:]
+        x = np.fft.ifft(buf).real
+
+        buf = np.zeros(height, dtype=kb.dtype)
+        buf[:kbshift.size // 2] = kbshift[:kbshift.size // 2]
+        buf[-kbshift.size // 2:] = kbshift[-kbshift.size // 2:]
+        y = np.fft.ifft(buf).real
+
+        # First quarter of the taper
+        quarter = y[:ny // 2, None] * x[None, :nx // 2]
+
+        # Create the taper by copying
+        # the quarter into the appropriate bits
+        taper = np.empty((ny, nx), dtype=kb.dtype)
+        taper[:ny // 2, :nx // 2] = quarter[::-1, ::-1]
+        taper[ny // 2:, :nx // 2] = quarter[:, ::-1]
+        taper[:ny // 2, nx // 2:] = quarter[::-1, :]
+        taper[ny // 2:, nx // 2:] = quarter[:, :]
+
+        # Normalise by oversampling factor
+        taper *= cf.oversample**2
+
+        return taper
     else:
         raise ValueError("Invalid filter_type '%s'" % filter_type)

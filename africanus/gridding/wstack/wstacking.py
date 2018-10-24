@@ -79,7 +79,7 @@ def w_stacking_bins(w_min, w_max, w_layers):
 
 
 def _w_stacking_centroids(w_bins):
-    return (w_bins[1:] + w_bins[:1]) / 2.0
+    return 0.5*(w_bins[:-1] + w_bins[1:])
 
 
 WSTACK_DOCS = r"""
@@ -129,12 +129,13 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     if np.any(bin_indices >= len(grids)):
         raise ValueError("bin_index >= len(grids)")
 
-    w_values = w_stacking_centroids(w_bins)
-    assert len(grids) == w_values.shape[0]
-
-    for i, (w_value, grid) in enumerate(zip(w_values, grids)):
+    for i, grid in enumerate(grids):
         # The row mask for this layer
         mask = bin_indices == i
+
+        # Nothing to grid
+        if np.sum(mask) == 0:
+            continue
 
         simple_numba_grid(vis[mask, ...],
                           uvw[mask, ...],
@@ -240,24 +241,21 @@ def numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
     if np.any(bin_indices >= len(grids)):
         raise ValueError("bin_index >= len(grids)")
 
-    w_values = w_stacking_centroids(w_bins)
-    assert len(grids) == w_values.shape[0]
-
-    for i, (w_value, grid) in enumerate(zip(w_values, grids)):
+    for i, grid in enumerate(grids):
         # The row mask for this layer
         mask = bin_indices == i
+        rows = np.sum(mask)
 
-        # Set w coordinate to that of the layer
-        discretised_uvw = uvw[mask, ...]
-        discretised_uvw[:, 2] = w_value
+        # Nothing to degrid
+        if rows == 0:
+            continue
 
-        row, _ = discretised_uvw.shape
         _, chan, corr = vis.shape
 
-        res_vis = np.zeros((row, chan, corr), dtype=grid.dtype)
+        res_vis = np.zeros((rows, chan, corr), dtype=grid.dtype)
 
         simple_numba_degrid(grid,
-                            discretised_uvw,
+                            uvw[mask, ...],
                             weights[mask, ...],
                             ref_wave,
                             convolution_filter,
