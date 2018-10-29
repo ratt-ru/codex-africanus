@@ -23,7 +23,7 @@ on_rtd = os.environ.get('READTHEDOCS') == 'True'
 requirements = ['decorator']
 
 if not on_rtd:
-    requirements += ['numpy >= 1.14.0, < 1.15.0', 'numba >= 0.38.0, <= 0.40.0']
+    requirements += ['numpy == 1.15.2', 'numba == 0.40.0']
 
 extras_require = {
     'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
