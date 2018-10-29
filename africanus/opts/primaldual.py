@@ -1,7 +1,7 @@
 from .sub_opts import *
 
 
-def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=False, uncert=1.0, maxiter=2000, tolerance=1e-6, tau=None,
+def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, maxiter=200, tolerance=1e-6, tau=None,
                        sigma=None, llambda=None):
 
     M = v_0.shape[0]  # dimension of data

@@ -48,7 +48,7 @@ def power_dask(L, LT, im_size, tol=1e-8, max_iter=2000):
     return np.sqrt(val)
 
 
-def pow_method(L, LT, im_size, tol=1e-8, max_iter=2000):
+def pow_method(L, LT, im_size, tol=1e-12, max_iter=2000):
     """
     @author: mjiang
     ming.jiang@epfl.ch
@@ -129,81 +129,3 @@ def get_diff(x_new, x, n):
 
     return np.maximum(diff1, diff2)
 
-
-# def power_method(A, im_size, maxiter=100, tol=1e-6):
-#     x = np.random.randn(im_size[0], im_size[1])
-#     x /= np.linalg.norm(x)
-#     k = 0
-#     eps = 1.0
-#     lam = 1.0
-#     while k < maxiter and eps > tol:
-#         y = A(x)
-#         x = (y / np.sqrt(y.T.dot(y)))
-#         print(x.shape)
-#         lamp = x.T.dot(A(x))
-#         print(lamp)
-#         eps = np.abs(lam - lamp)
-#         lam = lamp
-#         k += 1
-#
-#     print("Iters = ", k)
-#     return lam
-
-# def radec_to_lm(ra0, dec0, ra, dec):
-#     delta_ra = ra - ra0
-#     l = (np.cos(dec) * np.sin(delta_ra))
-#     m = (np.sin(dec) * np.cos(dec0) - np.cos(dec) * np.sin(dec0) * np.cos(delta_ra))
-#     return l, m
-#
-#
-# data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite_(copy)/SSMF.MS_p0"
-#
-# nrow = 500
-# nchan = 1
-#
-# for ds in xarrayms.xds_from_ms(data_path):
-#     Vdat = ds.DATA.data.compute()
-#     uvw = -ds.UVW.data.compute()[0:nrow, :]
-#     weights = ds.WEIGHT.data.compute()[0:nrow, 0:nchan]
-#
-# vis = Vdat[0:nrow, 0:nchan, 0]
-#
-# datas = fits.open('/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite_(copy)/output.fits')[0]
-#
-# hd = datas.header
-# print(hd)
-#
-# # setup LM
-# ra_cen = 0
-# ra = 3.15126500e-05
-# dec_cen = 0
-# dec = -0.00551471375
-# l, m = radec_to_lm(ra_cen, dec_cen, ra, dec)
-#
-# # l = np.linspace(-l_change, l_change, hd['NAXIS1'])
-# # m = np.linspace(-m_change, m_change, hd['NAXIS2'])
-# # ll, mm = np.meshgrid(l, m)
-# lm = np.array([l, m]).reshape([1,2])# np.vstack((ll.flatten(), mm.flatten())).T
-#
-# # get frequency
-# msfreq = tbl("/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite_(copy)/SSMF.MS_p0::SPECTRAL_WINDOW")
-# freq = msfreq.getcol("CHAN_FREQ").squeeze()[0:nchan]
-# print(freq)
-# ref_freq = 1.53e9
-# alpha = -.7
-#
-# # data = datas.data
-# # data = data.reshape([data.shape[2]*data.shape[3],1]).astype(float)
-# data = np.array([100]*(freq/ref_freq)**alpha).reshape([1, nchan])
-#
-# recovered = im_to_vis(data, uvw, lm, freq)
-#
-# # npix = hd['NAXIS2']
-#
-# print(recovered - vis)
-#
-# #print(vis)
-#
-# print(sum(abs(vis - recovered)))
-#
-# # plt.show()
