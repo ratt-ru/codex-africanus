@@ -14,7 +14,7 @@ from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
 from .predict import predict_vis_docs
-from .predict2 import predict_vis as np_predict_vis
+from .predict import predict_vis as np_predict_vis
 from .zernike import zernike_dde as np_zernike_dde
 
 
@@ -211,9 +211,9 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
 
 
 @requires_optional('dask.array')
-def predict_vis2(time_index, antenna1, antenna2,
-                 ant1_jones, bl_jones, ant2_jones,
-                 g1_jones, base_vis, g2_jones):
+def predict_vis(time_index, antenna1, antenna2,
+                ant1_jones, bl_jones, ant2_jones,
+                g1_jones, base_vis, g2_jones):
 
     have_a1 = ant1_jones is not None
     have_a2 = ant2_jones is not None
@@ -511,7 +511,7 @@ dask_mp_docs['notes'] += (
 """)
 
 
-predict_vis2.__doc__ = doc_tuple_to_str(dask_mp_docs,
+predict_vis.__doc__ = doc_tuple_to_str(dask_mp_docs,
                                        [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`"),
                                         (":func:`~numpy.einsum`",
