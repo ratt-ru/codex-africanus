@@ -14,7 +14,7 @@ from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
 from .predict import predict_vis_docs
-from .predict import predict_vis as np_predict_vis
+from .predict2 import predict_vis as np_predict_vis
 from .zernike import zernike_dde as np_zernike_dde
 
 
@@ -25,6 +25,7 @@ import numpy as np
 
 try:
     import dask.array as da
+    from dask.sharedict import ShareDict
 except ImportError:
     pass
 
@@ -170,37 +171,119 @@ def zernike_dde(coords, coeffs, noll_index):
 
 
 @wraps(np_predict_vis)
-def _predict_wrapper(time_index, antenna1, antenna2,
-                     ant1_jones, ant2_jones, row_jones,
-                     g1_jones, g2_jones):
+def _predict_coh_wrapper(time_index, antenna1, antenna2,
+                         ant1_jones, bl_jones, ant2_jones,
+                         g1_jones, base_vis, g2_jones):
 
-    # Normalise the time index
-    time_index -= time_index.min()
+    return (np_predict_vis(time_index, antenna1, antenna2,
+                           # ant1_jones loses the 'ant' dim
+                           ant1_jones[0] if ant1_jones else None,
+                           # bl_jones loses the 'source' dim
+                           bl_jones,
+                           # ant2_jones loses the 'source' and 'ant' dims
+                           ant2_jones[0] if ant2_jones else None,
+                           # g1_jones loses the 'ant' dim
+                           g1_jones[0] if g1_jones else None,
+                           base_vis,
+                           # g2_jones loses the 'ant' dim
+                           g2_jones[0] if g2_jones else None)
+            # Introduce an extra dimension (source dim reduced to 1)
+            [None, ...])
+
+
+@wraps(np_predict_vis)
+def _predict_dies_wrapper(time_index, antenna1, antenna2,
+                          ant1_jones, bl_jones, ant2_jones,
+                          g1_jones, base_vis, g2_jones):
 
     return np_predict_vis(time_index, antenna1, antenna2,
-                          ant1_jones[0][0], ant2_jones[0][0],
-                          row_jones[0], g1_jones[0], g2_jones[0])
+                          # ant1_jones loses the 'source' and 'ant' dims
+                          ant1_jones[0][0] if ant1_jones else None,
+                          # bl_jones loses the 'source' dim
+                          bl_jones[0] if bl_jones else None,
+                          # ant2_jones loses the 'source' and 'ant' dims
+                          ant2_jones[0][0] if ant2_jones else None,
+                          # g1_jones loses the 'ant' dim
+                          g1_jones[0] if g1_jones else None,
+                          base_vis,
+                          # g2_jones loses the 'ant' dim
+                          g2_jones[0] if g2_jones else None)
 
 
 @requires_optional('dask.array')
-def predict_vis(time_index, antenna1, antenna2,
-                ant1_jones, ant2_jones, row_jones,
-                g1_jones, g2_jones):
+def predict_vis2(time_index, antenna1, antenna2,
+                 ant1_jones, bl_jones, ant2_jones,
+                 g1_jones, base_vis, g2_jones):
 
-    if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
-        raise ValueError("Subdivision of antenna dimension into "
-                         "multiple chunks is not supported.")
+    have_a1 = ant1_jones is not None
+    have_a2 = ant2_jones is not None
+    have_bl = bl_jones is not None
+    have_g1 = g1_jones is not None
+    have_vis = base_vis is not None
+    have_g2 = g2_jones is not None
 
-    if len(ant1_jones.chunks[1]) != len(time_index.chunks[0]):
-        raise ValueError("Number of row chunks (%s) does not equal "
-                         "number of time chunks (%s)." %
-                         (time_index.chunks[0], ant1_jones.chunks[1]))
+    if have_a1 ^ have_a2:
+        raise ValueError("Both ant1_jones and ant2_jones "
+                         "must be present or absent")
+
+    have_ants = have_a1 and have_a2
+
+    if have_ants:
+        if ant1_jones.shape[2] != ant1_jones.chunks[2][0]:
+            raise ValueError("Subdivision of antenna dimension into "
+                             "multiple chunks is not supported.")
+
+        if ant2_jones.shape[2] != ant2_jones.chunks[2][0]:
+            raise ValueError("Subdivision of antenna dimension into "
+                             "multiple chunks is not supported.")
+
+        if ant1_jones.chunks != ant2_jones.chunks:
+            raise ValueError("ant1_jones.chunks != ant2_jones.chunks")
+
+        if len(ant1_jones.chunks[1]) != len(time_index.chunks[0]):
+            raise ValueError("Number of row chunks (%s) does not equal "
+                             "number of time chunks (%s)." %
+                             (time_index.chunks[0], ant1_jones.chunks[1]))
+
+    if have_g1 ^ have_g2:
+        raise ValueError("Both g1_jones and g2_jones "
+                         "must be present or absent")
+
+    have_dies = have_g1 and have_g2
+
+    if have_dies:
+        if g1_jones.shape[1] != g1_jones.chunks[1][0]:
+            raise ValueError("Subdivision of antenna dimension into "
+                             "multiple chunks is not supported.")
+
+        if g2_jones.shape[1] != g2_jones.chunks[1][0]:
+            raise ValueError("Subdivision of antenna dimension into "
+                             "multiple chunks is not supported.")
+
+        if g1_jones.chunks != g2_jones.chunks:
+            raise ValueError("g1_jones.chunks != g2_jones.chunks")
+
+        if len(g1_jones.chunks[0]) != len(time_index.chunks[0]):
+            raise ValueError("Number of row chunks (%s) does not equal "
+                             "number of time chunks (%s)." %
+                             (time_index.chunks[0], g1_jones.chunks[1]))
 
     # Generate strings for the correlation dimensions
-    cdims = tuple("corr-%d" % i for i in range(len(row_jones.shape[3:])))
-    ajones_dims = ("src", "row", "ant", "chan") + cdims
+    if have_ants:
+        cdims = tuple("corr-%d" % i for i in range(len(ant1_jones.shape[4:])))
+    elif have_bl:
+        cdims = tuple("corr-%d" % i for i in range(len(bl_jones.shape[3:])))
+    elif have_dies:
+        cdims = tuple("corr-%d" % i for i in range(len(g1_jones.shape[3:])))
+    else:
+        raise ValueError("Missing both antenna and baseline jones terms")
 
-    # In the case predict_vis, the "row" and "time" dimensions
+    # Infer the output dtype
+    dtype_arrays = [ant1_jones, bl_jones, ant2_jones, g1_jones, g2_jones]
+    out_dtype = np.result_type(*(np.dtype(a.dtype.name)
+                                 for a in dtype_arrays if a is not None))
+
+    # In the case of predict_vis, the "row" and "time" dimensions
     # are intimately related -- a contiguous series of rows
     # are related to a contiguous series of timesteps.
     # This means that the number of chunks of these
@@ -210,43 +293,132 @@ def predict_vis(time_index, antenna1, antenna2,
     # substitute "row" for "time" in arrays such as ant1_jones
     # and g1_jones.
     token = da.core.tokenize(time_index, antenna1, antenna2,
-                             ant1_jones, ant2_jones, row_jones,
-                             g1_jones, g2_jones)
-    name = "-".join(("predict_vis", token))
-    dsk = da.core.top(_predict_wrapper, name, ("row", "chan") + cdims,
-                      time_index.name, ("row",),
-                      antenna1.name, ("row",),
-                      antenna2.name, ("row",),
-                      ant1_jones.name, ajones_dims,
-                      ant2_jones.name, ajones_dims,
-                      row_jones.name, ("src", "row", "chan") + cdims,
-                      g1_jones.name, ("row", "ant", "chan") + cdims,
-                      g2_jones.name, ("row", "ant", "chan") + cdims,
-                      numblocks={
-                            time_index.name: time_index.numblocks,
-                            antenna1.name: antenna1.numblocks,
-                            antenna2.name: antenna2.numblocks,
-                            ant1_jones.name: ant1_jones.numblocks,
-                            ant2_jones.name: ant2_jones.numblocks,
-                            row_jones.name: row_jones.numblocks,
-                            g1_jones.name: g1_jones.numblocks,
-                            g2_jones.name: g2_jones.numblocks,
-                        })
+                             ant1_jones, bl_jones, ant2_jones, base_vis)
+
+    ajones_dims = ("src", "row", "ant", "chan") + cdims
+    gjones_dims = ("row", "ant", "chan") + cdims
+
+    # Setup
+    # 1. Optional top arguments
+    # 2. Optional numblocks kwarg
+    # 3. dask graph inputs
+    array_dsk = ShareDict()
+    top_args = [time_index.name, ("row",),
+                antenna1.name, ("row",),
+                antenna2.name, ("row",)]
+    numblocks = {
+        time_index.name: time_index.numblocks,
+        antenna1.name: antenna1.numblocks,
+        antenna2.name: antenna2.numblocks
+    }
 
     # Merge input graphs into the top graph
-    dsk = toolz.merge(dsk, *(a.__dask_graph__() for a in (time_index,
-                                                          antenna1,
-                                                          antenna2,
-                                                          ant1_jones,
-                                                          ant2_jones,
-                                                          row_jones,
-                                                          g1_jones,
-                                                          g2_jones)))
+    array_dsk.update(time_index.__dask_graph__())
+    array_dsk.update(antenna1.__dask_graph__())
+    array_dsk.update(antenna2.__dask_graph__())
 
-    # We can infer output chunk sizes from row_jones
-    chunks = row_jones.chunks[1:]
+    # Handle presence/absence of ant1_jones
+    if have_ants:
+        top_args.extend([ant1_jones.name, ajones_dims])
+        numblocks[ant1_jones.name] = ant1_jones.numblocks
+        array_dsk.update(ant1_jones.__dask_graph__())
+        other_chunks = ant1_jones.chunks[3:]
+        src_chunks = ant1_jones.chunks[0]
+    else:
+        top_args.extend([None, None])
 
-    return da.Array(dsk, name, chunks, dtype=ant1_jones.dtype)
+    # Handle presence/absence of bl_jones
+    if have_bl:
+        top_args.extend([bl_jones.name, ("src", "row", "chan") + cdims])
+        numblocks[bl_jones.name] = bl_jones.numblocks
+        other_chunks = bl_jones.chunks[2:]
+        src_chunks = bl_jones.chunks[0]
+        array_dsk.update(bl_jones.__dask_graph__())
+    else:
+        top_args.extend([None, None])
+
+    # Handle presence/absence of ant2_jones
+    if have_ants:
+        top_args.extend([ant2_jones.name, ajones_dims])
+        numblocks[ant2_jones.name] = ant2_jones.numblocks
+        other_chunks = ant1_jones.chunks[3:]
+        array_dsk.update(ant2_jones.__dask_graph__())
+        other_chunks = ant2_jones.chunks[3:]
+        src_chunks = ant1_jones.chunks[0]
+    else:
+        top_args.extend([None, None])
+
+    # g1_jones, base_vis and g2_jones absent for this part of the graph
+    top_args.extend([None, None, None, None, None, None])
+
+    assert len(top_args) // 2 == 9, len(top_args) // 2
+
+    name = "-".join(("predict_vis", token))
+    dsk = da.core.top(_predict_coh_wrapper,
+                      name, ("src", "row", "chan") + cdims,
+                      *top_args,
+                      numblocks=numblocks)
+
+    array_dsk.update(dsk)
+
+    # We can infer output chunk sizes from bl_jones
+    chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
+
+    sum_coherencies = da.Array(array_dsk, name, chunks, dtype=out_dtype)
+    sum_coherencies = sum_coherencies.sum(axis=0)
+
+    if have_vis:
+        sum_coherencies += base_vis
+
+    if not have_dies:
+        return sum_coherencies
+
+    # Now apply any Direction Independent Effect Terms
+
+    # Setup
+    # 1. Optional top arguments
+    # 2. Optional numblocks kwarg
+    # 3. dask graph inputs
+    array_dsk = ShareDict()
+    top_args = [time_index.name, ("row",),
+                antenna1.name, ("row",),
+                antenna2.name, ("row",)]
+    numblocks = {
+        time_index.name: time_index.numblocks,
+        antenna1.name: antenna1.numblocks,
+        antenna2.name: antenna2.numblocks
+    }
+
+    array_dsk.update(time_index.__dask_graph__())
+    array_dsk.update(antenna1.__dask_graph__())
+    array_dsk.update(antenna2.__dask_graph__())
+
+    # ant1_jones, bl_jones  and ant2_jones not present
+    top_args.extend([None, None, None, None, None, None])
+
+    top_args.extend([g1_jones.name, gjones_dims])
+    top_args.extend([sum_coherencies.name, ("row", "chan") + cdims])
+    top_args.extend([g2_jones.name, gjones_dims])
+    numblocks[g1_jones.name] = g1_jones.numblocks
+    numblocks[sum_coherencies.name] = sum_coherencies.numblocks
+    numblocks[g2_jones.name] = g2_jones.numblocks
+    array_dsk.update(g1_jones.__dask_graph__())
+    array_dsk.update(sum_coherencies.__dask_graph__())
+    array_dsk.update(g2_jones.__dask_graph__())
+
+    assert len(top_args) // 2 == 9
+
+    token = da.core.tokenize(time_index, antenna1, antenna2,
+                             g1_jones, sum_coherencies, g2_jones)
+    name = '-'.join(("predict_vis", token))
+    dsk = da.core.top(_predict_dies_wrapper,
+                      name, ("row", "chan") + cdims,
+                      *top_args, numblocks=numblocks)
+    array_dsk.update(dsk)
+
+    chunks = (time_index.chunks[0],) + other_chunks
+
+    return da.Array(array_dsk, name, chunks, dtype=out_dtype)
 
 
 phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
@@ -339,7 +511,7 @@ dask_mp_docs['notes'] += (
 """)
 
 
-predict_vis.__doc__ = doc_tuple_to_str(dask_mp_docs,
+predict_vis2.__doc__ = doc_tuple_to_str(dask_mp_docs,
                                        [(":class:`numpy.ndarray`",
                                          ":class:`dask.array.Array`"),
                                         (":func:`~numpy.einsum`",
