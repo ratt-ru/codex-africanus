@@ -26,7 +26,7 @@ if not on_rtd:
     requirements += ['numpy >= 1.14.0, < 1.15.0', 'numba >= 0.38.0']
 
 extras_require = {
-    'dask': ['dask[array] >= 0.18.0'],
+    'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
     'python-casacore': ['python-casacore >= 2.2.1'],
