@@ -173,7 +173,7 @@ def zernike_dde(coords, coeffs, noll_index):
 @wraps(np_predict_vis)
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          ant1_jones, bl_jones, ant2_jones,
-                         g1_jones, base_vis, g2_jones):
+                         g1_jones, base_coh, g2_jones):
 
     return (np_predict_vis(time_index, antenna1, antenna2,
                            # ant1_jones loses the 'ant' dim
@@ -184,7 +184,7 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
                            ant2_jones[0] if ant2_jones else None,
                            # g1_jones loses the 'ant' dim
                            g1_jones[0] if g1_jones else None,
-                           base_vis,
+                           base_coh,
                            # g2_jones loses the 'ant' dim
                            g2_jones[0] if g2_jones else None)
             # Introduce an extra dimension (source dim reduced to 1)
@@ -194,7 +194,7 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
 @wraps(np_predict_vis)
 def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           ant1_jones, bl_jones, ant2_jones,
-                          g1_jones, base_vis, g2_jones):
+                          g1_jones, base_coh, g2_jones):
 
     return np_predict_vis(time_index, antenna1, antenna2,
                           # ant1_jones loses the 'source' and 'ant' dims
@@ -205,7 +205,7 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           ant2_jones[0][0] if ant2_jones else None,
                           # g1_jones loses the 'ant' dim
                           g1_jones[0] if g1_jones else None,
-                          base_vis,
+                          base_coh,
                           # g2_jones loses the 'ant' dim
                           g2_jones[0] if g2_jones else None)
 
@@ -213,13 +213,13 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
 @requires_optional('dask.array')
 def predict_vis(time_index, antenna1, antenna2,
                 ant1_jones, bl_jones, ant2_jones,
-                g1_jones, base_vis, g2_jones):
+                g1_jones, base_coh, g2_jones):
 
     have_a1 = ant1_jones is not None
     have_a2 = ant2_jones is not None
     have_bl = bl_jones is not None
     have_g1 = g1_jones is not None
-    have_vis = base_vis is not None
+    have_coh = base_coh is not None
     have_g2 = g2_jones is not None
 
     if have_a1 ^ have_a2:
@@ -293,7 +293,7 @@ def predict_vis(time_index, antenna1, antenna2,
     # substitute "row" for "time" in arrays such as ant1_jones
     # and g1_jones.
     token = da.core.tokenize(time_index, antenna1, antenna2,
-                             ant1_jones, bl_jones, ant2_jones, base_vis)
+                             ant1_jones, bl_jones, ant2_jones, base_coh)
 
     ajones_dims = ("src", "row", "ant", "chan") + cdims
     gjones_dims = ("row", "ant", "chan") + cdims
@@ -348,7 +348,7 @@ def predict_vis(time_index, antenna1, antenna2,
     else:
         top_args.extend([None, None])
 
-    # g1_jones, base_vis and g2_jones absent for this part of the graph
+    # g1_jones, base_coh and g2_jones absent for this part of the graph
     top_args.extend([None, None, None, None, None, None])
 
     assert len(top_args) // 2 == 9, len(top_args) // 2
@@ -367,8 +367,8 @@ def predict_vis(time_index, antenna1, antenna2,
     sum_coherencies = da.Array(array_dsk, name, chunks, dtype=out_dtype)
     sum_coherencies = sum_coherencies.sum(axis=0)
 
-    if have_vis:
-        sum_coherencies += base_vis
+    if have_coh:
+        sum_coherencies += base_coh
 
     if not have_dies:
         return sum_coherencies

@@ -11,7 +11,7 @@ import numba
 from numba import types, generated_jit, njit
 import numpy as np
 
-from ..util.docs import doc_tuple_to_str
+from ..util.docs import doc_tuple_to_str, on_rtd
 
 
 JONES_NOT_PRESENT = 0
@@ -261,19 +261,19 @@ def output_factory(have_ants, have_bl, have_dies, out_dtype):
     return njit(nogil=True, cache=True)(output)
 
 
-def add_vis_factory(have_vis):
-    if have_vis:
-        def add_vis(base_vis, out):
-            out += base_vis
+def add_coh_factory(have_coh):
+    if have_coh:
+        def add_coh(base_coh, out):
+            out += base_coh
     else:
         # noop
-        def add_vis(base_vis, out):
+        def add_coh(base_coh, out):
             pass
 
-    return njit(nogil=True, cache=True)(add_vis)
+    return njit(nogil=True, cache=True)(add_coh)
 
 
-def apply_dies_factory(have_dies, have_vis, jones_type):
+def apply_dies_factory(have_dies, have_coh, jones_type):
     """
     Factory function returning a function that applies
     Direction Independent Effects
@@ -282,7 +282,7 @@ def apply_dies_factory(have_dies, have_vis, jones_type):
     # We always "have visibilities", (the output array)
     jones_mul = jones_mul_factory(have_dies, True, jones_type, False)
 
-    if have_dies and have_vis:
+    if have_dies and have_coh:
         def apply_dies(time, ant1, ant2,
                        g1_jones, g2_jones,
                        tmin, out):
@@ -295,7 +295,7 @@ def apply_dies_factory(have_dies, have_vis, jones_type):
                     jones_mul(g1_jones[ti, a1, c], out[r, c],
                               g2_jones[ti, a2, c], out[r, c])
 
-    elif have_dies and not have_vis:
+    elif have_dies and not have_coh:
         def apply_dies(time, ant1, ant2,
                        g1_jones, g2_jones,
                        tmin, out):
@@ -318,16 +318,15 @@ def apply_dies_factory(have_dies, have_vis, jones_type):
     return njit(nogil=True, cache=True)(apply_dies)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def predict_vis(time_index, antenna1, antenna2,
                 ant1_jones=None, bl_jones=None, ant2_jones=None,
-                g1_jones=None, base_vis=None, g2_jones=None):
+                g1_jones=None, base_coh=None, g2_jones=None):
 
     have_a1 = not isinstance(ant1_jones, types.misc.NoneType)
     have_bl = not isinstance(bl_jones, types.misc.NoneType)
     have_a2 = not isinstance(ant2_jones, types.misc.NoneType)
     have_g1 = not isinstance(g1_jones, types.misc.NoneType)
-    have_vis = not isinstance(base_vis, types.misc.NoneType)
+    have_coh = not isinstance(base_coh, types.misc.NoneType)
     have_g2 = not isinstance(g2_jones, types.misc.NoneType)
 
     assert time_index.ndim == 1
@@ -344,7 +343,7 @@ def predict_vis(time_index, antenna1, antenna2,
 
     # Infer the output dtype
     dtype_arrays = (ant1_jones, bl_jones, ant2_jones,
-                    g1_jones, base_vis, g2_jones)
+                    g1_jones, base_coh, g2_jones)
 
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
@@ -368,8 +367,8 @@ def predict_vis(time_index, antenna1, antenna2,
     if have_g1 and g1_jones.ndim not in (4, 5):
         raise ValueError("g1_jones.ndim %d not in (4, 5)" % g1_jones.ndim)
 
-    # if have_vis and have_vis.ndim not in (3, 4):
-    #     raise ValueError("have_vis.ndim %d not in (3, 4)" % have_vis.ndim)
+    # if have_coh and have_coh.ndim not in (3, 4):
+    #     raise ValueError("have_coh.ndim %d not in (3, 4)" % have_coh.ndim)
 
     if have_g2 and g2_jones.ndim not in (4, 5):
         raise ValueError("g2_jones.ndim %d not in (4, 5)" % g2_jones.ndim)
@@ -394,13 +393,13 @@ def predict_vis(time_index, antenna1, antenna2,
     # Create functions that we will use inside our predict function
     out_fn = output_factory(have_ants, have_bl, have_dies, out_dtype)
     sum_coh_fn = sum_coherencies_factory(have_ants, have_bl, jones_type)
-    apply_dies_fn = apply_dies_factory(have_dies, have_vis, jones_type)
-    add_vis_fn = add_vis_factory(have_vis)
+    apply_dies_fn = apply_dies_factory(have_dies, have_coh, jones_type)
+    add_coh_fn = add_coh_factory(have_coh)
 
     @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         ant1_jones=None, bl_jones=None, ant2_jones=None,
-                        g1_jones=None, base_vis=None, g2_jones=None):
+                        g1_jones=None, base_coh=None, g2_jones=None):
 
         # Get the output shape
         out = out_fn(time_index, ant1_jones, bl_jones, ant2_jones,
@@ -415,7 +414,7 @@ def predict_vis(time_index, antenna1, antenna2,
                    tmin, out)
 
         # Add base visibilities to the output, if any
-        add_vis_fn(base_vis, out)
+        add_coh_fn(base_coh, out)
 
         # Apply direction independent effects, if any
         apply_dies_fn(time_index, antenna1, antenna2,
@@ -425,6 +424,13 @@ def predict_vis(time_index, antenna1, antenna2,
         return out
 
     return _predict_vis_fn
+
+
+# inspect.getargspec doesn't work on a numba dispatcher object
+# so rtd fails.
+if not on_rtd():
+    predict_vis = generated_jit(nopython=True, nogil=True, cache=True)(
+                                predict_vis)
 
 
 _MP_DOCSTRING = namedtuple("MULTIPLEXDOCSTRING",
@@ -440,12 +446,13 @@ predict_vis_docs = _MP_DOCSTRING(
 
 
         V_{pq} = G_{p} \\left(
-            \\sum_{s} A_{ps} X_{pqs} A_{qs}^H
+            B_{pq} + \\sum_{s} A_{ps} X_{pqs} A_{qs}^H
             \\right) G_{q}^H
 
     where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
 
+    - :math:`B_{pq}` represent base coherencies.
     - :math:`E_{ps}` represents direction-dependent (per-source) Jones terms.
     - :math:`X_{pqs}` represents a coherency matrix (per-source).
     - :math:`G_{p}` represents direction-independent Jones terms.
@@ -466,7 +473,8 @@ predict_vis_docs = _MP_DOCSTRING(
     notes="""
     Notes
     -----
-
+    * Antenna terms (ant{1,2}_jones and g{1,2}_jones) are optional,
+      but if one is present, the other must be present.
     * The inputs to this function involve ``row``, ``time``
       and ``ant`` (antenna) dimensions.
     * Each ``row`` is associated with a pair of antenna Jones matrices
@@ -490,23 +498,23 @@ predict_vis_docs = _MP_DOCSTRING(
         Antenna 2 index used to look up the antenna Jones
         for a particular row (baseline).
         with shape :code:`(row,)`.
-    ant1_jones : :class:`numpy.ndarray`
-        Per-source Jones terms for the first antenna.
+    ant1_jones : :class:`numpy.ndarray`, optional
+        :math:`A_{ps}` per-source Jones terms for the first antenna.
         shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-    bl_jones : :class:`numpy.ndarray`
-        Per-source coherency matrix for the row (baseline)
+    bl_jones : :class:`numpy.ndarray`, optional
+        :math:`X_{pqs}` [er-source coherency matrix for the row (baseline).
         with shape :code:`(source,row,chan,corr_1,corr_2)`
-    ant2_jones : :class:`numpy.ndarray`
-        Per-source Jones terms for the second antenna.
+    ant2_jones : :class:`numpy.ndarray`, optional
+        :math:`A_{qs}` [er-source Jones terms for the second antenna.
         shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-    g1_jones : :class:`numpy.ndarray`
-        Jones terms for the first antenna of the baseline
+    g1_jones : :class:`numpy.ndarray`, optional
+        :math:`G_{ps}` jones terms for the first antenna of the baseline.
         with shape :code:`(time,ant,chan,corr_1,corr_2)`
-    base_vis : :class:`numpy.ndarray`
-        Base visibilities, added to source coherency summation
+    base_coh : :class:`numpy.ndarray`, optional
+        :math:`B_{pq}` base coherencies, added to source coherency summation.
         *before* multiplication with `g1_jones` and `g2_jones`.
-    g2_jones : :class:`numpy.ndarray`
-        Jones terms for the second antenna of the baseline
+    g2_jones : :class:`numpy.ndarray`, optional
+        :math:`G_{ps}` jones terms for the second antenna of the baseline.
         with shape :code:`(time,ant,chan,corr_1,corr_2)`
     """,
 
