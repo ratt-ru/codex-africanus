@@ -23,7 +23,11 @@ on_rtd = os.environ.get('READTHEDOCS') == 'True'
 requirements = ['decorator']
 
 if not on_rtd:
-    requirements += ['numpy >= 1.14.0, < 1.15.3', 'numba >= 0.38.0']
+    requirements += [
+        # astropy breaks with numpy 1.15.3
+        # https://github.com/astropy/astropy/issues/7943
+        'numpy >= 1.14.0, < 1.15.3',
+        'numba >= 0.38.0']
 
 extras_require = {
     'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
