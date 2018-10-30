@@ -30,6 +30,7 @@ extras_require = {
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
     'python-casacore': ['python-casacore >= 2.2.1'],
+    'testing': ['pytest', 'pytest-runner']
 }
 
 extras_require['complete'] = sorted(set(sum(extras_require.values(), [])))
