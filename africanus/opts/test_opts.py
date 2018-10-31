@@ -15,8 +15,9 @@ from africanus.opts.data_reader import data_reader, plot
 data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
 freq = da.array([1.06e9])
 NCPU = 8
+ra_dec = np.array([[3.15126500e-05], [-0.00551471375]])
 
-uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path)
+uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path, ra_dec)
 
 wsum = da.sum(weights_dask)
 pad_pix = int(da.sqrt(lm_pad_dask.shape[0]))

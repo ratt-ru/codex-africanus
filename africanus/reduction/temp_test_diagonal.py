@@ -2,7 +2,7 @@ import xarrayms
 from africanus.dft.dask import im_to_vis, vis_to_im
 import matplotlib.pyplot as plt
 import numpy as np
-from africanus.reduction.psf_redux import F, iF, diag_probe, PSF_response, PSF_adjoint, sigma_approx
+from africanus.reduction.psf_redux import FFT, iFFT, PSF_response, PSF_adjoint, sigma_approx
 import dask.array as da
 from africanus.opts.data_reader import data_reader
 
@@ -75,7 +75,7 @@ def M_pad(vec):
     return T3.flatten()/np.sqrt(wsum)
 
 
-PSF_hat = F(PSF)
+PSF_hat = FFT(PSF)
 
 
 # def PSF_probe(vec):
@@ -123,7 +123,7 @@ PH = lambda image: PSF_adjoint(image, PSF_hat, sigma)*np.sqrt(pad_pix**2/wsum)
 # vec = np.ones([npix, npix])
 vec = np.zeros([npix, npix])
 vec[npix//2, npix//2] = 1
-im_psf = iF(P(np.pad(vec, padding, 'constant'))).real[padding:-padding, padding:-padding].flatten()
+im_psf = iFFT(P(np.pad(vec, padding, 'constant'))).real[padding:-padding, padding:-padding].flatten()
 im_frrf = M(vec).real.flatten()
 
 # Set up y=x line
@@ -141,9 +141,9 @@ plt.scatter(im_frrf, im_psf, marker='x')
 # plt.colorbar()
 
 plt.figure('Fourier difference')
-F_temp = F(np.zeros([pad_pix**2,pad_pix**2]))
+F_temp = FFT(np.zeros([pad_pix**2,pad_pix**2]))
 test = np.eye(pad_pix**2)
-plt.imshow(np.abs(FT.dot(test) - F(test)))
+plt.imshow(np.abs(FT.dot(test) - FFT(test)))
 plt.colorbar()
 
 # # doing the probing and calculating the PSF diagonal

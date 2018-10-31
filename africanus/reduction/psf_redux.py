@@ -3,26 +3,26 @@ import dask.array as da
 import numba
 
 
-def Fd(x):
+def FFT_dask(x):
     return da.fft.fftshift(da.fft.fft2(da.fft.ifftshift(x)))
 
 
-def iFd(x):
+def iFFT_dask(x):
     return da.fft.fftshift(da.fft.ifft2(da.fft.ifftshift(x)))
 
 
-def F(x):
-    return np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(x)))
+def FFT(x):
+    return np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(x), norm='ortho'))
 
 
-def iF(x):
-    return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(x)))
+def iFFT(x):
+    return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(x), norm='ortho'))
 
 
 def PSF_response(image, PSF_hat, Sigma):
 
-    # im_pad = np.pad(image, padding, 'constant')
-    im_hat = F(image)
+    # separate image into channels
+    im_hat = FFT(image)
 
     # apply element-wise product with PSF_hat for convolution
     vis = PSF_hat*im_hat
@@ -32,7 +32,7 @@ def PSF_response(image, PSF_hat, Sigma):
 
     new_im = w_im.reshape(im_hat.shape)
 
-    return iF(new_im)
+    return iFFT(new_im)
 
 
 def PSF_adjoint(image, PSF_hat, Sigma):
@@ -43,21 +43,21 @@ def PSF_adjoint(image, PSF_hat, Sigma):
     :return:
     """
 
-    im_hat = F(image).flatten()
+    im_hat = FFT(image).flatten()
 
     w_im = (Sigma * im_hat).reshape(image.shape)
 
     vis = PSF_hat.conj()*w_im
 
-    new_im = iF(vis)
+    new_im = iFFT(vis)
 
     return new_im
 
 
 def sigma_approx(PSF):
-    psf_hat = F(PSF)
+    psf_hat = FFT(PSF)
 
-    P = lambda x: iF(psf_hat*F(x.reshape(PSF.shape))).flatten()
+    P = lambda x: iFFT(psf_hat*FFT(x.reshape(PSF.shape))).flatten()
 
     return guess_matrix(P, PSF.size).real
 
@@ -69,7 +69,7 @@ def diag_probe(A, dim, maxiter=2000, tol=1e-12, mode="Bernoulli"):
     q = np.zeros(dim, dtype='complex128')
 
     if mode == "Normal":
-        gen_random = lambda npix: np.random.randn(npix)
+        gen_random = lambda npix: np.random.randn(npix) + 1.0j*np.random.randn(npix)
     elif mode == "Bernoulli":
         gen_random = lambda npix: np.where(np.random.random(npix) < 0.5, -1, 1) + \
                                  1.0j*np.where(np.random.random(npix) < 0.5, -1, 1)
@@ -89,6 +89,7 @@ def diag_probe(A, dim, maxiter=2000, tol=1e-12, mode="Bernoulli"):
         D = D_new
     print("Final relative norm: ", rel_norm)
     return D_new
+
 
 def guess_matrix(operator, N):
     '''
