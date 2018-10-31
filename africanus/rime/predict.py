@@ -263,11 +263,11 @@ def output_factory(have_ants, have_bl, have_dies, out_dtype):
 
 def add_coh_factory(have_coh):
     if have_coh:
-        def add_coh(base_coh, out):
-            out += base_coh
+        def add_coh(base_vis, out):
+            out += base_vis
     else:
         # noop
-        def add_coh(base_coh, out):
+        def add_coh(base_vis, out):
             pass
 
     return njit(nogil=True, cache=True)(add_coh)
@@ -320,13 +320,13 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
 
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
-                die1_jones=None, base_coh=None, die2_jones=None):
+                die1_jones=None, base_vis=None, die2_jones=None):
 
     have_a1 = not isinstance(dde1_jones, types.misc.NoneType)
     have_bl = not isinstance(source_coh, types.misc.NoneType)
     have_a2 = not isinstance(dde2_jones, types.misc.NoneType)
     have_g1 = not isinstance(die1_jones, types.misc.NoneType)
-    have_coh = not isinstance(base_coh, types.misc.NoneType)
+    have_coh = not isinstance(base_vis, types.misc.NoneType)
     have_g2 = not isinstance(die2_jones, types.misc.NoneType)
 
     assert time_index.ndim == 1
@@ -343,7 +343,7 @@ def predict_vis(time_index, antenna1, antenna2,
 
     # Infer the output dtype
     dtype_arrays = (dde1_jones, source_coh, dde2_jones,
-                    die1_jones, base_coh, die2_jones)
+                    die1_jones, base_vis, die2_jones)
 
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
@@ -399,7 +399,7 @@ def predict_vis(time_index, antenna1, antenna2,
     @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
-                        die1_jones=None, base_coh=None, die2_jones=None):
+                        die1_jones=None, base_vis=None, die2_jones=None):
 
         # Get the output shape
         out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
@@ -414,7 +414,7 @@ def predict_vis(time_index, antenna1, antenna2,
                    tmin, out)
 
         # Add base visibilities to the output, if any
-        add_coh_fn(base_coh, out)
+        add_coh_fn(base_vis, out)
 
         # Apply direction independent effects, if any
         apply_dies_fn(time_index, antenna1, antenna2,
@@ -499,8 +499,8 @@ die1_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     first antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
-base_coh : $(array_type), optional
-    :math:`B_{pq}` base coherencies, added to source coherency summation.
+base_vis : $(array_type), optional
+    :math:`B_{pq}` base visibilities, added to source coherency summation
     *before* multiplication with `die1_jones` and `die2_jones`.
 die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
