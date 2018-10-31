@@ -13,7 +13,7 @@ from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
 from .beam_cubes import beam_cube_dde as np_beam_cude_dde
-from .predict import predict_vis_docs
+from .predict import PREDICT_DOCS
 from .predict import predict_vis as np_predict_vis
 from .zernike import zernike_dde as np_zernike_dde
 
@@ -212,8 +212,8 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
 
 @requires_optional('dask.array')
 def predict_vis(time_index, antenna1, antenna2,
-                ant1_jones, bl_jones, ant2_jones,
-                g1_jones, base_coh, g2_jones):
+                ant1_jones=None, bl_jones=None, ant2_jones=None,
+                g1_jones=None, base_coh=None, g2_jones=None):
 
     have_a1 = ant1_jones is not None
     have_a2 = ant2_jones is not None
@@ -446,73 +446,70 @@ zernike_dde.__doc__ = mod_docs(np_zernike_dde.__doc__,
                                    ":class:`dask.array.Array`")])
 
 
-dask_mp_docs = OrderedDict((k, getattr(predict_vis_docs, k)) for k
-                           in predict_vis_docs._fields)
+EXTRA_DASK_NOTES = """
+* The ``ant`` dimension should only contain a single chunk equal
+  to the number of antenna. Since each ``row`` can contain
+  any antenna, random access must be preserved along this dimension.
+* The chunks in the ``row`` and ``time`` dimension **must** align.
+  This subtle point **must be understood otherwise
+  invalid results will be produced** by the chunking scheme.
+  In the example below
+  we have four unique time indices :code:`[0,1,2,3]`, and
+  four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
 
-dask_mp_docs['notes'] += (
-    """* The ``ant`` dimension should only contain a single chunk equal
-      to the number of antenna. Since each ``row`` can contain
-      any antenna, random access must be preserved along this dimension.
-    * The chunks in the ``row`` and ``time`` dimension **must** align.
-      This subtle point **must be understood otherwise
-      invalid results will be produced** by the chunking scheme.
-      In the example below
-      we have four unique time indices :code:`[0,1,2,3]`, and
-      four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
+  .. code-block:: python
 
-      .. code-block:: python
-
-          #  Row indices into the time/antenna indexed arrays
-          time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
-          ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
-          ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+      #  Row indices into the time/antenna indexed arrays
+      time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+      ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
+      ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
 
 
-      A reasonable chunking scheme for the
-      ``row`` and ``time`` dimension would be :code:`(4,4,2)`
-      and :code:`(2,1,1)` respectively.
-      Another way of explaining this is that the first
-      four rows contain two unique timesteps, the second four
-      rows contain one unique timestep and the last two rows
-      contain one unique timestep.
+  A reasonable chunking scheme for the
+  ``row`` and ``time`` dimension would be :code:`(4,4,2)`
+  and :code:`(2,1,1)` respectively.
+  Another way of explaining this is that the first
+  four rows contain two unique timesteps, the second four
+  rows contain one unique timestep and the last two rows
+  contain one unique timestep.
 
-      Some rules of thumb:
+  Some rules of thumb:
 
-      1. The number chunks in ``row`` and ``time`` must match
-         although the individual chunk sizes need not.
-      2. Unique timesteps should not be split across row chunks.
-      3. For a Measurement Set whose rows are ordered on the
-         ``TIME`` column, the following is a good way of obtaining
-         the row chunking strategy:
+  1. The number chunks in ``row`` and ``time`` must match
+     although the individual chunk sizes need not.
+  2. Unique timesteps should not be split across row chunks.
+  3. For a Measurement Set whose rows are ordered on the
+     ``TIME`` column, the following is a good way of obtaining
+     the row chunking strategy:
 
-         .. code-block:: python
+     .. code-block:: python
 
-            import numpy as np
-            import pyrap.tables as pt
+        import numpy as np
+        import pyrap.tables as pt
 
-            ms = pt.table("data.ms")
-            times = ms.getcol("TIME")
-            unique_times, chunks = np.unique(times, return_counts=True)
+        ms = pt.table("data.ms")
+        times = ms.getcol("TIME")
+        unique_times, chunks = np.unique(times, return_counts=True)
 
-      4. Use :func:`~africanus.util.shapes.aggregate_chunks`
-         to aggregate multiple ``row`` and ``time``
-         chunks into chunks large enough such that functions operating
-         on the resulting data can drop the GIL and spend time
-         processing the data. Expanding the previous example:
+  4. Use :func:`~africanus.util.shapes.aggregate_chunks`
+     to aggregate multiple ``row`` and ``time``
+     chunks into chunks large enough such that functions operating
+     on the resulting data can drop the GIL and spend time
+     processing the data. Expanding the previous example:
 
-         .. code-block:: python
+     .. code-block:: python
 
-            # Aggregate row
-            utimes = unique_times.size
-            # Single chunk for each unique time
-            time_chunks = (1,)*utimes
-            # Aggregate row chunks into chunks <= 10000
-            aggregate_chunks((chunks, time_chunks), (10000, utimes))
-""")
+        # Aggregate row
+        utimes = unique_times.size
+        # Single chunk for each unique time
+        time_chunks = (1,)*utimes
+        # Aggregate row chunks into chunks <= 10000
+        aggregate_chunks((chunks, time_chunks), (10000, utimes))
+"""
 
-
-predict_vis.__doc__ = doc_tuple_to_str(dask_mp_docs,
-                                       [(":class:`numpy.ndarray`",
-                                         ":class:`dask.array.Array`"),
-                                        (":func:`~numpy.einsum`",
-                                         ":func:`~dask.array.einsum`")])
+try:
+    predict_vis.__doc__ = PREDICT_DOCS.substitute(
+                                array_type=":class:`dask.array.Array`",
+                                extra_notes=EXTRA_DASK_NOTES)
+except AttributeError:
+    pass
