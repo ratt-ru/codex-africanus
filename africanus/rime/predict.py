@@ -64,7 +64,7 @@ def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
 def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
     """
     Outputs a function that multiplies some combination of
-    (ant1_jones, baseline_jones, ant2_jones) together.
+    (dde1_jones, baseline_jones, dde2_jones) together.
 
     Parameters
     ----------
@@ -234,25 +234,25 @@ def sum_coherencies_factory(have_ants, have_bl, jones_type):
 def output_factory(have_ants, have_bl, have_dies, out_dtype):
     """ Factory function generating a function that creates function output """
     if have_ants:
-        def output(time_index, ant1_jones, bl_jones, ant2_jones,
-                   g1_jones, g2_jones):
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, die2_jones):
             row = time_index.shape[0]
-            chan = ant1_jones.shape[3]
-            corrs = ant1_jones.shape[4:]
+            chan = dde1_jones.shape[3]
+            corrs = dde1_jones.shape[4:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
     elif have_bl:
-        def output(time_index, ant1_jones, bl_jones, ant2_jones,
-                   g1_jones, g2_jones):
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, die2_jones):
             row = time_index.shape[0]
-            chan = bl_jones.shape[2]
-            corrs = bl_jones.shape[3:]
+            chan = source_coh.shape[2]
+            corrs = source_coh.shape[3:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
     elif have_dies:
-        def output(time_index, ant1_jones, bl_jones, ant2_jones,
-                   g1_jones, g2_jones):
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, die2_jones):
             row = time_index.shape[0]
-            chan = g1_jones.shape[2]
-            corrs = g1_jones.shape[3:]
+            chan = die1_jones.shape[2]
+            corrs = die1_jones.shape[3:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
     else:
         raise ValueError("Insufficient inputs were supplied "
@@ -284,7 +284,7 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
 
     if have_dies and have_coh:
         def apply_dies(time, ant1, ant2,
-                       g1_jones, g2_jones,
+                       die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
             for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
@@ -292,12 +292,12 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
 
                 # Iterate over channels
                 for c in range(out.shape[1]):
-                    jones_mul(g1_jones[ti, a1, c], out[r, c],
-                              g2_jones[ti, a2, c], out[r, c])
+                    jones_mul(die1_jones[ti, a1, c], out[r, c],
+                              die2_jones[ti, a2, c], out[r, c])
 
     elif have_dies and not have_coh:
         def apply_dies(time, ant1, ant2,
-                       g1_jones, g2_jones,
+                       die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
             for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
@@ -305,13 +305,13 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
 
                 # Iterate over channels
                 for c in range(out.shape[1]):
-                    jones_mul(g1_jones[ti, a1, c], out[r, c],
-                              g2_jones[ti, a2, c],
+                    jones_mul(die1_jones[ti, a1, c], out[r, c],
+                              die2_jones[ti, a2, c],
                               out[r, c])
     else:
         # noop
         def apply_dies(time, ant1, ant2,
-                       g1_jones, g2_jones,
+                       die1_jones, die2_jones,
                        tmin, out):
             pass
 
@@ -319,31 +319,31 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
 
 
 def predict_vis(time_index, antenna1, antenna2,
-                ant1_jones=None, bl_jones=None, ant2_jones=None,
-                g1_jones=None, base_coh=None, g2_jones=None):
+                dde1_jones=None, source_coh=None, dde2_jones=None,
+                die1_jones=None, base_coh=None, die2_jones=None):
 
-    have_a1 = not isinstance(ant1_jones, types.misc.NoneType)
-    have_bl = not isinstance(bl_jones, types.misc.NoneType)
-    have_a2 = not isinstance(ant2_jones, types.misc.NoneType)
-    have_g1 = not isinstance(g1_jones, types.misc.NoneType)
+    have_a1 = not isinstance(dde1_jones, types.misc.NoneType)
+    have_bl = not isinstance(source_coh, types.misc.NoneType)
+    have_a2 = not isinstance(dde2_jones, types.misc.NoneType)
+    have_g1 = not isinstance(die1_jones, types.misc.NoneType)
     have_coh = not isinstance(base_coh, types.misc.NoneType)
-    have_g2 = not isinstance(g2_jones, types.misc.NoneType)
+    have_g2 = not isinstance(die2_jones, types.misc.NoneType)
 
     assert time_index.ndim == 1
     assert antenna1.ndim == 1
     assert antenna2.ndim == 1
 
     if have_a1 ^ have_a2:
-        raise ValueError("Both ant1_jones and ant2_jones "
+        raise ValueError("Both dde1_jones and dde2_jones "
                          "must be present or absent")
 
     if have_g1 ^ have_g2:
-        raise ValueError("Both g1_jones and g2_jones "
+        raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
 
     # Infer the output dtype
-    dtype_arrays = (ant1_jones, bl_jones, ant2_jones,
-                    g1_jones, base_coh, g2_jones)
+    dtype_arrays = (dde1_jones, source_coh, dde2_jones,
+                    die1_jones, base_coh, die2_jones)
 
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
@@ -355,30 +355,30 @@ def predict_vis(time_index, antenna1, antenna2,
     # if not (have_ants or have_bl):
     #     raise ValueError("No Jones Terms were supplied")
 
-    if have_a1 and ant1_jones.ndim not in (5, 6):
-        raise ValueError("ant1_jones.ndim %d not in (5, 6)" % ant1_jones.ndim)
+    if have_a1 and dde1_jones.ndim not in (5, 6):
+        raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
 
-    if have_a2 and ant2_jones.ndim not in (5, 6):
-        raise ValueError("ant2_jones.ndim %d not in (5, 6)" % ant2_jones.ndim)
+    if have_a2 and dde2_jones.ndim not in (5, 6):
+        raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
 
-    if have_bl and bl_jones.ndim not in (4, 5):
-        raise ValueError("bl_jones.ndim %d not in (4, 5)" % bl_jones.ndim)
+    if have_bl and source_coh.ndim not in (4, 5):
+        raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
 
-    if have_g1 and g1_jones.ndim not in (4, 5):
-        raise ValueError("g1_jones.ndim %d not in (4, 5)" % g1_jones.ndim)
+    if have_g1 and die1_jones.ndim not in (4, 5):
+        raise ValueError("die1_jones.ndim %d not in (4, 5)" % die1_jones.ndim)
 
     # if have_coh and have_coh.ndim not in (3, 4):
     #     raise ValueError("have_coh.ndim %d not in (3, 4)" % have_coh.ndim)
 
-    if have_g2 and g2_jones.ndim not in (4, 5):
-        raise ValueError("g2_jones.ndim %d not in (4, 5)" % g2_jones.ndim)
+    if have_g2 and die2_jones.ndim not in (4, 5):
+        raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
 
     jones_types = [
-        _get_jones_types("ant1_jones", ant1_jones, 5, 6),
-        _get_jones_types("bl_jones", bl_jones, 4, 5),
-        _get_jones_types("ant2_jones", ant2_jones, 5, 6),
-        _get_jones_types("g1_jones", g1_jones, 4, 5),
-        _get_jones_types("g2_jones", g2_jones, 4, 5)]
+        _get_jones_types("dde1_jones", dde1_jones, 5, 6),
+        _get_jones_types("source_coh", source_coh, 4, 5),
+        _get_jones_types("dde2_jones", dde2_jones, 5, 6),
+        _get_jones_types("die1_jones", die1_jones, 4, 5),
+        _get_jones_types("die2_jones", die2_jones, 4, 5)]
 
     ptypes = [t for t in jones_types if t != JONES_NOT_PRESENT]
 
@@ -398,19 +398,19 @@ def predict_vis(time_index, antenna1, antenna2,
 
     @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
-                        ant1_jones=None, bl_jones=None, ant2_jones=None,
-                        g1_jones=None, base_coh=None, g2_jones=None):
+                        dde1_jones=None, source_coh=None, dde2_jones=None,
+                        die1_jones=None, base_coh=None, die2_jones=None):
 
         # Get the output shape
-        out = out_fn(time_index, ant1_jones, bl_jones, ant2_jones,
-                     g1_jones, g2_jones)
+        out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
+                     die1_jones, die2_jones)
 
         # Minimum time index, used to normalise within function
         tmin = time_index.min()
 
         # Sum coherencies if any
         sum_coh_fn(time_index, antenna1, antenna2,
-                   ant1_jones, bl_jones, ant2_jones,
+                   dde1_jones, source_coh, dde2_jones,
                    tmin, out)
 
         # Add base visibilities to the output, if any
@@ -418,7 +418,7 @@ def predict_vis(time_index, antenna1, antenna2,
 
         # Apply direction independent effects, if any
         apply_dies_fn(time_index, antenna1, antenna2,
-                      g1_jones, g2_jones,
+                      die1_jones, die2_jones,
                       tmin, out)
 
         return out
@@ -448,9 +448,9 @@ where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
 
 - :math:`B_{{pq}}` represent base coherencies.
-- :math:`E_{{ps}}` represents direction-dependent (per-source) Jones terms.
+- :math:`E_{{ps}}` represents Direction-Dependent Jones terms.
 - :math:`X_{{pqs}}` represents a coherency matrix (per-source).
-- :math:`G_{{p}}` represents direction-independent Jones terms.
+- :math:`G_{{p}}` represents Direction-Independent Jones terms.
 
 Generally, :math:`E_{ps}`, :math:`G_{p}`, :math:`X_{pqs}`
 should be formed by using the `RIME API <rime-api-anchor_>`_ functions
@@ -460,7 +460,8 @@ and combining them together with :func:`~numpy.einsum`.
 
 Notes
 -----
-* Antenna terms (ant{1,2}_jones and g{1,2}_jones) are optional,
+* Direction-Dependent terms (dde{1,2}_jones) and
+  Independent (die{1,2}_jones) are optional,
   but if one is present, the other must be present.
 * The inputs to this function involve ``row``, ``time``
   and ``ant`` (antenna) dimensions.
@@ -485,23 +486,25 @@ antenna2 : $(array_type)
     Antenna 2 index used to look up the antenna Jones
     for a particular baseline.
     with shape :code:`(row,)`.
-ant1_jones : $(array_type), optional
-    :math:`A_{ps}` per-source Jones terms for the first antenna.
+dde1_jones : $(array_type), optional
+    :math:`A_{ps}` Direction-Dependent Jones terms for the first antenna.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-bl_jones : $(array_type), optional
-    :math:`X_{pqs}` per-source coherency matrix for the baseline.
+source_coh : $(array_type), optional
+    :math:`X_{pqs}` Direction-Dependent Coherency matrix for the baseline.
     with shape :code:`(source,row,chan,corr_1,corr_2)`
-ant2_jones : $(array_type), optional
-    :math:`A_{qs}` per-source Jones terms for the second antenna.
+dde2_jones : $(array_type), optional
+    :math:`A_{qs}` Direction-Dependent Jones terms for the second antenna.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-g1_jones : $(array_type), optional
-    :math:`G_{ps}` jones terms for the first antenna of the baseline.
+die1_jones : $(array_type), optional
+    :math:`G_{ps}` Direction-Independent Jones terms for the
+    first antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
 base_coh : $(array_type), optional
     :math:`B_{pq}` base coherencies, added to source coherency summation.
-    *before* multiplication with `g1_jones` and `g2_jones`.
-g2_jones : $(array_type), optional
-    :math:`G_{ps}` jones terms for the second antenna of the baseline.
+    *before* multiplication with `die1_jones` and `die2_jones`.
+die2_jones : $(array_type), optional
+    :math:`G_{ps}` Direction-Independent Jones terms for the
+    second antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
 
 Returns
