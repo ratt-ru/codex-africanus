@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Enhance visibility predict (:pr:`50`)
 * Fix Kaiser Bessel filter and taper (:pr:`48`)
 * Stokes/Correlation conversion (:pr:`41`)
 * Fix gridding examples (:pr:`43`)

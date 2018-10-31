@@ -23,13 +23,18 @@ on_rtd = os.environ.get('READTHEDOCS') == 'True'
 requirements = ['decorator']
 
 if not on_rtd:
-    requirements += ['numpy >= 1.14.0', 'numba >= 0.38.0']
+    requirements += [
+        # astropy breaks with numpy 1.15.3
+        # https://github.com/astropy/astropy/issues/7943
+        'numpy >= 1.14.0, < 1.15.3',
+        'numba >= 0.38.0']
 
 extras_require = {
-    'dask': ['dask[array] >= 0.18.0'],
+    'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
     'python-casacore': ['python-casacore >= 2.2.1'],
+    'testing': ['pytest', 'pytest-runner']
 }
 
 extras_require['complete'] = sorted(set(sum(extras_require.values(), [])))

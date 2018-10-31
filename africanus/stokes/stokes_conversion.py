@@ -11,6 +11,7 @@ from textwrap import fill
 import numpy as np
 
 from ..compatibility import string_types
+from ..util.docs import DocstringTemplate
 
 STOKES_TYPES = [
     "Undefined",
@@ -279,7 +280,7 @@ is:
 
 Parameters
 ----------
-input : {{array_type}}
+input : $(array_type)
     Complex or floating point input data of shape
     :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
 input_schema : list
@@ -292,7 +293,7 @@ output_schema : list
 
 Returns
 -------
-{{array_type}}
+$(array_type)
     Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
     The type may be floating point or promoted to complex
     depending on the combinations in ``output``.
@@ -303,11 +304,11 @@ _map_str = ", ".join(["%s: %d" % (t, i) for i, t in enumerate(STOKES_TYPES)])
 _map_str = "{{ " + _map_str + " }}"
 # Indent must match docstrings
 _map_str = fill(_map_str, initial_indent='', subsequent_indent=' '*8)
-STOKES_DOCS = STOKES_DOCS.format(stokes_type_map=_map_str)
+STOKES_DOCS = DocstringTemplate(STOKES_DOCS.format(stokes_type_map=_map_str))
 del _map_str
 
 try:
-    stokes_docs = STOKES_DOCS.format(array_type=":class:`numpy.ndarray`")
-    stokes_convert.__doc__ = stokes_docs
+    stokes_convert.__doc__ = STOKES_DOCS.substitute(
+                                  array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
