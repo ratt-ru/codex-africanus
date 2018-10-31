@@ -11,7 +11,7 @@ import numba
 from numba import types, generated_jit, njit
 import numpy as np
 
-from ..util.docs import doc_tuple_to_str, on_rtd
+from ..util.docs import DocstringTemplate, on_rtd
 
 
 JONES_NOT_PRESENT = 0
@@ -433,97 +433,87 @@ if not on_rtd():
                                 predict_vis)
 
 
-_MP_DOCSTRING = namedtuple("MULTIPLEXDOCSTRING",
-                           ["preamble", "notes", "parameters", "returns"])
+PREDICT_DOCS = DocstringTemplate(r"""
+Multiply Jones terms together to form model visibilities according
+to the following formula:
+
+.. math::
 
 
-predict_vis_docs = _MP_DOCSTRING(
-    preamble="""
-    Multiply Jones terms together to form model visibilities according
-    to the following formula:
+    V_{pq} = G_{p} \left(
+        B_{pq} + \sum_{s} A_{ps} X_{pqs} A_{qs}^H
+        \right) G_{q}^H
 
-    .. math::
-
-
-        V_{pq} = G_{p} \\left(
-            B_{pq} + \\sum_{s} A_{ps} X_{pqs} A_{qs}^H
-            \\right) G_{q}^H
-
-    where for antenna :math:`p` and :math:`q`, and source :math:`s`:
+where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
 
-    - :math:`B_{pq}` represent base coherencies.
-    - :math:`E_{ps}` represents direction-dependent (per-source) Jones terms.
-    - :math:`X_{pqs}` represents a coherency matrix (per-source).
-    - :math:`G_{p}` represents direction-independent Jones terms.
+- :math:`B_{{pq}}` represent base coherencies.
+- :math:`E_{{ps}}` represents direction-dependent (per-source) Jones terms.
+- :math:`X_{{pqs}}` represents a coherency matrix (per-source).
+- :math:`G_{{p}}` represents direction-independent Jones terms.
 
-    Generally, :math:`E_{ps}`, :math:`G_{p}`, :math:`X_{pqs}`
-    should be formed by using the `RIME API <rime-api-anchor_>`_ functions
-    and combining them together with :func:`~numpy.einsum`.
+Generally, :math:`E_{ps}`, :math:`G_{p}`, :math:`X_{pqs}`
+should be formed by using the `RIME API <rime-api-anchor_>`_ functions
+and combining them together with :func:`~numpy.einsum`.
 
-    **Please read the Notes**
+**Please read the Notes**
 
-
-
-
-
-
-    """,
-
-    notes="""
-    Notes
-    -----
-    * Antenna terms (ant{1,2}_jones and g{1,2}_jones) are optional,
-      but if one is present, the other must be present.
-    * The inputs to this function involve ``row``, ``time``
-      and ``ant`` (antenna) dimensions.
-    * Each ``row`` is associated with a pair of antenna Jones matrices
-      at a particular timestep via the
-      ``time_index``, ``antenna1`` and ``antenna2`` inputs.
-    * The ``row`` dimension must be an increasing partial order in time.
-    """,
-
-    parameters="""
-    Parameters
-    ----------
-    time_index : :class:`numpy.ndarray`
-        Time index used to look up the antenna Jones index
-        for a particular row (baseline).
-        shape :code:`(row,)`.
-    antenna1 : :class:`numpy.ndarray`
-        Antenna 1 index used to look up the antenna Jones
-        for a particular row (baseline).
-        with shape :code:`(row,)`.
-    antenna2 : :class:`numpy.ndarray`
-        Antenna 2 index used to look up the antenna Jones
-        for a particular row (baseline).
-        with shape :code:`(row,)`.
-    ant1_jones : :class:`numpy.ndarray`, optional
-        :math:`A_{ps}` per-source Jones terms for the first antenna.
-        shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-    bl_jones : :class:`numpy.ndarray`, optional
-        :math:`X_{pqs}` [er-source coherency matrix for the row (baseline).
-        with shape :code:`(source,row,chan,corr_1,corr_2)`
-    ant2_jones : :class:`numpy.ndarray`, optional
-        :math:`A_{qs}` [er-source Jones terms for the second antenna.
-        shape :code:`(source,time,ant,chan,corr_1,corr_2)`
-    g1_jones : :class:`numpy.ndarray`, optional
-        :math:`G_{ps}` jones terms for the first antenna of the baseline.
-        with shape :code:`(time,ant,chan,corr_1,corr_2)`
-    base_coh : :class:`numpy.ndarray`, optional
-        :math:`B_{pq}` base coherencies, added to source coherency summation.
-        *before* multiplication with `g1_jones` and `g2_jones`.
-    g2_jones : :class:`numpy.ndarray`, optional
-        :math:`G_{ps}` jones terms for the second antenna of the baseline.
-        with shape :code:`(time,ant,chan,corr_1,corr_2)`
-    """,
-
-    returns="""
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        Model visibilities of shape :code:`(row,chan,corr_1,corr_2)`
-    """)
+Notes
+-----
+* Antenna terms (ant{1,2}_jones and g{1,2}_jones) are optional,
+  but if one is present, the other must be present.
+* The inputs to this function involve ``row``, ``time``
+  and ``ant`` (antenna) dimensions.
+* Each ``row`` is associated with a pair of antenna Jones matrices
+  at a particular timestep via the
+  ``time_index``, ``antenna1`` and ``antenna2`` inputs.
+* The ``row`` dimension must be an increasing partial order in time.
+$(extra_notes)
 
 
-predict_vis.__doc__ = doc_tuple_to_str(predict_vis_docs)
+Parameters
+----------
+time_index : $(array_type)
+    Time index used to look up the antenna Jones index
+    for a particular baseline.
+    shape :code:`(row,)`.
+antenna1 : $(array_type)
+    Antenna 1 index used to look up the antenna Jones
+    for a particular baseline.
+    with shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Antenna 2 index used to look up the antenna Jones
+    for a particular baseline.
+    with shape :code:`(row,)`.
+ant1_jones : $(array_type), optional
+    :math:`A_{ps}` per-source Jones terms for the first antenna.
+    shape :code:`(source,time,ant,chan,corr_1,corr_2)`
+bl_jones : $(array_type), optional
+    :math:`X_{pqs}` per-source coherency matrix for the baseline.
+    with shape :code:`(source,row,chan,corr_1,corr_2)`
+ant2_jones : $(array_type), optional
+    :math:`A_{qs}` per-source Jones terms for the second antenna.
+    shape :code:`(source,time,ant,chan,corr_1,corr_2)`
+g1_jones : $(array_type), optional
+    :math:`G_{ps}` jones terms for the first antenna of the baseline.
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+base_coh : $(array_type), optional
+    :math:`B_{pq}` base coherencies, added to source coherency summation.
+    *before* multiplication with `g1_jones` and `g2_jones`.
+g2_jones : $(array_type), optional
+    :math:`G_{ps}` jones terms for the second antenna of the baseline.
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+
+Returns
+-------
+$(array_type)
+    Model visibilities of shape :code:`(row,chan,corr_1,corr_2)`
+""")
+
+
+try:
+    predict_vis.__doc__ = PREDICT_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray`",
+                            extra_notes="")
+except AttributeError:
+    pass
