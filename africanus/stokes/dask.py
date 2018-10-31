@@ -65,7 +65,7 @@ def stokes_convert(input, input_schema, output_schema):
 
 
 try:
-    stokes_convert.__doc__ = (STOKES_DOCS
-                              .format(array_type=":class:`dask.array.Array`"))
+    stokes_convert.__doc__ = STOKES_DOCS.substitute(
+                                array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass
