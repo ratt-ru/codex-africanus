@@ -1,10 +1,15 @@
-from africanus.constants import c
-from africanus.gridding.simple.gridding import _ARCSEC2RAD
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 import pytest
 
+from africanus.constants import c
 from africanus.filters.kaiser_bessel_filter import kaiser_bessel_with_sinc
+from africanus.gridding.simple.gridding import _ARCSEC2RAD
 
 
 @pytest.mark.parametrize("exact_u", [np.array([-1.2])])
@@ -43,6 +48,8 @@ def test_oversampling(exact_u, full_support, oversampling, beta,
         base_frac_u = exact_u - os_disc_u + 1.0
     else:
         base_frac_u = exact_u - os_disc_u
+
+    assert np.all(base_frac_u == exact_u - np.floor(exact_u).astype(np.int32))
 
     # Calculate oversampling index and normalise it
     base_os_u = np.round(base_frac_u*oversampling).astype(np.int32)
