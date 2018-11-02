@@ -36,16 +36,14 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         try:
             beta = kwargs.pop('beta')
         except KeyError:
-            beta = estimate_kaiser_bessel_beta(cf.full_sup)
+            beta = estimate_kaiser_bessel_beta(cf.full_support)
 
-        # What would Andre Offringa do?
-        # He would compute the numeric solution
-        taps = np.arange(cf.no_taps) / cf.oversample - cf.full_sup // 2
-        kb = kaiser_bessel_with_sinc(taps, cf.full_sup, cf.oversample, beta)
+        kb = kaiser_bessel_with_sinc(cf.full_support,
+                                     cf.oversampling, beta)
         kbshift = np.fft.fftshift(kb)
 
-        width = nx * cf.oversample
-        height = ny * cf.oversample
+        width = nx * cf.oversampling
+        height = ny * cf.oversampling
 
         # Put the first and last halves of the shifted Kaiser Bessel
         # at each end of the output buffer, then FFT
@@ -71,7 +69,7 @@ def taper(filter_type, ny, nx, conv_filter, **kwargs):
         taper[ny // 2:, nx // 2:] = quarter[:, :]
 
         # Normalise by oversampling factor
-        taper *= cf.oversample**2
+        taper *= cf.oversampling**2
 
         return taper
     else:
