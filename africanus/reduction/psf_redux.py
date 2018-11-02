@@ -19,6 +19,71 @@ def iFFT(x):
     return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(x), norm='ortho'))
 
 
+def make_dim_reduce_ops(operator, adjoint, vis, Sigma, npix, lm):
+    """
+    Generate gridded visibilities, PSF_hat for response operation and noise weights
+    :param operator: the response operator to be used
+    :param adjoint: the adjoint operator of the response
+    :param vis: the visibility data set to be reduced
+    :param Sigma: the baseline weights used for a whole bunch of stuff (mainly weighting and making PSF)
+    :param npix: the number of pixels in one dimension of the output image
+    :param lm: the lm coordinates of each pixel of the image for creating the exact adjoint FFT
+    :return: Dimensionally reduced matrices: gridded visibilities, gridded visibility space PSF, new Sigma diagonal
+    """
+
+    # generate gridded visibilites
+    im_dirty = operator(Sigma*vis).reshape(npix, npix)
+    vis_grid = FFT(im_dirty)
+
+    # generate PSF_hat for execution
+    PSF = operator(Sigma).reshape(npix, npix)
+    PSF_hat = FFT(PSF)
+
+    # generate new weights and return
+    Sigma_hat = make_Sigma_hat(operator, adjoint, Sigma, npix, lm)
+    half_sigma = np.sqrt(1/Sigma_hat)
+
+    return vis_grid, PSF_hat, half_sigma
+
+
+def make_Sigma_hat(operator, adjoint, Sigma, npix, lm):
+    """
+    Make the reduced Sigma operator of length npix**2
+    :param operator:
+    :param adjoint:
+    :param Sigma:
+    :param npix:
+    :return:
+    """
+    try:
+        Sigma_hat = np.fromfile('Sigma_hat.dat', dtype='float64').reshape([npix ** 2, 1])
+    except:
+        print("Reduced Sigma could not be found, please wait while it is generated")
+
+        if np.DataSource.exists(None, 'F.dat'):
+            FFT_mat = np.fromfile('F.dat', dtype='complex128').reshape([npix ** 2, npix ** 2])
+        else:
+            delta = lm[1, 0] - lm[0, 0]
+            F_norm = npix ** 2
+            Ffreq = da.fft.fftshift(da.fft.fftfreq(npix, d=delta, chunks=(npix, 1)))
+            jj, kk = da.meshgrid(Ffreq, Ffreq)
+            j = jj.reshape([npix**2, 1])
+            k = kk.reshape([npix**2, 1])
+            l = lm[:, 0]
+            m = lm[:, 1]
+            FFT_mat = np.exp(-2j * np.pi * (j * l + k * m)) / np.sqrt(F_norm)
+            FFT_mat.tofile('F.dat')
+
+        FFTH = FFT_mat.conj().T
+        FFTH_dask = da.from_array(FFTH, chunks=(npix**2, 1))
+        covariance_vector = FFT(adjoint(Sigma.dot(operator(FFTH_dask))).compute())
+        Sigma_hat = da.diag(covariance_vector).real.compute()
+
+        Sigma_hat.tofile('Sigma_hat.dat')
+
+    return Sigma_hat
+
+
 def PSF_response(image, PSF_hat, Sigma):
 
     # separate image into channels
@@ -32,20 +97,18 @@ def PSF_response(image, PSF_hat, Sigma):
 
     new_im = w_im.reshape(im_hat.shape)
 
-    return iFFT(new_im)
+    return new_im
 
 
-def PSF_adjoint(image, PSF_hat, Sigma):
+def PSF_adjoint(vis_grid, PSF_hat, Sigma):
     """
     Perform the adjoint operator of the PSF convolution; a cross correlation
-    :param vis:
-    :param PSF:
-    :return:
+    :param vis_grid: the gridded visibilities computed as the FFT of the dirty image
+    :param PSF_hat: the PSF in visibility space, looks similar to uv coverage, FFT of the PSF
+    :return: new_im a cross-corellated PSF with the dirty image to produce a slightly cleaner image
     """
 
-    im_hat = FFT(image).flatten()
-
-    w_im = (Sigma * im_hat).reshape(image.shape)
+    w_im = (Sigma * vis_grid.flatten()).reshape(vis_grid.shape)
 
     vis = PSF_hat.conj()*w_im
 

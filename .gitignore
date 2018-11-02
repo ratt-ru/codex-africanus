@@ -100,3 +100,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# CUSTOM added by Antonio Peters: for data files used to speed up testing
+.dat

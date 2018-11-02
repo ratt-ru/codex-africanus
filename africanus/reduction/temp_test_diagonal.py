@@ -22,36 +22,6 @@ L = lambda image: im_to_vis(image, uvw_dask, lm_dask, frequency_dask).compute()
 LT = lambda v: vis_to_im(v, uvw_dask, lm_dask, frequency_dask).compute()/np.sqrt(wsum)
 L_pad = lambda image: im_to_vis(image, uvw_dask, lm_pad_dask, frequency_dask).compute()
 LT_pad = lambda v: vis_to_im(v, uvw_dask, lm_pad_dask, frequency_dask).compute()/np.sqrt(wsum)
-
-# # Generate FFT and DFT matrices
-# R = np.zeros([nrow, pad_pix**2], dtype='complex128')
-# for k in range(nrow):
-#     u, v, w = uvw[k]
-#
-#     for j in range(pad_pix**2):
-#         l, m = lm_pad[j]
-#         n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
-#         R[k, j] = np.exp(-2j*np.pi*(freq[0]/c)*(u*l + v*m + w*n))
-#
-# R.tofile('R.dat')
-#
-# R = np.fromfile('R.dat', dtype='complex128').reshape([nrow, pad_pix**2])/np.sqrt(wsum)
-# RH = R.conj().T#/np.sqrt(wsum)
-########################################################################################################################
-# FT = np.zeros([pad_pix**2, pad_pix**2], dtype='complex128')
-# delta = lm_pad_dask[1, 0]-lm_pad_dask[0, 0]
-# F_norm = pad_pix**2
-# Ffreq = np.fft.fftshift(np.fft.fftfreq(pad_pix, d=delta))
-# jj, kk = np.meshgrid(Ffreq, Ffreq)
-# jk = np.vstack((jj.flatten(), kk.flatten())).T
-#
-# for u in range(pad_pix**2):
-#     l, m = lm_pad_dask[u]
-#     for v in range(pad_pix**2):
-#         j, k = jk[v]
-#         FT[u, v] += np.exp(-2j*np.pi*(j*l + k*m))/np.sqrt(F_norm)
-#
-# FT.tofile('F.dat')
 #
 FT = np.fromfile('F.dat', dtype='complex128').reshape([pad_pix**2, pad_pix**2])
 FH = FT.conj().T

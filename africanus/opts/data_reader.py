@@ -24,7 +24,7 @@ def plot(im, stage, npix):
     plt.figure(stage)
     plt.imshow(im.reshape([npix, npix]).real)
     plt.colorbar()
-    # plt.show()
+    plt.show()
 
 
 def gen_image_space(uvw, freqs, l_val, m_val):
@@ -67,13 +67,13 @@ def data_reader(data_path, ra_dec=[0.1, 0.1], NCPU=8, nchan=1, nrow=1000, pad_fa
     spw_ds = list(xds_from_table("::".join((data_path, "SPECTRAL_WINDOW")), group_cols="__row__"))[0]
 
     # make sure we are oversampling the image enough
-    uvw = xds.UVW.data[0:nrow, :].compute()
+    uvw = xds.UVW.data[0:nrow, :]
     # uvw[:, 2] = 0.0  # this is for testing
-    vis = xds.DATA.data[0:nrow, 0:nchan, 0].compute()
-    freqs = spw_ds.CHAN_FREQ.data[0:nchan].compute()
+    vis = xds.DATA.data[0:nrow, 0:nchan, 0]
+    freqs = spw_ds.CHAN_FREQ.data[0:nchan]
 
     # normalisation factor (equal to max(PSF))
-    weights = xds.WEIGHT.data[0:nrow, 0:nchan].compute()
+    weights = xds.WEIGHT.data[0:nrow, 0:nchan]
 
     # generate lm-coordinates
     l_val, m_val = radec_to_lm(0, 0, ra_dec[0, :], ra_dec[1, :])
