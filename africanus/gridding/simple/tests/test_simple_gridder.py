@@ -21,7 +21,7 @@ def test_degridder_gridder():
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
 
-    conv_filter = convolution_filter(3, 21, "kaiser-bessel")
+    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
     nx = ny = npix = 257
     corr = (2, 2)
     chan = 4
@@ -119,7 +119,7 @@ def test_psf_subtraction(plot):
     image = np.zeros((ny, nx), dtype=np.float64)
     image[ny // 2, nx // 2] = 1
 
-    conv_filter = convolution_filter(15, 63, "kaiser-bessel")
+    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
     weights = np.ones(shape=(rows, chan) + corr, dtype=np.float64)
     flags = np.zeros_like(weights, dtype=np.uint8)
 
@@ -237,7 +237,7 @@ def test_dask_degridder_gridder():
 
     weights = da.random.random(vis_shape, chunks=vis_chunks)
 
-    conv_filter = convolution_filter(3, 21, "kaiser-bessel")
+    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
 
     vis_grid = grid(vis, uvw, flags, weights, wavelengths, conv_filter,
                     cell_size, ny, nx)
