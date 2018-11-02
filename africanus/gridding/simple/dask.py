@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import reduce
+from functools import reduce, wraps
 from operator import mul
 
 import numpy as np
@@ -19,8 +19,7 @@ except ImportError:
     pass
 
 
-# Unfortunately necessary to introduce an extra dim
-# for atop to work properly
+@wraps(np_grid_fn)
 def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter,
              cell_size, nx, ny):
     return np_grid_fn(vis[0], uvw[0], flags[0], weights[0],
@@ -54,6 +53,12 @@ def grid(vis, uvw, flags, weights, ref_wave,
     return grids.sum(axis=0)
 
 
+@wraps(np_degrid_fn)
+def _degrid_fn(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
+    return np_degrid_fn(grid[0][0], uvw[0], weights, ref_wave,
+                        convolution_filter, cell_size)
+
+
 @requires_optional('dask.array')
 def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
     """ Documentation below """
@@ -68,12 +73,11 @@ def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
     # Creation correlation dimension strings for each correlation
     corrs = tuple('corr-%d' for i in range(len(grid.shape[2:])))
 
-    return da.core.atop(np_degrid_fn, ("row", "chan") + corrs,
+    return da.core.atop(_degrid_fn, ("row", "chan") + corrs,
                         grid, ("ny", "nx") + corrs,
                         uvw, ("row", "(u,v,w)"),
                         weights, ("row", "chan") + corrs,
                         ref_wave, ("chan",),
-                        concatenate=True,
                         convolution_filter=convolution_filter,
                         cell_size=cell_size,
                         dtype=np.complex64)
