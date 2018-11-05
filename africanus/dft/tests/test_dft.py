@@ -243,18 +243,16 @@ def test_hermitian():
             n = np.sqrt(1 - l**2 - m**2)
             response[row, source] = np.exp(1.0j*minus_two_pi_over_c*freq[0]*(u*l + v*m + w*(n - 1)))
 
-    covariance = response.conj().T.dot(Sigma.dot(response))
+    covariance = (response.conj().T.dot(Sigma.dot(response))).real
 
     covariance_adjoint = covariance.T
 
-    # assert np.all(abs(covariance - covariance_adjoint) < 1e-14)
+    assert np.all(abs(covariance - covariance_adjoint) < 1e-14)
 
+    np.random.seed(111)
     vis = np.random.random((nrows, 1))
 
-    grid_vis_mat = response.conj().T.dot(Sigma.dot(vis))
-    grid_vis_op = vis_to_im(Sigma.dot(vis), uvw, lm, freq)
+    grid_vis_mat = response.conj().T.dot(Sigma.dot(vis)).real
+    grid_vis_op = vis_to_im(Sigma.dot(vis), uvw, lm, freq).real
 
-    assert np.all(abs(grid_vis_mat - grid_vis_op) < 1e-14)
-
-if __name__ == "__main__":
-    test_hermitian()
+    assert np.all(abs(grid_vis_mat - grid_vis_op) < 1e-12)
