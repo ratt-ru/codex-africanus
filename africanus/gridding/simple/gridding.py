@@ -20,6 +20,16 @@ _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
+def _all_flagged(fflags):
+    # Fail if anything is not flagged
+    for flag in fflags:
+        if flag == 0:
+            return False
+
+    return True
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
                convolution_filter, cell_size, grid):
     """
@@ -52,51 +62,56 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     fflags = flags.reshape((nrow, nchan, flat_corrs))
     fweights = weights.reshape((nrow, nchan, flat_corrs))
 
-    filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
-
+    oversample = cf.oversampling
+    half_support = cf.full_support // 2
     half_x = nx // 2
     half_y = ny // 2
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
+            # Continue early if all correlations are flagged
+            if _all_flagged(fflags[r, f]):
+                continue
+
             # Exact UV coordinates
-            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
-            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
+            exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
+            exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
 
             # Discretised UV coordinates
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
-            extent_u = disc_u + half_x
-            extent_v = disc_v + half_y
+            if (disc_u - half_support < 0 or
+                disc_v - half_support < 0 or
+                disc_u + half_support >= nx or
+                    disc_v + half_support >= ny):
 
-            # Out of bounds check
-            if (extent_v + cf.half_sup >= ny or
-                extent_u + cf.half_sup >= nx or
-                extent_v - cf.half_sup < 0 or
-                    extent_u - cf.half_sup < 0):
                 continue
 
-            # One plus half support (our kernels have 1 pixel of extra padding)
-            one_half_sup = 1 + cf.half_sup
+            # Compute fractional u and v, wrap if negative
+            base_frac_u = exact_u - disc_u
+            base_frac_v = exact_v - disc_v
 
-            # Compute fractional u and v
-            base_frac_u = disc_u - exact_u
-            base_frac_v = disc_v - exact_v
+            # Base lookup position in the filter
+            base_os_u = int(np.round(base_frac_u*oversample))
+            base_os_v = int(np.round(base_frac_v*oversample))
 
-            frac_u = int(np.round(base_frac_u*cf.oversample))
-            frac_v = int(np.round(base_frac_v*cf.oversample))
+            # base_os_u = (base_os_u + (3*oversample)//2) % oversample
+            # base_os_v = (base_os_v + (3*oversample)//2) % oversample
+
+            base_os_u = (base_os_u + oversample) % oversample
+            base_os_v = (base_os_v + oversample) % oversample
 
             # Iterate over v/y
-            for conv_v in filter_index:
-                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
-                grid_v = disc_v + conv_v + half_y
+            for conv_v in range(cf.full_support):
+                v_idx = conv_v*oversample + base_os_v
+                grid_v = disc_v + conv_v - half_support
 
                 # Iterate over u/x
-                for conv_u in filter_index:
-                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
-                    conv_weight = cf.filter_taps[v_idx, u_idx]
-                    grid_u = disc_u + conv_u + half_x
+                for conv_u in range(cf.full_support):
+                    u_idx = conv_u*oversample + base_os_u
+                    conv_weight = cf.filter[v_idx, u_idx]
+                    grid_u = disc_u + conv_u - half_support
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
@@ -199,52 +214,53 @@ def numba_degrid(grid, uvw, weights, ref_wave,
     # Note u => x and v => y
     u_scale = _ARCSEC2RAD * cell_size * nx
     v_scale = _ARCSEC2RAD * cell_size * ny
-
-    filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
-
+    oversample = cf.oversampling
+    half_support = cf.full_support // 2
     half_x = nx // 2
     half_y = ny // 2
 
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
-            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
+            # Exact UV coordinates
+            exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
+            exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
 
+            # Discretised UV coordinates
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
-            extent_v = disc_v + half_y
-            extent_u = disc_u + half_x
+            if (disc_u - half_support < 0 or
+                disc_v - half_support < 0 or
+                disc_u + half_support >= nx or
+                    disc_v + half_support >= ny):
 
-            # Out of bounds check
-            if (extent_v + cf.half_sup >= ny or
-                extent_u + cf.half_sup >= nx or
-                extent_v - cf.half_sup < 0 or
-                    extent_u - cf.half_sup < 0):
                 continue
 
-            # One plus half support
-            one_half_sup = 1 + cf.half_sup
+            # Compute fractional u and v, wrap if negative
+            base_frac_u = exact_u - disc_u
+            base_frac_v = exact_v - disc_v
 
-            # Compute fractional u and v
-            base_frac_u = disc_u - exact_u
-            base_frac_v = disc_v - exact_v
+            # Base lookup position in the filter
+            base_os_u = int(np.round(base_frac_u*oversample))
+            base_os_v = int(np.round(base_frac_v*oversample))
 
-            frac_u = int(np.round(base_frac_u*cf.oversample))
-            frac_v = int(np.round(base_frac_v*cf.oversample))
+            # base_os_u = (base_os_u + (3*oversample)//2) % oversample
+            # base_os_v = (base_os_v + (3*oversample)//2) % oversample
+
+            base_os_u = (base_os_u + oversample) % oversample
+            base_os_v = (base_os_v + oversample) % oversample
 
             # Iterate over v/y
-            for conv_v in filter_index:
-                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
-                grid_v = disc_v + conv_v + half_y
+            for conv_v in range(cf.full_support):
+                v_idx = conv_v*oversample + base_os_v
+                grid_v = disc_v + conv_v - half_support
 
                 # Iterate over u/x
-                for conv_u in filter_index:
-                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
-                    conv_weight = cf.filter_taps[v_idx, u_idx]
-                    grid_u = disc_u + conv_u + half_x
+                for conv_u in range(cf.full_support):
+                    u_idx = conv_u*oversample + base_os_u
+                    conv_weight = cf.filter[v_idx, u_idx]
+                    grid_u = disc_u + conv_u - half_support
 
-                    # Correlation
                     for c in range(flat_corrs):
                         vis[r, f, c] += (grid[grid_v, grid_u, c] *
                                          conv_weight *
