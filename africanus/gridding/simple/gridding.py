@@ -77,16 +77,17 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
             exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
 
-            # Discretised UV coordinates
+            # Discretised UV coordinates, snapped to nearest grid point
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
             # Filter extents in U and V
             lower_u = disc_u - half_support
             lower_v = disc_v - half_support
-            upper_u = disc_u + half_support
-            upper_v = disc_v + half_support
+            upper_u = disc_u + half_support + 1  # Exclusive
+            upper_v = disc_v + half_support + 1  # Exclusive
 
+            # Next visibility if outside extents
             if (lower_u < 0 or lower_v < 0 or upper_u >= nx or upper_v >= ny):
                 continue
 
@@ -99,15 +100,12 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             base_os_v = int(np.round(base_frac_v*oversample)) % oversample
 
             # Iterate over v/y
-            for conv_v in range(cf.full_support):
-                v_idx = conv_v*oversample + base_os_v
-                grid_v = lower_v + conv_v
+            for vi, grid_v in enumerate(range(lower_v, upper_v)):
+                v_filter = cf.filter[vi*oversample + base_os_v, :]
 
                 # Iterate over u/x
-                for conv_u in range(cf.full_support):
-                    u_idx = conv_u*oversample + base_os_u
-                    conv_weight = cf.filter[v_idx, u_idx]
-                    grid_u = lower_u + conv_u
+                for ui, grid_u in enumerate(range(lower_u, upper_u)):
+                    conv_weight = v_filter[ui*oversample + base_os_u]
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
@@ -221,16 +219,17 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
             exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
 
-            # Discretised UV coordinates
+            # Discretised UV coordinates, snapped to nearest grid point
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
             # Filter extents in U and V
             lower_u = disc_u - half_support
             lower_v = disc_v - half_support
-            upper_u = disc_u + half_support
-            upper_v = disc_v + half_support
+            upper_u = disc_u + half_support + 1  # Exclusive
+            upper_v = disc_v + half_support + 1  # Exclusive
 
+            # Next visibility if outside extents
             if (lower_u < 0 or lower_v < 0 or upper_u >= nx or upper_v >= ny):
                 continue
 
@@ -243,15 +242,12 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             base_os_v = int(np.round(base_frac_v*oversample)) % oversample
 
             # Iterate over v/y
-            for conv_v in range(cf.full_support):
-                v_idx = conv_v*oversample + base_os_v
-                grid_v = lower_v + conv_v
+            for vi, grid_v in enumerate(range(lower_v, upper_v)):
+                v_filter = cf.filter[vi*oversample + base_os_v, :]
 
                 # Iterate over u/x
-                for conv_u in range(cf.full_support):
-                    u_idx = conv_u*oversample + base_os_u
-                    conv_weight = cf.filter[v_idx, u_idx]
-                    grid_u = lower_u + conv_u
+                for ui, grid_u in enumerate(range(lower_u, upper_u)):
+                    conv_weight = v_filter[ui*oversample + base_os_u]
 
                     for c in range(flat_corrs):
                         vis[r, f, c] += (grid[grid_v, grid_u, c] *
