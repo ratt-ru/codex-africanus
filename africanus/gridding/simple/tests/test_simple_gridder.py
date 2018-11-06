@@ -21,7 +21,7 @@ def test_degridder_gridder():
     from africanus.filters import convolution_filter
     from africanus.gridding.simple import grid, degrid
 
-    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
+    conv_filter = convolution_filter("kaiser-bessel", 7, 7)
     nx = ny = npix = 257
     corr = (2, 2)
     chan = 4
@@ -78,7 +78,12 @@ def test_degridder_gridder():
 
 
 @pytest.mark.parametrize("plot", [False])
-def test_psf_subtraction(plot):
+@pytest.mark.parametrize("oversample", [
+    1,
+    pytest.param(2, marks=pytest.mark.xfail(reason="Unknown")),
+    pytest.param(3, marks=pytest.mark.xfail(reason="Unknown")),
+])
+def test_psf_subtraction(plot, oversample):
     """
     Test that we can create the PSF with the gridder.
     We do this by gridding vis and weights of one
@@ -119,7 +124,7 @@ def test_psf_subtraction(plot):
     image = np.zeros((ny, nx), dtype=np.float64)
     image[ny // 2, nx // 2] = 1
 
-    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
+    conv_filter = convolution_filter("kaiser-bessel", 7, oversample)
     weights = np.ones(shape=(rows, chan) + corr, dtype=np.float64)
     flags = np.zeros_like(weights, dtype=np.uint8)
 
@@ -130,17 +135,21 @@ def test_psf_subtraction(plot):
                 fftshift(fft2(ifftshift(image))))
 
     assert np.sum(fft_image) == ny*nx
+    assert np.any(fft_image != 0.0)
 
     vis = degrid(fft_image[:, :, None], uvw, weights, wavelengths,
                  conv_filter, 2*cell_size, dtype=np.complex128)
 
     assert vis.shape == (rows, chan, 1)
+    assert np.any(vis != 0.0)
 
     # I^D = R+(V)
     grid_vis = np.zeros((2*ny, 2*nx, 1), dtype=np.complex128)
     grid_vis[ny - ny//2:ny + ny//2, nx - nx//2:nx + nx//2, :] = (
                 grid(vis, uvw, flags, weights, wavelengths,
                      conv_filter, 2*cell_size, ny=ny, nx=nx))
+
+    assert np.any(grid_vis != 0.0)
 
     dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]))).real
 
@@ -237,7 +246,7 @@ def test_dask_degridder_gridder():
 
     weights = da.random.random(vis_shape, chunks=vis_chunks)
 
-    conv_filter = convolution_filter("kaiser-bessel", 7, 63)
+    conv_filter = convolution_filter("kaiser-bessel", 7, 7)
 
     vis_grid = grid(vis, uvw, flags, weights, wavelengths, conv_filter,
                     cell_size, ny, nx)

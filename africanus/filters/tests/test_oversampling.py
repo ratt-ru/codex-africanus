@@ -17,9 +17,11 @@ from africanus.gridding.simple.gridding import _ARCSEC2RAD
 @pytest.mark.parametrize("ref_wave", [c / (0.5*(.856e9 + 2*.856e9))])
 @pytest.mark.parametrize("nx", [16])
 @pytest.mark.parametrize("cell_size", [2.0])
-@pytest.mark.parametrize("plot", [True])
-def test_oversampling(exact_u, full_support, oversampling, beta,
-                      ref_wave, nx, cell_size, plot):
+@pytest.mark.parametrize("plot", [False])
+def test_oversampling(exact_u, full_support,
+                      oversampling, beta,
+                      ref_wave, nx,
+                      cell_size, plot):
     W = full_support*oversampling
     half_support = full_support // 2
     half_x = nx // 2
@@ -36,7 +38,7 @@ def test_oversampling(exact_u, full_support, oversampling, beta,
                                           beta=beta)
 
     # The following illustrates a filter with a support of 4
-    # and oversamplingd by a factor of 4. + indicates filter index
+    # and oversampling by a factor of 4. + indicates filter index
     # whereas | indicates oversampling index
     #
     #   0            1             2             3
@@ -50,12 +52,11 @@ def test_oversampling(exact_u, full_support, oversampling, beta,
     # else:
     #     base_frac_u = exact_u - disc_u
 
-    base_frac_u = exact_u - disc_u
+    base_frac_u = exact_u - np.floor(exact_u)
 
     # Calculate oversampling index and normalise it
     base_os_u = np.round(base_frac_u*oversampling).astype(np.int32)
-    base_os_u = (base_os_u + (3*oversampling)//2) % oversampling
-    # base_os_u = (base_os_u + oversampling) % oversampling
+    base_os_u %= oversampling
 
     print(exact_u, disc_u, base_frac_u, base_os_u)
 
