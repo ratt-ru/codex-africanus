@@ -35,7 +35,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
     """ Documentation below """
 
     # Creation correlation dimension strings for each correlation
-    corrs = tuple('corr-%d' for i in range(len(vis.shape[2:])))
+    corrs = tuple('corr-%d' % i for i in range(len(vis.shape[2:])))
 
     # Get grids, stacked by row
     grids = da.core.atop(_grid_fn, ("row", "ny", "nx") + corrs,
