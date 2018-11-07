@@ -88,7 +88,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             upper_v = disc_v + half_support + 1  # Exclusive
 
             # Next visibility if outside extents
-            if (lower_u < 0 or lower_v < 0 or upper_u >= nx or upper_v >= ny):
+            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
                 continue
 
             # Compute fractional u and v, wrap if negative
@@ -230,7 +230,7 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             upper_v = disc_v + half_support + 1  # Exclusive
 
             # Next visibility if outside extents
-            if (lower_u < 0 or lower_v < 0 or upper_u >= nx or upper_v >= ny):
+            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
                 continue
 
             # Compute fractional u and v, wrap if negative
