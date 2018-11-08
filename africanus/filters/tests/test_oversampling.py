@@ -45,9 +45,7 @@ def test_oversampling(exact_u, full_support,
         raise ValueError("Pick values inside the grid [%s-%s]\n%s"
                          % (0, nx, disc_u))
 
-    conv_filter = kaiser_bessel_with_sinc(full_support,
-                                          oversample,
-                                          beta=beta)
+    conv_filter = kaiser_bessel_with_sinc(full_support, oversample, beta=beta)
 
     # Find oversampling index by multiplying the fractional difference
     # by the oversampling factor. Because of the np.round,
@@ -55,13 +53,16 @@ def test_oversampling(exact_u, full_support,
     frac_u = exact_u - disc_u
     base_os_u = np.round(frac_u*oversample).astype(np.int32)
     # As per wsclean
+    orig_os_u = base_os_u
     # This changes the index from
     # [-2, -1,  0,  1,  2, -2, -1,  0   1,  2, -2, -1,  0,  1,  2]    to
-    # [ 3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2]
+    # [ 0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4]
     base_os_u = (base_os_u + ((3*oversample) // 2)) % oversample
 
-    print("u: %.3f disc_u: %d base_os: %d frac_u: %.3f os_u: %d frac_u*os %.3f"
-          % (exact_u, disc_u, base_os, frac_u, base_os_u, frac_u*oversample))
+    print("u: %.3f disc_u: %d frac_u: %.3f orig_os_u: %d "
+          "base_os: %d base_os_u: %d frac_u*os %.3f"
+          % (exact_u, disc_u, frac_u, orig_os_u,
+             base_os, base_os_u, frac_u*oversample))
 
     if plot:
         try:
