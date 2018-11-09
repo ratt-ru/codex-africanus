@@ -94,16 +94,6 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             if disc_u < 0 or disc_v < 0 or disc_u >= nx or disc_v >= ny:
                 continue
 
-            # Filter extents in U and V
-            lower_u = disc_u - half_support      # Inclusive
-            lower_v = disc_v - half_support      # Inclusive
-            upper_u = disc_u + half_support + 1  # Exclusive
-            upper_v = disc_v + half_support + 1  # Exclusive
-
-            # Next visibility if outside extents
-            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
-                continue
-
             # Compute fractional u and v
             frac_u = exact_u - disc_u
             frac_v = exact_v - disc_v
@@ -122,15 +112,21 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             sub_vis = fvis[r, f, :]
             sub_weights = fweights[r, f, :]
 
+            # Filter extents in U and V
+            lower_u = disc_u - half_support      # Inclusive
+            lower_v = disc_v - half_support      # Inclusive
+            upper_u = disc_u + half_support + 1  # Exclusive
+            upper_v = disc_v + half_support + 1  # Exclusive
+
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
                 v_filter = cf.filter[base_os_v + vi*oversample, :]
-                sub_grid_v = grid[grid_v, :, :]
+                sub_grid_v = grid[(grid_v + nx) % nx, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
                     conv_weight = v_filter[base_os_u + ui*oversample]
-                    sub_grid_u = sub_grid_v[grid_u, :]
+                    sub_grid_u = sub_grid_v[(grid_u + ny) % ny, :]
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
@@ -138,7 +134,9 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
                             continue
 
                         # Grid the visibility
-                        sub_grid_u[c] += sub_vis[c]*conv_weight*sub_weights[c]
+                        sub_grid_u[c] += (sub_vis[c] *
+                                          conv_weight *
+                                          sub_weights[c])
 
     return grid.reshape((ny, nx) + corrs)
 
@@ -272,30 +270,27 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             base_os_u = (base_os_u + ((3 * oversample) // 2)) % oversample
             base_os_v = (base_os_v + ((3 * oversample) // 2)) % oversample
 
+            # Reference the correlations of this visibility and weights
+            sub_vis = vis[r, f, :]
+            sub_weights = weights[r, f, :]
+
             # Filter extents in U and V
             lower_u = disc_u - half_support      # Inclusive
             lower_v = disc_v - half_support      # Inclusive
             upper_u = disc_u + half_support + 1  # Exclusive
             upper_v = disc_v + half_support + 1  # Exclusive
 
-            # Next visibility if outside extents
-            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
-                continue
-
-            sub_vis = vis[r, f, :]
-            sub_weights = weights[r, f, :]
-
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
                 v_filter = cf.filter[base_os_v + vi*oversample, :]
-                sub_grid_v = grid[grid_v, :, :]
+                sub_grid_v = grid[(grid_v + nx) % nx, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
                     conv_weight = v_filter[base_os_u + ui*oversample]
-                    sub_grid_u = sub_grid_v[grid_u, :]
+                    sub_grid_u = sub_grid_v[(grid_u + ny) % ny, :]
 
-                    for c in range(flat_corrs):
+                    for c in range(flat_corrs):      # correlation
                         sub_vis[c] += sub_grid_u[c]*conv_weight*sub_weights[c]
 
     return vis
