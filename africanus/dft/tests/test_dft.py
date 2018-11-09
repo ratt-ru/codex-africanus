@@ -221,6 +221,7 @@ def test_symmetric_covariance():
     """
     from africanus.dft.kernels import vis_to_im
     from africanus.constants.consts import minus_two_pi_over_c
+    np.random.seed(123)
 
     lmmax = 0.05
     nsource = 25
@@ -247,4 +248,4 @@ def test_symmetric_covariance():
                              uvw[row, 2]*(n - 1))
         psf_source[:, source:source+1] = vis_to_im(Ki, uvw, lm, freq)
 
-    assert np.allclose(psf_source, psf_source.T, atol=1e-14, rtol=1e-12)
+    assert np.allclose(psf_source, psf_source.T, atol=1e-12, rtol=1e-10)
