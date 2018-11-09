@@ -57,7 +57,9 @@ def test_degridder_gridder():
     weights = np.random.random(size=(nvis, chan) + corr)
 
     # Degrid the sky model to produce visibilities
-    vis = degrid(sky_grid, uvw, weights, wavelengths, conv_filter, cell_size)
+    vis = degrid(sky_grid, uvw, weights, wavelengths,
+                 conv_filter, cell_size,
+                 dtype=sky_grid.dtype)
 
     assert vis.shape == (nvis, chan) + corr
 
@@ -111,7 +113,7 @@ def test_psf_subtraction(plot, oversample):
     uvw[:, :2] = (rf((rows, 2)) - 0.5)*100
     uvw[:, 2] = (rf((rows,)) - 0.5)*10
 
-    # Estimate cell size given UVW coordiantes and wavelengths
+    # Estimate cell size given UVW coordinates and wavelengths
     cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1],
                                    wavelengths, factor=5).max()
 
@@ -142,6 +144,7 @@ def test_psf_subtraction(plot, oversample):
 
     assert vis.shape == (rows, chan, 1)
     assert np.any(vis != 0.0)
+    assert vis.dtype == np.complex128
 
     # I^D = R+(V)
     grid_vis = np.zeros((2*ny, 2*nx, 1), dtype=np.complex128)
@@ -180,34 +183,36 @@ def test_psf_subtraction(plot, oversample):
 
     assert centre_psf.shape == centre_dirty.shape
 
+    print(centre_dirty.max(), centre_psf.max())
+
     if plot:
         try:
+            import matplotlib
             import matplotlib.pyplot as plt
         except ImportError:
-            pass
-        else:
+            pytest.fail("plotting requested but could not import matplotlib")
 
-            plt.subplot(1, 4, 1)
-            plt.imshow(centre_dirty, cmap="cubehelix")
-            plt.title("CENTRE DIRTY")
-            plt.colorbar()
+        plt.subplot(1, 4, 1)
+        plt.imshow(centre_dirty, cmap="cubehelix")
+        plt.title("CENTRE DIRTY")
+        plt.colorbar()
 
-            plt.subplot(1, 4, 2)
-            plt.imshow(centre_psf, cmap="cubehelix")
-            plt.title("CENTRE PSF")
-            plt.colorbar()
+        plt.subplot(1, 4, 2)
+        plt.imshow(centre_psf, cmap="cubehelix")
+        plt.title("CENTRE PSF")
+        plt.colorbar()
 
-            plt.subplot(1, 4, 3)
-            plt.imshow(centre_psf - centre_dirty, cmap="cubehelix")
-            plt.title("PSF - DIRTY")
-            plt.colorbar()
+        plt.subplot(1, 4, 3)
+        plt.imshow(centre_psf - centre_dirty, cmap="cubehelix")
+        plt.title("PSF - DIRTY")
+        plt.colorbar()
 
-            plt.subplot(1, 4, 4)
-            plt.imshow(psf, cmap="cubehelix")
-            plt.title("PSF")
-            plt.colorbar()
+        plt.subplot(1, 4, 4)
+        plt.imshow(psf, cmap="cubehelix")
+        plt.title("PSF")
+        plt.colorbar()
 
-            plt.show(True)
+        plt.show(True)
 
     # Must have some non-zero values
     assert np.any(dirty != 0.0)
