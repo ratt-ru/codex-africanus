@@ -50,6 +50,9 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     ny, nx = grid.shape[0:2]
     flat_corrs = grid.shape[2]
 
+    if nx < cf.full_support or ny < cf.full_support:
+        raise ValueError("Grid is smaller than filter support")
+
     # Similarity Theorem
     # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
     # Scale UV coordinates
@@ -73,7 +76,7 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
         scaled_v = uvw[r, 1] * v_scale
 
         for f in range(vis.shape[1]):             # channel (freq)
-            sub_flags = fflags[r, f]
+            sub_flags = fflags[r, f, :]
 
             # Continue early if all correlations are flagged
             if _all_flagged(sub_flags):
@@ -88,8 +91,8 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             disc_v = int(np.round(exact_v))
 
             # Filter extents in U and V
-            lower_u = disc_u - half_support
-            lower_v = disc_v - half_support
+            lower_u = disc_u - half_support      # Inclusive
+            lower_v = disc_v - half_support      # Inclusive
             upper_u = disc_u + half_support + 1  # Exclusive
             upper_v = disc_v + half_support + 1  # Exclusive
 
@@ -112,8 +115,8 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             base_os_u = (base_os_u + ((3 * oversample) // 2)) % oversample
             base_os_v = (base_os_v + ((3 * oversample) // 2)) % oversample
 
-            sub_vis = vis[r, f]
-            sub_weights = weights[r, f]
+            sub_vis = fvis[r, f, :]
+            sub_weights = fweights[r, f, :]
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
@@ -218,6 +221,9 @@ def numba_degrid(grid, uvw, weights, ref_wave,
     cf = convolution_filter
     ny, nx, flat_corrs = grid.shape
 
+    if nx < cf.full_support or ny < cf.full_support:
+        raise ValueError("Grid is smaller than filter support")
+
     # Similarity Theorem
     # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
     # Scale UV coordinates
@@ -243,16 +249,6 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
-            # Filter extents in U and V
-            lower_u = disc_u - half_support
-            lower_v = disc_v - half_support
-            upper_u = disc_u + half_support + 1  # Exclusive
-            upper_v = disc_v + half_support + 1  # Exclusive
-
-            # Next visibility if outside extents
-            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
-                continue
-
             # Compute fractional u and v
             frac_u = exact_u - disc_u
             frac_v = exact_v - disc_v
@@ -268,8 +264,18 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             base_os_u = (base_os_u + ((3 * oversample) // 2)) % oversample
             base_os_v = (base_os_v + ((3 * oversample) // 2)) % oversample
 
-            sub_vis = vis[r, f]
-            sub_weights = weights[r, f]
+            # Filter extents in U and V
+            lower_u = disc_u - half_support      # Inclusive
+            lower_v = disc_v - half_support      # Inclusive
+            upper_u = disc_u + half_support + 1  # Exclusive
+            upper_v = disc_v + half_support + 1  # Exclusive
+
+            # Next visibility if outside extents
+            if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
+                continue
+
+            sub_vis = vis[r, f, :]
+            sub_weights = weights[r, f, :]
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
