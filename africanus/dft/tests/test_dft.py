@@ -213,46 +213,38 @@ def test_vis_to_im_dask():
 
     assert np.allclose(image, image_dask)
 
-def test_hermitian():
+
+def test_symmetric_covariance():
     """
-    Test that the reduction matrix R^H\Sigma^-1R is hermitian meaning that its transpose is equal to itself
-    Test that vis_to_im produces the same result as that of the reduction matrix when applied to a weighted visibility
-    set
+    Test that the image plane covariance matrix R^H\Sigma^-1R is Hermitian
+    (symmetric since its real).
     """
     from africanus.dft.kernels import vis_to_im
     from africanus.constants.consts import minus_two_pi_over_c
-    lmmax = 0.005
-    npix = 65
-    x = np.linspace(-lmmax, lmmax, npix, endpoint=True)
-    ll, mm = np.meshgrid(x, x)
-    lm = np.vstack((ll.T.flatten(), mm.T.flatten())).T
 
-    nrows = 100
+    lmmax = 0.05
+    nsource = 25
+
+    l = -0.8*lmmax + 1.6*lmmax*np.random.random(nsource)
+    m = -0.8 * lmmax + 1.6 * lmmax * np.random.random(nsource)
+    lm = np.vstack((l, m)).T
+
+    nrows = 1000
     uvw = np.random.randn(nrows, 3) * 1000
     uvw[:, 2] = 0.0
 
     freq = np.array([1.0e9])
 
-    Sigma = np.eye(nrows)
+    # get the "psf" matrix at source locations
+    psf_source = np.zeros((nsource, nsource), dtype=np.float64)
+    for source in range(nsource):
+        l, m = lm[source]
+        n = np.sqrt(1 - l ** 2 - m ** 2)
+        Ki = np.zeros([nrows, 1], dtype=np.complex128)
+        for row in range(nrows):
+            Ki[row] = np.exp(1j*minus_two_pi_over_c*freq[0] *
+                             (uvw[row, 0]*l + uvw[row, 1]*m) +
+                             uvw[row, 2]*(n - 1))
+        psf_source[:, source:source+1] = vis_to_im(Ki, uvw, lm, freq)
 
-    response = np.zeros((nrows, npix**2), dtype=np.complex128)
-    for row in range(nrows):
-        u, v, w = uvw[row]
-        for source in range(npix**2):
-            l, m = lm[source]
-            n = np.sqrt(1 - l**2 - m**2)
-            response[row, source] = np.exp(1.0j*minus_two_pi_over_c*freq[0]*(u*l + v*m + w*(n - 1)))
-
-    covariance = (response.conj().T.dot(Sigma.dot(response))).real
-
-    covariance_adjoint = covariance.T
-
-    assert np.all(abs(covariance - covariance_adjoint) < 1e-14)
-
-    np.random.seed(111)
-    vis = np.random.random((nrows, 1))
-
-    grid_vis_mat = response.conj().T.dot(Sigma.dot(vis)).real
-    grid_vis_op = vis_to_im(Sigma.dot(vis), uvw, lm, freq).real
-
-    assert np.all(abs(grid_vis_mat - grid_vis_op) < 1e-12)
+    assert np.allclose(psf_source, psf_source.T, atol=1e-14, rtol=1e-12)
