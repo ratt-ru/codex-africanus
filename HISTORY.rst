@@ -4,6 +4,8 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Added test for dft to test if image space covariance
+  is symmetric(:pr:`55`)
 * Correct Parallactic Angle Computation (:pr:`49`)
 * Enhance visibility predict (:pr:`50`)
 * Fix Kaiser Bessel filter and taper (:pr:`48`)
