@@ -90,6 +90,10 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
 
+            # Next visibility if the UV point lies outside the grid
+            if disc_u < 0 or disc_v < 0 or disc_u >= nx or disc_v >= ny:
+                continue
+
             # Filter extents in U and V
             lower_u = disc_u - half_support      # Inclusive
             lower_v = disc_v - half_support      # Inclusive
@@ -248,6 +252,10 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             # Discretised UV coordinates, snapped to nearest grid point
             disc_u = int(np.round(exact_u))
             disc_v = int(np.round(exact_v))
+
+            # Next visibility if the UV point lies outside the grid
+            if disc_u < 0 or disc_v < 0 or disc_u >= nx or disc_v >= ny:
+                continue
 
             # Compute fractional u and v
             frac_u = exact_u - disc_u
