@@ -216,7 +216,7 @@ def test_vis_to_im_dask():
 
 def test_symmetric_covariance():
     """
-    Test that the image plane covariance matrix R^H\Sigma^-1R is Hermitian
+    Test that the image plane covariance matrix R^H Sigma^-1R is Hermitian
     (symmetric since its real).
     """
     from africanus.dft.kernels import vis_to_im
