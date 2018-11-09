@@ -63,19 +63,25 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     fweights = weights.reshape((nrow, nchan, flat_corrs))
 
     oversample = cf.oversampling
+    base_os = oversample // 2 if oversample % 2 == 1 else (oversample // 2) - 1
     half_support = cf.full_support // 2
     half_x = nx // 2
     half_y = ny // 2
 
     for r in range(uvw.shape[0]):                 # row (vis)
+        scaled_u = uvw[r, 0] * u_scale
+        scaled_v = uvw[r, 1] * v_scale
+
         for f in range(vis.shape[1]):             # channel (freq)
+            sub_flags = fflags[r, f]
+
             # Continue early if all correlations are flagged
-            if _all_flagged(fflags[r, f]):
+            if _all_flagged(sub_flags):
                 continue
 
-            # Exact UV coordinates
-            exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
-            exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
+            # Exact floating point UV coordinates in the grid
+            exact_u = half_x + (scaled_u / ref_wave[f])
+            exact_v = half_y + (scaled_v / ref_wave[f])
 
             # Discretised UV coordinates, snapped to nearest grid point
             disc_u = int(np.round(exact_u))
@@ -91,31 +97,41 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
             if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
                 continue
 
-            # Compute fractional u and v, wrap if negative
-            base_frac_u = exact_u - np.floor(exact_u)
-            base_frac_v = exact_v - np.floor(exact_v)
+            # Compute fractional u and v
+            frac_u = exact_u - disc_u
+            frac_v = exact_v - disc_v
 
-            # Base lookup position in the filter
-            base_os_u = int(np.round(base_frac_u*oversample)) % oversample
-            base_os_v = int(np.round(base_frac_v*oversample)) % oversample
+            # Base oversampling index in the filter
+            # [-0.5, 0.5]*oversample
+            base_os_u = int(np.round(frac_u*oversample))
+            base_os_v = int(np.round(frac_u*oversample))
+
+            # Normalise the index from
+            # [-2, -1,  0,  1,  2, -2, -1,  0   1,  2, -2, -1,  0,  1,  2] to
+            # [ 0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4]
+            base_os_u = (base_os_u + ((3 * oversample) // 2)) % oversample
+            base_os_v = (base_os_v + ((3 * oversample) // 2)) % oversample
+
+            sub_vis = vis[r, f]
+            sub_weights = weights[r, f]
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
-                v_filter = cf.filter[vi*oversample + base_os_v, :]
+                v_filter = cf.filter[base_os_v + vi*oversample, :]
+                sub_grid_v = grid[grid_v, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
-                    conv_weight = v_filter[ui*oversample + base_os_u]
+                    conv_weight = v_filter[base_os_u + ui*oversample]
+                    sub_grid_u = sub_grid_v[grid_u, :]
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
-                        if fflags[r, f, c] > 0:
+                        if sub_flags[c] > 0:
                             continue
 
                         # Grid the visibility
-                        grid[grid_v, grid_u, c] += (fvis[r, f, c] *
-                                                    conv_weight *
-                                                    fweights[r, f, c])
+                        sub_grid_u[c] += sub_vis[c]*conv_weight*sub_weights[c]
 
     return grid.reshape((ny, nx) + corrs)
 
@@ -209,15 +225,19 @@ def numba_degrid(grid, uvw, weights, ref_wave,
     u_scale = _ARCSEC2RAD * cell_size * nx
     v_scale = _ARCSEC2RAD * cell_size * ny
     oversample = cf.oversampling
+    base_os = oversample // 2 if oversample % 2 == 1 else (oversample // 2) - 1
     half_support = cf.full_support // 2
     half_x = nx // 2
     half_y = ny // 2
 
     for r in range(uvw.shape[0]):                 # row (vis)
+        scaled_u = uvw[r, 0] * u_scale
+        scaled_v = uvw[r, 1] * v_scale
+
         for f in range(vis.shape[1]):             # channel (freq)
-            # Exact UV coordinates
-            exact_u = half_x + (uvw[r, 0] * u_scale / ref_wave[f])
-            exact_v = half_y + (uvw[r, 1] * v_scale / ref_wave[f])
+            # Exact floating point UV coordinates in the grid
+            exact_u = half_x + (scaled_u / ref_wave[f])
+            exact_v = half_y + (scaled_v / ref_wave[f])
 
             # Discretised UV coordinates, snapped to nearest grid point
             disc_u = int(np.round(exact_u))
@@ -233,26 +253,36 @@ def numba_degrid(grid, uvw, weights, ref_wave,
             if (lower_u < 0 or lower_v < 0 or upper_u > nx or upper_v > ny):
                 continue
 
-            # Compute fractional u and v, wrap if negative
-            base_frac_u = exact_u - np.floor(exact_u)
-            base_frac_v = exact_v - np.floor(exact_v)
+            # Compute fractional u and v
+            frac_u = exact_u - disc_u
+            frac_v = exact_v - disc_v
 
-            # Base lookup position in the filter
-            base_os_u = int(np.round(base_frac_u*oversample)) % oversample
-            base_os_v = int(np.round(base_frac_v*oversample)) % oversample
+            # Base oversampling index in the filter
+            # [-0.5, 0.5]*oversample
+            base_os_u = int(np.round(frac_u*oversample))
+            base_os_v = int(np.round(frac_u*oversample))
+
+            # Normalise the index from
+            # [-2, -1,  0,  1,  2, -2, -1,  0   1,  2, -2, -1,  0,  1,  2] to
+            # [ 0,  1,  2,  3,  4,  0,  1,  2,  3,  4,  0,  1,  2,  3,  4]
+            base_os_u = (base_os_u + ((3 * oversample) // 2)) % oversample
+            base_os_v = (base_os_v + ((3 * oversample) // 2)) % oversample
+
+            sub_vis = vis[r, f]
+            sub_weights = weights[r, f]
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
-                v_filter = cf.filter[vi*oversample + base_os_v, :]
+                v_filter = cf.filter[base_os_v + vi*oversample, :]
+                sub_grid_v = grid[grid_v, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
-                    conv_weight = v_filter[ui*oversample + base_os_u]
+                    conv_weight = v_filter[base_os_u + ui*oversample]
+                    sub_grid_u = sub_grid_v[grid_u, :]
 
                     for c in range(flat_corrs):
-                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
-                                         conv_weight *
-                                         weights[r, f, c])
+                        sub_vis[c] += sub_grid_u[c]*conv_weight*sub_weights[c]
 
     return vis
 
