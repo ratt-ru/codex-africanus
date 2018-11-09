@@ -15,7 +15,7 @@ from africanus.filters.kaiser_bessel_filter import (
 
 @pytest.mark.xfail
 @pytest.mark.parametrize("full_support, oversampling, beta", [[21, 27, 2.4]])
-@pytest.mark.parametrize("plot", [True])
+@pytest.mark.parametrize("plot", [False])
 def test_kaiser_bessel_filter(full_support, oversampling, beta, plot):
     wsclean_filter = wsclean_kaiser_bessel_with_sinc(full_support,
                                                      oversampling,
@@ -28,12 +28,12 @@ def test_kaiser_bessel_filter(full_support, oversampling, beta, plot):
         try:
             import matplotlib.pyplot as plt
         except ImportError:
-            pass
-        else:
-            x = np.arange(wsclean_filter.size)
-            plt.plot(x, wsclean_filter)
-            plt.plot(x, afr_filter)
-            plt.show()
+            pytest.fail("plotting requested but could not import matplotlib")
+
+        x = np.arange(wsclean_filter.size)
+        plt.plot(x, wsclean_filter)
+        plt.plot(x, afr_filter)
+        plt.show()
 
     print(np.abs(wsclean_filter - afr_filter).max())
 
