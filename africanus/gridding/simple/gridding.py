@@ -120,12 +120,12 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
-                v_filter = cf.filter[base_os_v + vi*oversample, :]
+                sub_filter_v = cf.filter[base_os_v + vi*oversample, :]
                 sub_grid_v = grid[(grid_v + nx) % nx, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
-                    conv_weight = v_filter[base_os_u + ui*oversample]
+                    conv_weight = sub_filter_v[base_os_u + ui*oversample]
                     sub_grid_u = sub_grid_v[(grid_u + ny) % ny, :]
 
                     for c in range(flat_corrs):      # correlation
@@ -282,12 +282,12 @@ def numba_degrid(grid, uvw, weights, ref_wave,
 
             # Iterate over v/y
             for vi, grid_v in enumerate(range(lower_v, upper_v)):
-                v_filter = cf.filter[base_os_v + vi*oversample, :]
+                sub_filter_v = cf.filter[base_os_v + vi*oversample, :]
                 sub_grid_v = grid[(grid_v + nx) % nx, :, :]
 
                 # Iterate over u/x
                 for ui, grid_u in enumerate(range(lower_u, upper_u)):
-                    conv_weight = v_filter[base_os_u + ui*oversample]
+                    conv_weight = sub_filter_v[base_os_u + ui*oversample]
                     sub_grid_u = sub_grid_v[(grid_u + ny) % ny, :]
 
                     for c in range(flat_corrs):      # correlation
