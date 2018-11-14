@@ -15,7 +15,7 @@ from ..util.docs import doc_tuple_to_str
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def _phase_delay_impl(uvw, lm, frequency, complex_phase):
+def _phase_delay_impl(lm, uvw, frequency, complex_phase):
     # For each source
     for source in range(lm.shape[0]):
         l, m = lm[source]
@@ -40,11 +40,11 @@ def _phase_delay_impl(uvw, lm, frequency, complex_phase):
     return complex_phase
 
 
-def phase_delay(uvw, lm, frequency, dtype=None):
+def phase_delay(lm, uvw, frequency, dtype=None):
     complex_phase = np.empty((lm.shape[0], uvw.shape[0], frequency.shape[0]),
                              dtype=np.complex128 if dtype is None else dtype)
 
-    return _phase_delay_impl(uvw, lm, frequency, complex_phase)
+    return _phase_delay_impl(lm, uvw, frequency, complex_phase)
 
 
 _DFT_DOCSTRING = namedtuple(
@@ -65,12 +65,12 @@ phase_delay_docs = _DFT_DOCSTRING(
     Parameters
     ----------
 
-    uvw : :class:`numpy.ndarray`
-        UVW coordinates of shape :code:`(row, 3)` with
-        U, V and W components in the last dimension.
     lm : :class:`numpy.ndarray`
         LM coordinates of shape :code:`(source, 2)` with
         L and M components in the last dimension.
+    uvw : :class:`numpy.ndarray`
+        UVW coordinates of shape :code:`(row, 3)` with
+        U, V and W components in the last dimension.
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional

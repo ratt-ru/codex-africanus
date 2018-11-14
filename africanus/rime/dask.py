@@ -39,16 +39,16 @@ except ImportError:
 
 
 @wraps(np_phase_delay)
-def _phase_delay_wrap(uvw, lm, frequency, dtype_):
-    return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
+def _phase_delay_wrap(lm, uvw, frequency, dtype_):
+    return np_phase_delay(lm[0], uvw[0], frequency, dtype=dtype_)
 
 
 @requires_optional('dask.array')
-def phase_delay(uvw, lm, frequency, dtype=np.complex128):
+def phase_delay(lm, uvw, frequency, dtype=np.complex128):
     """ Dask wrapper for phase_delay function """
     return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
-                        uvw, ("row", "(u,v,w)"),
                         lm, ("source", "(l,m)"),
+                        uvw, ("row", "(u,v,w)"),
                         frequency, ("chan",),
                         dtype=dtype,
                         dtype_=dtype)
