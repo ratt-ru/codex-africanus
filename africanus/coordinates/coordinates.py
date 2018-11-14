@@ -10,6 +10,7 @@ import numba
 import numpy as np
 
 from ..util.docs import DocstringTemplate
+from ..util.numba import is_numba_type_none
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -26,7 +27,7 @@ def _return_phase_centre(phase_centre, dtype):
 def radec_to_lmn(radec, phase_centre=None):
     dtype = radec.dtype
 
-    if isinstance(phase_centre, numba.types.misc.NoneType):
+    if is_numba_type_none(phase_centre):
         _maybe_create_phase_centre = _create_phase_centre
     else:
         _maybe_create_phase_centre = _return_phase_centre
@@ -65,7 +66,7 @@ def radec_to_lmn(radec, phase_centre=None):
 def lmn_to_radec(lmn, phase_centre=None):
     dtype = lmn.dtype
 
-    if isinstance(phase_centre, numba.types.misc.NoneType):
+    if is_numba_type_none(phase_centre):
         _maybe_create_phase_centre = _create_phase_centre
     else:
         _maybe_create_phase_centre = _return_phase_centre

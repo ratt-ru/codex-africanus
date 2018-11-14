@@ -17,8 +17,8 @@ def test_radec_to_lmn():
     lmn = np_radec_to_lmn(radec, phase_centre)
     final_radec = np_lmn_to_radec(lmn, phase_centre)
 
-    # lmn = np_radec_to_lmn(radec)
-    # final_radec = np_lmn_to_radec(lmn)
+    lmn = np_radec_to_lmn(radec)
+    final_radec = np_lmn_to_radec(lmn)
 
 
 @pytest.mark.xfail
