@@ -9,7 +9,6 @@ from africanus.coordinates import (radec_to_lmn as np_radec_to_lmn,
                                    lmn_to_radec as np_lmn_to_radec)
 
 
-@pytest.mark.xfail
 def test_radec_to_lmn():
     """ Tests that basics run """
     radec = np.random.random((10, 2))*np.pi
@@ -18,9 +17,12 @@ def test_radec_to_lmn():
     lmn = np_radec_to_lmn(radec, phase_centre)
     final_radec = np_lmn_to_radec(lmn, phase_centre)
 
+    # lmn = np_radec_to_lmn(radec)
+    # final_radec = np_lmn_to_radec(lmn)
+
 
 @pytest.mark.xfail
-def test_radec_to_lmn():
+def test_radec_to_lmn_wraps():
     """ Test that the radec can be recovered exactly """
     radec = np.random.random((10, 2))*np.pi
     phase_centre = np.random.random(2)*np.pi

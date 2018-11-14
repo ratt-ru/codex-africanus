@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 import numba
 import numpy as np
 
@@ -20,23 +22,35 @@ from .coordinates import (radec_to_lmn as np_radec_to_lmn,
                           LMN_TO_RADEC_DOCS)
 
 
+@wraps(np_radec_to_lmn)
+def _radec_to_lmn(radec, phase_centre):
+    return np_radec_to_lmn(radec[0], phase_centre[0])
+
+
 @requires_optional('dask.array')
 def radec_to_lmn(radec, phase_centre=None):
-    phase_centre_dims = ("(l,m)",) if phase_centre is not None else None
+    phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(np_radec_to_lmn, ("source", "(l,m)"),
-                        radec, ("source", "(l,m)"),
+    return da.core.atop(_radec_to_lmn, ("source", "lmn"),
+                        radec, ("source", "radec"),
                         phase_centre, phase_centre_dims,
+                        new_axes={"lmn": 3},
                         dtype=radec.dtype)
+
+
+@wraps(np_lmn_to_radec)
+def _lmn_to_radec(lmn, phase_centre):
+    return np_lmn_to_radec(lmn[0], phase_centre)
 
 
 @requires_optional('dask.array')
 def lmn_to_radec(lmn, phase_centre=None):
-    phase_centre_dims = ("(l,m)",) if phase_centre is not None else None
+    phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(np_lmn_to_radec, ("source", "(l,m)"),
-                        lmn, ("source", "(l,m)"),
+    return da.core.atop(_lmn_to_radec, ("source", "radec"),
+                        lmn, ("source", "lmn"),
                         phase_centre, phase_centre_dims,
+                        new_axes={"radec": 2},
                         dtype=lmn.dtype)
 
 
