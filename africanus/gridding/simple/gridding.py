@@ -6,15 +6,10 @@ from __future__ import print_function
 
 from operator import mul
 
-try:
-    # in python3, reduce is in functools
-    from functools import reduce
-except ImportError:
-    # I guess this is python2
-    pass
-
 import numba
 import numpy as np
+
+from ...compatibility import reduce
 
 _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 
