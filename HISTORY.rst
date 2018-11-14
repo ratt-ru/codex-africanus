@@ -4,7 +4,8 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
-* Support dask for `radec_to_lmn` and `lmn_to_radec` (:pr:`56`)
+* Support dask for `radec_to_lmn` and `lmn_to_radec`. Also add support
+  for `radec_to_lm` and `lm_to_radec` (:pr:`56`)
 * Added test for dft to test if image space covariance
   is symmetric(:pr:`55`)
 * Correct Parallactic Angle Computation (:pr:`49`)
