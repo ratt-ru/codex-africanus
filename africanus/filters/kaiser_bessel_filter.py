@@ -71,7 +71,7 @@ def kaiser_bessel(u, W, beta):
     return np.i0(beta * np.sqrt(param)) / np.i0(beta)
 
 
-def kaiser_bessel_with_sinc(full_support, oversampling, beta, normalise=True):
+def kaiser_bessel_with_sinc(full_support, oversampling, beta, normalise=False):
     """
     Produces a filter composed of Kaiser Bessel multiplied by a sinc.
 
