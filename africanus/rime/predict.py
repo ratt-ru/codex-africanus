@@ -12,6 +12,7 @@ from numba import types, generated_jit, njit
 import numpy as np
 
 from ..util.docs import DocstringTemplate, on_rtd
+from ..util.numba import is_numba_type_none
 
 
 JONES_NOT_PRESENT = 0
@@ -50,7 +51,7 @@ def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
         - 2 -- (2, 2)
     """
 
-    if isinstance(numba_ndarray_type, types.misc.NoneType):
+    if is_numba_type_none(numba_ndarray_type):
         return JONES_NOT_PRESENT
     if numba_ndarray_type.ndim == corr_1_dims:
         return JONES_1_OR_2
@@ -322,12 +323,12 @@ def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
 
-    have_a1 = not isinstance(dde1_jones, types.misc.NoneType)
-    have_bl = not isinstance(source_coh, types.misc.NoneType)
-    have_a2 = not isinstance(dde2_jones, types.misc.NoneType)
-    have_g1 = not isinstance(die1_jones, types.misc.NoneType)
-    have_coh = not isinstance(base_vis, types.misc.NoneType)
-    have_g2 = not isinstance(die2_jones, types.misc.NoneType)
+    have_a1 = not is_numba_type_none(dde1_jones)
+    have_bl = not is_numba_type_none(source_coh)
+    have_a2 = not is_numba_type_none(dde2_jones)
+    have_g1 = not is_numba_type_none(die1_jones)
+    have_coh = not is_numba_type_none(base_vis)
+    have_g2 = not is_numba_type_none(die2_jones)
 
     assert time_index.ndim == 1
     assert antenna1.ndim == 1
@@ -347,7 +348,7 @@ def predict_vis(time_index, antenna1, antenna2,
 
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
-                                 if not isinstance(a, types.misc.NoneType)))
+                                 if not is_numba_type_none(a)))
 
     have_ants = have_a1 and have_a2
     have_dies = have_g1 and have_g2
