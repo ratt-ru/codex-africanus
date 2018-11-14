@@ -190,7 +190,7 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
         def jones_mul():
             pass
 
-    return njit(nogil=True, cache=True)(jones_mul)
+    return njit(nogil=True)(jones_mul)
 
 
 def sum_coherencies_factory(have_ants, have_bl, jones_type):
@@ -229,7 +229,7 @@ def sum_coherencies_factory(have_ants, have_bl, jones_type):
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             pass
 
-    return njit(nogil=True, cache=True)(sum_coh_fn)
+    return njit(nogil=True)(sum_coh_fn)
 
 
 def output_factory(have_ants, have_bl, have_dies, out_dtype):
@@ -259,7 +259,7 @@ def output_factory(have_ants, have_bl, have_dies, out_dtype):
         raise ValueError("Insufficient inputs were supplied "
                          "for determining the output shape")
 
-    return njit(nogil=True, cache=True)(output)
+    return njit(nogil=True)(output)
 
 
 def add_coh_factory(have_coh):
@@ -271,7 +271,7 @@ def add_coh_factory(have_coh):
         def add_coh(base_vis, out):
             pass
 
-    return njit(nogil=True, cache=True)(add_coh)
+    return njit(nogil=True)(add_coh)
 
 
 def apply_dies_factory(have_dies, have_coh, jones_type):
@@ -316,7 +316,7 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
                        tmin, out):
             pass
 
-    return njit(nogil=True, cache=True)(apply_dies)
+    return njit(nogil=True)(apply_dies)
 
 
 def predict_vis(time_index, antenna1, antenna2,
