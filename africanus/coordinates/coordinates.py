@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import numba
 import numpy as np
+
+from ..util.docs import DocstringTemplate
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -33,39 +37,6 @@ def _nb_radec_to_lmn(radec, phase_centre):
 
 
 def radec_to_lmn(radec, phase_centre=None):
-    r"""
-    Converts Right-Ascension/Declination coordinates in radians
-    to a Direction Cosine lm coordinates, relative to the Phase Centre.
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray}
-            & l =& \, \cos \, \delta  \sin \, \Delta \alpha  \\
-            & m =& \, \sin \, \delta \cos \, \delta 0 -
-                         \cos \delta \sin \delta 0 \cos \Delta \alpha \\
-            & n =& \, \sqrt{1 - l^2 - m^2} - 1
-        \end{eqnarray}
-
-    where :math:`\Delta \alpha = \alpha - \alpha 0` is the difference between
-    the Right Ascension of each coordinate and the phase centre and
-    :math:`\delta 0` is the Declination of the phase centre.
-
-    Parameters
-    ----------
-    radec : :class:`np.ndarray`
-        radec coordinates of shape :code:`(coord, 2)`
-        where Right-Ascension and Declination are in the
-        last 2 components, respectively.
-    phase_centre : :class:`np.ndarray`, optional
-        radec coordinates of the Phase Centre.
-        Shape :code:`(2,)`
-
-    Returns
-    -------
-    :class:`np.ndarray`
-        lm Direction Cosines of shape :code:`(coord, 2)`
-    """
     if phase_centre is None:
         phase_centre = np.zeros((2,), dtype=radec.dtype)
 
@@ -93,41 +64,86 @@ def _nb_lm_to_radec(lmn, phase_centre):
 
 
 def lmn_to_radec(lmn, phase_centre=None):
-    r"""
-    Convert Direction Cosine lm coordinates to Right Ascension/Declination
-    coordinates in radians, relative to the Phase Centre.
-
-    .. math::
-        :nowrap:
-
-        \begin{eqnarray}
-        & \delta = & \, \arcsin \left( m \cos \delta 0 +
-                                     n \sin \delta 0 \right) \\
-        & \alpha = & \, \arctan \left( \frac{l}{n \cos \delta 0 -
-                                     m \sin \delta 0} \right) \\
-        \end{eqnarray}
-
-    where :math:`\alpha` is the Right Ascension of each coordinate
-    and the phase centre and :math:`\delta 0`
-    is the Declination of the phase centre.
-
-    Parameters
-    ----------
-    lmn : :class:`np.ndarray`
-        lm Direction Cosines of shape :code:`(coord, 3)`
-    phase_centre : :class:`np.ndarray`, optional
-        radec coordinates of the Phase Centre.
-        Shape :code:`(2,)`
-
-    Returns
-    -------
-    :class:`np.ndarray`
-        radec coordinates of shape :code:`(coord, 2)`
-        where Right-Ascension and Declination are in the
-        last 2 components, respectively.
-
-    """
     if phase_centre is None:
         phase_centre = np.zeros((2,), dtype=lmn.dtype)
 
     return _nb_lm_to_radec(lmn, phase_centre)
+
+
+RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
+Converts Right-Ascension/Declination coordinates in radians
+to a Direction Cosine lm coordinates, relative to the Phase Centre.
+
+.. math::
+    :nowrap:
+
+    \begin{eqnarray}
+        & l =& \, \cos \, \delta  \sin \, \Delta \alpha  \\
+        & m =& \, \sin \, \delta \cos \, \delta 0 -
+                     \cos \delta \sin \delta 0 \cos \Delta \alpha \\
+        & n =& \, \sqrt{1 - l^2 - m^2} - 1
+    \end{eqnarray}
+
+where :math:`\Delta \alpha = \alpha - \alpha 0` is the difference between
+the Right Ascension of each coordinate and the phase centre and
+:math:`\delta 0` is the Declination of the phase centre.
+
+Parameters
+----------
+radec : $(array_type)
+    radec coordinates of shape :code:`(coord, 2)`
+    where Right-Ascension and Declination are in the
+    last 2 components, respectively.
+phase_centre : $(array_type), optional
+    radec coordinates of the Phase Centre.
+    Shape :code:`(2,)`
+
+Returns
+-------
+$(array_type)
+    lm Direction Cosines of shape :code:`(coord, 2)`
+""")
+
+
+LMN_TO_RADEC_DOCS = DocstringTemplate(r"""
+Convert Direction Cosine lm coordinates to Right Ascension/Declination
+coordinates in radians, relative to the Phase Centre.
+
+.. math::
+    :nowrap:
+
+    \begin{eqnarray}
+    & \delta = & \, \arcsin \left( m \cos \delta 0 +
+                                 n \sin \delta 0 \right) \\
+    & \alpha = & \, \arctan \left( \frac{l}{n \cos \delta 0 -
+                                 m \sin \delta 0} \right) \\
+    \end{eqnarray}
+
+where :math:`\alpha` is the Right Ascension of each coordinate
+and the phase centre and :math:`\delta 0`
+is the Declination of the phase centre.
+
+Parameters
+----------
+lmn : $(array_type)
+    lm Direction Cosines of shape :code:`(coord, 3)`
+phase_centre : $(array_type), optional
+    radec coordinates of the Phase Centre.
+    Shape :code:`(2,)`
+
+Returns
+-------
+$(array_type)
+    radec coordinates of shape :code:`(coord, 2)`
+    where Right-Ascension and Declination are in the
+    last 2 components, respectively.
+
+""")
+
+try:
+    radec_to_lmn.__doc__ = RADEC_TO_LMN_DOCS.substitute(
+                                array_type=":class:`numpy.ndarray`")
+    lmn_to_radec.__doc__ = LMN_TO_RADEC_DOCS.substitute(
+                                array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
