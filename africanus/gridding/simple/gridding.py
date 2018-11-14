@@ -33,14 +33,14 @@ def numba_grid(vis, uvw, flags, weights, ref_wave,
     """
     cf = convolution_filter
 
+    nrow, nchan = vis.shape[0:2]
+    corrs = vis.shape[2:]
+
     # Shape checks
     assert vis.shape[0] == uvw.shape[0] == flags.shape[0] == weights.shape[0]
     assert vis.shape[1] == flags.shape[1] == weights.shape[1]
     assert vis.shape[2] == flags.shape[2] == weights.shape[2]
-
-    nrow, nchan = vis.shape[0:2]
     assert nchan == ref_wave.shape[0]
-    corrs = vis.shape[2:]
 
     ny, nx = grid.shape[0:2]
     flat_corrs = grid.shape[2]
