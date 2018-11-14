@@ -26,7 +26,7 @@ from .coordinates import (radec_to_lmn as np_radec_to_lmn,
 
 @wraps(np_radec_to_lmn)
 def _radec_to_lmn(radec, phase_centre):
-    return np_radec_to_lmn(radec[0], phase_centre[0])
+    return np_radec_to_lmn(radec[0], phase_centre[0] if phase_centre else None)
 
 
 @requires_optional('dask.array')
@@ -58,7 +58,7 @@ def lmn_to_radec(lmn, phase_centre=None):
 
 @wraps(np_radec_to_lm)
 def _radec_to_lm(radec, phase_centre):
-    return np_radec_to_lm(radec[0], phase_centre[0])
+    return np_radec_to_lm(radec[0], phase_centre[0] if phase_centre else None)
 
 
 @requires_optional('dask.array')
@@ -68,7 +68,7 @@ def radec_to_lm(radec, phase_centre=None):
     return da.core.atop(_radec_to_lm, ("source", "lm"),
                         radec, ("source", "radec"),
                         phase_centre, phase_centre_dims,
-                        new_axes={"lm": 3},
+                        new_axes={"lm": 2},
                         dtype=radec.dtype)
 
 
