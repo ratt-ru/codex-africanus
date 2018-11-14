@@ -9,7 +9,7 @@ from functools import wraps
 import numba
 import numpy as np
 
-from ..util.docs import DocstringTemplate
+from ..util.docs import on_rtd, DocstringTemplate
 from ..util.numba import is_numba_type_none
 
 
@@ -23,7 +23,6 @@ def _return_phase_centre(phase_centre, dtype):
     return phase_centre
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
 def radec_to_lmn(radec, phase_centre=None):
     dtype = radec.dtype
 
@@ -62,7 +61,6 @@ def radec_to_lmn(radec, phase_centre=None):
     return _radec_to_lmn_impl
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
 def lmn_to_radec(lmn, phase_centre=None):
     dtype = lmn.dtype
 
@@ -91,6 +89,14 @@ def lmn_to_radec(lmn, phase_centre=None):
         return radec
 
     return _lmn_to_radec_impl
+
+
+# inspect.getargspec doesn't work on a numba dispatcher object
+# so rtd fails.
+if not on_rtd():
+    jitter = generated_jit(nopython=True, nogil=True, cache=True)
+    lmn_to_radec = jitter(lmn_to_radec)
+    radec_to_lmn = jitter(radec_to_lmn)
 
 
 RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
