@@ -4,70 +4,99 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 import numba
 import numpy as np
 
 from ..util.docs import DocstringTemplate
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def _nb_radec_to_lmn(radec, phase_centre):
-    assert radec.ndim == 2 and radec.shape[1] == 2
-    assert phase_centre.ndim == 1 and phase_centre.shape[0] == 2
-
-    lmn = np.empty(shape=(radec.shape[0], 3), dtype=radec.dtype)
-
-    pc_ra, pc_dec = phase_centre
-    sin_d0 = np.sin(pc_dec)
-    cos_d0 = np.cos(pc_dec)
-
-    for s in range(radec.shape[0]):
-        da = radec[s, 0] - pc_ra
-        sin_da = np.sin(da)
-        cos_da = np.cos(da)
-
-        sin_d = np.sin(radec[s, 1])
-        cos_d = np.cos(radec[s, 1])
-
-        lmn[s, 0] = l = cos_d*sin_da
-        lmn[s, 1] = m = sin_d*cos_d0 - cos_d*sin_d0*cos_da
-        lmn[s, 2] = np.sqrt(1.0 - l**2 - m**2)
-
-    return lmn
-
-
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
 def radec_to_lmn(radec, phase_centre=None):
-    if phase_centre is None:
-        phase_centre = np.zeros((2,), dtype=radec.dtype)
+    dtype = radec.dtype
 
-    return _nb_radec_to_lmn(radec, phase_centre)
+    if isinstance(phase_centre, numba.types.misc.NoneType):
+        @numba.jit(nopython=True, nogil=True)
+        def _maybe_create_phase_centre(phase_centre):
+            return np.zeros((2,), dtype=dtype)
+
+    else:
+        # noop
+        @numba.jit(nopython=True, nogil=True)
+        def _maybe_create_phase_centre(phase_centre):
+            if phase_centre.ndim != 1 or phase_centre.shape[0] != 2:
+                raise ValueError("phase_centre must have shape (2,)")
+            return phase_centre
+
+    @wraps(radec_to_lmn)
+    def _radec_to_lmn(radec, phase_centre=None):
+        if radec.ndim != 2 or radec.shape[1] != 2:
+            raise ValueError("radec must have shape (source, 2)")
+
+        lmn = np.empty(shape=(radec.shape[0], 3), dtype=dtype)
+
+        pc_ra, pc_dec = _maybe_create_phase_centre(phase_centre)
+        sin_d0 = np.sin(pc_dec)
+        cos_d0 = np.cos(pc_dec)
+
+        for s in range(radec.shape[0]):
+            da = radec[s, 0] - pc_ra
+            sin_da = np.sin(da)
+            cos_da = np.cos(da)
+
+            sin_d = np.sin(radec[s, 1])
+            cos_d = np.cos(radec[s, 1])
+
+            lmn[s, 0] = l = cos_d*sin_da
+            lmn[s, 1] = m = sin_d*cos_d0 - cos_d*sin_d0*cos_da
+            lmn[s, 2] = np.sqrt(1.0 - l**2 - m**2)
+
+        return lmn
+
+    return _radec_to_lmn
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def _nb_lm_to_radec(lmn, phase_centre):
-    assert lmn.ndim == 2 and lmn.shape[1] == 3
-    assert phase_centre.ndim == 1 and phase_centre.shape[0] == 2
-
-    radec = np.empty(shape=(lmn.shape[0], 2), dtype=lmn.dtype)
-
-    pc_ra, pc_dec = phase_centre
-    sin_d0 = np.sin(pc_dec)
-    cos_d0 = np.cos(pc_dec)
-
-    for s in range(radec.shape[0]):
-        l, m, n = lmn[s]
-
-        radec[s, 1] = np.arcsin(m*cos_d0 + n*sin_d0)
-        radec[s, 0] = pc_ra + np.arctan(l / (n*cos_d0 - m*sin_d0))
-
-    return radec
 
 
-def lmn_to_radec(lmn, phase_centre=None):
-    if phase_centre is None:
-        phase_centre = np.zeros((2,), dtype=lmn.dtype)
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
+def lmn_to_radec(lmn, phase_centre):
+    dtype = radec.dtype
 
-    return _nb_lm_to_radec(lmn, phase_centre)
+    if isinstance(phase_centre, numba.types.misc.NoneType):
+        @numba.jit(nopython=True, nogil=True)
+        def _maybe_create_phase_centre(phase_centre):
+            return np.zeros((2,), dtype=dtype)
+
+    else:
+        # noop
+        @numba.jit(nopython=True, nogil=True)
+        def _maybe_create_phase_centre(phase_centre):
+            if phase_centre.ndim != 1 or phase_centre.shape[0] != 2:
+                raise ValueError("phase_centre must have shape (2,)")
+            return phase_centre
+
+    @wraps(lmn_to_radec)
+    def _nb_lm_to_radec(lmn, phase_centre=None):
+        if lmn.ndim != 2 or lmn.shape[1] != 2:
+            raise ValueError("lmn must have shape (source, 3)")
+
+        radec = np.empty(shape=(lmn.shape[0], 2), dtype=lmn.dtype)
+
+        pc_ra, pc_dec = _maybe_create_phase_centre(phase_centre)
+        sin_d0 = np.sin(pc_dec)
+        cos_d0 = np.cos(pc_dec)
+
+        for s in range(radec.shape[0]):
+            l, m, n = lmn[s]
+
+            radec[s, 1] = np.arcsin(m*cos_d0 + n*sin_d0)
+            radec[s, 0] = pc_ra + np.arctan(l / (n*cos_d0 - m*sin_d0))
+
+        return radec
+
+    return _nb_lm_to_radec
 
 
 RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
