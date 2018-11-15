@@ -7,8 +7,7 @@ from __future__ import print_function
 from collections import OrderedDict
 from functools import wraps
 
-from .phase import phase_delay_docs
-from .phase import phase_delay as np_phase_delay
+from .phase import phase_delay as np_phase_delay, PHASE_DELAY_DOCS
 from .parangles import parallactic_angles as np_parangles
 from .feeds import feed_rotation as np_feed_rotation
 from .transform import transform_sources as np_transform_sources
@@ -20,6 +19,7 @@ from .zernike import zernike_dde as np_zernike_dde
 
 from ..util.docs import doc_tuple_to_str, mod_docs
 from ..util.requirements import requires_optional
+from ..util.type_inference import infer_complex_dtype
 
 import numpy as np
 
@@ -39,19 +39,20 @@ except ImportError:
 
 
 @wraps(np_phase_delay)
-def _phase_delay_wrap(lm, uvw, frequency, dtype_):
-    return np_phase_delay(lm[0], uvw[0], frequency, dtype=dtype_)
+def _phase_delay_wrap(lm, uvw, frequency):
+    return np_phase_delay(lm[0], uvw[0], frequency)
 
 
 @requires_optional('dask.array')
-def phase_delay(lm, uvw, frequency, dtype=np.complex128):
+def phase_delay(lm, uvw, frequency):
+    dtype = infer_complex_dtype(lm, uvw, frequency)
+
     """ Dask wrapper for phase_delay function """
     return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
                         lm, ("source", "(l,m)"),
                         uvw, ("row", "(u,v,w)"),
                         frequency, ("chan",),
-                        dtype=dtype,
-                        dtype_=dtype)
+                        dtype=dtype)
 
 
 @wraps(np_parangles)
@@ -421,9 +422,8 @@ def predict_vis(time_index, antenna1, antenna2,
     return da.Array(array_dsk, name, chunks, dtype=out_dtype)
 
 
-phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
-                                       [(":class:`numpy.ndarray`",
-                                         ":class:`dask.array.Array`")])
+phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
+                        array_type=":class:`dask.array.Array`")
 
 parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
                                       [(":class:`numpy.ndarray`",

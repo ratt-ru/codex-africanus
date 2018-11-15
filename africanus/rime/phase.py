@@ -5,86 +5,87 @@ from __future__ import division
 from __future__ import print_function
 
 from collections import namedtuple
+from functools import wraps
 import math
 
 import numba
 import numpy as np
 
 from ..constants import minus_two_pi_over_c
-from ..util.docs import doc_tuple_to_str
+from ..util.docs import DocstringTemplate, on_rtd
+from ..util.numba import is_numba_type_none
+from ..util.type_inference import infer_complex_dtype
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def _phase_delay_impl(lm, uvw, frequency, complex_phase):
-    # For each source
-    for source in range(lm.shape[0]):
-        l, m = lm[source]
-        n = math.sqrt(1.0 - l**2 - m**2) - 1.0
+def phase_delay(lm, uvw, frequency):
+    out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
-        # For each uvw coordinate
-        for row in range(uvw.shape[0]):
-            u, v, w = uvw[row]
-            # e^(-2*pi*(l*u + m*v + n*w)/c)
-            real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
+    @wraps(phase_delay)
+    def _phase_delay_impl(lm, uvw, frequency):
+        shape = (lm.shape[0], uvw.shape[0], frequency.shape[0])
+        complex_phase = np.zeros(shape, dtype=out_dtype)
 
-            # Multiple in frequency for each channel
-            for chan in range(frequency.shape[0]):
-                p = real_phase * frequency[chan]
+        # For each source
+        for source in range(lm.shape[0]):
+            l, m = lm[source]
+            n = math.sqrt(1.0 - l**2 - m**2) - 1.0
 
-                # Our phase input is purely imaginary
-                # so we can can elide a call to exp
-                # and just compute the cos and sin
-                complex_phase.real[source, row, chan] = math.cos(p)
-                complex_phase.imag[source, row, chan] = math.sin(p)
+            # For each uvw coordinate
+            for row in range(uvw.shape[0]):
+                u, v, w = uvw[row]
+                # e^(-2*pi*(l*u + m*v + n*w)/c)
+                real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
 
-    return complex_phase
+                # Multiple in frequency for each channel
+                for chan in range(frequency.shape[0]):
+                    p = real_phase * frequency[chan]
+
+                    # Our phase input is purely imaginary
+                    # so we can can elide a call to exp
+                    # and just compute the cos and sin
+                    complex_phase.real[source, row, chan] = math.cos(p)
+                    complex_phase.imag[source, row, chan] = math.sin(p)
+
+        return complex_phase
+
+    return _phase_delay_impl
 
 
-def phase_delay(lm, uvw, frequency, dtype=None):
-    complex_phase = np.empty((lm.shape[0], uvw.shape[0], frequency.shape[0]),
-                             dtype=np.complex128 if dtype is None else dtype)
-
-    return _phase_delay_impl(lm, uvw, frequency, complex_phase)
+if not on_rtd():
+    jitter = numba.generated_jit(nopython=True, nogil=True, cache=True)
+    phase_delay = jitter(phase_delay)
 
 
-_DFT_DOCSTRING = namedtuple(
-    "_DFTDOCSTRING", ["preamble", "parameters", "returns"])
-
-phase_delay_docs = _DFT_DOCSTRING(
-    preamble="""
+PHASE_DELAY_DOCS = DocstringTemplate(
+    r"""
     Computes the phase delay (K) term:
 
     .. math::
 
-        & {\\Large e^{-2 \\pi i (u l + v m + w n)} }
+        & {\Large e^{-2 \pi i (u l + v m + w n)} }
 
-        & \\textrm{where } n = \\sqrt{1 - l^2 - m^2} - 1
-    """,  # noqa
+        & \textrm{where } n = \sqrt{1 - l^2 - m^2} - 1
 
-    parameters="""
     Parameters
     ----------
 
-    lm : :class:`numpy.ndarray`
+    lm : $(array_type)
         LM coordinates of shape :code:`(source, 2)` with
         L and M components in the last dimension.
-    uvw : :class:`numpy.ndarray`
+    uvw : $(array_type)
         UVW coordinates of shape :code:`(row, 3)` with
         U, V and W components in the last dimension.
-    frequency : :class:`numpy.ndarray`
+    frequency : $(array_type)
         frequencies of shape :code:`(chan,)`
-    dtype : np.dtype, optional
-        Datatype of result. Should be either np.complex64
-        or np.complex128. Defaults to np.complex128
-    """,
 
-    returns="""
     Returns
     -------
-    :class:`numpy.ndarray`
+    $(array_type)
         complex of shape :code:`(source, row, chan)`
-    """
-)
+    """)
 
-
-phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs)
+try:
+    phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
