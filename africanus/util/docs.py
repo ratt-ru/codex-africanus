@@ -39,8 +39,7 @@ def doc_tuple_to_str(doc_tuple, replacements=None):
 class DocstringTemplate(Template):
     """
     Overrides the ${identifer} braced pattern in the string Template
-    with a $(identifier) braced pattern expected by FITS beam filename
-    schema
+    with a $(identifier) braced pattern
     """
     pattern = r"""
     %(delim)s(?:
