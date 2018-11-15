@@ -35,7 +35,7 @@ def gen_image_space(uvw, freqs, l_val, m_val):
     fov = max(max(abs(l_val)), max(abs(m_val))) * 1.5  # making sure the source is not at the edge of the field
 
     # set number of pixels required to properly oversample the image
-    npix = int(2 * fov / cell_size_rad)
+    npix = int(2 * fov / cell_size_rad)#//6
     if not npix % 2:
         npix += 1  # make sure it is odd
 
@@ -77,9 +77,8 @@ def data_reader(data_path, ra_dec=[0.1, 0.1], NCPU=8, nchan=1, nrow=1000, pad_fa
 
     # generate lm-coordinates
     l_val, m_val = radec_to_lm(0, 0, ra_dec[0, :], ra_dec[1, :])
-    print(l_val, m_val)
 
-    lm, npix, cs, fov = gen_image_space(uvw, freqs, l_val, m_val)
+    lm, npix, cs, fov = gen_image_space(uvw.compute(), freqs.compute(), l_val, m_val)
     lm_pad, pad_pix, padding = gen_padding_space(npix, pad_fact, cs, fov)
 
     # Turn DFT into lambda functions for easy, single input access

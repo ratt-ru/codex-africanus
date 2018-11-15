@@ -59,11 +59,10 @@ def test_PSF_adjointness():
     pix = 10
     PSF = np.random.random([pix, pix])
     PSF_hat = PSF_hat = FFT(PSF)
-    sigma = np.ones(pix ** 2)
     wsum = pix**2
 
-    P = lambda image: PSF_response(image, PSF_hat, sigma) * np.sqrt(pix ** 2 / wsum)
-    PH = lambda image: PSF_adjoint(image, PSF_hat, sigma) * np.sqrt(pix ** 2 / wsum)
+    P = lambda image: PSF_response(image, PSF_hat) * np.sqrt(pix ** 2 / wsum)
+    PH = lambda image: PSF_adjoint(image, PSF_hat) * np.sqrt(pix ** 2 / wsum)
 
     gamma1 = np.random.randn(pix ** 2).reshape([pix, pix])
     gamma2 = np.random.randn(pix ** 2).reshape([pix, pix])
@@ -102,9 +101,8 @@ def test_PSF_phase_centre():
     wsum = sum(weights)
     PSF = vis_to_im(weights, uvw, lm, frequency)/np.sqrt(wsum)
     PSF_hat = FFT(PSF)
-    Sigma = sigma_approx(PSF)
 
-    vis = PSF_response(image, PSF_hat, Sigma)/wsum
+    vis = PSF_response(image, PSF_hat)/wsum
 
     for i in range(nchan):
         tmp = vis[:, i] - Inu[i]
@@ -139,11 +137,10 @@ def test_PSF_zero_w():
     wsum = sum(weight)
     PSF = vis_to_im(weight, uvw, lm, frequency)/np.sqrt(wsum)
     PSF_hat = FFT(PSF)
-    Sigma = sigma_approx(PSF)
 
-    vis = PSF_response(image, PSF_hat, Sigma)
+    vis = PSF_response(image, PSF_hat)
 
-    vis_true = iFFT((Sigma*(PSF_hat*FFT(image)).flatten()).reshape(PSF.shape))
+    vis_true = PSF_hat*FFT(image)
 
     assert np.allclose(vis, vis_true)
 
@@ -169,9 +166,8 @@ def test_PSF_single():
     wsum = sum(weights)
     PSF = vis_to_im(weights, uvw, lm, frequency)/np.sqrt(wsum)
     PSF_hat = FFT(PSF)
-    sigma = np.ones(PSF.shape[0])
 
-    vis_psf = PSF_response(image, PSF_hat, sigma)/wsum
+    vis_psf = PSF_response(image, PSF_hat)/wsum
 
     assert abs(vis.real - vis_psf.real) < 1e-12
 
@@ -249,7 +245,7 @@ def test_compare_response():
     image space, so both results are acted on by iFFT before comparing"""
     from africanus.dft.kernels import vis_to_im, im_to_vis
     from africanus.reduction.psf_redux import FFT, iFFT, PSF_response
-    from africanus.opts.data_reader import gen_image_space, gen_padding_space, plot
+    from africanus.opts.data_reader import gen_image_space, gen_padding_space
 
     # setup parameters
     np.random.seed(111)
@@ -278,11 +274,8 @@ def test_compare_response():
     PSF = vis_to_im(weight, uvw, lm_pad, frequency).reshape(pad_pix, pad_pix)
     PSF_hat = FFT(PSF)
 
-    plot(PSF_hat, "PSF hat", pad_pix)
-
     # get PSF transform of the image
-    Sigma = np.ones_like(pad_im).flatten()
-    psf_vis = PSF_response(pad_im, PSF_hat, Sigma)
+    psf_vis = PSF_response(pad_im, PSF_hat)
     psf_reduce = iFFT(psf_vis)[padding:-padding, padding:-padding]
     psf_reduce /= abs(psf_reduce).max()
 
@@ -334,8 +327,7 @@ def test_compare_adjoint():
     dft_reduce /= abs(dft_reduce).max()
 
     # perform adjoint operation of the PSF
-    Sigma = np.ones_like(vis_grid).flatten()
-    psf_reduce = PSF_adjoint(vis_grid, PSF_hat, Sigma)[padding:-padding, padding:-padding].flatten()
+    psf_reduce = PSF_adjoint(vis_grid, PSF_hat)[padding:-padding, padding:-padding].flatten()
     psf_reduce /= abs(psf_reduce).max()
 
     # compare
@@ -348,7 +340,7 @@ def test_compare_explicit_FFT():
     """
     from africanus.dft.kernels import vis_to_im
     from africanus.opts.data_reader import gen_image_space, gen_padding_space
-    from africanus.reduction.psf_redux import FFT
+    from africanus.reduction.psf_redux import FFT, make_FFT_matrix
 
     # setup parameters
     np.random.seed(111)
@@ -365,22 +357,10 @@ def test_compare_explicit_FFT():
     lm_pad, pad_pix, padding = gen_padding_space(npix, 1, cs, fov)
 
     # create or read explicit FFT matrix
-    if np.DataSource.exists(None, 'F.dat'):
+    try:
         FFT_mat = np.fromfile('F.dat', dtype='complex128').reshape([pad_pix**2, pad_pix**2])
-    else:
-        FFT_mat = np.zeros([pad_pix ** 2, pad_pix ** 2], dtype='complex128')
-        delta = lm_pad[1, 0]-lm_pad[0, 0]
-        F_norm = pad_pix**2
-        Ffreq = np.fft.fftshift(np.fft.fftfreq(pad_pix, d=delta))
-        jj, kk = np.meshgrid(Ffreq, Ffreq)
-        jk = np.vstack((jj.flatten(), kk.flatten())).T
-
-        for u in range(pad_pix**2):
-            l, m = lm_pad[u]
-            for v in range(pad_pix**2):
-                j, k = jk[v]
-                FFT_mat[u, v] += np.exp(-2j*np.pi*(j*l + k*m))/np.sqrt(F_norm)
-        FFT_mat.tofile('F.dat')
+    except:
+        FFT_mat = make_FFT_matrix(da.from_array(lm_pad, chunks=[npix**2, 1]), pad_pix)
 
     # generate semi-random image
     image = np.zeros((npix, npix))
@@ -414,8 +394,7 @@ def test_compare_explicit_DFT():
     Compare the effects of an explicit DFT matrix with that of the DFT operators
     """
     from africanus.dft.kernels import vis_to_im, im_to_vis
-    from africanus.reduction.psf_redux import FFT
-    from africanus.constants.consts import minus_two_pi_over_c
+    from africanus.reduction.psf_redux import FFT, make_DFT_matrix
     from africanus.opts.data_reader import gen_image_space, gen_padding_space
 
     # setup parameters
@@ -433,18 +412,10 @@ def test_compare_explicit_DFT():
     lm_pad, pad_pix, padding = gen_padding_space(npix, 1, cs, fov)
 
     # generate dft matrix
-    if np.DataSource.exists(None, 'R.dat'):
+    try:
         DFT_mat = np.fromfile('R.dat', dtype='complex128').reshape([nrow, pad_pix**2])
-    else:
-        DFT_mat = np.zeros([nrow, pad_pix ** 2], dtype='complex128')
-        for k in range(nrow):
-            u, v, w = uvw[k]
-
-            for j in range(pad_pix**2):
-                l, m = lm_pad[j]
-                n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
-                DFT_mat[k, j] = np.exp(1.0j*frequency[0]*minus_two_pi_over_c*(u*l + v*m + w*n))
-        DFT_mat.tofile('R.dat')
+    except:
+        DFT_mat = make_DFT_matrix(da.from_array(uvw, chunks=[nrow, 1]), da.from_array(lm_pad, chunks=[npix**2, 1]), frequency, nrow, pad_pix)
 
     # generate semi-random image
     image = np.zeros((npix, npix))
@@ -459,7 +430,7 @@ def test_compare_explicit_DFT():
     im_vis = im_to_vis(im_pad.reshape(pad_pix ** 2, 1), uvw, lm_pad, frequency)
     vis_weight = weight*im_vis
     re_imaged = vis_to_im(vis_weight, uvw, lm_pad, frequency).real.reshape(pad_pix, pad_pix)
-    dft_reduce = FFT(re_imaged)
+    dft_reduce = FFT(re_imaged.real)
     dft_reduce /= abs(dft_reduce).max()
 
     # get DFT transfrom of the image
@@ -471,18 +442,16 @@ def test_compare_explicit_DFT():
 
     assert np.all(abs(abs(im_vis_mat) - abs(im_vis)) < 1e-14)
     assert np.all(abs(abs(dft_reduce_mat) - abs(dft_reduce)) < 1e-14)
-    assert np.all(abs(abs(re_imaged_mat) - abs(re_imaged)) < 1e-14)
+    assert np.all(abs(abs(re_imaged_mat) - abs(re_imaged)) < 1e-11)
 
 
 def test_compare_diagonals():
     """
     Compare the diagonal of the FR^H\SigmaRF^H matrix with that of the PSF response
     """
-    from africanus.opts.data_reader import gen_padding_space, gen_image_space, plot
-    # from africanus.dft.kernels import vis_to_im, im_to_vis
+    from africanus.opts.data_reader import gen_padding_space, gen_image_space
     from africanus.dft.dask import vis_to_im, im_to_vis
-    from africanus.reduction.psf_redux import FFT, make_Sigma_hat
-    import matplotlib.pyplot as plt
+    from africanus.reduction.psf_redux import FFT, make_Sigma_hat, make_DFT_matrix, make_FFT_matrix
 
     # setup parameters
     np.random.seed(111)
@@ -502,12 +471,11 @@ def test_compare_diagonals():
     uvw = da.from_array(uvw, chunks=(nrow // nchunk, 3))
     lm_pad = da.from_array(lm_pad, chunks=(pad_pix**2, 2))
 
-    # generate and store DFT reduction matrix diagonal
-    # if np.DataSource.exists(None, 'Redux_response.dat'):
-    #     DFT_response_matrix = np.fromfile('Redux_response.dat', dtype='complex128').reshape([pad_pix**2, pad_pix ** 2])
-    # else:
-    # load DFT and FFT matrices created in previous tests
-    FFT_mat = np.fromfile('F.dat', dtype='complex128').reshape([pad_pix ** 2, pad_pix ** 2])
+    # read or generate FFT and DFT reduction matrix diagonal
+    try:
+        FFT_mat = np.fromfile('F.dat', dtype='complex128').reshape([pad_pix**2, pad_pix**2])
+    except:
+        FFT_mat = make_FFT_matrix(da.from_array(lm_pad, chunks=[npix**2, 1]), pad_pix)
     FFTH_mat = FFT_mat.conj().T
 
     DFT_mat = np.fromfile('R.dat', dtype='complex128').reshape([nrow, pad_pix ** 2])
@@ -530,12 +498,6 @@ def test_compare_diagonals():
     PSF_hat = FFT(PSF).flatten()
     PSF_hat = PSF_hat/abs(PSF_hat).max()
 
-    plot(PSF_hat, 'PSF hat', pad_pix)
-    plot(op_diag, 'op_diag', pad_pix)
-    plot(true_diag, 'true_diag', pad_pix)
-    plot(abs(true_diag - op_diag), "diagonals", pad_pix)
-    plot(abs(PSF_hat - op_diag), "PSF diff", pad_pix)
-    plt.show()
     assert np.all(abs(true_diag - op_diag) < 1e14)
 
 
