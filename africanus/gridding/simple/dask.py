@@ -71,7 +71,7 @@ def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
     assert weights.shape[1] == ref_wave.shape[0]
 
     # Creation correlation dimension strings for each correlation
-    corrs = tuple('corr-%d' for i in range(len(grid.shape[2:])))
+    corrs = tuple('corr-%d' % i for i in range(len(grid.shape[2:])))
 
     return da.core.atop(_degrid_fn, ("row", "chan") + corrs,
                         grid, ("ny", "nx") + corrs,
