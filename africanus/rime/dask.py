@@ -45,14 +45,12 @@ def _phase_delay_wrap(lm, uvw, frequency):
 
 @requires_optional('dask.array')
 def phase_delay(lm, uvw, frequency):
-    dtype = infer_complex_dtype(lm, uvw, frequency)
-
     """ Dask wrapper for phase_delay function """
     return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
                         lm, ("source", "(l,m)"),
                         uvw, ("row", "(u,v,w)"),
                         frequency, ("chan",),
-                        dtype=dtype)
+                        dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
 @wraps(np_parangles)

@@ -81,11 +81,11 @@ def test_dask_phase_delay():
     dask_uvw = da.from_array(uvw, chunks=(25, 3))
     dask_frequency = da.from_array(frequency, chunks=16)
 
-    dask_phase = dask_phase_delay(dask_lm, dask_uvw, dask_frequency).compute()
+    dask_phase = dask_phase_delay(dask_lm, dask_uvw, dask_frequency)
     np_phase = np_phase_delay(lm, uvw, frequency)
 
     # Should agree completely
-    assert np.all(np_phase == dask_phase)
+    assert np.all(np_phase == dask_phase.compute())
 
 
 def test_dask_feed_rotation():
