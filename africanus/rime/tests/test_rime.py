@@ -40,7 +40,7 @@ def test_phase_delay():
     frequency[freq_i] = freq
 
     # Compute complex phase
-    complex_phase = phase_delay(uvw, lm, frequency)
+    complex_phase = phase_delay(lm, uvw, frequency)
 
     # Test singular value vs a point in the output
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
@@ -72,20 +72,20 @@ def test_dask_phase_delay():
     from africanus.rime import phase_delay as np_phase_delay
     from africanus.rime.dask import phase_delay as dask_phase_delay
 
-    uvw = np.random.random(size=(100, 3))
     # So that 1 > 1 - l**2 - m**2 >= 0
     lm = np.random.random(size=(10, 2))*0.01
+    uvw = np.random.random(size=(100, 3))
     frequency = np.linspace(.856e9, .856e9*2, 64, endpoint=True)
 
-    dask_uvw = da.from_array(uvw, chunks=(25, 3))
     dask_lm = da.from_array(lm, chunks=(5, 2))
+    dask_uvw = da.from_array(uvw, chunks=(25, 3))
     dask_frequency = da.from_array(frequency, chunks=16)
 
-    dask_phase = dask_phase_delay(dask_uvw, dask_lm, dask_frequency).compute()
-    np_phase = np_phase_delay(uvw, lm, frequency)
+    dask_phase = dask_phase_delay(dask_lm, dask_uvw, dask_frequency)
+    np_phase = np_phase_delay(lm, uvw, frequency)
 
     # Should agree completely
-    assert np.all(np_phase == dask_phase)
+    assert np.all(np_phase == dask_phase.compute())
 
 
 def test_dask_feed_rotation():
