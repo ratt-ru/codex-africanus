@@ -85,7 +85,8 @@ def test_degridder_gridder():
     pytest.param(2, marks=pytest.mark.xfail(reason="Unknown")),
     pytest.param(3, marks=pytest.mark.xfail(reason="Unknown")),
 ])
-def test_psf_subtraction(plot, oversample):
+@pytest.mark.parametrize("even", [True, False])
+def test_psf_subtraction(plot, oversample, even):
     """
     Test that we can create the PSF with the gridder.
     We do this by gridding vis and weights of one
@@ -103,7 +104,9 @@ def test_psf_subtraction(plot, oversample):
     corr = (1,)
     chan = 16
     rows = 1024
-    ny = nx = 512
+    ny = nx = 512 if even else 513
+    yodd = ny % 2
+    xodd = nx % 2
 
     # Channels of MeerKAT L band
     wavelengths = lightspeed/np.linspace(.856e9, .856e9*2, chan, endpoint=True)
@@ -117,9 +120,14 @@ def test_psf_subtraction(plot, oversample):
     cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1],
                                    wavelengths, factor=5).max()
 
-    # We have an even number of pixels
-    assert ny % 2 == 0 and 2*(ny // 2) == ny
-    assert nx % 2 == 0 and 2*(nx // 2) == nx
+    # We have the right number of pixels
+    if even:
+        assert ny % 2 == 0 and 2*(ny // 2) == ny
+        assert nx % 2 == 0 and 2*(nx // 2) == nx
+    else:
+        assert ny % 2 == 1 and 2*(ny // 2) + 1 == ny
+        assert nx % 2 == 1 and 2*(nx // 2) + 1 == nx
+
     assert ny == nx
 
     # Create image with a single point
@@ -130,11 +138,16 @@ def test_psf_subtraction(plot, oversample):
     weights = np.ones(shape=(rows, chan) + corr, dtype=np.float64)
     flags = np.zeros_like(weights, dtype=np.uint8)
 
+    def centre_cut(img, cy, cx):
+        return img[cy - cy // 2:cy + cy // 2 + img.shape[1] % 2,
+                   cx - cx // 2:cx + cx // 2 + img.shape[0] % 2]
+
     # V = R(I)
-    # Created a padded image, FFT into the centre
-    fft_image = np.zeros((2*ny, 2*nx), dtype=np.complex128)
-    fft_image[ny - ny//2:ny + ny//2, nx - nx//2:nx + nx//2] = (
-                fftshift(fft2(ifftshift(image))))
+    # Created a padded image,  FFT into the centre
+    fft_image = np.zeros((2*ny + yodd, 2*nx + xodd), dtype=np.complex128)
+    centre = centre_cut(fft_image, ny, nx)
+    assert centre.shape == (ny, nx)
+    centre[:] = fftshift(fft2(ifftshift(image)))
 
     assert np.sum(fft_image) == ny*nx
     assert np.any(fft_image != 0.0)
@@ -147,10 +160,11 @@ def test_psf_subtraction(plot, oversample):
     assert vis.dtype == np.complex128
 
     # I^D = R+(V)
-    grid_vis = np.zeros((2*ny, 2*nx, 1), dtype=np.complex128)
-    grid_vis[ny - ny//2:ny + ny//2, nx - nx//2:nx + nx//2, :] = (
-                grid(vis, uvw, flags, weights, wavelengths,
-                     conv_filter, 2*cell_size, ny=ny, nx=nx))
+    grid_vis = np.zeros((2*ny + yodd, 2*nx + xodd, 1), dtype=np.complex128)
+    centre = centre_cut(grid_vis, ny, nx)
+    assert centre.shape == (ny, nx, 1)
+    centre[:, :, :] = (grid(vis, uvw, flags, weights, wavelengths,
+                            conv_filter, 2*cell_size, ny=ny, nx=nx))
 
     assert np.any(grid_vis != 0.0)
 
@@ -161,7 +175,7 @@ def test_psf_subtraction(plot, oversample):
 
     # PSF = R+(1)
     grid_unity = grid(np.ones_like(vis), uvw, flags, weights, wavelengths,
-                      conv_filter, cell_size, ny=2*ny, nx=2*nx)
+                      conv_filter, cell_size, ny=2*ny + yodd, nx=2*nx + xodd)
 
     psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]))).real
 
@@ -178,8 +192,8 @@ def test_psf_subtraction(plot, oversample):
     psf, dirty = norm_psf, norm_dirty
 
     # Extract the centre of the PSF and the dirty image
-    centre_psf = psf[ny - ny//2:ny + ny//2, nx - nx//2:nx + nx//2].copy()
-    centre_dirty = dirty[ny - ny//2:ny + ny//2, nx - nx//2:nx + nx//2].copy()
+    centre_psf = centre_cut(psf, ny, nx).copy()
+    centre_dirty = centre_cut(dirty, ny, nx).copy()
 
     assert centre_psf.shape == centre_dirty.shape
 
