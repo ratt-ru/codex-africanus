@@ -1,26 +1,38 @@
-from __future__ import absolute_import
-from __future__ import division
 from __future__ import print_function
 
+import cupy
+from cupy import RawKernel
+from jinja2 import Template
 
-from numba import cuda
+PHASE_DELAY_KERNEL = Template(r"""
+#include "cuda.h"
+
+using Real = {{RealType}};
+using Complex = {{RealType}}2;
+
+#define BLOCKDIMX {{BLOCKDIMX}}
+#define BLOCKDIMY {{BLOCKDIMY}}
+
+__global__ phase_delay(
+    const Real * lm,
+    const Real * uvw,
+    const Real * frequency,
+    Complex * out)
+{
+}
+""")
 
 
-@cuda.jit
-def phase_delay_kernel(lm, uvw, frequency, out):
-    chan, row = cuda.grid(2)
+code = PHASE_DELAY_KERNEL.render(RealType='float', BLOCKDIMX=16, BLOCKDIMY=16)
+code = code.encode("utf-8")
 
-    if chan >= frequency.shape[0] or row >= uvw.shape[0]:
-        return
+print(code)
 
-    u, v, w = uvw[row]
-    freq = frequency[chan]
+kernel = RawKernel(code.encode("utf-8"), "phase_delay")
+x1 = cupy.arange(100, dtype=cupy.float32).reshape(10, 10)
+x2 = cupy.ones((10, 10), dtype=cupy.float32)
+y = cupy.zeros((10, 10), dtype=cupy.float32)
+# kernel((10,), (10,), (x1, x2, y))
+print(kernel)
 
-    shared_uvw = cuda.shared.array((TPB, 3), dtype=uvw_dtype)
-    shared_freq = cuda.shared.array(TPB, dtype=freq_dtype)
 
-    for source in range(lm.shape[0]):
-        l, m = lm[source]
-        n = math.sqrt(1.0 - l**2 - m**2) - 1.0
-        real_phase = -2.0*math.pi*(l*u + m*v + n*w)*lightspeed/freq
-        out[source, row, chan] = math.cos(real_phase) + 1j*math.sin(real_phase)
