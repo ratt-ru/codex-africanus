@@ -26,7 +26,7 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-_PHASE_DELAY_TEMPLATE = r"""
+_PHASE_DELAY_TEMPLATE = """
 // #include <cupy/complex.cuh>
 #include <cupy/carray.cuh>
 // #include <cupy/atomics.cuh>
