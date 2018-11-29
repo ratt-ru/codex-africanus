@@ -13,9 +13,9 @@ from africanus.rime.cuda.phase import phase_delay as cp_phase_delay
 def test_cupy_phase_delay(dtype):
     cp = pytest.importorskip('cupy')
 
-    lm = 0.01*np.random.random((2, 2)).astype(dtype)
-    uvw = np.random.random((3, 3)).astype(dtype)
-    freq = np.linspace(.856e9, 2*.856e9, 4, dtype=dtype)
+    lm = 0.01*np.random.random((10, 2)).astype(dtype)
+    uvw = np.random.random((100, 3)).astype(dtype)
+    freq = np.linspace(.856e9, 2*.856e9, 70, dtype=dtype)
 
     cp_cplx_phase = cp_phase_delay(cp.asarray(lm),
                                    cp.asarray(uvw),
