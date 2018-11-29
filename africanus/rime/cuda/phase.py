@@ -50,10 +50,12 @@ extern "C" __global__ void {{kernel_name}}(
         { return; }
 
     // Reinterpret inputs as vector types
-    const {{lm_type}}2 * lm_ptr = reinterpret_cast<const {{lm_type}}2 *>(&lm[0]);
-    const {{uvw_type}}3 * uvw_ptr = reinterpret_cast<const {{uvw_type}}3 *>(&uvw[0]);
+    const {{lm_type}}2 * lm_ptr = reinterpret_cast<const {{lm_type}}2 *>(
+                                    &lm[0]);
+    const {{uvw_type}}3 * uvw_ptr = reinterpret_cast<const {{uvw_type}}3 *>(
+                                    &uvw[0]);
     {{out_type}}2 * complex_phase_ptr = reinterpret_cast<{{out_type}}2 *>(
-                                                    &complex_phase[0]);
+                                    &complex_phase[0]);
 
     __shared__ struct {
         {{uvw_type}}3 uvw[blockdimy];
@@ -125,7 +127,7 @@ class PhaseDelayKernel(object):
     def __call__(self, lm, uvw, frequency):
         out_dtype = np.result_type(lm, uvw, frequency)
         kernel, block, code = self._generate_kernel(lm, uvw, frequency,
-                                                   out_dtype)
+                                                    out_dtype)
 
         grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
 
