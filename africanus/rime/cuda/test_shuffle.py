@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import pytest
 
 from africanus.util.cupy import format_kernel
@@ -12,7 +13,6 @@ from africanus.util.cupy import format_kernel
 def test_shuffle():
     cp = pytest.importorskip("cupy")
     jinja2 = pytest.importorskip("jinja2")
-    import numpy as np
 
     _TEMPLATE = jinja2.Template("""
     #include <cupy/carray.cuh>
@@ -109,7 +109,6 @@ def test_shuffle():
 def test_shuffle_2():
     cp = pytest.importorskip("cupy")
     jinja2 = pytest.importorskip("jinja2")
-    import numpy as np
 
     _TEMPLATE = jinja2.Template("""
     #include <cupy/carray.cuh>
