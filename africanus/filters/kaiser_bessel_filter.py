@@ -130,9 +130,11 @@ def kaiser_bessel_fourier(x, W, beta):
         Fourier Transform of the Kaiser Bessel,
         with the same shape as `x`.
     """
+    from scipy.special import jv as bessel1
     term = (np.pi*W*x)**2 - beta**2
-    val = np.lib.scimath.sqrt(term).real
-    return np.sin(val)/val
+    val = np.lib.scimath.sqrt(term)
+    Lambda = np.sqrt(2.0/val)*bessel1(0.5, val)
+    return np.sqrt(np.pi)*W*Lambda/(2.0*np.i0(beta))
 
 
 def wsclean_kaiser_bessel_with_sinc(filter_support, oversample, beta):

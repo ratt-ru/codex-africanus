@@ -38,8 +38,9 @@ def grid(vis, uvw, ref_wave, conv_filter, oversample,
             lower_u = disc_u - half_support      # Inclusive
             upper_u = disc_u + half_support + 1  # Exclusive
 
+            print(exact_u, disc_u, lower_u, upper_u)
+
             for ui, grid_u in enumerate(range(lower_u, upper_u)):
                 conv_weight = conv_filter[base_os_u + ui*oversample]
 
-                for c in range(vis.shape[2]):
-                    grid[grid_u] += vis[r, f, c] * conv_weight
+                grid[grid_u] += vis[r, f] * conv_weight
