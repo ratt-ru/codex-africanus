@@ -97,14 +97,21 @@ extern "C" __global__ void {{kernel_name}}(
 """
 
 
-def _key_fn(lm, uvw, frequency, out_dtype):
-    return (lm.dtype, uvw.dtype, frequency.dtype, out_dtype)
+def _key_fn(lm, uvw, frequency):
+    return (lm.dtype, uvw.dtype, frequency.dtype)
 
 
 @memoize_kernel(_key_fn)
-def _generate_kernel(lm, uvw, frequency, out_dtype):
+def _generate_kernel(lm, uvw, frequency):
+    # Floating point output type
+    out_dtype = np.result_type(lm, uvw, frequency)
+
+    # Block sizes
     blockdimx = 32 if frequency.dtype == np.float32 else 16
     blockdimy = 32 if uvw.dtype == np.float32 else 16
+    block = (blockdimx, blockdimy, 1)
+
+    # Create template
     render = Template(_PHASE_DELAY_TEMPLATE).render
     name = "phase_delay"
 
@@ -119,8 +126,9 @@ def _generate_kernel(lm, uvw, frequency, out_dtype):
                   blockdimx=blockdimx,
                   blockdimy=blockdimy).encode('utf-8')
 
-    block = (blockdimx, blockdimy, 1)
-    return cp.RawKernel(code, name), block, code
+    # Complex output type
+    out_dtype = np.result_type(out_dtype, np.complex64)
+    return cp.RawKernel(code, name), block, code, out_dtype
 
 
 @requires_optional("cupy", "jinja2")
@@ -130,13 +138,10 @@ def phase_delay(lm, uvw, frequency):
 
     TODO(sjperkins). Fill in the documentation with the numba doc template
     """
-    out_dtype = np.result_type(lm, uvw, frequency)
-    kernel, block, code = _generate_kernel(lm, uvw, frequency, out_dtype)
-
+    kernel, block, code, out_dtype = _generate_kernel(lm, uvw, frequency)
     grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
-
     out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
-                   dtype=np.result_type(out_dtype, np.complex64))
+                   dtype=out_dtype)
 
     try:
         kernel(grid, block, (lm, uvw, frequency, out))
