@@ -4,6 +4,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
+try:
+    from dask.utils import SerializableLock as Lock
+except ImportError:
+    from threading import Lock
 
 import numpy as np
 
@@ -79,3 +85,25 @@ def cuda_function(function_name, dtype):
         return type_map[function_name]
     except KeyError:
         raise ValueError("Unknown CUDA function %s" % function_name)
+
+
+class memoize_kernel(object):
+    """ Decorate the compilation of CUDA kernels """
+    def __init__(self, key_fn):
+        self._key_fn = key_fn
+        self._lock = Lock()
+        self._cache = {}
+
+    def __call__(self, fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            key = self._key_fn(*args, **kwargs)
+
+            with self._lock:
+                try:
+                    return self._cache[key]
+                except KeyError:
+                    self._cache[key] = entry = fn(*args, **kwargs)
+                    return entry
+
+        return wrapper

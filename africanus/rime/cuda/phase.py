@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from threading import Lock
 from string import Template
 
 import numba
@@ -11,7 +10,8 @@ import numpy as np
 
 
 from africanus.constants import minus_two_pi_over_c
-from africanus.util.cupy import cuda_function, format_kernel, grids
+from africanus.util.cupy import (cuda_function, format_kernel, grids,
+                                 memoize_kernel)
 from africanus.util.requirements import requires_optional
 
 try:
@@ -97,28 +97,11 @@ extern "C" __global__ void {{kernel_name}}(
 """
 
 
-class _kernel_memoize(object):
-    """ Decorate the compilation of phase_delay kernels """
-    def __init__(self, fn):
-        self._fn = fn
-        self._lock = Lock()
-        self._cache = {}
-
-    def __call__(self, lm, uvw, frequency, out_dtype):
-        key = (lm.dtype, uvw.dtype, frequency.dtype, out_dtype)
-
-        with self._lock:
-            try:
-                return self._cache[key]
-            except KeyError:
-                pass
-
-            self._cache[key] = entry = self._fn(lm, uvw, frequency, out_dtype)
-
-        return entry
+def _key_fn(lm, uvw, frequency, out_dtype):
+    return (lm.dtype, uvw.dtype, frequency.dtype, out_dtype)
 
 
-@_kernel_memoize
+@memoize_kernel(_key_fn)
 def _generate_kernel(lm, uvw, frequency, out_dtype):
     blockdimx = 32 if frequency.dtype == np.float32 else 16
     blockdimy = 32 if uvw.dtype == np.float32 else 16
