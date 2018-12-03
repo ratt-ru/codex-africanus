@@ -71,3 +71,5 @@ alpha, alphavar, i0, i0var = _fit_spi_components(data, weights, freqs, freq0, al
 
 print(alpha, np.sqrt(alphavar), i0, np.sqrt(i0var))
 
+from scipy.optimize import curve_fit
+
