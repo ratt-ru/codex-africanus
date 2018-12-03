@@ -142,6 +142,11 @@ def _generate_kernel(lm, uvw, frequency, out_dtype):
 
 @requires_optional("cupy", "jinja2")
 def phase_delay(lm, uvw, frequency):
+    """
+    Cupy implementation of the phase delay kernel.
+
+    TODO(sjperkins). Fill in the documentation with the numba doc template
+    """
     out_dtype = np.result_type(lm, uvw, frequency)
     kernel, block, code = _generate_kernel(lm, uvw, frequency, out_dtype)
 
