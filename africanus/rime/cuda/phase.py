@@ -3,8 +3,10 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+from threading import Lock
 from string import Template
 
+import numba
 import numpy as np
 
 
@@ -80,7 +82,6 @@ extern "C" __global__ void {{kernel_name}}(
                                  rlm.y*shared.uvw[threadIdx.y].y +
                                  n*shared.uvw[threadIdx.y].z;
 
-
         real_phase = minus_two_pi_over_c *
                      real_phase *
                      shared.frequency[threadIdx.x];
@@ -96,51 +97,63 @@ extern "C" __global__ void {{kernel_name}}(
 """
 
 
-class PhaseDelayKernel(object):
-    @requires_optional('jinja2')
-    def __init__(self, name):
-        self._name = name
-        self._code_template = Template(_PHASE_DELAY_TEMPLATE)
-        self._arg_names = ("lm", "uvw", "frequency")
+class _kernel_memoize(object):
+    """ Decorate the compilation of phase_delay kernels """
+    def __init__(self, fn):
+        self._fn = fn
+        self._lock = Lock()
+        self._cache = {}
 
-    def _generate_kernel(self, lm, uvw, frequency, out_dtype):
-        blockdimx = 32 if frequency.dtype == np.float32 else 16
-        blockdimy = 32 if uvw.dtype == np.float32 else 16
-        render = self._code_template.render
+    def __call__(self, lm, uvw, frequency, out_dtype):
+        key = (lm.dtype, uvw.dtype, frequency.dtype, out_dtype)
 
-        code = render(kernel_name=self._name,
-                      lm_type=_get_typename(lm.dtype),
-                      uvw_type=_get_typename(uvw.dtype),
-                      freq_type=_get_typename(frequency.dtype),
-                      out_type=_get_typename(out_dtype),
-                      sqrt_fn=cuda_function('sqrt', lm.dtype),
-                      sincos_fn=cuda_function('sincos', out_dtype),
-                      minus_two_pi_over_c=minus_two_pi_over_c,
-                      blockdimx=blockdimx,
-                      blockdimy=blockdimy).encode('utf-8')
+        with self._lock:
+            try:
+                return self._cache[key]
+            except KeyError:
+                pass
 
-        block = (blockdimx, blockdimy, 1)
+            self._cache[key] = entry = self._fn(lm, uvw, frequency, out_dtype)
 
-        return cp.RawKernel(code, self._name), block, code
-
-    @requires_optional('cupy', 'jinja2')
-    def __call__(self, lm, uvw, frequency):
-        out_dtype = np.result_type(lm, uvw, frequency)
-        kernel, block, code = self._generate_kernel(lm, uvw, frequency,
-                                                    out_dtype)
-
-        grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
-
-        out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
-                       dtype=np.result_type(out_dtype, np.complex64))
-
-        try:
-            kernel(grid, block, (lm, uvw, frequency, out))
-        except CompileException:
-            log.exception(format_kernel(code))
-            raise
-
-        return out
+        return entry
 
 
-phase_delay = PhaseDelayKernel("phase_delay")
+@_kernel_memoize
+def _generate_kernel(lm, uvw, frequency, out_dtype):
+    blockdimx = 32 if frequency.dtype == np.float32 else 16
+    blockdimy = 32 if uvw.dtype == np.float32 else 16
+    render = Template(_PHASE_DELAY_TEMPLATE).render
+    name = "phase_delay"
+
+    code = render(kernel_name=name,
+                  lm_type=_get_typename(lm.dtype),
+                  uvw_type=_get_typename(uvw.dtype),
+                  freq_type=_get_typename(frequency.dtype),
+                  out_type=_get_typename(out_dtype),
+                  sqrt_fn=cuda_function('sqrt', lm.dtype),
+                  sincos_fn=cuda_function('sincos', out_dtype),
+                  minus_two_pi_over_c=minus_two_pi_over_c,
+                  blockdimx=blockdimx,
+                  blockdimy=blockdimy).encode('utf-8')
+
+    block = (blockdimx, blockdimy, 1)
+    return cp.RawKernel(code, name), block, code
+
+
+@requires_optional("cupy", "jinja2")
+def phase_delay(lm, uvw, frequency):
+    out_dtype = np.result_type(lm, uvw, frequency)
+    kernel, block, code = _generate_kernel(lm, uvw, frequency, out_dtype)
+
+    grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
+
+    out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
+                   dtype=np.result_type(out_dtype, np.complex64))
+
+    try:
+        kernel(grid, block, (lm, uvw, frequency, out))
+    except CompileException:
+        log.exception(format_kernel(code))
+        raise
+
+    return out
