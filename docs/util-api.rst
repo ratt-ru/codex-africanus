@@ -47,3 +47,17 @@ Beams
 
 .. autofunction:: africanus.util.beams.beam_filenames
 .. autofunction:: africanus.util.beams.beam_grids
+
+Cupy
+~~~~
+
+.. currentmodule:: africanus.util.cupy
+
+.. autosummary::
+    format_kernel
+    grids
+    memoize_kernel
+
+.. autofunction:: africanus.util.cupy.format_kernel
+.. autofunction:: africanus.util.cupy.grids
+.. autoclass:: africanus.util.cupy.memoize_kernel

@@ -1,13 +1,12 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import logging
-from string import Template
 
-import numba
 import numpy as np
-
 
 from africanus.constants import minus_two_pi_over_c
 from africanus.util.cupy import (cuda_function, format_kernel, grids,
