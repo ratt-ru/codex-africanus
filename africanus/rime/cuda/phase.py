@@ -128,12 +128,12 @@ def _generate_kernel(lm, uvw, frequency):
 
     # Complex output type
     out_dtype = np.result_type(out_dtype, np.complex64)
-    return cp.RawKernel(code, name), block, code, out_dtype
+    return cp.RawKernel(code, name), block, out_dtype
 
 
 @requires_optional("cupy", "jinja2")
 def phase_delay(lm, uvw, frequency):
-    kernel, block, code, out_dtype = _generate_kernel(lm, uvw, frequency)
+    kernel, block, out_dtype = _generate_kernel(lm, uvw, frequency)
     grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
     out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
                    dtype=out_dtype)
@@ -141,7 +141,7 @@ def phase_delay(lm, uvw, frequency):
     try:
         kernel(grid, block, (lm, uvw, frequency, out))
     except CompileException:
-        log.exception(format_kernel(code))
+        log.exception(format_kernel(kernel.code))
         raise
 
     return out
