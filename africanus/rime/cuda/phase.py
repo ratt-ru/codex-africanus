@@ -9,7 +9,7 @@ import logging
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
-from africanus.util.cupy import (cuda_function, format_kernel, grids,
+from africanus.util.cuda import (cuda_function, format_kernel, grids,
                                  memoize_kernel)
 from africanus.util.requirements import requires_optional
 

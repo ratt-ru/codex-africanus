@@ -95,12 +95,12 @@ class memoize_kernel(object):
     which should return a custom key for caching the kernel,
     based on the arguments passed to the kernel.
 
-    In the following example, get arguments required to generate
+    In the following example, the arguments required to generate
     the `phase_delay` kernel are the types of `lm`, `uvw`
     and `frequency`, as well as the number of correlations `ncorr`.
 
     They ``key_fn`` produces a unique key based on these types
-    and the number of correlations
+    and the number of correlations:
 
     .. code-block:: python
 

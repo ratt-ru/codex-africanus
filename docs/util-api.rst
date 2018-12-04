@@ -48,16 +48,16 @@ Beams
 .. autofunction:: africanus.util.beams.beam_filenames
 .. autofunction:: africanus.util.beams.beam_grids
 
-Cupy
+CUDA
 ~~~~
 
-.. currentmodule:: africanus.util.cupy
+.. currentmodule:: africanus.util.cuda
 
 .. autosummary::
     format_kernel
     grids
     memoize_kernel
 
-.. autofunction:: africanus.util.cupy.format_kernel
-.. autofunction:: africanus.util.cupy.grids
-.. autoclass:: africanus.util.cupy.memoize_kernel
+.. autofunction:: africanus.util.cuda.format_kernel
+.. autofunction:: africanus.util.cuda.grids
+.. autoclass:: africanus.util.cuda.memoize_kernel
