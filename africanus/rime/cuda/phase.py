@@ -9,6 +9,7 @@ import logging
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
+from africanus.rime.phase import PHASE_DELAY_DOCS
 from africanus.util.cuda import (cuda_function, format_kernel, grids,
                                  memoize_kernel)
 from africanus.util.requirements import requires_optional
@@ -132,11 +133,6 @@ def _generate_kernel(lm, uvw, frequency):
 
 @requires_optional("cupy", "jinja2")
 def phase_delay(lm, uvw, frequency):
-    """
-    Cupy implementation of the phase delay kernel.
-
-    TODO(sjperkins). Fill in the documentation with the numba doc template
-    """
     kernel, block, code, out_dtype = _generate_kernel(lm, uvw, frequency)
     grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
     out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
@@ -149,3 +145,10 @@ def phase_delay(lm, uvw, frequency):
         raise
 
     return out
+
+
+try:
+    phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
+                                array_type=':class:`cupy.ndarray`')
+except AttributeError:
+    pass
