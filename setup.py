@@ -30,6 +30,7 @@ if not on_rtd:
         'numba >= 0.38.0']
 
 extras_require = {
+    'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
     'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],

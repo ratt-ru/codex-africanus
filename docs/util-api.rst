@@ -47,3 +47,26 @@ Beams
 
 .. autofunction:: africanus.util.beams.beam_filenames
 .. autofunction:: africanus.util.beams.beam_grids
+
+Code
+~~~~
+
+.. currentmodule:: africanus.util.code
+
+.. autosummary::
+    format_code
+    memoize_on_key
+
+.. autofunction:: africanus.util.code.format_code
+.. autoclass:: africanus.util.code.memoize_on_key
+
+
+CUDA
+~~~~
+
+.. currentmodule:: africanus.util.cuda
+
+.. autosummary::
+    grids
+
+.. autofunction:: africanus.util.cuda.grids
