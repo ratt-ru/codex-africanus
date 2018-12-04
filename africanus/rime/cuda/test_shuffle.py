@@ -45,6 +45,8 @@ def test_shuffle():
         loads[{{corr}}] = input[v + {{corr}}*input.shape()[0]];
         {%- endfor %}
 
+        __syncthreads();
+
         printf("[%d, %d] %f %f %f %f\\n",
                lane_id, base_idx(lane_id),
                loads[0].x, loads[1].x,
@@ -62,7 +64,6 @@ def test_shuffle():
 
             printf("thread %d src_lane %d corr %d \\n",
                    threadIdx.x,  src_lane, in_corr);
-
 
             values[corr].x = __shfl_sync(mask, loads[in_corr].x,
                                          src_lane, warp_size);
@@ -145,6 +146,8 @@ def test_shuffle_2():
         {% for corr in range(corrs) %}
         loads[{{corr}}] = input[v + {{corr}}*nvis];
         {%- endfor %}
+
+        __syncthreads();
 
         printf("[%d, %d] %d %d %d %d\\n",
                lane_id, base_idx(lane_id),
@@ -260,6 +263,8 @@ def test_shuffle_3():
         {% for corr in range(corrs) %}
         loads[{{corr}}] = input[n + {{corr}}*N];
         {%- endfor %}
+
+        __syncthreads();
 
         printf("[%d, %d] %d %d %d %d\\n",
                lane_id, base_idx(lane_id),
