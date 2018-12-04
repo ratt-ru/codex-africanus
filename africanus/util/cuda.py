@@ -105,7 +105,10 @@ class memoize_kernel(object):
     .. code-block:: python
 
         def key_fn(lm, uvw, frequency, ncorrs=4):
-            ''' Produce a unique key for the arguments of _generate_phase_delay_kernel '''
+            '''
+            Produce a unique key for the arguments of
+             _generate_phase_delay_kernel
+            '''
             return (lm.dtype, uvw.dtype, frequency.dtype, ncorrs)
 
         _code_template = jinja2.Template('''
