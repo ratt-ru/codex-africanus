@@ -59,6 +59,17 @@ Numpy
 .. autofunction:: beam_cube_dde
 .. autofunction:: zernike_dde
 
+Cuda
+~~~~
+
+.. currentmodule:: africanus.rime.cuda
+
+.. autosummary::
+    phase_delay
+
+.. autofunction:: phase_delay
+
+
 Dask
 ~~~~
 

@@ -205,6 +205,7 @@ extlinks = {
 }
 
 intersphinx_mapping = {
+    'cupy': ('https://docs-cupy.chainer.org/en/latest/', None),
     'dask': ('https://dask.pydata.org/en/latest/', None),
     'numba': ('https://numba.pydata.org/numba-doc/dev/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
