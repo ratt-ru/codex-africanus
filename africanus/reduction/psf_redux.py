@@ -1,6 +1,6 @@
 import numpy as np
 import dask.array as da
-import numba
+from africanus.dft.dask import vis_to_im, im_to_vis
 
 
 def FFT_dask(x):
@@ -19,7 +19,7 @@ def iFFT(x):
     return np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(x), norm='ortho'))
 
 
-def make_dim_reduce_ops(operator, adjoint, vis, Sigma, npix, lm):
+def make_dim_reduce_ops(uvw, lm, freq, vis, Sigma):
     """
     Generate gridded visibilities, PSF_hat for response operation and noise weights
     :param operator: the response operator to be used
@@ -31,21 +31,22 @@ def make_dim_reduce_ops(operator, adjoint, vis, Sigma, npix, lm):
     :return: Dimensionally reduced matrices: gridded visibilities, gridded visibility space PSF, new Sigma diagonal
     """
 
+    npix = int(da.sqrt(lm.shape[0]))
     # generate gridded visibilites
-    im_dirty = adjoint(Sigma*vis).reshape(npix, npix)
-    vis_grid = FFT(im_dirty)
+    im_dirty = vis_to_im(Sigma*vis, uvw, lm, freq).reshape([npix, npix])
+    vis_grid = FFT(im_dirty)/vis.shape[0]
 
     # generate PSF_hat for execution
-    PSF = adjoint(Sigma).reshape(npix, npix)
-    PSF_hat = FFT(PSF)
+    PSF = vis_to_im(Sigma, uvw, lm, freq).reshape([npix, npix]).real
+    PSF_hat = FFT(PSF)/vis.shape[0]
 
     # generate new weights and return
-    Sigma_hat = make_Sigma_hat(operator, adjoint, Sigma, npix, lm)
+    Sigma_hat = make_Sigma_hat(uvw, lm, freq, Sigma, npix)
 
     return vis_grid, PSF_hat, Sigma_hat
 
 
-def make_Sigma_hat(operator, adjoint, sigma, npix, lm):
+def make_Sigma_hat(uvw, lm, freq, sigma, npix):
     """
     Make the reduced Sigma operator of length npix**2
     :param operator:
@@ -54,27 +55,41 @@ def make_Sigma_hat(operator, adjoint, sigma, npix, lm):
     :param npix:
     :return:
     """
+
     try:
-        sigma_hat = np.fromfile('Sigma_hat.dat', dtype='float64').reshape([npix ** 2, 1])
+        sigma_hat = np.fromfile('Sigma_hat.dat', dtype='float64').reshape([npix, npix])
     except:
         print("Reduced Sigma could not be found, please wait while it is generated")
 
-        try:
-            FFT_mat = np.fromfile('F.dat', dtype='complex128').reshape([npix ** 2, npix ** 2])
-        except:
-            FFT_mat = make_FFT_matrix(lm, npix)
-
-        FFTH = FFT_mat.conj().T
-        FFTH_dask = da.from_array(FFTH, chunks=(npix**2, 1))
-        covariance_vector = FFT(adjoint(sigma.dot(operator(FFTH_dask))).compute())
-        sigma_hat = da.diag(covariance_vector).real.compute()
+        source = da.from_array(np.ones([1, 1]), chunks=[1, 1])
+        sigma_hat = np.zeros([npix**2, 1])
+        for pixel in range(npix**2):
+            vis_form = sigma.dot(im_to_vis(source, uvw, lm[pixel:pixel+1], freq))
+            covariance = vis_to_im(vis_form, uvw, lm, freq).real.compute()
+            sigma_hat[pixel] = FFT(covariance.reshape([npix, npix])).flatten()[pixel]
 
         sigma_hat.tofile('Sigma_hat.dat')
 
-    return sigma_hat
+    return sigma_hat/sigma_hat.max()
 
 
-def make_FFT_matrix(lm, npix):
+def whiten_noise(grid_vis, psf_hat, sigma_hat, NCPU=8):
+    """
+    Apply the sigma_hat matrix to the visibilities and PSF in order to whiten the noise
+    :param grid_vis: npix x npix representation of visibility data
+    :param psf_hat: npix x npix representation of the weights.
+    :param sigma_hat: the noise covariance matrix to be applied to the matrices
+    :return: visibilities and psf_hat with half-whitened noise, half since it is applied twice
+    """
+    half_sigma = np.sqrt(1/sigma_hat)
+
+    white_vis = da.from_array(half_sigma*grid_vis, chunks=[half_sigma.shape[0], half_sigma.shape[1]//NCPU])
+    white_psf_hat = da.from_array(half_sigma*psf_hat, chunks=[half_sigma.shape[0], half_sigma.shape[1]//NCPU])
+
+    return white_vis, white_psf_hat
+
+
+def make_FFT_matrix(lm, npix, NCPU=8):
     """
     Generates an FFT matrix basically just for FRRF matrix
     :param lm: the spacial range over which the FFT must be calculated
@@ -91,15 +106,17 @@ def make_FFT_matrix(lm, npix):
     # generate fft frequency range
     Ffreq = da.fft.fftshift(da.fft.fftfreq(npix, d=delta, chunks=(npix)))
 
-    # create vectors to be dotted together to create FFT matrix (hopefully) more efficiently with dask than a loop
+    # create vectors to be dotted together to create FFT matrix
     jj, kk = da.meshgrid(Ffreq, Ffreq)
-    j = da.rechunk(jj.reshape([npix ** 2, 1]), chunks=[npix ** 2 // 10, 1])
-    k = da.rechunk(kk.reshape([npix ** 2, 1]), chunks=[npix ** 2 // 10, 1])
-    l = da.rechunk(lm[:, 0].reshape([1, npix ** 2]), chunks=[1, npix ** 2])
-    m = da.rechunk(lm[:, 1].reshape([1, npix ** 2]), chunks=[1, npix ** 2])
+    j = da.rechunk(jj.reshape([npix ** 2, 1]), chunks=[npix ** 2 // NCPU, 1])
+    k = da.rechunk(kk.reshape([npix ** 2, 1]), chunks=[npix ** 2 // NCPU, 1])
 
     # actually calculate the fft matrix
-    FFT_mat = (da.exp(-2j * np.pi * (j.dot(l) + k.dot(m))) / da.sqrt(F_norm)).compute()
+    FFT_mat = np.zeros([npix**2, npix**2], dtype=np.complex128)
+
+    for pix in range(lm.shape[0]):
+        l, m = lm[pix]
+        FFT_mat[:, pix] = (da.exp(-2j * np.pi * (j*l + k*m)) / da.sqrt(F_norm)).compute().flatten()
 
     # store the matrix to file so we don't have to go through this too often
     FFT_mat.tofile('F.dat')
@@ -107,30 +124,35 @@ def make_FFT_matrix(lm, npix):
     return FFT_mat
 
 
-def make_DFT_matrix(uvw, lm, frequency, nrow, npix):
+def make_DFT_matrix(uvw, lm, frequency, nrow, npix, NCPU=8):
+    """
+    Makes a DFT matrix, warning: before running this make sure your matrix will fit in memory, these things can get huge
+    :param uvw: an nrow x 3 matrix containing the baseline coordinates in frequency space
+    :param lm: an npix**2 x 2 matrix containing the source locations (in this case the image domain) in image space
+    :param frequency: the frequencies over which this while thing is calculated
+    :param nrow: the number of rows in the data in frequency space
+    :param npix: the number of pixels in the image (Note: this could be the padded image)
+    :return: an nrow x npix**2 matrix which performs a DFT
+    """
     from africanus.constants.consts import minus_two_pi_over_c
 
-    u = da.rechunk(uvw[:, 0].reshape([nrow, 1]), chunks=[nrow//10, 1])
-    v = da.rechunk(uvw[:, 1].reshape([nrow, 1]), chunks=[nrow // 10, 1])
-    w = da.rechunk(uvw[:, 2].reshape([nrow, 1]), chunks=[nrow // 10, 1])
+    # break down and daskify data for ease and speed
+    u = da.rechunk(uvw[:, 0].reshape([nrow, 1]), chunks=[nrow//NCPU, 1])
+    v = da.rechunk(uvw[:, 1].reshape([nrow, 1]), chunks=[nrow // NCPU, 1])
+    w = da.rechunk(uvw[:, 2].reshape([nrow, 1]), chunks=[nrow // NCPU, 1])
 
-    l = da.rechunk(lm[:, 0].reshape([1, npix ** 2]), chunks=[1, npix ** 2])
-    m = da.rechunk(lm[:, 1].reshape([1, npix ** 2]), chunks=[1, npix ** 2])
-    n = da.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
+    # actually calculate the dft matrix
+    DFT_mat = np.zeros([nrow, npix ** 2], dtype=np.complex128)
 
-    DFT_mat = da.exp(1.0j * frequency[0] * minus_two_pi_over_c * (u.dot(l) + v.dot(m) + w.dot(n))).compute()
+    for pix in range(npix**2):
+        l, m = lm[pix]
+        n = da.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
+        DFT_mat[:, pix] = da.exp(1.0j * frequency[0] * minus_two_pi_over_c * (u*l + v*m + w*n)).compute().flatten()
+
+    # save it to file so we don't have to do this again for this data.
     DFT_mat.tofile('R.dat')
 
     return DFT_mat
-
-
-def whiten_noise(grid_vis, psf_hat, sigma_hat):
-    half_sigma = np.sqrt(1 / sigma_hat)
-
-    white_vis = half_sigma*grid_vis
-    white_psf_hat = half_sigma*psf_hat
-
-    return white_vis, white_psf_hat
 
 
 def PSF_response(image, PSF_hat):
@@ -154,9 +176,9 @@ def PSF_adjoint(vis_grid, PSF_hat):
 
     vis = PSF_hat.conj()*vis_grid
 
-    new_im = iFFT(vis)
+    new_im = iFFT(vis).real
 
-    return new_im
+    return new_im/new_im.size
 
 
 def sigma_approx(PSF):

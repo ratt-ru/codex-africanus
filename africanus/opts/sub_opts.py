@@ -29,14 +29,13 @@ def da_proj_l1_plus_pos(x, tau):
 def power_dask(L, LT, im_size, tol=1e-8, max_iter=2000):
     np.random.seed(123)
     x = da.random.random((im_size[0], im_size[1]), chunks=([im_size[0], im_size[1]]))
-    x /= da.linalg.norm(x, 'fro').compute()
-    x_chunks = x.chunks
+    x /= da.linalg.norm(x, 'fro')
     init_val = 1
 
     for i in range(max_iter):
         y = L(x)
-        x = da.from_array(LT(y), chunks=x_chunks)
-        val = da.linalg.norm(x, 'fro').compute()
+        x = LT(y)
+        val = da.linalg.norm(x, 'fro')
         rel_var = np.abs(val - init_val) / init_val
         if rel_var < tol:
             break

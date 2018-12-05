@@ -67,7 +67,43 @@ def test_primal_dual_PSF():
     Test the PSF primal dual on test data, this could get pricey
     """
     from africanus.opts.primaldual import primal_dual_solver
-    from africanus.reduction.psf_redux import PSF_adjoint, PSF_response, make_dim_reduce_ops, whiten_noise
+    from africanus.reduction.psf_redux import PSF_adjoint, PSF_response, make_dim_reduce_ops, whiten_noise, iFFT
+    from africanus.opts.data_reader import data_reader
+    from matplotlib import pyplot as plt
+
+    data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
+    ra_dec = np.array([[3.15126500e-05], [-0.00551471375]])
+
+    uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path, ra_dec, nrow=35100)
+
+    wsum = da.sum(weights_dask)
+    pad_pix = int(da.sqrt(lm_pad_dask.shape[0]))
+
+    vis_grid, PSF_hat, Sigma_hat = make_dim_reduce_ops(uvw_dask, lm_pad_dask, frequency_dask, vis_dask, weights_dask)
+    white_vis, white_psf_hat = whiten_noise(vis_grid, PSF_hat, Sigma_hat)
+    dirty = da.absolute(iFFT(white_vis))/da.absolute(da.sqrt(da.sum(Sigma_hat)))
+
+    PSF_op = lambda image: PSF_response(image, white_psf_hat)
+    PSF_adj = lambda vis: PSF_adjoint(vis, white_psf_hat)
+
+    start = np.zeros_like(dirty, dtype=np.float64)
+    start[pad_pix // 2, pad_pix // 2] = 10
+
+    cleaned = primal_dual_solver(start, white_vis, PSF_op, PSF_adj)
+
+    plt.figure('ID')
+    plt.imshow(dirty[padding:-padding, padding:-padding])
+    plt.colorbar()
+
+    plt.figure('IM')
+    plt.imshow(cleaned[padding:-padding, padding:-padding]/da.absolute(da.sqrt(da.sum(Sigma_hat))))
+    plt.colorbar()
+
+    plt.show()
+
+
+def test_primal_dual_DFT():
+    from africanus.opts.primaldual import primal_dual_solver
     from africanus.opts.data_reader import data_reader
     from africanus.dft.dask import im_to_vis, vis_to_im
     from matplotlib import pyplot as plt
@@ -78,26 +114,19 @@ def test_primal_dual_PSF():
     uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path, ra_dec)
 
     wsum = da.sum(weights_dask)
-    pad_pix = int(da.sqrt(lm_pad_dask.shape[0]))
+    npix = int(da.sqrt(lm_dask.shape[0]))
 
     operator = lambda i: im_to_vis(i, uvw_dask, lm_dask, frequency_dask)
     adjoint = lambda v: vis_to_im(v, uvw_dask, lm_dask, frequency_dask) / da.sqrt(wsum)
-    operator_pad = lambda i: im_to_vis(i, uvw_dask, lm_pad_dask, frequency_dask)
-    adjoint_pad = lambda v: vis_to_im(v, uvw_dask, lm_pad_dask, frequency_dask) / da.sqrt(wsum)
 
-    vis_grid, PSF_hat, Sigma_hat = make_dim_reduce_ops(operator_pad, adjoint_pad, vis_dask, weights_dask, pad_pix, lm_pad_dask)
-    dirty, white_psf_hat = whiten_noise(vis_grid, PSF_hat, Sigma_hat)
+    start = np.zeros([npix**2, 1])
+    start[npix**2//2, 0] = 10
 
-    PSF_op = lambda image: PSF_response(image, white_psf_hat)
-    PSF_adj = lambda vis: PSF_adjoint(vis, white_psf_hat)
-
-    start = np.zeros_like(dirty)
-    start[pad_pix // 2, pad_pix // 2] = 10
-
-    cleaned = primal_dual_solver(start, dirty, PSF_op, PSF_adj)
+    cleaned = primal_dual_solver(start, vis_dask, operator, adjoint)
 
     plt.figure('ID')
-    plt.imshow(dirty[padding:-padding, padding:-padding] / da.sqrt(wsum))
+    dirty = adjoint(vis_dask).reshape([npix, npix])
+    plt.imshow(dirty / da.sqrt(wsum))
     plt.colorbar()
 
     plt.figure('IM')

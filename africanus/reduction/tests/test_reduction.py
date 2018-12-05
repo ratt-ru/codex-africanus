@@ -316,9 +316,13 @@ def test_compare_adjoint():
     vis_grid = FFT(im_pad)
 
     # generate PSF and PSF_hat
+    source = np.zeros([pad_pix**2, 1])
+    source[pad_pix**2//2] = 1.0
+    vis_of_source = im_to_vis(source, uvw, lm_pad, frequency)
     weight = np.ones((nrow, 1))
-    PSF = vis_to_im(weight, uvw, lm_pad, frequency).reshape(pad_pix, pad_pix)
+    PSF = vis_to_im(weight*vis_of_source, uvw, lm_pad, frequency).real.reshape(pad_pix, pad_pix)
     PSF_hat = FFT(PSF)
+    print(PSF_hat.min())
 
     # Perform adjoint operation of the DFT
     im_grid = iFFT(vis_grid)[padding:-padding, padding:-padding].reshape((npix**2, 1))
@@ -449,7 +453,7 @@ def test_compare_diagonals():
     """
     Compare the diagonal of the FR^H\SigmaRF^H matrix with that of the PSF response
     """
-    from africanus.opts.data_reader import gen_padding_space, gen_image_space
+    from africanus.opts.data_reader import gen_padding_space, gen_image_space, plot
     from africanus.dft.dask import vis_to_im, im_to_vis
     from africanus.reduction.psf_redux import FFT, make_Sigma_hat, make_DFT_matrix, make_FFT_matrix
 
@@ -478,28 +482,49 @@ def test_compare_diagonals():
         FFT_mat = make_FFT_matrix(da.from_array(lm_pad, chunks=[npix**2, 1]), pad_pix)
     FFTH_mat = FFT_mat.conj().T
 
-    DFT_mat = np.fromfile('R.dat', dtype='complex128').reshape([nrow, pad_pix ** 2])
+    try:
+        DFT_mat = np.fromfile('R.dat', dtype='complex128').reshape([nrow, pad_pix ** 2])
+    except:
+        DFT_mat = make_DFT_matrix(da.from_array(uvw, chunks=[nrow//10, 1]), da.from_array(lm_pad, chunks=[npix**2, 1]),
+                                  frequency, nrow, pad_pix)
     DFTH_mat = DFT_mat.conj().T
 
-    DFT_response_matrix = FFT_mat.dot(DFTH_mat.dot(weight.dot(DFT_mat.dot(FFTH_mat))))
-    DFT_response_matrix.tofile('Redux_response.dat')
+    try:
+        DFT_response_matrix = np.fromfile('Redux_response.dat', dtype='complex128').reshape([pad_pix**2, pad_pix**2])
+    except:
+        DFT_response_matrix = FFT_mat.dot(DFTH_mat.dot(weight.dot(DFT_mat.dot(FFTH_mat))))
+        DFT_response_matrix.tofile('Redux_response.dat')
 
     true_diag = np.diagonal(DFT_response_matrix)
     true_diag = true_diag/abs(true_diag).max()
 
     # diagonal from operators
-    operator = lambda im: im_to_vis(im, uvw, lm_pad, frequency)
+    lm_point = lm_pad[pad_pix**2//2+1]
+    operator = lambda im: im_to_vis(im, uvw, lm_point, frequency)
     adjoint = lambda vis: vis_to_im(vis, uvw, lm_pad, frequency)
-    op_diag = make_Sigma_hat(operator, adjoint, weight, pad_pix, lm_pad).flatten()
+    op_diag = make_Sigma_hat(uvw, lm_pad, frequency, weight, pad_pix).flatten()
     op_diag = op_diag/abs(op_diag).max()
 
     # generate PSF hat
-    PSF = adjoint(np.diagonal(weight.compute()).reshape([nrow, 1]))
+    source = np.zeros([pad_pix ** 2, 1])
+    source[pad_pix ** 2 // 2] = 1.0
+    vis_of_source = im_to_vis(da.from_array(source, chunks=[pad_pix**2, 1]), uvw, lm_pad, frequency)
+    PSF = adjoint(weight.compute().dot(vis_of_source).reshape([nrow, 1])).real.reshape([pad_pix, pad_pix])
     PSF_hat = FFT(PSF).flatten()
     PSF_hat = PSF_hat/abs(PSF_hat).max()
 
-    assert np.all(abs(true_diag - op_diag) < 1e14)
+    print(true_diag.min())
+    print(op_diag.min())
+    print(PSF_hat.min())
+
+    plot(abs(op_diag - PSF_hat), 'op and psf', pad_pix)
+    plot(abs(true_diag - op_diag), "true and op", pad_pix)
+    plot(abs(true_diag - PSF_hat), "true and PSF", pad_pix)
+
+    assert np.all(abs(true_diag - op_diag) < 1e-14)
+    assert np.all(abs(true_diag - PSF_hat) < 1e-14)
+    assert np.all(abs(op_diag - PSF_hat) < 1e-14)
 
 
 if __name__=="__main__":
-    test_compare_explicit_DFT()
+    test_compare_diagonals()
