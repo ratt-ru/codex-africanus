@@ -10,8 +10,8 @@ import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
 from africanus.rime.phase import PHASE_DELAY_DOCS
-from africanus.util.cuda import (cuda_function, format_kernel, grids,
-                                 memoize_kernel)
+from africanus.util.code import memoize_on_key, format_code
+from africanus.util.cuda import cuda_function, grids
 from africanus.util.requirements import requires_optional
 
 try:
@@ -101,7 +101,7 @@ def _key_fn(lm, uvw, frequency):
     return (lm.dtype, uvw.dtype, frequency.dtype)
 
 
-@memoize_kernel(_key_fn)
+@memoize_on_key(_key_fn)
 def _generate_kernel(lm, uvw, frequency):
     # Floating point output type
     out_dtype = np.result_type(lm, uvw, frequency)
@@ -141,7 +141,7 @@ def phase_delay(lm, uvw, frequency):
     try:
         kernel(grid, block, (lm, uvw, frequency, out))
     except CompileException:
-        log.exception(format_kernel(kernel.code))
+        log.exception(format_code(kernel.code))
         raise
 
     return out
