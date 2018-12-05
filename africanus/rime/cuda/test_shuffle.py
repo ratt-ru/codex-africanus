@@ -113,7 +113,6 @@ def test_shuffle_2():
 
     _TEMPLATE = jinja2.Template("""
     #include <cupy/carray.cuh>
-    // #include <trove/transpose.h>
 
     #define warp_size 32
     //#define base_idx(lane_id) (lane_id / {{corrs}})
@@ -161,19 +160,20 @@ def test_shuffle_2():
         // #pragma unroll ({{corrs}})
         for(int corr=0; corr < {{corrs}}; ++corr)
         {
-            int src_lane = base_idx(lane_id) + corr;
-            // int src_lane = threadIdx.x;
-            // int src_lane = lane_id + corr;
 
-            printf("lane %d target_corr %d src_lane %d "
-                   "src_corr %d value %d\\n",
-                   lane_id, corr, src_lane, in_corr,
-                   __shfl_sync(mask, loads[in_corr],
-                               src_lane, warp_size));
+            int src_lane = ((lane_id+corr)%{{corrs}})*(warp_size/{{corrs}}) + (lane_id/{{corrs}});
+            int src_corr = (({{corrs}}-corr)+(lane_id/(warp_size/{{corrs}})))%{{corrs}};
+            int dest = (lane_id+corr)%{{corrs}};
 
 
-            values[corr] = __shfl_sync(mask, loads[in_corr],
-                                         src_lane, warp_size);
+            // printf("lane %d target_corr %d src_lane %d "
+            //       "src_corr %d value %d\\n",
+            //       lane_id, corr, src_lane, in_corr,
+            //       __shfl_sync(mask, loads[in_corr],
+            //                   src_lane, warp_size));
+
+            values[dest] = __shfl_sync(mask, loads[src_corr],
+                                     src_lane, warp_size);
         }
 
         __syncthreads();
