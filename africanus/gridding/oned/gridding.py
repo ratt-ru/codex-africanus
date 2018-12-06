@@ -38,6 +38,12 @@ def grid(vis, uvw, ref_wave, conv_filter, oversample,
             exact_u = centre_x + (scaled_u / ref_wave[f])
             disc_u = int(np.round(exact_u))
 
+            assert disc_u >= 0 and disc_u < nx
+
+            if nearest_neighbour is True:
+                grid[disc_u] += vis[r, f]
+                continue
+
             frac_u = exact_u - disc_u
             base_os_u = int(np.round(frac_u*oversample))
             saved = base_os_u
@@ -54,9 +60,8 @@ def grid(vis, uvw, ref_wave, conv_filter, oversample,
 
             print(exact_u, disc_u, lower_u, upper_u)
 
-            if nearest_neighbour is True:
-                grid[disc_u] += vis[r, f]
-            else:
-                for ui, grid_u in enumerate(range(lower_u, upper_u)):
-                    conv_weight = conv_filter[base_os_u + ui*oversample]
-                    grid[grid_u] += vis[r, f] * conv_weight
+            assert lower_u >= 0 and upper_u < nx
+
+            for ui, grid_u in enumerate(range(lower_u, upper_u)):
+                conv_weight = conv_filter[base_os_u + ui*oversample]
+                grid[grid_u] += vis[r, f] * conv_weight
