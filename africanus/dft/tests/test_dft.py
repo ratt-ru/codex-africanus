@@ -8,6 +8,52 @@ import numpy as np
 import pytest
 
 
+def test_dft_vs_fftpack():
+    from pynfft.nfft import NFFT
+    from africanus.dft.kernels import im_to_vis
+    np.random.seed(42)
+
+    npix = 9
+    nrow = 2
+    uvw = np.random.random(size=(nrow, 3)) - 0.5
+    uvw.T[2] = 0
+    uv = uvw[:, 0:2]
+
+    sky = np.zeros((npix, npix, 1))
+    sky[npix//2+1, npix//2] = 1
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(1, 2, 1)
+    ax.imshow(sky[:, :, 0])
+    ax.set_title('Sky')
+    ax = fig.add_subplot(1, 2, 2)
+    ax.scatter(uv.T[0], uv.T[1])
+    ax.set_xlim(-0.5, 0.5)
+    ax.set_ylim(-0.5, 0.5)
+    ax.set_title('UV coverage')
+    plt.savefig('out.png')
+
+    # NFFT
+    npt = uv.shape[0]
+    plan = NFFT([npix]*2, npt, m=6)
+    plan.x = uv
+    plan.precompute()
+    plan.f_hat = sky[:, :, 0]
+    vis_nfft = plan.trafo()
+
+    # Codex dft
+    x = np.linspace(-0.5, 0.5, npix)
+    ll, mm = np.meshgrid(x, x)
+    lm = np.vstack((ll.flatten(), mm.flatten())).T
+    import africanus.constants
+    frequency = np.array([africanus.constants.c])
+
+    vis_dft = im_to_vis(sky.reshape(-1, 1), uvw, lm, frequency)
+
+    np.testing.assert_allclose(vis_nfft, vis_dft.T[0])
+
+
 def test_im_to_vis_phase_centre():
     """
     The simplest test here is to see if a single source at the phase centre
