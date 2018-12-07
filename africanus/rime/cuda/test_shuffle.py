@@ -87,9 +87,9 @@ def test_shuffle_2():
             // int src_lane = ((lane_id+corr)%{{corrs}})*(warp_size/{{corrs}}) + (lane_id/{{corrs}});
             // int src_lane = ((lane_id+corr)%{{corrs}})*{{corrs}};
 
-            // The following almost works
-            int src_lane = (lane_id/{{corrs}})*{{corrs}} + corr;
-            int src_corr = ({{corrs}} - corr  + lane_id) % {{corrs}};
+            // This seems closer but the striping is still slightly out
+            int src_lane = (lane_id + corr) % warp_size;
+            int src_corr = ({{corrs}} - corr  + lane_id ) % {{corrs}};
 
             values[corr] = __shfl_sync(mask, loads[src_corr],
                                      src_lane, warp_size);
