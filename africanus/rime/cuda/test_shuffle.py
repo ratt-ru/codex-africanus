@@ -17,7 +17,6 @@ def test_cuda_shuffle_transpose():
     _TEMPLATE = jinja2.Template("""
     #include <cupy/carray.cuh>
 
-    #define warp_size 32
     #define debug {{debug}}
 
     extern "C" __global__ void kernel(
@@ -26,7 +25,7 @@ def test_cuda_shuffle_transpose():
     {
         const ptrdiff_t & nvis = input.shape()[0];
         int v = blockIdx.x*blockDim.x + threadIdx.x;
-        int lane_id = threadIdx.x & (warp_size - 1);
+        int lane_id = threadIdx.x & ({{warp_size}} - 1);
 
         if(v >= nvis)
             { return; }
@@ -59,7 +58,6 @@ def test_cuda_shuffle_transpose():
         }
 
 
-
         // Tranpose forward
         #pragma unroll ({{corrs}})
         for(int corr=0; corr < {{corrs}}; ++corr)
@@ -69,7 +67,7 @@ def test_cuda_shuffle_transpose():
             int src_lane = (lane_id / {{corrs}})*{{corrs}} + dest_corr;
 
             values[dest_corr] = __shfl_sync(mask, loads[src_corr],
-                                     src_lane, warp_size);
+                                     src_lane, {{warp_size}});
         }
 
         // Copy
@@ -88,7 +86,7 @@ def test_cuda_shuffle_transpose():
             int src_lane = (lane_id / {{corrs}})*{{corrs}} + dest_corr;
 
             values[dest_corr] = __shfl_sync(mask, loads[src_corr],
-                                     src_lane, warp_size);
+                                     src_lane, {{warp_size}});
         }
 
 
@@ -122,8 +120,8 @@ def test_cuda_shuffle_transpose():
         np.int32: 'int',
     }
 
-    code = _TEMPLATE.render(type=dtypes[dtype], corrs=ncorrs,
-                            debug="true").encode("utf-8")
+    code = _TEMPLATE.render(type=dtypes[dtype], warp_size=32,
+                            corrs=ncorrs, debug="true").encode("utf-8")
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
