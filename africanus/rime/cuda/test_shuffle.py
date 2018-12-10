@@ -4,14 +4,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import cupy as cp
 import numpy as np
 import pytest
 
 from africanus.util.code import format_code
 
 
-def test_shuffle_2():
+def test_cuda_shuffle_transpose():
     cp = pytest.importorskip("cupy")
     jinja2 = pytest.importorskip("jinja2")
 
@@ -35,8 +34,6 @@ def test_shuffle_2():
         // Input correlation handled by this thread
         int mask = __activemask();
 
-        if(threadIdx.x == 0)
-            { printf("mask %d\\n", mask); }
 
         {{type}} loads[{{corrs}}];
         {{type}} values[{{corrs}}];
@@ -49,6 +46,9 @@ def test_shuffle_2():
 
         if(debug)
         {
+            if(threadIdx.x == 0)
+                { printf("mask %d\\n", mask); }
+
             printf("[%d] %d %d %d %d\\n",
                    lane_id,
                    loads[0], loads[1],
@@ -122,15 +122,9 @@ def test_shuffle_2():
         np.int32: 'int',
     }
 
-    import pkg_resources
-    from os.path import join as pjoin
-
-    include_path = pkg_resources.resource_filename("africanus",
-                                                   pjoin("include", "trove"))
-
     code = _TEMPLATE.render(type=dtypes[dtype], corrs=ncorrs,
                             debug="true").encode("utf-8")
-    kernel = cp.RawKernel(code, "kernel", options=("-I %s" % include_path,))
+    kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
     outputs = cp.empty_like(inputs)
@@ -138,13 +132,18 @@ def test_shuffle_2():
     block = (256, 1, 1)
     grid = tuple((d + b - 1) // b for d, b in zip((nvis, 1, 1), block))
 
-    print(grid, block)
     try:
         kernel(grid, block, args)
     except cp.cuda.compiler.CompileException:
         print(format_code(kernel.code))
         raise
 
+    np.testing.assert_array_almost_equal(cp.asnumpy(inputs),
+                                         cp.asnumpy(outputs))
+    return
+
+    # Dead code
+    print(grid, block)
     print("\n")
     print(inputs)
     print(outputs)
