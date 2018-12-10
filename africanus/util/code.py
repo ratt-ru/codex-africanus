@@ -26,7 +26,6 @@ def format_code(code):
     str
         Code prefixed with line numbers
     """
-    return code
     lines = ['']
     lines.extend(["%-5d %s" % (i, l) for i, l
                   in enumerate(code.split('\n'), 1)])
