@@ -36,7 +36,6 @@ def test_shuffle_2():
             { return; }
 
         // Input correlation handled by this thread
-        int in_corr = corr_idx(lane_id);
         int mask = __activemask();
 
         if(threadIdx.x == 0)
@@ -63,35 +62,11 @@ def test_shuffle_2():
         // #pragma unroll ({{corrs}})
         for(int corr=0; corr < {{corrs}}; ++corr)
         {
+            int src_corr = ({{corrs}} - corr + lane_id) % {{corrs}};
+            int dest_corr = (lane_id + corr) % {{corrs}};
+            int src_lane = (lane_id / {{corrs}})*{{corrs}} + dest_corr;
 
-            // int src_lane = ((lane_id+corr)%{{corrs}})*(warp_size/{{corrs}}) + (lane_id/{{corrs}});
-            // int src_corr = (({{corrs}}-corr)+(lane_id/(warp_size/{{corrs}})))%{{corrs}};
-            // int dest = (lane_id+corr)%{{corrs}};
-
-            // int src_lane = (lane_id + corr) % warp_size;
-            // int src_corr = lane_id / {{corrs}};
-            // int dest = (lane_id+corr)%{{corrs}};
-
-            // printf("lane %d target_corr %d src_lane %d "
-            //       "src_corr %d value %d\\n",
-            //       lane_id, dest, src_lane, src_corr,
-            //       __shfl_sync(mask, loads[src_corr],
-            //                   src_lane, warp_size));
-
-            // int src_lane = ((lane_id+corr) % {{corrs}}) + (lane_id / {{corrs}});
-            // int src_corr = (({{corrs}}-corr)% {{corrs}});
-            // int dest = (lane_id+corr)%{{corrs}};
-
-            // int src_lane = ((lane_id / {{corrs}})*{{corrs}} + corr) % warp_size;
-            // int src_lane = ({{corrs}} - lane_id + corr) % warp_size;
-            // int src_lane = ((lane_id+corr)%{{corrs}})*(warp_size/{{corrs}}) + (lane_id/{{corrs}});
-            // int src_lane = ((lane_id+corr)%{{corrs}})*{{corrs}};
-
-            // This seems closer but the striping is still slightly out
-            int src_lane = (lane_id + corr) % warp_size;
-            int src_corr = ({{corrs}} - corr  + lane_id ) % {{corrs}};
-
-            values[corr] = __shfl_sync(mask, loads[src_corr],
+            values[dest_corr] = __shfl_sync(mask, loads[src_corr],
                                      src_lane, warp_size);
         }
 
