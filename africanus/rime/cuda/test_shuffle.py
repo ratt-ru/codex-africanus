@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import cupy as cp
 import numpy as np
 import pytest
 
@@ -18,11 +19,7 @@ def test_shuffle_2():
     #include <cupy/carray.cuh>
 
     #define warp_size 32
-    //#define base_idx(lane_id) (lane_id / {{corrs}})
-    // #define corr_idx(lane_id) (lane_id % {{corrs}})
-
-    #define base_idx(lane_id) (lane_id & (warp_size - {{corrs}}))
-    #define corr_idx(lane_id) (lane_id & ({{corrs}} - 1))
+    #define debug {{debug}}
 
     extern "C" __global__ void kernel(
         const CArray<{{type}}, 2> input,
@@ -50,16 +47,21 @@ def test_shuffle_2():
 
         __syncthreads();
 
-        printf("[%d, %d] %d %d %d %d\\n",
-               lane_id, base_idx(lane_id),
-               loads[0], loads[1],
-               loads[2], loads[3]);
+        if(debug)
+        {
+            printf("[%d] %d %d %d %d\\n",
+                   lane_id,
+                   loads[0], loads[1],
+                   loads[2], loads[3]);
 
-        if(threadIdx.x == 0)
-            { printf("\\n"); }
+            if(threadIdx.x == 0)
+                { printf("\\n"); }
+        }
 
 
-        // #pragma unroll ({{corrs}})
+
+        // Tranpose forward
+        #pragma unroll ({{corrs}})
         for(int corr=0; corr < {{corrs}}; ++corr)
         {
             int src_corr = ({{corrs}} - corr + lane_id) % {{corrs}};
@@ -70,15 +72,38 @@ def test_shuffle_2():
                                      src_lane, warp_size);
         }
 
+        // Copy
+        #pragma unroll ({{corrs}})
+        for(int corr=0; corr < {{corrs}}; ++corr)
+        {
+            loads[corr] = values[corr];
+        }
+
+        // Transpose backward
+        #pragma unroll ({{corrs}})
+        for(int corr=0; corr < {{corrs}}; ++corr)
+        {
+            int src_corr = ({{corrs}} - corr + lane_id) % {{corrs}};
+            int dest_corr = (lane_id + corr) % {{corrs}};
+            int src_lane = (lane_id / {{corrs}})*{{corrs}} + dest_corr;
+
+            values[dest_corr] = __shfl_sync(mask, loads[src_corr],
+                                     src_lane, warp_size);
+        }
+
+
         __syncthreads();
 
-        if(threadIdx.x == 0)
-            { printf("\\n"); }
+        if(debug)
+        {
+            if(threadIdx.x == 0)
+                { printf("\\n"); }
 
-        printf("[%d, %d] %d %d %d %d\\n",
-               lane_id, base_idx(lane_id),
-               values[0], values[1],
-               values[2], values[3]);
+            printf("[%d] %d %d %d %d\\n",
+                   lane_id,
+                   values[0], values[1],
+                   values[2], values[3]);
+        }
 
 
         {% for corr in range(corrs) %}
@@ -103,8 +128,8 @@ def test_shuffle_2():
     include_path = pkg_resources.resource_filename("africanus",
                                                    pjoin("include", "trove"))
 
-    code = _TEMPLATE.render(type=dtypes[dtype], corrs=ncorrs).encode("utf-8")
-    print(format_code(code))
+    code = _TEMPLATE.render(type=dtypes[dtype], corrs=ncorrs,
+                            debug="true").encode("utf-8")
     kernel = cp.RawKernel(code, "kernel", options=("-I %s" % include_path,))
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
@@ -114,10 +139,12 @@ def test_shuffle_2():
     grid = tuple((d + b - 1) // b for d, b in zip((nvis, 1, 1), block))
 
     print(grid, block)
-    kernel(grid, block, args)
+    try:
+        kernel(grid, block, args)
+    except cp.cuda.compiler.CompileException:
+        print(format_code(kernel.code))
+        raise
 
-    print("blah\n")
     print("\n")
     print(inputs)
     print(outputs)
-
