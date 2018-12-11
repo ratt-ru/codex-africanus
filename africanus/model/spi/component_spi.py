@@ -5,15 +5,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import namedtuple
+from ...util.docs import doc_tuple_to_str
+
 import numba
 import numpy as np
 
+
 @numba.jit(nopython=True, nogil=True, cache=True)
-def _fit_spi_components(data, weights, freqs, freq0, alphas, i0s, tol=1e-6, maxiter=100):
-    ncomps, nfreqs = data.shape
-    jac = np.zeros((2, nfreqs), dtype=np.float64)
-    alphavars = np.zeros(ncomps, dtype=np.float64)
-    i0vars = np.zeros(ncomps, dtype=np.float64)
+def _fit_spi_components_impl(data, weights, freqs, freq0,
+                             alphas, alphavars, i0s, i0vars, jac,
+                             ncomps, nfreqs, tol, maxiter):
     w = freqs/freq0
     for comp in range(ncomps):
         eps = 1.0
@@ -26,7 +28,6 @@ def _fit_spi_components(data, weights, freqs, freq0, alphas, i0s, tol=1e-6, maxi
             jac[1, :] = w**alphak
             model = i0k*jac[1, :]
             jac[0, :] = model * np.log(w)
-            # model, jac[0, :], jac[1, :] = evaluate_model_and_jac(w, alphak, i0k)
             residual = data[comp] - model
             lik = 0.0
             hess00 = 0.0
@@ -54,22 +55,76 @@ def _fit_spi_components(data, weights, freqs, freq0, alphas, i0s, tol=1e-6, maxi
         i0vars[comp] = hess00/det
     return alphas, alphavars, i0s, i0vars
 
+def fit_spi_components(data, weights, freqs, freq0,
+                       alphai=None, I0i=None, tol=1e-6,
+                       maxiter=100, dtype=np.float64):
+    ncomps, nfreqs = data.shape
+    jac = np.zeros((2, nfreqs), dtype=dtype)
+    if alphai is not None:
+        alphas = alphai
+    else:
+        alphas = -0.7 * np.ones(ncomps, dtype=dtype)
+    alphavars = np.zeros(ncomps, dtype=dtype)
+    if I0i is not None:
+        I0s = I0i
+    else:
+        I0s = np.ones(ncomps, dtype=dtype)
+    I0vars = np.zeros(ncomps, dtype=dtype)
+    return _fit_spi_components_impl(data, weights, freqs, freq0,
+                                    alphas, alphavars, I0s, I0vars, jac,
+                                    ncomps, nfreqs, tol, maxiter)
 
-alphas = np.array([0.7], dtype=np.float64)
-i0s = np.array([5.0], dtype=np.float64)
-nfreqs = 100
-freqs = np.linspace(0.5, 1.5, nfreqs)
-freq0 = 0.7
-model = np.array([i0s * (freqs/freq0) ** alphas])
-sigma = 0.1
-data = model + sigma * np.random.randn(nfreqs)
+_SPI_DOCSTRING = namedtuple(
+    "_SPIDOCSTRING", ["preamble", "parameters", "returns"])
 
-alphai = alphas - 1.4
-i0i = i0s - 4.0
-weights = np.ones(nfreqs, dtype=np.float64)/sigma**2
-alpha, alphavar, i0, i0var = _fit_spi_components(data, weights, freqs, freq0, alphai, i0i)
+im_to_vis_docs = _SPI_DOCSTRING(
+    preamble="""
+    Computes the spectral indices and the intensity 
+    at the reference frequency of a spectral index model:
 
-print(alpha, np.sqrt(alphavar), i0, np.sqrt(i0var))
+    .. math::
 
-from scipy.optimize import curve_fit
+        {I(\\nu) = I_0(\\nu_0) \\left( \\frac{\\nu}{\\nu_0} \\right) ^ \\alpha }
 
+    """,  # noqa
+
+    parameters="""
+    Parameters
+    ----------
+
+    data : :class:`numpy.ndarray`
+        array of shape :code:`(comps, chan)`
+        The noisy data as a function of frequency.
+    weights : :class:`numpy.ndarray`
+        array of shape :code:`(chan)`
+        Inverse of variance on each frequency axis.
+    freqs : :class:`numpy.ndarray`
+        frequencies of shape :code:`(chan,)`
+    freq0 : :float:
+        Reference frequency
+    alphai : :class:`numpy.ndarray`, optional
+        array of shape :code:`(comps)`
+        Initial guess for the alphas
+    I0i : :class:`numpy.ndarray`, optional
+        array of shape :code:`(comps)`
+        Initial guess for the intensities at the 
+        reference frequency
+    tol : np.float, optional
+        solver absolute tolerance (optional)
+    maxiter : np.int, optional
+        solver maximum iterations (optional)
+    dtype : np.dtype, optional
+        Datatype of result. Should be either np.complex64
+        or np.complex128. Defaults to np.complex128
+    """,
+
+    returns="""
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        complex of shape :code:`(row, chan)`
+    """
+)
+
+
+fit_spi_components.__doc__ = doc_tuple_to_str(im_to_vis_docs)
