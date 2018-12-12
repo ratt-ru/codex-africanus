@@ -5,7 +5,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple
 from ...util.docs import DocstringTemplate
 
 import numba
@@ -46,7 +45,7 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
             i0k = i0p + (-hess01 * jr0 + hess00 * jr1)/det
             eps = np.maximum(np.abs(alphak - alphap), np.abs(i0k - i0p))
             k += 1
-        if k >= maxiter:
+        if k == maxiter:
             print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
         out[1, comp] = hess11/det
@@ -65,12 +64,10 @@ def fit_spi_components(data, weights, freqs, freq0,
         out[0, :] = alphai
     else:
         out[0, :] = -0.7 * np.ones(ncomps, dtype=dtype)
-    # alphavars = np.zeros(ncomps, dtype=dtype)
     if I0i is not None:
         out[2, :] = I0i
     else:
         out[2, :] = np.ones(ncomps, dtype=dtype)
-    # I0vars = np.zeros(ncomps, dtype=dtype)
     return _fit_spi_components_impl(data, weights, freqs, freq0, out,
                                     jac, ncomps, nfreqs, tol, maxiter)
 
@@ -91,26 +88,29 @@ SPI_DOCSTRING = DocstringTemplate(
         array of shape :code:`(comps, chan)`
         The noisy data as a function of frequency.
     weights : $(array_type)
-        array of shape :code:`(chan)`
+        array of shape :code:`(chan,)`
         Inverse of variance on each frequency axis.
     freqs : $(array_type)
         frequencies of shape :code:`(chan,)`
     freq0 : float
         Reference frequency
     alphai : $(array_type), optional
-        array of shape :code:`(comps)`
-        Initial guess for the alphas
+        array of shape :code:`(comps,)`
+        Initial guess for the alphas. Defaults
+        to -0.7.
     I0i : $(array_type), optional
-        array of shape :code:`(comps)`
+        array of shape :code:`(comps,)`
         Initial guess for the intensities at the
-        reference frequency
+        reference frequency. Defaults to 1.0.
     tol : float, optional
-        solver absolute tolerance (optional)
+        Solver absolute tolerance (optional).
+        Defaults to 1e-6.
     maxiter : int, optional
-        solver maximum iterations (optional)
+        Solver maximum iterations (optional).
+        Defaults to 100.
     dtype : np.dtype, optional
-        Datatype of result. Should be either np.complex64
-        or np.complex128. Defaults to np.complex128
+        Datatype of result. Should be either np.float32
+        or np.float64. Defaults to np.float64.
 
     Returns
     -------

@@ -7,14 +7,14 @@ import numpy as np
 import pytest
 
 
-def test_vs_scipy():
+def test_fit_spi_components_vs_scipy():
     """
     Here we just test the per component spi fitter against
     a looped version of scipy's curve_fit
     :return:
     """
     from africanus.model.spi import fit_spi_components
-    from scipy.optimize import curve_fit
+    curve_fit = pytest.importorskip("scipy.optimize").curve_fit
 
     np.random.seed(123)
 
@@ -32,7 +32,8 @@ def test_vs_scipy():
     alpha1, alphavar1, I01, I0var1 = fit_spi_components(
         data, weights, freqs.squeeze(), freq0, tol=1e-8)
 
-    def spi_func(nu, I0, alpha): return I0 * nu ** alpha
+    def spi_func(nu, I0, alpha):
+        return I0 * nu ** alpha
 
     I02 = np.zeros(ncomps)
     I0var2 = np.zeros(ncomps)
@@ -48,18 +49,18 @@ def test_vs_scipy():
         alpha2[i] = popt[1]
         alphavar2[i] = pcov[1, 1]
 
-    assert np.allclose(alpha1, alpha2, atol=1e-6)
+    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=6)
     # note variances not necessarily accurate to within tol because
     # scipy uses LM instead of GN
-    assert np.allclose(alphavar1, alphavar2, atol=1e-3)
-    assert np.allclose(I01, I02, atol=1e-6)
-    assert np.allclose(I0var1, I0var2, atol=1e-3)
+    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=3)
+    np.testing.assert_array_almost_equal(I01, I02, decimal=6)
+    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=3)
 
 
-def test_dask_vs_np():
+def test_dask_fit_spi_components_vs_np():
     from africanus.model.spi import fit_spi_components as np_fit_spi
     from africanus.model.spi.dask import fit_spi_components
-    import dask.array as da
+    da = pytest.importorskip("dask.array")
 
     np.random.seed(123)
 
@@ -87,13 +88,7 @@ def test_dask_vs_np():
                                                         freqs_dask,
                                                         freq0).compute()
 
-    assert np.allclose(alpha1, alpha2, atol=1e-6)
-    # note variances not necessarily accurate to within tol because
-    # scipy uses LM instead of GN
-    assert np.allclose(alphavar1, alphavar2, atol=1e-3)
-    assert np.allclose(I01, I02, atol=1e-6)
-    assert np.allclose(I0var1, I0var2, atol=1e-3)
-
-
-# test_vs_scipy()
-test_dask_vs_np()
+    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=10)
+    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=10)
+    np.testing.assert_array_almost_equal(I01, I02, decimal=10)
+    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=10)
