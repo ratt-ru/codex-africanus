@@ -6,22 +6,21 @@ from __future__ import division
 from __future__ import print_function
 
 from collections import namedtuple
-from ...util.docs import doc_tuple_to_str
+from ...util.docs import DocstringTemplate
 
 import numba
 import numpy as np
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def _fit_spi_components_impl(data, weights, freqs, freq0,
-                             alphas, alphavars, i0s, i0vars, jac,
-                             ncomps, nfreqs, tol, maxiter):
+def _fit_spi_components_impl(data, weights, freqs, freq0, out,
+                             jac, ncomps, nfreqs, tol, maxiter):
     w = freqs/freq0
     for comp in range(ncomps):
         eps = 1.0
         k = 0
-        alphak = alphas[comp]
-        i0k = i0s[comp]
+        alphak = out[0, comp]
+        i0k = out[2, comp]
         while eps > tol and k < maxiter:
             alphap = alphak
             i0p = i0k
@@ -49,82 +48,80 @@ def _fit_spi_components_impl(data, weights, freqs, freq0,
             k += 1
         if k >= maxiter:
             print("Warning - max iterations exceeded for component ", comp)
-        alphas[comp] = alphak
-        alphavars[comp] = hess11/det
-        i0s[comp] = i0k
-        i0vars[comp] = hess00/det
-    return alphas, alphavars, i0s, i0vars
+        out[0, comp] = alphak
+        out[1, comp] = hess11/det
+        out[2, comp] = i0k
+        out[3, comp] = hess00/det
+    return out
+
 
 def fit_spi_components(data, weights, freqs, freq0,
                        alphai=None, I0i=None, tol=1e-6,
                        maxiter=100, dtype=np.float64):
     ncomps, nfreqs = data.shape
     jac = np.zeros((2, nfreqs), dtype=dtype)
+    out = np.zeros((4, ncomps), dtype=dtype)
     if alphai is not None:
-        alphas = alphai
+        out[0, :] = alphai
     else:
-        alphas = -0.7 * np.ones(ncomps, dtype=dtype)
-    alphavars = np.zeros(ncomps, dtype=dtype)
+        out[0, :] = -0.7 * np.ones(ncomps, dtype=dtype)
+    # alphavars = np.zeros(ncomps, dtype=dtype)
     if I0i is not None:
-        I0s = I0i
+        out[2, :] = I0i
     else:
-        I0s = np.ones(ncomps, dtype=dtype)
-    I0vars = np.zeros(ncomps, dtype=dtype)
-    return _fit_spi_components_impl(data, weights, freqs, freq0,
-                                    alphas, alphavars, I0s, I0vars, jac,
-                                    ncomps, nfreqs, tol, maxiter)
+        out[2, :] = np.ones(ncomps, dtype=dtype)
+    # I0vars = np.zeros(ncomps, dtype=dtype)
+    return _fit_spi_components_impl(data, weights, freqs, freq0, out,
+                                    jac, ncomps, nfreqs, tol, maxiter)
 
-_SPI_DOCSTRING = namedtuple(
-    "_SPIDOCSTRING", ["preamble", "parameters", "returns"])
 
-im_to_vis_docs = _SPI_DOCSTRING(
-    preamble="""
+SPI_DOCSTRING = DocstringTemplate(
+    r"""
     Computes the spectral indices and the intensity 
     at the reference frequency of a spectral index model:
 
     .. math::
 
-        {I(\\nu) = I_0(\\nu_0) \\left( \\frac{\\nu}{\\nu_0} \\right) ^ \\alpha }
+        I(\nu) = I(\nu_0) \left( \frac{\nu}{\nu_0} \right) ^ \alpha 
 
-    """,  # noqa
-
-    parameters="""
     Parameters
     ----------
 
-    data : :class:`numpy.ndarray`
+    data : $(array_type)
         array of shape :code:`(comps, chan)`
         The noisy data as a function of frequency.
-    weights : :class:`numpy.ndarray`
+    weights : $(array_type)
         array of shape :code:`(chan)`
         Inverse of variance on each frequency axis.
-    freqs : :class:`numpy.ndarray`
+    freqs : $(array_type)
         frequencies of shape :code:`(chan,)`
-    freq0 : :float:
+    freq0 : float
         Reference frequency
-    alphai : :class:`numpy.ndarray`, optional
+    alphai : $(array_type), optional
         array of shape :code:`(comps)`
         Initial guess for the alphas
-    I0i : :class:`numpy.ndarray`, optional
+    I0i : $(array_type), optional
         array of shape :code:`(comps)`
-        Initial guess for the intensities at the 
+        Initial guess for the intensities at the
         reference frequency
-    tol : np.float, optional
+    tol : float, optional
         solver absolute tolerance (optional)
-    maxiter : np.int, optional
+    maxiter : int, optional
         solver maximum iterations (optional)
     dtype : np.dtype, optional
         Datatype of result. Should be either np.complex64
         or np.complex128. Defaults to np.complex128
-    """,
 
-    returns="""
     Returns
     -------
-    :class:`numpy.ndarray`
-        complex of shape :code:`(row, chan)`
-    """
-)
+    out : $(array_type)
+        array of shape :code:`(4, comps)`
+        The fitted components arranged
+        as [alphas, alphavars, I0s, I0vars]
+    """)
 
-
-fit_spi_components.__doc__ = doc_tuple_to_str(im_to_vis_docs)
+try:
+    fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
+                            array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass

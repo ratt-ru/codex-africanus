@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Added `fit_component_spi` function (:pr:`61`)
 * Correct `phase_delay` argument ordering (:pr:`57`)
 * Support dask for `radec_to_lmn` and `lmn_to_radec`. Also add support
   for `radec_to_lm` and `lm_to_radec` (:pr:`56`)
