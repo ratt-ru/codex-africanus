@@ -77,12 +77,12 @@ def fit_spi_components(data, weights, freqs, freq0,
 
 SPI_DOCSTRING = DocstringTemplate(
     r"""
-    Computes the spectral indices and the intensity 
+    Computes the spectral indices and the intensity
     at the reference frequency of a spectral index model:
 
     .. math::
 
-        I(\nu) = I(\nu_0) \left( \frac{\nu}{\nu_0} \right) ^ \alpha 
+        I(\nu) = I(\nu_0) \left( \frac{\nu}{\nu_0} \right) ^ \alpha
 
     Parameters
     ----------

@@ -9,7 +9,6 @@ from functools import wraps
 from .component_spi import SPI_DOCSTRING
 from .component_spi import fit_spi_components as np_fit_spi_components
 
-from ...util.docs import SPI
 from ...util.requirements import requires_optional
 
 import numpy as np
@@ -18,6 +17,7 @@ try:
     import dask.array as da
 except ImportError:
     pass
+
 
 @wraps(np_fit_spi_components)
 def _fit_spi_components_wrapper(data, weights, freqs, freq0,
@@ -32,6 +32,7 @@ def _fit_spi_components_wrapper(data, weights, freqs, freq0,
                                  tol=tol_,
                                  maxiter=maxiter_,
                                  dtype=dtype_)
+
 
 @requires_optional('dask.array')
 def fit_spi_components(data, weights, freqs, freq0,
@@ -49,7 +50,7 @@ def fit_spi_components(data, weights, freqs, freq0,
                         tol, None,
                         maxiter, None,
                         dtype, None,
-                        new_axes={"vars":4},
+                        new_axes={"vars": 4},
                         dtype=dtype)
 
 

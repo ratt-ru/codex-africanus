@@ -87,13 +87,13 @@ def test_dask_vs_np():
                                                         freqs_dask,
                                                         freq0).compute()
 
-
     assert np.allclose(alpha1, alpha2, atol=1e-6)
     # note variances not necessarily accurate to within tol because
     # scipy uses LM instead of GN
     assert np.allclose(alphavar1, alphavar2, atol=1e-3)
     assert np.allclose(I01, I02, atol=1e-6)
     assert np.allclose(I0var1, I0var2, atol=1e-3)
+
 
 # test_vs_scipy()
 test_dask_vs_np()
