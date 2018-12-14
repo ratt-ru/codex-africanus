@@ -206,79 +206,17 @@ def register_assign_cycles(N, case=0):
     return cycles
 
 
-def warp_tranpose(var_name, var_type, var_length, tmp_name="tmp",
-                  initial_indent=4, subsequent_indent=8):
-    if var_length < 1:
-        raise ValueError("var_length must be one or a multiple of two")
-
-    if var_length == 1:
-        return "\n"
-
-    if (var_length & (var_length - 1)) != 0:
-        raise ValueError("var_length must be a multiple of 2")
-
-    # Emit the temporary variable used for swaps
-    lines = ["",
-             "%s %s; // for variable swaps" % (var_type, tmp_name),
-             "int case_id = threadIdx.x & %d;" % (var_length - 1)]
-
-    lines.extend(["", "// Horizontal (inter-thread) Rotation",
-                  "int addr = case_id;"])
-
-    for case in range(var_length):
-        lines.append("%s[%d] = __shfl_sync(mask, %s[%d], addr, %d);" %
-                     (var_name, case, var_name, case, var_length))
-        lines.append("addr = __shfl_sync(mask, addr, (case_id + 1) & %d, %d);"
-                     % (var_length - 1, var_length))
-
-    del lines[-1]  # Last addr assignment superfluous
-
-    lines.extend(["", "// Vertical (intra-thread) Rotation"])
-
-    for case in range(var_length):
-        cycles = register_assign_cycles(var_length, case)
-
-        if len(cycles) == 0:
-            continue
-
-        lines.extend(["", "// Case %d" % case])
-        for cycle in cycles:
-            start = cycle[0][0]
-            lines.append("%s = %s[%s];" % (tmp_name, var_name, start))
-            for dest, src in cycle:
-                lines.append("%s[%s] = case_id == %s ? %s : %s[%s];" % (
-                    var_name, dest, case,
-                    tmp_name if start == src else "%s[%s]" % (var_name, src),
-                    var_name, dest))
-
-    lines.extend(["", "// Horizontal (inter-thread) Rotation",
-                  "addr = (%d - case_id) & %d;" %
-                  (var_length, (var_length - 1))])
-
-    for case in range(var_length):
-        lines.append("%s[%d] = __shfl_sync(mask, %s[%d], addr, %d);" %
-                     (var_name, case, var_name, case, var_length))
-        lines.append("addr = __shfl_sync(mask, addr, (case_id + %d) & %d, %d);"
-                     % (var_length - 1, var_length - 1, var_length))
-
-    del lines[-1]  # Last addr assignment superfluous
-
-    brace_indent = " "*initial_indent
-    body_indent = " "*(initial_indent + subsequent_indent)
-
-    lines = (["", brace_indent + "{"] +
-             [body_indent + l for l in lines] +
-             [brace_indent + "}"])
-
-    return '\n'.join(lines)
+class CupyTemplatingException(Exception):
+    def __init__(self, msg):
+        super(CupyTemplatingException, self).__init__(msg)
 
 
-def test_emit_warp_transpose():
-    lines = warp_tranpose("values", "double", 4)
-    print(lines)
+def raise_helper(msg):
+    raise CupyTemplatingException(msg)
 
 
-def test_cuda_shuffle_transpose_2():
+@pytest.mark.parametrize("ncorrs", [1, 2, 4, 8])
+def test_cuda_shuffle_transpose_2(ncorrs):
     cp = pytest.importorskip("cupy")
     jinja2 = pytest.importorskip("jinja2")
 
@@ -298,7 +236,51 @@ def test_cuda_shuffle_transpose_2():
     _TEMPLATE = jinja2.Template("""
     #include <cupy/carray.cuh>
 
-    #define debug {{debug}}
+    {%- if (corrs < 1 or (corrs.__and__(corrs - 1) != 0)) %}
+    {{ raise("corrs must be 1 or a power of 2") }}
+    {%- endif %}
+
+    {% macro warp_transpose(var_name, var_type, var_length, tmp_name="tmp") %}
+    {% if var_length > 1 %}
+        {
+            int mask = __activemask();
+            int case_id = threadIdx.x & {{var_length - 1}};
+            {{var_type}} {{tmp_name}};  // For variable swaps
+
+            // Horizontal (inter-thread) Rotation
+            int addr = case_id;
+            {%- for case in range(var_length) %}
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {%- if not loop.last %}
+            addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}}, {{var_length}});
+            {%- endif %}
+            {%- endfor %}
+
+            // Vertical (intra-thread) Rotation
+            {%- for case in range(var_length) %}
+            // Case {{case}}
+            {%- set cycles = register_assign_cycles(corrs, case) %}
+            {%- for cycle in cycles %}
+            {%- set cstart = cycle[0][0] %}
+            {{tmp_name}} = {{var_name}}[{{cstart}}];
+            {%- for dest, src in cycle %}
+            {%- set src_var = tmp_name if cstart == src else var_name + "[" + src|string + "]" %}
+            {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} : {{var_name}}[{{dest}}];
+            {%- endfor %}
+            {%- endfor %}
+            {%- endfor %}
+
+            // Horizontal (inter-thread) Rotation
+            addr = ({{var_length}} - case_id) & {{var_length - 1}};
+            {%- for case in range(var_length) %}
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {%- if not loop.last %}
+            addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) & {{var_length - 1}}, {{var_length}});
+            {%- endif %}
+            {%- endfor %}
+        }
+    {%- endif %}
+    {%- endmacro %}
 
     {%- set width = corrs %}
 
@@ -308,27 +290,24 @@ def test_cuda_shuffle_transpose_2():
     {
         const ptrdiff_t & nvis = input.shape()[0];
         int v = blockIdx.x*blockDim.x + threadIdx.x;
-        int lane_id = threadIdx.x & ({{warp_size}} - 1);
 
         if(v >= nvis)
             { return; }
 
-        // Input correlation handled by this thread
-        int mask = __activemask();
-
+        // Array to hold our variables
         {{type}} values[{{corrs}}];
 
         {% for corr in range(corrs) %}
         values[{{corr}}] = input[v + {{corr}}*nvis];
         {%- endfor %}
 
-        if(debug)
+        if({{debug}})
         {
             if(threadIdx.x == 0)
-                { printf("mask %d\\n", mask); }
+                { printf("mask %d\\n", __activemask()); }
 
             printf("[%d] %d %d %d %d\\n",
-                   lane_id,
+                   threadIdx.x & {{warp_size - 1}},
                    values[0], values[1],
                    values[2], values[3]);
 
@@ -336,23 +315,19 @@ def test_cuda_shuffle_transpose_2():
                 { printf("\\n"); }
         }
 
+        {{ warp_transpose("values", type, corrs) }}
+        {{ warp_transpose("values", type, corrs) }}
 
-        {{warp_transpose}}
-
-        {{warp_transpose}}
-
-        if(debug)
+        if({{debug}})
         {
             if(threadIdx.x == 0)
                 { printf("\\n"); }
 
             printf("[%d] %d %d %d %d\\n",
-                   lane_id,
+                   threadIdx.x & {{warp_size - 1}},
                    values[0], values[1],
                    values[2], values[3]);
         }
-
-
 
         {% for corr in range(corrs) %}
         output[v + {{corr}}*nvis] = values[{{corr}}];
@@ -361,7 +336,6 @@ def test_cuda_shuffle_transpose_2():
     """)  # noqa
 
     nvis = 32
-    ncorrs = 4
     dtype = np.int32
 
     dtypes = {
@@ -370,13 +344,15 @@ def test_cuda_shuffle_transpose_2():
         np.int32: 'int',
     }
 
-    warpt = warp_tranpose("values", dtypes[dtype],
-                          ncorrs, initial_indent=8,
-                          subsequent_indent=4)
+    # Add some helpful functions
+    globs = _TEMPLATE.environment.globals
+    globs['raise'] = raise_helper
+    globs['register_assign_cycles'] = register_assign_cycles
 
-    code = _TEMPLATE.render(type=dtypes[dtype], warp_size=32,
-                            warp_transpose=warpt,
-                            corrs=ncorrs, debug="false").encode("utf-8")
+    code = _TEMPLATE.render(type=dtypes[dtype],
+                            warp_size=32,
+                            corrs=ncorrs,
+                            debug="false").encode("utf-8")
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
