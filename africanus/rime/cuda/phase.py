@@ -10,7 +10,7 @@ from os.path import join as pjoin
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
-from africanus.jinja2 import Jinja2Environment as j2env
+from africanus.util.jinja2 import Jinja2Environment as j2env
 from africanus.rime.phase import PHASE_DELAY_DOCS
 from africanus.util.code import memoize_on_key, format_code
 from africanus.util.cuda import cuda_function, grids
