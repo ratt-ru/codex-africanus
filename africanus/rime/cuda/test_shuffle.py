@@ -211,7 +211,7 @@ class CupyTemplatingException(Exception):
         super(CupyTemplatingException, self).__init__(msg)
 
 
-def raise_helper(msg):
+def throw_helper(msg):
     raise CupyTemplatingException(msg)
 
 
@@ -237,7 +237,7 @@ def test_cuda_shuffle_transpose_2(ncorrs):
     #include <cupy/carray.cuh>
 
     {%- if (corrs < 1 or (corrs.__and__(corrs - 1) != 0)) %}
-    {{ raise("corrs must be 1 or a power of 2") }}
+    {{ throw("corrs must be 1 or a power of 2") }}
     {%- endif %}
 
     {% macro warp_transpose(var_name, var_type, var_length, tmp_name="tmp") %}
@@ -344,12 +344,9 @@ def test_cuda_shuffle_transpose_2(ncorrs):
         np.int32: 'int',
     }
 
-    # Add some helpful functions
-    globs = _TEMPLATE.environment.globals
-    globs['raise'] = raise_helper
-    globs['register_assign_cycles'] = register_assign_cycles
-
     code = _TEMPLATE.render(type=dtypes[dtype],
+                            throw=throw_helper,
+                            register_assign_cycles=register_assign_cycles,
                             warp_size=32,
                             corrs=ncorrs,
                             debug="false").encode("utf-8")
