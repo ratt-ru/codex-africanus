@@ -10,7 +10,7 @@ from os.path import join as pjoin
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
-from africanus.util.jinja2 import Jinja2Environment as j2env
+from africanus.util.jinja2 import jinja_env
 from africanus.rime.phase import PHASE_DELAY_DOCS
 from africanus.util.code import memoize_on_key, format_code
 from africanus.util.cuda import cuda_function, grids
@@ -30,6 +30,9 @@ def _key_fn(lm, uvw, frequency):
     return (lm.dtype, uvw.dtype, frequency.dtype)
 
 
+_TEMPLATE_PATH = pjoin("rime", "cuda", "phase.cu.j2")
+
+
 @memoize_on_key(_key_fn)
 def _generate_kernel(lm, uvw, frequency):
     # Floating point output type
@@ -41,8 +44,7 @@ def _generate_kernel(lm, uvw, frequency):
     block = (blockdimx, blockdimy, 1)
 
     # Create template
-    template_path = pjoin("rime", "cuda", "phase.cu.j2")
-    render = j2env.instance().get_template(template_path).render
+    render = jinja_env.instance().get_template(_TEMPLATE_PATH).render
     name = "phase_delay"
 
     code = render(kernel_name=name,

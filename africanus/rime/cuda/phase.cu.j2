@@ -29,8 +29,8 @@ extern "C" __global__ void {{kernel_name}}(
                                     &complex_phase[0]);
 
     __shared__ struct {
-        {{uvw_type}}3 uvw[blockdimy];
-        {{freq_type}} frequency[blockdimx];
+        {{uvw_type}}3 uvw[{{blockdimy}}];
+        {{freq_type}} frequency[{{blockdimx}}];
     } shared;
 
     // UVW coordinates vary along y dimension only

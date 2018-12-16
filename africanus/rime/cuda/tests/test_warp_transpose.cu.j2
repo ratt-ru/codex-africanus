@@ -1,0 +1,55 @@
+#include <cupy/carray.cuh>
+
+{%- from "rime/cuda/macros.j2" import warp_transpose %}
+
+{%- set width = corrs %}
+
+extern "C" __global__ void kernel(
+    const CArray<{{type}}, 2> input,
+    CArray<{{type}}, 2> output)
+{
+    const ptrdiff_t & nvis = input.shape()[0];
+    int v = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if(v >= nvis)
+        { return; }
+
+    // Array to hold our variables
+    {{type}} values[{{corrs}}];
+
+    {% for corr in range(corrs) %}
+    values[{{corr}}] = input[v + {{corr}}*nvis];
+    {%- endfor %}
+
+    if({{debug}})
+    {
+        if(threadIdx.x == 0)
+            { printf("mask %d\\n", __activemask()); }
+
+        printf("[%d] %d %d %d %d\\n",
+               threadIdx.x & {{warp_size - 1}},
+               values[0], values[1],
+               values[2], values[3]);
+
+        if(threadIdx.x == 0)
+            { printf("\\n"); }
+    }
+
+    {{ warp_transpose("values", type, corrs) }}
+    {{ warp_transpose("values", type, corrs) }}
+
+    if({{debug}})
+    {
+        if(threadIdx.x == 0)
+            { printf("\\n"); }
+
+        printf("[%d] %d %d %d %d\\n",
+               threadIdx.x & {{warp_size - 1}},
+               values[0], values[1],
+               values[2], values[3]);
+    }
+
+    {% for corr in range(corrs) %}
+    output[v + {{corr}}*nvis] = values[{{corr}}];
+    {%- endfor %}
+}
