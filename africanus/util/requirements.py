@@ -41,11 +41,12 @@ def requires_optional(*requirements):
         try:
             from scipy import interpolate
         except ImportError as e:
-            pass
+            # https://stackoverflow.com/a/29268974/1611416, pep 3110 and 344
+            scipy_import_error = e
         else:
-            e = None
+            scipy_import_error = None
 
-        @requires_optional('scipy', e)
+        @requires_optional('scipy', scipy_import_error)
         def function(*args, **kwargs):
             return interpolate(...)
 

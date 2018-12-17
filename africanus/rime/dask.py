@@ -27,8 +27,8 @@ import numpy as np
 try:
     import dask.array as da
     from dask.sharedict import ShareDict
-except ImportError as da_import_error:
-    pass
+except ImportError as e:
+    da_import_error = e
 else:
     da_import_error = None
 

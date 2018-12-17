@@ -11,7 +11,8 @@ from africanus.util.requirements import requires_optional
 try:
     import pyrap.measures
     import pyrap.quanta as pq
-except ImportError as casa_import_error:
+except ImportError as e:
+    casa_import_error = None
     have_casa_parangles = False
 else:
     casa_import_error = None
