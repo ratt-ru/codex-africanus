@@ -7,27 +7,30 @@ from __future__ import print_function
 from collections import OrderedDict
 from functools import wraps
 
-from .phase import phase_delay as np_phase_delay, PHASE_DELAY_DOCS
-from .parangles import parallactic_angles as np_parangles
-from .feeds import feed_rotation as np_feed_rotation
-from .transform import transform_sources as np_transform_sources
-from .beam_cubes import beam_cube_dde as np_beam_cude_dde
-from .predict import PREDICT_DOCS
-from .predict import predict_vis as np_predict_vis
-from .zernike import zernike_dde as np_zernike_dde
+from africanus.rime.phase import (phase_delay as np_phase_delay,
+                                  PHASE_DELAY_DOCS)
+from africanus.rime.parangles import parallactic_angles as np_parangles
+from africanus.rime.feeds import feed_rotation as np_feed_rotation
+from africanus.rime.transform import transform_sources as np_transform_sources
+from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
+from africanus.rime.predict import PREDICT_DOCS
+from africanus.rime.predict import predict_vis as np_predict_vis
+from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
-from ..util.docs import doc_tuple_to_str, mod_docs
-from ..util.requirements import requires_optional
-from ..util.type_inference import infer_complex_dtype
+from africanus.util.docs import doc_tuple_to_str, mod_docs
+from africanus.util.requirements import requires_optional
+from africanus.util.type_inference import infer_complex_dtype
 
 import numpy as np
 
 try:
     import dask.array as da
     from dask.sharedict import ShareDict
-except ImportError:
+except ImportError as da_import_error:
     pass
+else:
+    da_import_error = None
 
 try:
     import cytoolz as toolz
@@ -43,7 +46,7 @@ def _phase_delay_wrap(lm, uvw, frequency):
     return np_phase_delay(lm[0], uvw[0], frequency)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def phase_delay(lm, uvw, frequency):
     """ Dask wrapper for phase_delay function """
     return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
@@ -58,7 +61,7 @@ def _parangle_wrapper(t, ap, fc, **kw):
     return np_parangles(t, ap[0], fc[0], **kw)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
     return da.core.atop(_parangle_wrapper, ("time", "ant"),
@@ -69,7 +72,7 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
                         **kwargs)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def feed_rotation(parallactic_angles, feed_type):
     pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
     corr_dims = ('corr-1', 'corr-2')
@@ -97,7 +100,7 @@ def _xform_wrap(lm, parallactic_angles, pointing_errors,
                                 frequency, dtype=dtype_)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def transform_sources(lm, parallactic_angles, pointing_errors,
                       antenna_scaling, frequency, dtype=None):
 
@@ -123,7 +126,7 @@ def _beam_wrapper(beam, coords, l_grid, m_grid, freq_grid,
                             spline_order=spline_order, mode=mode)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                   spline_order=1, mode='nearest'):
 
@@ -153,7 +156,7 @@ def _zernike_wrapper(coords, coeffs, noll_index):
     return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def zernike_dde(coords, coeffs, noll_index):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
@@ -209,7 +212,7 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           die2_jones[0] if die2_jones else None)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):

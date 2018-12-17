@@ -16,8 +16,10 @@ from ..util.requirements import requires_optional
 
 try:
     import dask.array as da
-except ImportError:
+except ImportError as da_import_error:
     pass
+else:
+    da_import_error = None
 
 
 # This wraps is a https://en.wikipedia.org/wiki/Noble_lie
@@ -31,7 +33,7 @@ def _wrapper(np_input, mapping=None, in_shape=None,
     return result.reshape(result.shape + (1,) * len(in_shape))
 
 
-@requires_optional("dask.array")
+@requires_optional("dask.array", da_import_error)
 def stokes_convert(input, input_schema, output_schema):
     mapping, in_shape, out_shape, dtype = stokes_convert_setup(
                                                 input,
