@@ -11,17 +11,19 @@ import numpy as np
 
 try:
     import dask.array as da
-except ImportError:
+except ImportError as dask_import_error:
     pass
+else:
+    dask_import_error = None
 
 
-from ..util.requirements import requires_optional
-from .coordinates import (radec_to_lmn as np_radec_to_lmn,
-                          radec_to_lm as np_radec_to_lm,
-                          lmn_to_radec as np_lmn_to_radec,
-                          lm_to_radec as np_lm_to_radec,
-                          RADEC_TO_LMN_DOCS,
-                          LMN_TO_RADEC_DOCS)
+from africanus.util.requirements import requires_optional
+from africanus.coordinates.coordinates import (radec_to_lmn as np_radec_to_lmn,
+                                               radec_to_lm as np_radec_to_lm,
+                                               lmn_to_radec as np_lmn_to_radec,
+                                               lm_to_radec as np_lm_to_radec,
+                                               RADEC_TO_LMN_DOCS,
+                                               LMN_TO_RADEC_DOCS)
 
 
 @wraps(np_radec_to_lmn)
@@ -29,7 +31,7 @@ def _radec_to_lmn(radec, phase_centre):
     return np_radec_to_lmn(radec[0], phase_centre[0] if phase_centre else None)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def radec_to_lmn(radec, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
@@ -45,7 +47,7 @@ def _lmn_to_radec(lmn, phase_centre):
     return np_lmn_to_radec(lmn[0], phase_centre)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def lmn_to_radec(lmn, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
@@ -61,7 +63,7 @@ def _radec_to_lm(radec, phase_centre):
     return np_radec_to_lm(radec[0], phase_centre[0] if phase_centre else None)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def radec_to_lm(radec, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
@@ -77,7 +79,7 @@ def _lm_to_radec(lm, phase_centre):
     return np_lm_to_radec(lm[0], phase_centre)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def lm_to_radec(lm, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 

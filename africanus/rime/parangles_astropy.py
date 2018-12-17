@@ -4,20 +4,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..util.requirements import requires_optional
+from africanus.util.requirements import requires_optional
 
 try:
     from astropy.coordinates import (EarthLocation, SkyCoord,
                                      AltAz, CIRS)
     from astropy.time import Time
     from astropy import units
-except ImportError:
+except ImportError as astropy_import_error:
     have_astropy_parangles = False
 else:
+    astropy_import_error = None
     have_astropy_parangles = True
 
 
-@requires_optional('astropy')
+@requires_optional('astropy', astropy_import_error)
 def astropy_parallactic_angles(times, antenna_positions, field_centre):
     """
     Computes parallactic angles per timestep for the given

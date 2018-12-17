@@ -6,21 +6,22 @@ from __future__ import print_function
 
 import numpy as np
 
-from ..util.requirements import requires_optional
+from africanus.util.requirements import requires_optional
 
 try:
     import pyrap.measures
     import pyrap.quanta as pq
-except ImportError:
+except ImportError as casa_import_error:
     have_casa_parangles = False
 else:
+    casa_import_error = None
     have_casa_parangles = True
 
     # Create a measures server
     meas_serv = pyrap.measures.measures()
 
 
-@requires_optional('pyrap.measures', 'pyrap.quanta')
+@requires_optional('pyrap.measures', 'pyrap.quanta', casa_import_error)
 def casa_parallactic_angles(times, antenna_positions, field_centre,
                             zenith_frame='AZEL'):
     """
