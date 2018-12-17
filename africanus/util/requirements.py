@@ -89,7 +89,7 @@ def requires_optional(*requirements):
         if requirement is None:
             continue
         # Reraise any supplied ImportErrors
-        elif type(requirement) == ImportError:
+        elif isinstance(requirement, ImportError):
             import_errors.append(requirement)
         # An actual package, try to import it
         elif isinstance(requirement, string_types):
