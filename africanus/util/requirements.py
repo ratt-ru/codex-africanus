@@ -107,7 +107,7 @@ def requires_optional(*requirements):
         else:
             raise TypeError("requirements must be "
                             "None, strings or ImportErrors. "
-                            "Received %s" % package)
+                            "Received %s" % requirement)
 
     # Requested requirement import succeeded, but there were user
     # import errors that we now re-raise

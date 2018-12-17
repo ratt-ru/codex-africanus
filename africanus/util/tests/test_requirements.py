@@ -42,4 +42,5 @@ def test_requires_optional_pass_import_error():
 
     msg = str(e.value)
     assert ("Successfully imported %s" % ['sys', 'os']) in msg
-    assert "No module named 'clearly_missing_and_nonexistent_package'" in msg
+    assert "No module named" in msg
+    assert "clearly_missing_and_nonexistent_package" in msg
