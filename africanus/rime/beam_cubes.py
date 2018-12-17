@@ -13,13 +13,15 @@ import numpy as np
 try:
     from scipy import interpolate
     from scipy.ndimage import interpolation
-except ImportError:
-    pass
+except ImportError as e:
+    scipy_import_error = e
+else:
+    scipy_import_error = None
 
-from ..util.requirements import requires_optional
+from africanus.util.requirements import requires_optional
 
 
-@requires_optional("scipy")
+@requires_optional("scipy", scipy_import_error)
 def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                   spline_order=1, mode='nearest'):
     """
