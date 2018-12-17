@@ -99,6 +99,7 @@ class memoize_on_key(object):
                                          ncorrs=ncorrs)
             return cp.RawKernel(code, "phase_delay")
     """
+
     def __init__(self, key_fn):
         self._key_fn = key_fn
         self._lock = Lock()

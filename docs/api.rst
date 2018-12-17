@@ -12,5 +12,6 @@ API
     coordinates-api.rst
     stokes-api.rst
     util-api.rst
+    model-api.rst
 
 

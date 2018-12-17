@@ -4,6 +4,9 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* requires_optional accepts ImportError's for a
+  better debugging experience (:pr:`62`)
+* Added `fit_component_spi` function (:pr:`61`)
 * cupy implementation of the `phase_delay` kernel (:pr:`59`)
 * Correct `phase_delay` argument ordering (:pr:`57`)
 * Support dask for `radec_to_lmn` and `lmn_to_radec`. Also add support

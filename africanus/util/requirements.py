@@ -41,11 +41,12 @@ def requires_optional(*requirements):
         try:
             from scipy import interpolate
         except ImportError as e:
-            pass
+            # https://stackoverflow.com/a/29268974/1611416, pep 3110 and 344
+            scipy_import_error = e
         else:
-            e = None
+            scipy_import_error = None
 
-        @requires_optional('scipy', e)
+        @requires_optional('scipy', scipy_import_error)
         def function(*args, **kwargs):
             return interpolate(...)
 
@@ -80,32 +81,42 @@ def requires_optional(*requirements):
     missing_requirements = []
     honour_pytest_marker = True
     actual_imports = []
+    import_errors = []
 
     # Try imports
-    for package in requirements:
+    for requirement in requirements:
         # Ignore
-        if package is None:
+        if requirement is None:
             continue
         # Reraise any supplied ImportErrors
-        elif type(package) == ImportError:
-            raise package
+        elif isinstance(requirement, ImportError):
+            import_errors.append(requirement)
         # An actual package, try to import it
-        elif isinstance(package, string_types):
+        elif isinstance(requirement, string_types):
             try:
-                importlib.import_module(package)
+                importlib.import_module(requirement)
             except ImportError:
-                missing_requirements.append(package)
+                missing_requirements.append(requirement)
                 have_requirements = False
             else:
-                actual_imports.append(package)
+                actual_imports.append(requirement)
         # We should force exceptions, even if we're in a pytest test case
-        elif package == force_missing_pkg_exception:
+        elif requirement == force_missing_pkg_exception:
             honour_pytest_marker = False
         # Just wrong
         else:
             raise TypeError("requirements must be "
                             "None, strings or ImportErrors. "
-                            "Received %s" % package)
+                            "Received %s" % requirement)
+
+    # Requested requirement import succeeded, but there were user
+    # import errors that we now re-raise
+    if have_requirements and len(import_errors) > 0:
+        raise ImportError("Successfully imported %s "
+                          "but the following user-supplied "
+                          "ImportErrors ocurred: \n%s" %
+                          (actual_imports,
+                           '\n'.join((str(e) for e in import_errors))))
 
     def _function_decorator(fn):
         # We have requirements, return the original function

@@ -30,8 +30,8 @@ def test_requires_optional_pass_import_error():
 
     try:
         import clearly_missing_and_nonexistent_package
-    except ImportError as me:
-        pass
+    except ImportError as e:
+        me = e
     else:
         me = None
 
@@ -40,4 +40,7 @@ def test_requires_optional_pass_import_error():
         def f(*args, **kwargs):
             pass
 
-    assert "clearly_missing_and_nonexistent_package" in str(e.value)
+    msg = str(e.value)
+    assert ("Successfully imported %s" % ['sys', 'os']) in msg
+    assert "No module named" in msg
+    assert "clearly_missing_and_nonexistent_package" in msg

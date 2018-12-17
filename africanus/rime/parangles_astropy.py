@@ -11,7 +11,8 @@ try:
                                      AltAz, CIRS)
     from astropy.time import Time
     from astropy import units
-except ImportError as astropy_import_error:
+except ImportError as e:
+    astropy_import_error = e
     have_astropy_parangles = False
 else:
     astropy_import_error = None

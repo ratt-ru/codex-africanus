@@ -13,8 +13,8 @@ import numpy as np
 try:
     from scipy import interpolate
     from scipy.ndimage import interpolation
-except ImportError as scipy_import_error:
-    pass
+except ImportError as e:
+    scipy_import_error = e
 else:
     scipy_import_error = None
 

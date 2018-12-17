@@ -16,8 +16,8 @@ from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da
-except ImportError as da_import_error:
-    pass
+except ImportError as e:
+    da_import_error = e
 else:
     da_import_error = None
 
