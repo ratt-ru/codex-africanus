@@ -22,7 +22,8 @@ def test_requires_optional_missing_import():
     with pytest.raises(MissingPackageException) as e:
         f(1, a=2)
 
-    assert "The following packages must be installed: ('bob',)" in str(e.value)
+    assert ("f requires installation of the following packages: ('bob',)"
+            in str(e.value))
 
 
 def test_requires_optional_pass_import_error():
@@ -41,6 +42,6 @@ def test_requires_optional_pass_import_error():
             pass
 
     msg = str(e.value)
-    assert ("Successfully imported %s" % ['sys', 'os']) in msg
+    assert "Successfully imported ['sys', 'os']" in msg
     assert "No module named" in msg
     assert "clearly_missing_and_nonexistent_package" in msg
