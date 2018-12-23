@@ -56,11 +56,11 @@ def predict(args):
     stokes = da.from_array(stokes, chunks=(3, 4))
     lm = radec_to_lm(radec)
 
-    # Extract frequencies of the first spectral window
-    spw = list(xds_from_table('::'.join((args.ms, "SPECTRAL_WINDOW")),
-                              group_cols="__row__"))[0]
+    ddid_ds = list(xds_from_table('::'.join((args.ms, "DATA_DESCRIPTION")),
+                                  group_cols="__row__"))
 
-    frequency = spw.CHAN_FREQ.data
+    spw_ds = list(xds_from_table('::'.join((args.ms, "SPECTRAL_WINDOW")),
+                                 group_cols="__row__"))
 
     # List of write operations
     writes = []
@@ -70,6 +70,12 @@ def predict(args):
                            columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                            group_cols=["DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
+
+        # Extract frequencies from the spectral window associated
+        # with this data descriptor id
+        ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
+        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
+        frequency = spw.CHAN_FREQ.data
 
         # (source, row, frequency)
         phase = phase_delay(lm, xds.UVW.data, frequency)
