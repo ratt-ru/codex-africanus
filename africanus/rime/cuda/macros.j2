@@ -22,18 +22,21 @@ The implementation is complex, but
 3. Uses a minimal number of registers
 
 #}
-{% macro warp_transpose(var_name, var_type, var_length, comps=1, tmp_name="tmp") %}
+{% macro warp_transpose(var_name, var_type, var_length, tmp_name="tmp") %}
 
 {%- if (var_length < 1 or (var_length.__and__(var_length - 1) != 0)) %}
 {{ throw("var_length must be 1 or a power of 2") }}
 {%- endif %}
+
+{%- set comps = var_type[-1]|int(-1) %}
+{%- set comps = 1 if comps == -1 else comps %}
 
 {%- if comps == 1 %}
 {%- set comp_ext = [""] %}
 {%- elif comps <= 4 %}
 {%- set comp_ext = [".x", ".y", ".z", ".w"][:comps] %}
 {%- else %}
-{{ throw("1 <= comps <= 4 must hold") }}
+{{ throw("1 <= components <= 4 must hold") }}
 {% endif %}
 
 {% if var_length > 1 %}
@@ -62,7 +65,9 @@ The implementation is complex, but
         {{tmp_name}} = {{var_name}}[{{cstart}}];
         {%- for dest, src in cycle %}
         {%- set src_var = tmp_name if cstart == src else var_name + "[" + src|string + "]" %}
-        {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} : {{var_name}}[{{dest}}];
+        {%- for ext in comp_ext %}
+        {{var_name}}[{{dest}}]{{ext}} = case_id == {{case}} ? {{src_var}}{{ext}} : {{var_name}}[{{dest}}]{{ext}};
+        {%- endfor %}
         {%- endfor %}
         {%- endfor %}
         {%- endfor %}
@@ -70,7 +75,9 @@ The implementation is complex, but
         // Horizontal (inter-thread) Rotation
         addr = ({{var_length}} - case_id) & {{var_length - 1}};
         {%- for case in range(var_length) %}
-        {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+        {%- for ext in comp_ext %}
+        {{var_name}}[{{case}}]{{ext}} = __shfl_sync(mask, {{var_name}}[{{case}}]{{ext}}, addr, {{var_length}});
+        {%- endfor %}
         {%- if not loop.last %}
         addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) & {{var_length - 1}}, {{var_length}});
         {%- endif %}

@@ -22,33 +22,10 @@ extern "C" __global__ void kernel(
         {%- endfor %}
     }
 
-    if({{debug}})
-    {
-        if(threadIdx.x == 0)
-            { printf("mask %d\\n", __activemask()); }
-
-        printf("[%d] %d %d %d %d\n",
-               threadIdx.x & {{warp_size - 1}},
-               values[0], values[1],
-               values[2], values[3]);
-
-        if(threadIdx.x == 0)
-            { printf("\n"); }
-    }
 
     {{ warp_transpose("values", type, corrs) }}
     {{ warp_transpose("values", type, corrs) }}
 
-    if({{debug}})
-    {
-        if(threadIdx.x == 0)
-            { printf("\n"); }
-
-        printf("[%d] %d %d %d %d\n",
-               threadIdx.x & {{warp_size - 1}},
-               values[0], values[1],
-               values[2], values[3]);
-    }
 
     if(v < nvis)
     {
