@@ -23,9 +23,11 @@ extern "C" __global__ void kernel(
     }
 
 
-    {{ warp_transpose("values", type, corrs) }}
-    {{ warp_transpose("values", type, corrs) }}
-
+    if(v < {{corrs}}*((nvis + {{corrs - 1}}) / {{corrs}}))
+    {
+        {{ warp_transpose("values", type, corrs) }}
+        {{ warp_transpose("values", type, corrs) }}
+    }
 
     if(v < nvis)
     {
