@@ -2,8 +2,6 @@
 
 {%- from "rime/cuda/macros.j2" import warp_transpose %}
 
-{%- set width = corrs %}
-
 extern "C" __global__ void kernel(
     const CArray<{{type}}, 2> input,
     CArray<{{type}}, 2> output)

@@ -1,0 +1,43 @@
+#include <cupy/carray.cuh>
+
+{%- from "rime/cuda/macros.j2" import warp_transpose %}
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{input_type}}, 2> inputs,
+    CArray<{{output_type}}, 2> outputs)
+{
+    const ptrdiff_t & nsrc = inputs.shape()[0];
+    int source = blockIdx.x*blockDim.x + threadIdx.x;
+
+    // Array to hold our variables
+    {{input_type}} in[{{elements}}];
+    {{output_type}} out[{{elements}}];
+
+    // Read in data
+    if(source < nsrc)
+    {
+        {%- for elem in range(elements) %}
+        in[{{elem}}] = inputs[{{elem}}*nsrc + source];
+        {%- endfor %}
+    }
+
+
+    // Guard such that we have enough threads to transpose elements
+    if(source < {{elements}}*((nsrc + {{elements - 1}}) / {{elements}}))
+    {
+        // Tranpose forward
+        {{ warp_transpose("in", input_type, elements) }}
+
+        // Transpose backward
+        {{ warp_transpose("out", output_type, elements) }}
+    }
+
+
+    // Write out data
+    if(source < nsrc)
+    {
+        {%- for elem in range(elements) %}
+        outputs[{{elem}}*nsrc + source] = out[{{elem}}];
+        {%- endfor %}
+    }
+}

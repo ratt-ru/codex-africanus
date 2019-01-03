@@ -24,12 +24,12 @@ The implementation is complex, but
 
 General usage pattern might be...
 
-    __global__ void kernel({{var_type}} * in, {{var_type}} * out, int N)
+    __global__ void kernel(float * in, float * out, int N)
     {
         int n = blockIdx.x*blockDim.x + threadIdx.x;
 
         // Allocate array for our data
-        {{var_type}} data[{{var_length}}];
+        float data[{{var_length}}];
 
         // Load if we're in bounds
         if(n < N)
@@ -42,7 +42,7 @@ General usage pattern might be...
         // n < N rounded up to the nearest var length
         if(n < {{var_length}}*((N + {{var_length - 1}}) / {{var_length}}))
         {
-            {{ warp_transpose("data", var_type, var_length) }}
+            {{ warp_transpose("data", "float", var_length) }}
         }
 
         // Do some processing on data
