@@ -28,6 +28,10 @@ extern "C" __global__ void {{kernel_name}}(
         // Tranpose forward
         {{ warp_transpose("in", input_type, elements) }}
 
+        {%- for expr in assign_exprs %}
+        {{expr}}
+        {%- endfor %}
+
         // Transpose backward
         {{ warp_transpose("out", output_type, elements) }}
     }

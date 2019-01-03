@@ -13,41 +13,73 @@ from africanus.stokes.stokes_conversion import (
                 STOKES_TYPE_MAP as smap)
 
 
-_stokes_corr_cases = [
-    ([['XX'], ['YY']], ['I', 'Q']),
-    (['XX', 'YY'], ['I', 'Q']),
-    (['XX', 'XY', 'YX', 'YY'], ['I', 'Q', 'U', 'V']),
-    ([['XX', 'XY'], ['YX', 'YY']], [['I', 'Q'], ['U', 'V']]),
-    (['I', 'Q', 'U', 'V'], ['XX', 'XY', 'YX', 'YY']),
-    ([['I', 'Q'], ['U', 'V']], [['XX', 'XY'], ['YX', 'YY']]),
-    ([['I', 'Q'], ['U', 'V']], [['XX', 'XY', 'YX', 'YY']]),
-    ([['I', 'Q'], ['U', 'V']], [['RR', 'RL', 'LR', 'LL']]),
-    (['I', 'V'], ['RR', 'LL']),
-    (['I', 'Q'], ['XX', 'YY']),
+stokes_corr_cases = [
+    ("complex", [['XX'], ['YY']],
+     "real", ['I', 'Q']),
+    ("complex", ['XX', 'YY'],
+     "real", ['I', 'Q']),
+    ("complex", ['XX', 'XY', 'YX', 'YY'],
+     "real", ['I', 'Q', 'U', 'V']),
+    ("complex", [['XX', 'XY'], ['YX', 'YY']],
+     "real", [['I', 'Q'], ['U', 'V']]),
+    ("real", ['I', 'Q', 'U', 'V'],
+     "complex", ['XX', 'XY', 'YX', 'YY']),
+    ("real", [['I', 'Q'], ['U', 'V']],
+     "complex", [['XX', 'XY'], ['YX', 'YY']]),
+    ("real", [['I', 'Q'], ['U', 'V']],
+     "complex", [['XX', 'XY', 'YX', 'YY']]),
+    ("real", [['I', 'Q'], ['U', 'V']],
+     "complex", [['RR', 'RL', 'LR', 'LL']]),
+    ("real", ['I', 'V'],
+     "complex", ['RR', 'LL']),
+    ("real", ['I', 'Q'],
+     "complex", ['XX', 'YY']),
 ]
 
-_stokes_corr_int_cases = [
-    ([[smap['XX'], smap['YY']], [smap['I'], smap['Q']]])
+stokes_corr_int_cases = [
+    ("complex", [smap['XX'], smap['YY']],
+     "real", [smap['I'], smap['Q']])
 ]
 
 
-@pytest.mark.parametrize("input_schema, output_schema",
-                         _stokes_corr_cases + _stokes_corr_int_cases)
+def visibility_factory(vis_shape, input_shape, in_type,
+                       backend="numpy", **kwargs):
+    shape = vis_shape + input_shape
+
+    if backend == "numpy":
+        vis = np.arange(1.0, np.product(shape) + 1.0)
+        vis = vis.reshape(shape)
+    elif backend == "dask":
+        da = pytest.importorskip('dask.array')
+        vis = da.arange(1.0, np.product(shape) + 1.0, chunks=np.product(shape))
+        vis = vis.reshape(shape)
+        vis = vis.rechunk(kwargs['vis_chunks'] + input_shape)
+    else:
+        raise ValueError("Invalid backend %s" % backend)
+
+    if in_type == "real":
+        pass
+    elif in_type == "complex":
+        vis = vis + 1j*vis
+    else:
+        raise ValueError("Invalid in_type %s" % in_type)
+
+    return vis
+
+
+@pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
+                         stokes_corr_cases + stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_shape", [
     (10, 5, 3),
     (6, 8),
     (15,),
 ])
-def test_stokes_schemas(input_schema, output_schema, vis_shape):
+def test_stokes_schemas(in_type, input_schema,
+                        out_type, output_schema,
+                        vis_shape):
     input_shape = np.asarray(input_schema).shape
     output_shape = np.asarray(output_schema).shape
-
-    shape = vis_shape + input_shape
-
-    vis = np.arange(1.0, np.product(shape) + 1.0)
-    vis = vis.reshape(shape)
-    vis = vis + vis*1j
-
+    vis = visibility_factory(vis_shape, input_shape, in_type)
     xformed_vis = np_stokes_convert(vis, input_schema, output_schema)
     assert xformed_vis.shape == vis_shape + output_shape
 
@@ -114,26 +146,22 @@ def test_stokes_conversion():
     assert np.all(stokes == [[I, Q, U, V]])
 
 
-@pytest.mark.parametrize("input_schema, output_schema",
-                         _stokes_corr_cases + _stokes_corr_int_cases)
-@pytest.mark.parametrize("vis_shape, vis_chunks", [
-    ((10, 5, 3), (5, (2, 3), 3)),
-    ((6, 8), (3, 4)),
-    ((15,), (5, 5, 5)),
+@pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
+                         stokes_corr_cases + stokes_corr_int_cases)
+@pytest.mark.parametrize("vis_chunks", [
+    ((10, 5, 3), (2, 3), (3,)),
+    ((6, 8), (3, 3), (4, 4)),
+    ((5, 5, 5),),
 ])
-def test_dask_stokes_conversion(input_schema, output_schema,
-                                vis_shape, vis_chunks):
-    da = pytest.importorskip('dask.array')
-
+def test_dask_stokes_conversion(in_type, input_schema,
+                                out_type, output_schema,
+                                vis_chunks):
     from africanus.stokes.dask import stokes_convert as da_stokes_convert
 
+    vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape
-    shape = vis_shape + input_shape
-
-    vis = da.arange(1.0, np.product(shape) + 1.0, chunks=np.product(shape))
-    vis = vis.reshape(shape)
-    vis = vis.rechunk(vis_chunks + input_shape)
-    vis = vis + vis*1j
+    vis = visibility_factory(vis_shape, input_shape, in_type,
+                             backend="dask", vis_chunks=vis_chunks)
 
     da_vis = da_stokes_convert(vis, input_schema, output_schema)
     np_vis = np_stokes_convert(vis.compute(), input_schema, output_schema)

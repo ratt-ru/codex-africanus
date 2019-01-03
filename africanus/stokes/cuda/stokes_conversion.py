@@ -30,27 +30,27 @@ else:
 log = logging.getLogger(__name__)
 
 stokes_conv = {
-    'RR': {('I', 'V'): ("complex", "make_{{out_type}}2({{i}} + {{v}}, 0)")},
-    'RL': {('Q', 'U'): ("complex", "make_{{out_type}}2({{q}}, {{u}})")},
-    'LR': {('Q', 'U'): ("complex", "make_{{out_type}}2({{q}}, -{{u}})")},
-    'LL': {('I', 'V'): ("complex", "make_{{out_type}}2*{{i}} - {{v}})")},
+    'RR': {('I', 'V'): ("complex", "make_{{out_type}}({{I}} + {{V}}, 0)")},
+    'RL': {('Q', 'U'): ("complex", "make_{{out_type}}({{Q}}, {{U}})")},
+    'LR': {('Q', 'U'): ("complex", "make_{{out_type}}({{Q}}, -{{U}})")},
+    'LL': {('I', 'V'): ("complex", "make_{{out_type}}({{I}} - {{V}}, 0)")},
 
-    'XX': {('I', 'Q'): ("complex", "make_{{out_type}}2({{i}} + {{q}}, 0)")},
-    'XY': {('U', 'V'): ("complex", "make_{{out_type}}2({{u}}, {{v}})")},
-    'YX': {('U', 'V'): ("complex", "make_{{out_type}}2({{u}}, -{{v}})")},
-    'YY': {('I', 'Q'): ("complex", "make_{{out_type}}2({{i}} - {{q}}, 0)")},
+    'XX': {('I', 'Q'): ("complex", "make_{{out_type}}({{I}} + {{Q}}, 0)")},
+    'XY': {('U', 'V'): ("complex", "make_{{out_type}}({{U}}, {{V}})")},
+    'YX': {('U', 'V'): ("complex", "make_{{out_type}}({{U}}, -{{V}})")},
+    'YY': {('I', 'Q'): ("complex", "make_{{out_type}}({{I}} - {{Q}}, 0)")},
 
-    'I': {('XX', 'YY'): ("real", "({{xx}}.x + {{yy}}.x) / 2"),
-          ('RR', 'LL'): ("real", "({{rr}}.x + {{ll}}.x) / 2")},
+    'I': {('XX', 'YY'): ("real", "(({{XX}}.x + {{YY}}.x) / 2)"),
+          ('RR', 'LL'): ("real", "(({{RR}}.x + {{LL}}.x) / 2)")},
 
-    'Q': {('XX', 'YY'): ("real", "({{xx}}.x - {{yy}}.x) / 2"),
-          ('RL', 'LR'): ("real", "({{rl}}.x + {{lr}}.x) / 2")},
+    'Q': {('XX', 'YY'): ("real", "(({{XX}}.x - {{YY}}.x) / 2)"),
+          ('RL', 'LR'): ("real", "(({{RL}}.x + {{LR}}.x) / 2)")},
 
-    'U': {('XY', 'YX'): ("real", "({{xy}}.x + {{yx}}.x) / 2"),
-          ('RL', 'LR'): ("real", "({{rl}}.y - {{lr}}.y) / 2")},
+    'U': {('XY', 'YX'): ("real", "(({{XY}}.x + {{YX}}.x) / 2)"),
+          ('RL', 'LR'): ("real", "(({{RL}}.y - {{LR}}.y) / 2)")},
 
-    'V': {('XY', 'YX'): ("real", "({{xy}}.y - {{yx}}.y) / 2"),
-          ('RR', 'LL'): ("real", "({{rr}}.x - {{ll}}.x) / 2}")},
+    'V': {('XY', 'YX'): ("real", "(({{XY}}.y - {{YX}}.y) / 2)"),
+          ('RR', 'LL'): ("real", "(({{RR}}.x - {{LL}}.x) / 2)")},
 }
 
 
@@ -89,7 +89,8 @@ def stokes_convert_setup(input, input_schema, output_schema):
 
             found_conv = True
             dtypes.append(dtype)
-            mapping.append((c1_idx, c2_idx, out_idx, fn))
+
+            mapping.append(((c1, c1_idx), (c2, c2_idx), out_idx, fn))
             break
 
         # We must find a conversion
@@ -131,7 +132,8 @@ def _generate_kernel(inputs, input_schema, output_schema):
                                                 input_schema,
                                                 output_schema)
 
-    # Check that number of input and output elements are the same
+    # Flatten input and output shapes
+    # Check that number elements are the same
     in_elems = reduce(mul, in_shape, 1)
     out_elems = reduce(mul, out_shape, 1)
 
@@ -154,11 +156,30 @@ def _generate_kernel(inputs, input_schema, output_schema):
             out_dtype = np.result_type(inputs.dtype, np.complex64)
     else:
         raise ValueError("Invalid setup dtype %s" % out_dtype)
+
+    cuda_out_dtype = cuda_type(out_dtype)
+
+    exprs = []
+
+    for (c1, c1i), (c2, c2i), outi, template_fn in mapping:
+        # Flattened indices
+        c1i = np.ravel_multi_index(c1i, in_shape)
+        c2i = np.ravel_multi_index(c2i, in_shape)
+        outi = np.ravel_multi_index(outi, out_shape)
+        render = jinja_env.instance().from_string(template_fn).render
+        kwargs = {c1: "in[%d]" % c1i,
+                  c2: "in[%d]" % c2i,
+                  "out_type": cuda_out_dtype}
+
+        exprs.append("out[%d] = %s;" % (outi, render(**kwargs)))
+        print(exprs[-1])
+
     render = jinja_env.instance().get_template(_TEMPLATE_PATH).render
     name = "stokes_convert"
     code = render(kernel_name=name,
                   input_type=cuda_type(inputs.dtype),
                   output_type=cuda_type(out_dtype),
+                  assign_exprs=exprs,
                   elements=in_elems).encode("utf-8")
 
     # cuda block, flatten non-schema dims into a single source dim
@@ -187,8 +208,6 @@ def stokes_convert(inputs, input_schema, output_schema):
     grid = grids((nsrc, 1, 1), block)
 
     outputs = cp.empty(shape=rinputs.shape, dtype=dtype)
-
-    print(format_code(kernel.code))
 
     try:
         kernel(grid, block, (rinputs, outputs))
