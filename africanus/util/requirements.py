@@ -5,8 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import importlib
-import logging
-import sys
 
 from decorator import decorate
 
@@ -14,13 +12,14 @@ from africanus.compatibility import string_types
 from africanus.util.docs import on_rtd
 from africanus.util.testing import in_pytest, force_missing_pkg_exception
 
-log = logging.getLogger(__name__)
+
+def _missing_packages(fn, *packages):
+    return ("%s requires installation of "
+            "the following packages: %s" % (fn, packages))
 
 
 class MissingPackageException(Exception):
-    def __init__(self, *packages):
-        super(MissingPackageException, self).__init__(
-            "The following packages must be installed: %s" % (packages,))
+    pass
 
 
 def requires_optional(*requirements):
@@ -136,12 +135,12 @@ def requires_optional(*requirements):
                                       "test case, but pytest cannot "
                                       "be imported! %s" % str(e))
                 else:
-                    pytest.skip("Missing requirements %s" %
-                                missing_requirements)
-
+                    msg = _missing_packages(fn.__name__, *missing_requirements)
+                    pytest.skip(msg)
             # Raise the exception
             else:
-                raise MissingPackageException(*missing_requirements)
+                msg = _missing_packages(fn.__name__, *missing_requirements)
+                raise MissingPackageException(msg)
 
         return decorate(fn, _wrapper)
 
