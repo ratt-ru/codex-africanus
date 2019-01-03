@@ -13,6 +13,7 @@ from africanus.stokes.stokes_conversion import (
 from africanus.stokes.cuda.stokes_conversion import stokes_convert
 from africanus.stokes.tests.test_stokes import (stokes_corr_cases,
                                                 stokes_corr_int_cases,
+                                                vis_shape,
                                                 visibility_factory)
 
 
@@ -30,11 +31,7 @@ def test_stokes_schemas(in_type, input_schema,
 
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
                          stokes_corr_cases)
-@pytest.mark.parametrize("vis_shape", [
-    (10, 5, 3),
-    (6, 8),
-    (15,),
-])
+@pytest.mark.parametrize("vis_shape", vis_shape)
 def test_cuda_stokes_convert(in_type, input_schema,
                              out_type, output_schema,
                              vis_shape):

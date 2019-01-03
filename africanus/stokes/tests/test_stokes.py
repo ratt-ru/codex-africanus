@@ -42,6 +42,17 @@ stokes_corr_int_cases = [
 ]
 
 
+vis_chunks = [
+    ((10, 5, 3), (2, 3), (3,)),
+    ((6, 8), (3, 3), (4, 4)),
+    ((5, 5, 5),),
+]
+
+
+vis_shape = [tuple(sum(dim_chunks) for dim_chunks in case)
+             for case in vis_chunks]
+
+
 def visibility_factory(vis_shape, input_shape, in_type,
                        backend="numpy", **kwargs):
     shape = vis_shape + input_shape
@@ -69,11 +80,7 @@ def visibility_factory(vis_shape, input_shape, in_type,
 
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
                          stokes_corr_cases + stokes_corr_int_cases)
-@pytest.mark.parametrize("vis_shape", [
-    (10, 5, 3),
-    (6, 8),
-    (15,),
-])
+@pytest.mark.parametrize("vis_shape", vis_shape)
 def test_stokes_schemas(in_type, input_schema,
                         out_type, output_schema,
                         vis_shape):
@@ -148,17 +155,12 @@ def test_stokes_conversion():
 
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
                          stokes_corr_cases + stokes_corr_int_cases)
-@pytest.mark.parametrize("vis_chunks", [
-    ((10, 5, 3), (2, 3), (3,)),
-    ((6, 8), (3, 3), (4, 4)),
-    ((5, 5, 5),),
-])
+@pytest.mark.parametrize("vis_chunks", vis_chunks)
 def test_dask_stokes_conversion(in_type, input_schema,
                                 out_type, output_schema,
                                 vis_chunks):
     from africanus.stokes.dask import stokes_convert as da_stokes_convert
 
-    vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type,
                              backend="dask", vis_chunks=vis_chunks)
