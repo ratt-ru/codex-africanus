@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* cupy implemention of `stokes_convert` kernel (:pr:`65`)
 * requires_optional accepts ImportError's for a
   better debugging experience (:pr:`62`)
 * Added `fit_component_spi` function (:pr:`61`)
