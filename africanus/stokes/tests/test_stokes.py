@@ -161,6 +161,7 @@ def test_dask_stokes_conversion(in_type, input_schema,
                                 vis_chunks):
     from africanus.stokes.dask import stokes_convert as da_stokes_convert
 
+    vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type,
                              backend="dask", vis_chunks=vis_chunks)
