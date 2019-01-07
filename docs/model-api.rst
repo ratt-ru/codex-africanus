@@ -1,8 +1,52 @@
-Model
-------------------------
+---------
+Sky Model
+---------
 
-Functions used to compute sky model
-attributes. For example, we may want
+Functionality related to the Sky Model.
+
+Coherency Conversion
+--------------------
+
+Utilities for converting back and forth between
+stokes parameters and correlations
+
+Numpy
+~~~~~
+
+.. currentmodule:: africanus.model.coherency
+
+.. autosummary::
+    convert
+
+.. autofunction:: convert
+
+Cuda
+~~~~
+
+.. currentmodule:: africanus.model.coherency.cuda
+
+.. autosummary::
+    convert
+
+.. autofunction:: convert
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.model.coherency.dask
+
+.. autosummary::
+    convert
+
+.. autofunction:: convert
+
+
+Spectral Index
+--------------
+
+Functionality related to the spectral index.
+
+For example, we may want
 to compute the spectral indices of
 components in a sky model defined by
 
@@ -46,3 +90,4 @@ Dask
     fit_spi_components
 
 .. autofunction:: fit_spi_components
+

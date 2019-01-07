@@ -80,7 +80,7 @@ PHASE_DELAY_DOCS = DocstringTemplate(
 
     Returns
     -------
-    $(array_type)
+    comples_phase : $(array_type)
         complex of shape :code:`(source, row, chan)`
     """)
 

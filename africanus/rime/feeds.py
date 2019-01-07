@@ -53,23 +53,23 @@ def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
 
 
 def feed_rotation(parallactic_angles, feed_type='linear'):
-    """
+    r"""
     Computes the 2x2 feed rotation (L) matrix
     from the ``parallactic_angles``.
 
     .. math::
 
-        \\textrm{linear}
-        \\begin{bmatrix}
-        cos(pa) & sin(pa) \\\\
+        \textrm{linear}
+        \begin{bmatrix}
+        cos(pa) & sin(pa) \\
         -sin(pa) & cos(pa)
-        \\end{bmatrix}
-        \\qquad
-        \\textrm{circular}
-        \\begin{bmatrix}
-        e^{-i pa} & 0 \\\\
+        \end{bmatrix}
+        \qquad
+        \textrm{circular}
+        \begin{bmatrix}
+        e^{-i pa} & 0 \\
         0 & e^{i pa}
-        \\end{bmatrix}
+        \end{bmatrix}
 
     Parameters
     ----------
@@ -81,7 +81,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    feed_matrix : :class:`numpy.ndarray`
         Feed rotation matrix of shape :code:`(pa0, pa1,...,pan,2,2)`
     """
     if feed_type == 'linear':

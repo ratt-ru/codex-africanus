@@ -5,10 +5,12 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+from os.path import join as pjoin
 
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
+from africanus.util.jinja2 import jinja_env
 from africanus.rime.phase import PHASE_DELAY_DOCS
 from africanus.util.code import memoize_on_key, format_code
 from africanus.util.cuda import cuda_function, grids
@@ -21,84 +23,14 @@ try:
 except ImportError:
     pass
 
-try:
-    from jinja2 import Template
-except ImportError:
-    pass
-
 log = logging.getLogger(__name__)
-
-_PHASE_DELAY_TEMPLATE = """
-// #include <cupy/complex.cuh>
-#include <cupy/carray.cuh>
-// #include <cupy/atomics.cuh>
-
-#define blockdimx {{blockdimx}}
-#define blockdimy {{blockdimy}}
-
-#define minus_two_pi_over_c {{minus_two_pi_over_c}}
-
-extern "C" __global__ void {{kernel_name}}(
-    const CArray<{{lm_type}}, 2> lm,
-    const CArray<{{uvw_type}}, 2> uvw,
-    const CArray<{{freq_type}}, 1> frequency,
-    CArray<{{out_type}}2, 3> complex_phase)
-{
-    int row = blockIdx.y*blockDim.y + threadIdx.y;
-    int chan = blockIdx.x*blockDim.x + threadIdx.x;
-
-    // Return if outside the grid
-    if(row >= uvw.shape()[0] || chan >= frequency.shape()[0])
-        { return; }
-
-    // Reinterpret inputs as vector types
-    const {{lm_type}}2 * lm_ptr = reinterpret_cast<const {{lm_type}}2 *>(
-                                    &lm[0]);
-    const {{uvw_type}}3 * uvw_ptr = reinterpret_cast<const {{uvw_type}}3 *>(
-                                    &uvw[0]);
-    {{out_type}}2 * complex_phase_ptr = reinterpret_cast<{{out_type}}2 *>(
-                                    &complex_phase[0]);
-
-    __shared__ struct {
-        {{uvw_type}}3 uvw[blockdimy];
-        {{freq_type}} frequency[blockdimx];
-    } shared;
-
-    // UVW coordinates vary along y dimension only
-    if(threadIdx.x == 0)
-        { shared.uvw[threadIdx.y] = uvw_ptr[row]; }
-
-    // Frequencies vary along x dimension only
-    if(threadIdx.y == 0)
-        { shared.frequency[threadIdx.x] = frequency[chan]; }
-
-    __syncthreads();
-
-    for(int source = 0; source < lm.shape()[0]; ++source)
-    {
-        {{lm_type}}2 rlm = lm_ptr[source];
-        {{lm_type}} n = {{sqrt_fn}}(1.0 - rlm.x*rlm.x - rlm.y*rlm.y) - 1.0;
-        {{out_type}} real_phase = rlm.x*shared.uvw[threadIdx.y].x +
-                                 rlm.y*shared.uvw[threadIdx.y].y +
-                                 n*shared.uvw[threadIdx.y].z;
-
-        real_phase = minus_two_pi_over_c *
-                     real_phase *
-                     shared.frequency[threadIdx.x];
-
-        {{out_type}}2 cplx_phase;
-        {{sincos_fn}}(real_phase, &cplx_phase.y, &cplx_phase.x);
-
-
-        ptrdiff_t idx [] = {source, row, chan};
-        complex_phase[idx] = cplx_phase;
-    }
-}
-"""
 
 
 def _key_fn(lm, uvw, frequency):
     return (lm.dtype, uvw.dtype, frequency.dtype)
+
+
+_TEMPLATE_PATH = pjoin("rime", "cuda", "phase.cu.j2")
 
 
 @memoize_on_key(_key_fn)
@@ -112,7 +44,7 @@ def _generate_kernel(lm, uvw, frequency):
     block = (blockdimx, blockdimy, 1)
 
     # Create template
-    render = Template(_PHASE_DELAY_TEMPLATE).render
+    render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "phase_delay"
 
     code = render(kernel_name=name,
@@ -131,7 +63,7 @@ def _generate_kernel(lm, uvw, frequency):
     return cp.RawKernel(code, name), block, out_dtype
 
 
-@requires_optional("cupy", "jinja2")
+@requires_optional("cupy")
 def phase_delay(lm, uvw, frequency):
     kernel, block, out_dtype = _generate_kernel(lm, uvw, frequency)
     grid = grids((frequency.shape[0], uvw.shape[0], 1), block)

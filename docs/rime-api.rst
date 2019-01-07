@@ -1,5 +1,6 @@
 .. _rime-api-anchor:
 
+-----------------------------------------
 Radio Interferometer Measurement Equation
 -----------------------------------------
 

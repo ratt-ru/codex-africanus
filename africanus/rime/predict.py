@@ -510,7 +510,7 @@ die2_jones : $(array_type), optional
 
 Returns
 -------
-$(array_type)
+visibilities : $(array_type)
     Model visibilities of shape :code:`(row,chan,corr_1,corr_2)`
 """)
 

@@ -12,28 +12,16 @@ import numpy as np
 try:
     import dask
     import dask.array as da
-except ImportError as e:
-    da_import_error = e
-else:
-    da_import_error = None
-
-try:
     import xarray as xr
-except ImportError as e:
-    xr_import_error = e
-else:
-    xr_import_error = None
-
-try:
     from xarrayms import xds_from_ms, xds_from_table, xds_to_table
 except ImportError as e:
-    xms_import_error = e
+    opt_import_error = e
 else:
-    xms_import_error = None
+    opt_import_error = None
 
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import phase_delay, predict_vis
-from africanus.stokes.dask import stokes_convert
+from africanus.model.coherency.dask import convert
 from africanus.util.requirements import requires_optional
 
 
@@ -44,8 +32,7 @@ def create_parser():
     return p
 
 
-@requires_optional("dask.array", "xarray", "xarrayms",
-                   da_import_error, xr_import_error, xms_import_error)
+@requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
 def predict(args):
     # Numpy arrays
     radec = np.array([[1.0, 1.2]]*10)
@@ -80,8 +67,8 @@ def predict(args):
         # (source, row, frequency)
         phase = phase_delay(lm, xds.UVW.data, frequency)
         # (source, corr1, corr2)
-        brightness = stokes_convert(stokes, ["I", "Q", "U", "V"],
-                                    [["XX", "XY"], ["YX", "YY"]])
+        brightness = convert(stokes, ["I", "Q", "U", "V"],
+                                     [["XX", "XY"], ["YX", "YY"]])
 
         # (source, row, frequency, corr1, corr2)
         jones = da.einsum("srf, sij -> srfij", phase, brightness)
