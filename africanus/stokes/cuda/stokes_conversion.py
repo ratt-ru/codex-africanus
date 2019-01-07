@@ -158,28 +158,27 @@ def _generate_kernel(inputs, input_schema, output_schema):
         raise ValueError("Invalid setup dtype %s" % out_dtype)
 
     cuda_out_dtype = cuda_type(out_dtype)
+    assign_exprs = []
 
-    exprs = []
-
+    # Render the assignment expression for each element
     for (c1, c1i), (c2, c2i), outi, template_fn in mapping:
         # Flattened indices
-        c1i = np.ravel_multi_index(c1i, in_shape)
-        c2i = np.ravel_multi_index(c2i, in_shape)
-        outi = np.ravel_multi_index(outi, out_shape)
+        flat_outi = np.ravel_multi_index(outi, out_shape)
         render = jinja_env.instance().from_string(template_fn).render
-        kwargs = {c1: "in[%d]" % c1i,
-                  c2: "in[%d]" % c2i,
+        kwargs = {c1: "in[%d]" % np.ravel_multi_index(c1i, in_shape),
+                  c2: "in[%d]" % np.ravel_multi_index(c2i, in_shape),
                   "out_type": cuda_out_dtype}
 
-        exprs.append("out[%d] = %s;" % (outi, render(**kwargs)))
-        print(exprs[-1])
+        expr_str = render(**kwargs)
+        assign_exprs.append("out[%d] = %s;" % (flat_outi, expr_str))
 
+    # Now render the main template
     render = jinja_env.instance().get_template(_TEMPLATE_PATH).render
     name = "stokes_convert"
     code = render(kernel_name=name,
                   input_type=cuda_type(inputs.dtype),
                   output_type=cuda_type(out_dtype),
-                  assign_exprs=exprs,
+                  assign_exprs=assign_exprs,
                   elements=in_elems).encode("utf-8")
 
     # cuda block, flatten non-schema dims into a single source dim
@@ -204,7 +203,6 @@ def stokes_convert(inputs, input_schema, output_schema):
 
     rinputs = inputs.reshape(nsrc, nelems)
     assert rinputs.flags.c_contiguous
-    nsrc = rinputs.shape[0]
     grid = grids((nsrc, 1, 1), block)
 
     outputs = cp.empty(shape=rinputs.shape, dtype=dtype)
@@ -212,13 +210,10 @@ def stokes_convert(inputs, input_schema, output_schema):
     try:
         kernel(grid, block, (rinputs, outputs))
     except CompileException:
-        print(format_code(kernel.code))
         log.exception(format_code(kernel.code))
         raise
-    # else:
-    #     print(format_code(kernel.code))
 
     shape = inputs.shape[:-len(in_shape)] + out_shape
     outputs = outputs.reshape(shape)
     assert outputs.flags.c_contiguous
-    return outputs.reshape(shape)
+    return outputs
