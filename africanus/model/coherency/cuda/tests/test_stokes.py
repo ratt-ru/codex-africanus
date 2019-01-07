@@ -7,12 +7,12 @@ from __future__ import print_function
 import numpy as np
 import pytest
 
-from africanus.model.stokes import stokes_convert as np_stokes_convert
-from africanus.model.stokes.cuda import stokes_convert as stokes_convert
-from africanus.model.stokes.tests.test_stokes import (stokes_corr_cases,
-                                                      stokes_corr_int_cases,
-                                                      visibility_factory,
-                                                      vis_shape)
+from africanus.model.coherency import stokes_convert as np_stokes_convert
+from africanus.model.coherency.cuda import stokes_convert as stokes_convert
+from africanus.model.coherency.tests.test_stokes import (stokes_corr_cases,
+                                                         stokes_corr_int_cases,
+                                                         visibility_factory,
+                                                         vis_shape)
 
 
 @pytest.mark.skip

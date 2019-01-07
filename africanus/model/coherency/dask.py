@@ -8,9 +8,9 @@ from functools import wraps
 
 from africanus.compatibility import range
 
-from .stokes_conversion import (stokes_convert_setup, stokes_convert_impl,
-                                stokes_convert as np_stokes_convert,
-                                STOKES_DOCS)
+from .conversion import (stokes_convert_setup, stokes_convert_impl,
+                         stokes_convert as np_stokes_convert,
+                         STOKES_DOCS)
 
 from africanus.util.requirements import requires_optional
 

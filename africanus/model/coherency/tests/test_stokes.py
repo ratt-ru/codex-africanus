@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-from africanus.model.stokes.stokes_conversion import (
+from africanus.model.coherency.conversion import (
     stokes_convert as np_stokes_convert,
     STOKES_TYPE_MAP as smap)
 
@@ -156,7 +156,7 @@ def test_stokes_conversion():
 def test_dask_stokes_conversion(in_type, input_schema,
                                 out_type, output_schema,
                                 vis_chunks):
-    from africanus.model.stokes.dask import stokes_convert as da_stokes_convert
+    from africanus.model.coherency.dask import stokes_convert as da_stokes_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape

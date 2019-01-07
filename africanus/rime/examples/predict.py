@@ -33,7 +33,7 @@ else:
 
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import phase_delay, predict_vis
-from africanus.model.stokes.dask import stokes_convert
+from africanus.model.coherency.dask import stokes_convert
 from africanus.util.requirements import requires_optional
 
 

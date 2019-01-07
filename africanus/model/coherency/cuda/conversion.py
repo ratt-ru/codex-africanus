@@ -11,7 +11,7 @@ from os.path import join as pjoin
 import numpy as np
 
 from africanus.compatibility import reduce
-from africanus.model.stokes.stokes_conversion import (
+from africanus.model.coherency.conversion import (
                                     _element_indices_and_shape,
                                     MissingConversionInputs)
 from africanus.util.code import memoize_on_key, format_code
@@ -123,7 +123,7 @@ def _key_fn(inputs, input_schema, output_schema):
             schema_to_tuple(output_schema))
 
 
-_TEMPLATE_PATH = pjoin("model", "stokes", "cuda", "stokes_conversion.cu.j2")
+_TEMPLATE_PATH = pjoin("model", "coherency", "cuda", "conversion.cu.j2")
 
 
 @memoize_on_key(_key_fn)
