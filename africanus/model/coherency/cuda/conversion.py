@@ -165,7 +165,7 @@ def _generate_kernel(inputs, input_schema, output_schema):
     for (c1, c1i), (c2, c2i), outi, template_fn in mapping:
         # Flattened indices
         flat_outi = np.ravel_multi_index(outi, out_shape)
-        render = jinja_env.instance().from_string(template_fn).render
+        render = jinja_env.from_string(template_fn).render
         kwargs = {c1: "in[%d]" % np.ravel_multi_index(c1i, in_shape),
                   c2: "in[%d]" % np.ravel_multi_index(c2i, in_shape),
                   "out_type": cuda_out_dtype}
@@ -174,7 +174,7 @@ def _generate_kernel(inputs, input_schema, output_schema):
         assign_exprs.append("out[%d] = %s;" % (flat_outi, expr_str))
 
     # Now render the main template
-    render = jinja_env.instance().get_template(_TEMPLATE_PATH).render
+    render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "stokes_convert"
     code = render(kernel_name=name,
                   input_type=cuda_type(inputs.dtype),

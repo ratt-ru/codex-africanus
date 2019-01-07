@@ -23,7 +23,7 @@ def test_cuda_inplace_warp_transpose(ncorrs, dtype, nvis, debug):
     cp = pytest.importorskip('cupy')
 
     path = pjoin("rime", "cuda", "tests", "test_warp_transpose.cu.j2")
-    render = jinja_env.instance().get_template(path).render
+    render = jinja_env.get_template(path).render
 
     dtypes = {
         np.float32: 'float',

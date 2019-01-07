@@ -44,7 +44,7 @@ def _generate_kernel(lm, uvw, frequency):
     block = (blockdimx, blockdimy, 1)
 
     # Create template
-    render = jinja_env.instance().get_template(_TEMPLATE_PATH).render
+    render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "phase_delay"
 
     code = render(kernel_name=name,
