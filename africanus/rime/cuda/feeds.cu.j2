@@ -1,0 +1,11 @@
+#include <cupy/carray.cuh>
+
+#define blockdimx {{blockdimx}}
+
+#define minus_two_pi_over_c {{minus_two_pi_over_c}}
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{pa_type}}, 2> parangles,
+    CArray<{{out_type}}2, 2> feed_rotation)
+{
+}
