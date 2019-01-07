@@ -9,10 +9,10 @@ import pytest
 
 from africanus.model.coherency import convert as np_convert
 from africanus.model.coherency.cuda import convert
-from africanus.model.coherency.tests.test_stokes import (stokes_corr_cases,
-                                                         stokes_corr_int_cases,
-                                                         visibility_factory,
-                                                         vis_shape)
+from africanus.model.coherency.tests.test_convert import (stokes_corr_cases,
+                                                          stokes_corr_int_cases,
+                                                          visibility_factory,
+                                                          vis_shape)
 
 
 @pytest.mark.skip

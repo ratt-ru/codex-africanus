@@ -154,8 +154,8 @@ def test_conversion():
                          stokes_corr_cases + stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_chunks", vis_chunks)
 def test_dask_conversion(in_type, input_schema,
-                                out_type, output_schema,
-                                vis_chunks):
+                         out_type, output_schema,
+                         vis_chunks):
     from africanus.model.coherency.dask import convert as da_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
