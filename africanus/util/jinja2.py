@@ -105,7 +105,7 @@ class FakeEnvironment(object):
         raise NotImplementedError()
 
 
-def _create_jinja2_env():
+def _jinja2_env_factory():
     try:
         from jinja2 import Environment, PackageLoader, select_autoescape
     except ImportError:
@@ -124,5 +124,7 @@ def _create_jinja2_env():
     env.globals['register_assign_cycles'] = register_assign_cycles
     env.globals['throw'] = throw_helper
 
+    return env
 
-jinja_env = _create_jinja2_env()
+
+jinja_env = _jinja2_env_factory()
