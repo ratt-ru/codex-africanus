@@ -6,13 +6,13 @@ from __future__ import print_function
 
 from functools import wraps
 
-from ..compatibility import range
+from africanus.compatibility import range
 
 from .stokes_conversion import (stokes_convert_setup, stokes_convert_impl,
                                 stokes_convert as np_stokes_convert,
                                 STOKES_DOCS)
 
-from ..util.requirements import requires_optional
+from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da

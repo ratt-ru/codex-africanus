@@ -4,14 +4,11 @@
 """Tests for `codex-africanus` package."""
 
 import numpy as np
-
 import pytest
 
-
-from africanus.stokes.stokes_conversion import (
-                stokes_convert as np_stokes_convert,
-                STOKES_TYPE_MAP as smap)
-
+from africanus.model.stokes.stokes_conversion import (
+    stokes_convert as np_stokes_convert,
+    STOKES_TYPE_MAP as smap)
 
 stokes_corr_cases = [
     ("complex", [['XX'], ['YY']],
@@ -159,7 +156,7 @@ def test_stokes_conversion():
 def test_dask_stokes_conversion(in_type, input_schema,
                                 out_type, output_schema,
                                 vis_chunks):
-    from africanus.stokes.dask import stokes_convert as da_stokes_convert
+    from africanus.model.stokes.dask import stokes_convert as da_stokes_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape

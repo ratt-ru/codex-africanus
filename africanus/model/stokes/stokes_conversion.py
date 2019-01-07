@@ -10,8 +10,8 @@ from textwrap import fill
 
 import numpy as np
 
-from ..compatibility import string_types
-from ..util.docs import DocstringTemplate
+from africanus.compatibility import string_types
+from africanus.util.docs import DocstringTemplate
 
 STOKES_TYPES = [
     "Undefined",

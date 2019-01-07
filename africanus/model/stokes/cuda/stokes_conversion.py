@@ -5,16 +5,17 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from os.path import join as pjoin
 from operator import mul
+from os.path import join as pjoin
 
 import numpy as np
 
 from africanus.compatibility import reduce
-from africanus.stokes.stokes_conversion import (_element_indices_and_shape,
-                                                MissingConversionInputs)
-from africanus.util.cuda import cuda_function, cuda_type, grids
+from africanus.model.stokes.stokes_conversion import (
+                                    _element_indices_and_shape,
+                                    MissingConversionInputs)
 from africanus.util.code import memoize_on_key, format_code
+from africanus.util.cuda import cuda_function, cuda_type, grids
 from africanus.util.jinja2 import jinja_env
 from africanus.util.requirements import requires_optional
 
@@ -122,7 +123,7 @@ def _key_fn(inputs, input_schema, output_schema):
             schema_to_tuple(output_schema))
 
 
-_TEMPLATE_PATH = pjoin("stokes", "cuda", "stokes_conversion.cu.j2")
+_TEMPLATE_PATH = pjoin("model", "stokes", "cuda", "stokes_conversion.cu.j2")
 
 
 @memoize_on_key(_key_fn)
