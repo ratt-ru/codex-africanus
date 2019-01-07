@@ -12,7 +12,7 @@ from africanus.rime.cuda.phase import phase_delay as cp_phase_delay
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_cupy_phase_delay(dtype):
+def test_cuda_phase_delay(dtype):
     cp = pytest.importorskip('cupy')
 
     lm = 0.01*np.random.random((10, 2)).astype(dtype)
