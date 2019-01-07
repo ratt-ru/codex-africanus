@@ -55,7 +55,7 @@ def _generate_kernel(parallactic_angles):
 
     # Complex output type
     out_dtype = np.result_type(parallactic_angles.dtype, np.complex64)
-    return cp.RawKernel(code, name), block, code, out_dtype
+    return cp.RawKernel(code, name), block, out_dtype
 
 
 @requires_optional("cupy", opt_import_error)
@@ -65,7 +65,7 @@ def feed_rotation(parallactic_angles):
 
     TODO(sjperkins). Fill in the documentation with the numba doc template
     """
-    kernel, block, code, out_dtype = _generate_kernel(parallactic_angles)
+    kernel, block, out_dtype = _generate_kernel(parallactic_angles)
     in_shape = parallactic_angles.shape
     parallactic_angles = parallactic_angles.ravel()
     grid = grids((parallactic_angles.shape[0], 1, 1), block)
@@ -73,9 +73,9 @@ def feed_rotation(parallactic_angles):
                    dtype=out_dtype)
 
     try:
-        kernel(grid, block, (parallactic_angles,))
+        kernel(grid, block, (parallactic_angles, out))
     except CompileException:
-        log.exception(format_kernel(code))
+        log.exception(format_code(kernel.code))
         raise
 
-    return out.reshape(shape + (2, 2))
+    return out.reshape(in_shape + (2, 2))

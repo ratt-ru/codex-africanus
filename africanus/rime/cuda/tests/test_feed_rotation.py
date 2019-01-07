@@ -19,6 +19,6 @@ def test_cuda_feed_rotation(shape, dtype):
     pa = np.random.random(shape).astype(dtype)
 
     cp_feed_rot = cp_feed_rotation(cp.asarray(pa))
-    np_feed_rot = feed_rotation(pa)
+    np_feed_rot = np_feed_rotation(pa)
 
     assert np.allclose(cp.asnumpy(cp_feed_rot), np_feed_rot)
