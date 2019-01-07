@@ -1,1 +1,1 @@
-from africanus.model.coherency.cuda.conversion import stokes_convert
+from africanus.model.coherency.cuda.conversion import convert

@@ -8,9 +8,9 @@ from functools import wraps
 
 from africanus.compatibility import range
 
-from .conversion import (stokes_convert_setup, stokes_convert_impl,
-                         stokes_convert as np_stokes_convert,
-                         STOKES_DOCS)
+from .conversion import (convert_setup, convert_impl,
+                         convert as np_stokes_convert,
+                         CONVERT_DOCS)
 
 from africanus.util.requirements import requires_optional
 
@@ -26,19 +26,18 @@ else:
 @wraps(np_stokes_convert)
 def _wrapper(np_input, mapping=None, in_shape=None,
              out_shape=None, dtype_=None):
-    result = stokes_convert_impl(np_input, mapping, in_shape,
-                                 out_shape, dtype_)
+    result = convert_impl(np_input, mapping, in_shape,
+                          out_shape, dtype_)
 
     # Introduce extra singleton dimension at the end of our shape
     return result.reshape(result.shape + (1,) * len(in_shape))
 
 
 @requires_optional("dask.array", da_import_error)
-def stokes_convert(input, input_schema, output_schema):
-    mapping, in_shape, out_shape, dtype = stokes_convert_setup(
-                                                input,
-                                                input_schema,
-                                                output_schema)
+def convert(input, input_schema, output_schema):
+    mapping, in_shape, out_shape, dtype = convert_setup(input,
+                                                        input_schema,
+                                                        output_schema)
 
     n_free_dims = len(input.shape) - len(in_shape)
     free_dims = tuple("dim-%d" % i for i in range(n_free_dims))
@@ -67,7 +66,7 @@ def stokes_convert(input, input_schema, output_schema):
 
 
 try:
-    stokes_convert.__doc__ = STOKES_DOCS.substitute(
+    convert.__doc__ = CONVERT_DOCS.substitute(
                                 array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass

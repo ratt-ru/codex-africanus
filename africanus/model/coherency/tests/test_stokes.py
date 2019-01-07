@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from africanus.model.coherency.conversion import (
-    stokes_convert as np_stokes_convert,
+    convert as np_convert,
     STOKES_TYPE_MAP as smap)
 
 stokes_corr_cases = [
@@ -78,74 +78,74 @@ def visibility_factory(vis_shape, input_shape, in_type,
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
                          stokes_corr_cases + stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_shape", vis_shape)
-def test_stokes_schemas(in_type, input_schema,
-                        out_type, output_schema,
-                        vis_shape):
+def test_conversion_schemas(in_type, input_schema,
+                            out_type, output_schema,
+                            vis_shape):
     input_shape = np.asarray(input_schema).shape
     output_shape = np.asarray(output_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type)
-    xformed_vis = np_stokes_convert(vis, input_schema, output_schema)
+    xformed_vis = np_convert(vis, input_schema, output_schema)
     assert xformed_vis.shape == vis_shape + output_shape
 
 
-def test_stokes_conversion():
+def test_conversion():
     I, Q, U, V = [1.0, 2.0, 3.0, 4.0]
 
     # Check conversion to linear (string)
-    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
-                            ['I', 'Q', 'U', 'V'],
-                            ['XX', 'XY', 'YX', 'YY'])
+    vis = np_convert(np.asarray([[I, Q, U, V]]),
+                     ['I', 'Q', 'U', 'V'],
+                     ['XX', 'XY', 'YX', 'YY'])
 
     XX, XY, YX, YY = vis[0]
     assert np.all(vis == [[I + Q, U + V*1j, U - V*1j, I - Q]])
 
     # Check conversion to linear (integer)
-    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
-                            [smap[x] for x in ('I', 'Q', 'U', 'V')],
-                            [smap[x] for x in ('XX', 'XY', 'YX', 'YY')])
+    vis = np_convert(np.asarray([[I, Q, U, V]]),
+                     [smap[x] for x in ('I', 'Q', 'U', 'V')],
+                     [smap[x] for x in ('XX', 'XY', 'YX', 'YY')])
 
     assert np.all(vis == [[I + Q, U + V*1j, U - V*1j, I - Q]])
 
     # Check conversion to circular (string)
-    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
-                            ['I', 'Q', 'U', 'V'],
-                            ['RR', 'RL', 'LR', 'LL'])
+    vis = np_convert(np.asarray([[I, Q, U, V]]),
+                     ['I', 'Q', 'U', 'V'],
+                     ['RR', 'RL', 'LR', 'LL'])
 
     RR, RL, LR, LL = vis[0]
     assert np.all(vis == [[I + V, Q + U*1j, Q - U*1j, I - V]])
 
     # Check conversion to circular (integer)
-    vis = np_stokes_convert(np.asarray([[I, Q, U, V]]),
-                            [smap[x] for x in ('I', 'Q', 'U', 'V')],
-                            [smap[x] for x in ('RR', 'RL', 'LR', 'LL')])
+    vis = np_convert(np.asarray([[I, Q, U, V]]),
+                     [smap[x] for x in ('I', 'Q', 'U', 'V')],
+                     [smap[x] for x in ('RR', 'RL', 'LR', 'LL')])
 
     assert np.all(vis == [[I + V, Q + U*1j, Q - U*1j, I - V]])
 
     # linear to stokes (string)
-    stokes = np_stokes_convert(np.asarray([[XX, XY, YX, YY]]),
-                               ['XX', 'XY', 'YX', 'YY'],
-                               ['I', 'Q', 'U', 'V'])
+    stokes = np_convert(np.asarray([[XX, XY, YX, YY]]),
+                        ['XX', 'XY', 'YX', 'YY'],
+                        ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
     # linear to stokes  (integer)
-    stokes = np_stokes_convert(np.asarray([[XX, XY, YX, YY]]),
-                               [smap[x] for x in ('XX', 'XY', 'YX', 'YY')],
-                               [smap[x] for x in ('I', 'Q', 'U', 'V')])
+    stokes = np_convert(np.asarray([[XX, XY, YX, YY]]),
+                        [smap[x] for x in ('XX', 'XY', 'YX', 'YY')],
+                        [smap[x] for x in ('I', 'Q', 'U', 'V')])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
     # circular to stokes (string)
-    stokes = np_stokes_convert(np.asarray([[RR, RL, LR, LL]]),
-                               ['RR', 'RL', 'LR', 'LL'],
-                               ['I', 'Q', 'U', 'V'])
+    stokes = np_convert(np.asarray([[RR, RL, LR, LL]]),
+                        ['RR', 'RL', 'LR', 'LL'],
+                        ['I', 'Q', 'U', 'V'])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
     # circular to stokes (intger)
-    stokes = np_stokes_convert(np.asarray([[RR, RL, LR, LL]]),
-                               [smap[x] for x in ('RR', 'RL', 'LR', 'LL')],
-                               [smap[x] for x in ('I', 'Q', 'U', 'V')])
+    stokes = np_convert(np.asarray([[RR, RL, LR, LL]]),
+                        [smap[x] for x in ('RR', 'RL', 'LR', 'LL')],
+                        [smap[x] for x in ('I', 'Q', 'U', 'V')])
 
     assert np.all(stokes == [[I, Q, U, V]])
 
@@ -153,16 +153,16 @@ def test_stokes_conversion():
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
                          stokes_corr_cases + stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_chunks", vis_chunks)
-def test_dask_stokes_conversion(in_type, input_schema,
+def test_dask_conversion(in_type, input_schema,
                                 out_type, output_schema,
                                 vis_chunks):
-    from africanus.model.coherency.dask import stokes_convert as da_stokes_convert
+    from africanus.model.coherency.dask import convert as da_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type,
                              backend="dask", vis_chunks=vis_chunks)
 
-    da_vis = da_stokes_convert(vis, input_schema, output_schema)
-    np_vis = np_stokes_convert(vis.compute(), input_schema, output_schema)
+    da_vis = da_convert(vis, input_schema, output_schema)
+    np_vis = np_convert(vis.compute(), input_schema, output_schema)
     assert np.all(da_vis == np_vis)

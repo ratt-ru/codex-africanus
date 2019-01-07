@@ -190,7 +190,7 @@ def _generate_kernel(inputs, input_schema, output_schema):
 
 
 @requires_optional('cupy', opt_import_error)
-def stokes_convert(inputs, input_schema, output_schema):
+def convert(inputs, input_schema, output_schema):
     (kernel, block,
      in_shape, out_shape, dtype) = _generate_kernel(inputs,
                                                     input_schema,

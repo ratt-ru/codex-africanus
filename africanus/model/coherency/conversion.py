@@ -153,7 +153,7 @@ def _element_indices_and_shape(data):
     return result, tuple(shape)
 
 
-def stokes_convert_setup(input, input_schema, output_schema):
+def convert_setup(input, input_schema, output_schema):
     input_indices, input_shape = _element_indices_and_shape(input_schema)
     output_indices, output_shape = _element_indices_and_shape(output_schema)
 
@@ -207,7 +207,7 @@ def stokes_convert_setup(input, input_schema, output_schema):
     return mapping, input_shape, output_shape, out_dtype
 
 
-def stokes_convert_impl(input, mapping, in_shape, out_shape, dtype):
+def convert_impl(input, mapping, in_shape, out_shape, dtype):
     # Make the output array
     out_shape = input.shape[:-len(in_shape)] + out_shape
     output = np.empty(out_shape, dtype=dtype)
@@ -218,18 +218,18 @@ def stokes_convert_impl(input, mapping, in_shape, out_shape, dtype):
     return output
 
 
-def stokes_convert(input, input_schema, output_schema):
+def convert(input, input_schema, output_schema):
     """ See STOKES_DOCS below """
 
     # Do the conversion
-    mapping, in_shape, out_shape, dtype = stokes_convert_setup(input,
-                                                               input_schema,
-                                                               output_schema)
+    mapping, in_shape, out_shape, dtype = convert_setup(input,
+                                                        input_schema,
+                                                        output_schema)
 
-    return stokes_convert_impl(input, mapping, in_shape, out_shape, dtype)
+    return convert_impl(input, mapping, in_shape, out_shape, dtype)
 
 
-STOKES_DOCS = """
+CONVERT_DOCS = """
 This function converts forward and backward
 from stokes ``I,Q,U,V`` to both linear ``XX,XY,YX,YY``
 and circular ``RR, RL, LR, LL`` correlations.
@@ -240,10 +240,10 @@ to linear correlations:
 .. code-block:: python
 
     stokes.shape == (10, 4, 4)
-    vis = stokes_convert(stokes, ["I", "Q", "U", "V"],
-                         [['XX', 'XY'], ['YX', 'YY'])
+    corrs = convert(stokes, ["I", "Q", "U", "V"],
+                    [['XX', 'XY'], ['YX', 'YY'])
 
-    assert vis.shape == (10, 4, 2, 2)
+    assert corrs.shape == (10, 4, 2, 2)
 
 Or circular correlations to stokes:
 
@@ -251,7 +251,7 @@ Or circular correlations to stokes:
 
     vis.shape == (10, 4, 2, 2)
 
-    stokes = stokes_convert(vis, [['RR', 'RL'], ['LR', 'LL']],
+    stokes = convert(vis, [['RR', 'RL'], ['LR', 'LL']],
                             ['I', 'Q', 'U', 'V'])
 
     assert stokes.shape == (10, 4, 4)
@@ -293,7 +293,7 @@ output_schema : list
 
 Returns
 -------
-$(array_type)
+{{array_type}}
     Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
     The type may be floating point or promoted to complex
     depending on the combinations in ``output``.
@@ -304,11 +304,11 @@ _map_str = ", ".join(["%s: %d" % (t, i) for i, t in enumerate(STOKES_TYPES)])
 _map_str = "{{ " + _map_str + " }}"
 # Indent must match docstrings
 _map_str = fill(_map_str, initial_indent='', subsequent_indent=' '*8)
-STOKES_DOCS = DocstringTemplate(STOKES_DOCS.format(stokes_type_map=_map_str))
+CONVERT_DOCS = DocstringTemplate(CONVERT_DOCS.format(stokes_type_map=_map_str))
 del _map_str
 
 try:
-    stokes_convert.__doc__ = STOKES_DOCS.substitute(
+    convert.__doc__ = CONVERT_DOCS.substitute(
                                   array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
