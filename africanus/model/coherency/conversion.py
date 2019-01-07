@@ -293,7 +293,7 @@ output_schema : list
 
 Returns
 -------
-{{array_type}}
+ result : $(array_type)
     Result of shape :code:`(dim_1, ..., dim_n, ocorr_1, ..., ocorr_m)`
     The type may be floating point or promoted to complex
     depending on the combinations in ``output``.

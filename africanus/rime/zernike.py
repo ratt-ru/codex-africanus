@@ -135,7 +135,7 @@ noll_index : :class:`numpy.ndarray`
 
 Returns
 ----------
-:class:`numpy.ndarray`
+dde : :class:`numpy.ndarray`
    complex values with shape
    :code:`(source, time, ant, chan, corr_1, ..., corr_n)`
 """)

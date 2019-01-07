@@ -1,5 +1,6 @@
 .. _convolution-filter-api:
 
+-------------------
 Convolution Filters
 -------------------
 

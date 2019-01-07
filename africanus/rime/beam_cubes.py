@@ -71,7 +71,7 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    ddes : :class:`numpy.ndarray`
         Sampled complex beam values at the specified coordinates with
         shape :code:`(dim_1, ..., dim_n, corr_1, corr_2)`
     """

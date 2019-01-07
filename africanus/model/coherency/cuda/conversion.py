@@ -11,9 +11,9 @@ from os.path import join as pjoin
 import numpy as np
 
 from africanus.compatibility import reduce
-from africanus.model.coherency.conversion import (
-                                    _element_indices_and_shape,
-                                    MissingConversionInputs)
+from africanus.model.coherency.conversion import (_element_indices_and_shape,
+                                                  CONVERT_DOCS,
+                                                  MissingConversionInputs)
 from africanus.util.code import memoize_on_key, format_code
 from africanus.util.cuda import cuda_function, cuda_type, grids
 from africanus.util.jinja2 import jinja_env
@@ -218,3 +218,10 @@ def convert(inputs, input_schema, output_schema):
     outputs = outputs.reshape(shape)
     assert outputs.flags.c_contiguous
     return outputs
+
+
+try:
+    convert.__doc__ = CONVERT_DOCS.substitute(
+                                array_type=":class:`cupy.ndarray`")
+except AttributeError:
+    pass
