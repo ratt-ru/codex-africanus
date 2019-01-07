@@ -124,5 +124,7 @@ def _create_jinja2_env():
     env.globals['register_assign_cycles'] = register_assign_cycles
     env.globals['throw'] = throw_helper
 
+    return env
+
 
 jinja_env = _create_jinja2_env()
