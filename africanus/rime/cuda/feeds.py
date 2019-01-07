@@ -44,7 +44,7 @@ def _generate_kernel(parallactic_angles):
     block = (blockdimx, 1, 1)
 
     # Create template
-    render = jinja_env.get_template("rime", "cuda", "feeds.cu.j2").render
+    render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "phase_delay"
 
     code = render(kernel_name=name,
