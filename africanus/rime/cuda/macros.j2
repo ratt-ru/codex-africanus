@@ -21,38 +21,72 @@ The implementation is complex, but
 2. Performs the transpose in-place
 3. Uses a minimal number of registers
 
+Limitations
 
-General usage pattern might be...
+1. Variable length must be 1 (noop) or a multiple of 2.
+2. Variable type must be a standard cuda type or cuda vector type
+3. The warp transpose must occur in thread groups of var_length.
+   This makes the grid extent guard, as well as
+   global reads and writes slightly more complex than a standard CUDA kernel.
+   TODO(sjperkins). Decipher the warp transpose in trove or cub
+   https://github.com/bryancatanzaro/trove
+   https://github.com/NVlabs/cub
+   to make this easier to use.
+
+
+General usage pattern within a jinja CUDA template should be the following
+
 
     __global__ void kernel(float * in, float * out, int N)
     {
+
+        // Element within the global grid space
         int n = blockIdx.x*blockDim.x + threadIdx.x;
+        // N rounded up to a multiple of variable_length
+        int NMULUP = {{var_length}}*((N + {{var_length - 1}}) / {{var_length}});
+
+        // Guard
+        // Warp transpose must occur in adjacent threads of var_length
+        // and so we can't just guard with n < N.
+        // This makes the global reads and writes slightly more complex
+        if(n >= NMULUP)
+            { return; }
 
         // Allocate array for our data
         float data[{{var_length}}];
 
-        // Load if we're in bounds
-        if(n < N)
+        // Read in data
+        // data[{{elem}}] = inputs[{{elem}}*N + n]
+        // as N may not be a multiple
         {
-            {% for elem in range(var_length) %}
-            data[{{elem}}] = in[n + {{elem}}*N];
-            {% endfor}
+            int idx = n;
+            int upper = {{var_length}}*N;
+            {%- for elem in range(var_length) %}
+            if(idx < {{var_length}}*N)
+            {
+                data[{{elem}}] = inputs[idx];
+                idx += NMULUP;
+            }
+            {%- endfor %}
         }
 
-        // n < N rounded up to the nearest var length
-        if(n < {{var_length}}*((N + {{var_length - 1}}) / {{var_length}}))
-        {
-            {{ warp_transpose("data", "float", var_length) }}
-        }
+        {{ warp_transpose("data", "float", var_length) }}
 
         // Do some processing on data
 
-        // Write if we're in bounds
-        if(n < N)
+        {{ warp_transpose("data", "float", var_length) }}
+
+        // Write the data
         {
-            {% for elem in range(var_length) %}
-            out[n + {{elem}}*N] = data[{{elem}}];
-            {% endfor}
+            int idx = n;
+            int upper = {{var_length}}*N;
+            {%- for elem in range(var_length) %}
+            if(idx < {{var_length}}*N)
+            {
+                out[idx] = data[{{elem}}];
+                idx += NMULUP;
+            }
+            {%- endfor %}
         }
     }
 #}

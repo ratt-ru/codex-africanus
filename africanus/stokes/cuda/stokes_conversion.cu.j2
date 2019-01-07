@@ -6,42 +6,55 @@ extern "C" __global__ void {{kernel_name}}(
     const CArray<{{input_type}}, 2> inputs,
     CArray<{{output_type}}, 2> outputs)
 {
+    // Number of sources
     const ptrdiff_t & nsrc = inputs.shape()[0];
+    // Number of sources rounded up to a multiple of the number of elements
+    int nsrcmulup = {{elements}}*((nsrc + {{elements - 1}}) / {{elements}});
+    // Current source
     int source = blockIdx.x*blockDim.x + threadIdx.x;
+
+    // Guard
+    if(source >= nsrcmulup)
+        { return; }
 
     // Array to hold our variables
     {{input_type}} in[{{elements}}];
     {{output_type}} out[{{elements}}];
 
     // Read in data
-    if(source < nsrc)
     {
+        int idx = source;
+        int upper = {{elements}}*nsrc;
         {%- for elem in range(elements) %}
-        in[{{elem}}] = inputs[{{elem}}*nsrc + source];
+        if(idx < {{elements}}*nsrc)
+        {
+            in[{{elem}}] = inputs[idx];
+            idx += nsrcmulup;
+        }
         {%- endfor %}
     }
 
+    // Transpose forward
+    {{ warp_transpose("in", input_type, elements) }}
 
-    // Guard such that we have enough threads to transpose elements
-    if(source < {{elements}}*((nsrc + {{elements - 1}}) / {{elements}}))
-    {
-        // Tranpose forward
-        {{ warp_transpose("in", input_type, elements) }}
+    {%- for expr in assign_exprs %}
+    {{expr}}
+    {%- endfor %}
 
-        {%- for expr in assign_exprs %}
-        {{expr}}
-        {%- endfor %}
-
-        // Transpose backward
-        {{ warp_transpose("out", output_type, elements) }}
-    }
-
+    // Transpose backward
+    {{ warp_transpose("out", output_type, elements) }}
 
     // Write out data
-    if(source < nsrc)
     {
+        int idx = source;
+        int upper = {{elements}}*nsrc;
         {%- for elem in range(elements) %}
-        outputs[{{elem}}*nsrc + source] = out[{{elem}}];
+        if(idx < upper)
+        {
+            outputs[idx] = out[{{elem}}];
+            idx += nsrcmulup;
+        }
+
         {%- endfor %}
     }
 }
