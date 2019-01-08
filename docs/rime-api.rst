@@ -67,8 +67,10 @@ Cuda
 
 .. autosummary::
     phase_delay
+    feed_rotation
 
 .. autofunction:: phase_delay
+.. autofunction:: feed_rotation
 
 
 Dask
