@@ -31,46 +31,47 @@ log = logging.getLogger(__name__)
 _TEMPLATE_PATH = pjoin("rime", "cuda", "feeds.cu.j2")
 
 
-def _key_fn(parallactic_angles):
-    return parallactic_angles.dtype
+def _key_fn(parallactic_angles, feed_type):
+    return (parallactic_angles.dtype, feed_type)
 
 
 @memoize_on_key(_key_fn)
-def _generate_kernel(parallactic_angles):
-    # Floating point output type
+def _generate_kernel(parallactic_angles, feed_type):
+    dtype = parallactic_angles.dtype
 
     # Block sizes
-    blockdimx = 512
+    blockdimx = 1024
     block = (blockdimx, 1, 1)
 
     # Create template
     render = jinja_env.get_template(_TEMPLATE_PATH).render
-    name = "phase_delay"
+    name = "feed_rotation"
 
     code = render(kernel_name=name,
-                  pa_type=_get_typename(parallactic_angles.dtype),
-                  out_type=_get_typename(parallactic_angles.dtype))
+                  feed_type=feed_type,
+                  sincos_fn=cuda_function('sincos', dtype),
+                  pa_type=_get_typename(dtype),
+                  out_type=_get_typename(dtype))
 
     code = code.encode('utf-8')
 
     # Complex output type
-    out_dtype = np.result_type(parallactic_angles.dtype, np.complex64)
+    out_dtype = np.result_type(dtype, np.complex64)
     return cp.RawKernel(code, name), block, out_dtype
 
 
 @requires_optional("cupy", opt_import_error)
-def feed_rotation(parallactic_angles):
+def feed_rotation(parallactic_angles, feed_type='linear'):
     """
     Cupy implementation of the feed_rotation kernel.
 
     TODO(sjperkins). Fill in the documentation with the numba doc template
     """
-    kernel, block, out_dtype = _generate_kernel(parallactic_angles)
+    kernel, block, out_dtype = _generate_kernel(parallactic_angles, feed_type)
     in_shape = parallactic_angles.shape
     parallactic_angles = parallactic_angles.ravel()
     grid = grids((parallactic_angles.shape[0], 1, 1), block)
-    out = cp.empty(shape=(parallactic_angles.shape[0], 4),
-                   dtype=out_dtype)
+    out = cp.empty(shape=(parallactic_angles.shape[0], 4), dtype=out_dtype)
 
     try:
         kernel(grid, block, (parallactic_angles, out))
