@@ -9,7 +9,7 @@ from os.path import join as pjoin
 
 import numpy as np
 
-from africanus.constants import minus_two_pi_over_c
+from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_function, grids
 from africanus.util.jinja2 import jinja_env
@@ -62,11 +62,7 @@ def _generate_kernel(parallactic_angles, feed_type):
 
 @requires_optional("cupy", opt_import_error)
 def feed_rotation(parallactic_angles, feed_type='linear'):
-    """
-    Cupy implementation of the feed_rotation kernel.
-
-    TODO(sjperkins). Fill in the documentation with the numba doc template
-    """
+    """ Cupy implementation of the feed_rotation kernel. """
     kernel, block, out_dtype = _generate_kernel(parallactic_angles, feed_type)
     in_shape = parallactic_angles.shape
     parallactic_angles = parallactic_angles.ravel()
@@ -80,3 +76,10 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
         raise
 
     return out.reshape(in_shape + (2, 2))
+
+
+try:
+    feed_rotation.__doc__ = FEED_ROTATION_DOCS.substitute(
+                                array_type=":class:`cupy.ndarray`")
+except AttributeError:
+    pass

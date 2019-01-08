@@ -5,13 +5,12 @@ from __future__ import division
 from __future__ import print_function
 
 from operator import mul
-try:
-    from functools import reduce
-except ImportError:
-    pass
 
 import numba
 import numpy as np
+
+from africanus.compatibility import reduce
+from africanus.util.docs import DocstringTemplate
 
 
 @numba.njit(nogil=True, cache=True)
@@ -53,37 +52,6 @@ def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
 
 
 def feed_rotation(parallactic_angles, feed_type='linear'):
-    r"""
-    Computes the 2x2 feed rotation (L) matrix
-    from the ``parallactic_angles``.
-
-    .. math::
-
-        \textrm{linear}
-        \begin{bmatrix}
-        cos(pa) & sin(pa) \\
-        -sin(pa) & cos(pa)
-        \end{bmatrix}
-        \qquad
-        \textrm{circular}
-        \begin{bmatrix}
-        e^{-i pa} & 0 \\
-        0 & e^{i pa}
-        \end{bmatrix}
-
-    Parameters
-    ----------
-    parallactic_angles : :class:`numpy.ndarray`
-        floating point parallactic angles. Of shape
-        :code:`(pa0, pa1, ..., pan)`.
-    feed_type : {'linear', 'circular'}
-        The type of feed
-
-    Returns
-    -------
-    feed_matrix : :class:`numpy.ndarray`
-        Feed rotation matrix of shape :code:`(pa0, pa1,...,pan,2,2)`
-    """
     if feed_type == 'linear':
         poltype = 0
     elif feed_type == 'circular':
@@ -105,3 +73,42 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
     result = np.empty(shape, dtype=dtype)
 
     return _nb_feed_rotation(parallactic_angles, poltype, result)
+
+
+FEED_ROTATION_DOCS = DocstringTemplate(r"""
+Computes the 2x2 feed rotation (L) matrix
+from the ``parallactic_angles``.
+
+.. math::
+
+    \textrm{linear}
+    \begin{bmatrix}
+    cos(pa) & sin(pa) \\
+    -sin(pa) & cos(pa)
+    \end{bmatrix}
+    \qquad
+    \textrm{circular}
+    \begin{bmatrix}
+    e^{-i pa} & 0 \\
+    0 & e^{i pa}
+    \end{bmatrix}
+
+Parameters
+----------
+parallactic_angles : $(array_type)
+    floating point parallactic angles. Of shape
+    :code:`(pa0, pa1, ..., pan)`.
+feed_type : {'linear', 'circular'}
+    The type of feed
+
+Returns
+-------
+feed_matrix : $(array_type)
+    Feed rotation matrix of shape :code:`(pa0, pa1,...,pan,2,2)`
+""")
+
+try:
+    feed_rotation.__doc__ = FEED_ROTATION_DOCS.substitute(
+                                array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
