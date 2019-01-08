@@ -40,8 +40,12 @@ def _generate_kernel(parallactic_angles, feed_type):
     dtype = parallactic_angles.dtype
 
     # Block sizes
-    blockdimx = 1024
-    block = (blockdimx, 1, 1)
+    if dtype == np.float32:
+        block = (1024, 1, 1)
+    elif dtype == np.float64:
+        block = (512, 1, 1)
+    else:
+        raise TypeError("Unhandled type %s" % dtype)
 
     # Create template
     render = jinja_env.get_template(_TEMPLATE_PATH).render

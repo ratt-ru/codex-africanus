@@ -11,8 +11,11 @@ from africanus.rime import phase_delay as np_phase_delay
 from africanus.rime.cuda.phase import phase_delay as cp_phase_delay
 
 
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_cuda_phase_delay(dtype):
+@pytest.mark.parametrize("dtype, decimal", [
+    (np.float32, 5),
+    (np.float64, 6)
+])
+def test_cuda_phase_delay(dtype, decimal):
     cp = pytest.importorskip('cupy')
 
     lm = 0.01*np.random.random((10, 2)).astype(dtype)
@@ -24,4 +27,5 @@ def test_cuda_phase_delay(dtype):
                                    cp.asarray(freq))
     np_cplx_phase = np_phase_delay(lm, uvw, freq)
 
-    assert np.allclose(cp.asnumpy(cp_cplx_phase), np_cplx_phase)
+    np.testing.assert_array_almost_equal(cp.asnumpy(cp_cplx_phase),
+                                         np_cplx_phase, decimal=decimal)
