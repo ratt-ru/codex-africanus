@@ -1,9 +1,42 @@
 #include <cupy/carray.cuh>
 
-extern "C" __global__ void {{kernel_name}}(
-    const CArray<int, 1> time_index,
-    const CArray<int, 1> antenna1,
-    const CArray<int, 1> antenna2)
-{
 
+{% macro create_arg(name, type, dims, input=True) -%}
+{%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
+{%- endmacro -%}
+
+
+{# Construct the kernel argument list #}
+{%- set kernel_args = [
+	create_arg("time_index", "int", 1),
+	create_arg("antenna1", "int", 1),
+	create_arg("antenna2", "int", 1) ] -%}
+
+{%- if have_dde1 %}
+{%- do kernel_args.append(create_arg("dde1", dde1_type, dde1_ndim)) %}
+{%- endif %}
+{%- if have_coh %}
+{%- do kernel_args.append(create_arg("source_coh", coh_type, coh_ndim)) %}
+{%- endif %}
+{%- if have_dde2 %}
+{%- do kernel_args.append(create_arg("dde2", dde2_type, dde2_ndim)) %}
+{%- endif %}
+{%- if have_die1 %}
+{%- do kernel_args.append(create_arg("die1", die1_type, die1_ndim)) %}
+{%- endif %}
+{%- if have_bvis %}
+{%- do kernel_args.append(create_arg("base_vis", base_vis_type, base_vis_ndim)) %}
+{%- endif %}
+{%- if have_dde2 %}
+{%- do kernel_args.append(create_arg("die2", die2_type, die2_ndim)) %}
+{%- endif %}
+
+
+{% do kernel_args.append(create_arg("output", out_type, out_ndim, False)) %}
+
+
+extern "C" __global__ void {{kernel_name}}(
+{{kernel_args|join(",\n")}}
+)
+{
 }
