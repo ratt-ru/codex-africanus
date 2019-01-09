@@ -319,16 +319,21 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
     return njit(nogil=True)(apply_dies)
 
 
-def predict_vis(time_index, antenna1, antenna2,
-                dde1_jones=None, source_coh=None, dde2_jones=None,
-                die1_jones=None, base_vis=None, die2_jones=None):
+def _default_none_check(arg):
+    return arg is not None
 
-    have_ddes1 = not is_numba_type_none(dde1_jones)
-    have_coh = not is_numba_type_none(source_coh)
-    have_ddes2 = not is_numba_type_none(dde2_jones)
-    have_dies1 = not is_numba_type_none(die1_jones)
-    have_bvis = not is_numba_type_none(base_vis)
-    have_dies2 = not is_numba_type_none(die2_jones)
+
+def predict_checks(time_index, antenna1, antenna2,
+                   dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones,
+                   none_check=_default_none_check):
+
+    have_ddes1 = none_check(dde1_jones)
+    have_coh = none_check(source_coh)
+    have_ddes2 = none_check(dde2_jones)
+    have_dies1 = none_check(die1_jones)
+    have_bvis = none_check(base_vis)
+    have_dies2 = none_check(die2_jones)
 
     assert time_index.ndim == 1
     assert antenna1.ndim == 1
@@ -341,17 +346,6 @@ def predict_vis(time_index, antenna1, antenna2,
     if have_dies1 ^ have_dies2:
         raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
-
-    # Infer the output dtype
-    dtype_arrays = (dde1_jones, source_coh, dde2_jones,
-                    die1_jones, base_vis, die2_jones)
-
-    out_dtype = np.result_type(*(np.dtype(a.dtype.name)
-                                 for a in dtype_arrays
-                                 if not is_numba_type_none(a)))
-
-    have_ddes = have_ddes1 and have_ddes2
-    have_dies = have_dies1 and have_dies2
 
     if have_ddes1 and dde1_jones.ndim not in (5, 6):
         raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
@@ -371,6 +365,29 @@ def predict_vis(time_index, antenna1, antenna2,
     if have_dies2 and die2_jones.ndim not in (4, 5):
         raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
 
+    return (have_ddes1, have_coh, have_ddes2,
+            have_dies1, have_bvis, have_dies2)
+
+
+def predict_vis(time_index, antenna1, antenna2,
+                dde1_jones=None, source_coh=None, dde2_jones=None,
+                die1_jones=None, base_vis=None, die2_jones=None):
+
+    tup = predict_checks(time_index, antenna1, antenna2,
+                         dde1_jones, source_coh, dde2_jones,
+                         die1_jones, base_vis, die2_jones,
+                         lambda x: not is_numba_type_none(x))
+
+    (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
+
+    # Infer the output dtype
+    dtype_arrays = (dde1_jones, source_coh, dde2_jones,
+                    die1_jones, base_vis, die2_jones)
+
+    out_dtype = np.result_type(*(np.dtype(a.dtype.name)
+                                 for a in dtype_arrays
+                                 if not is_numba_type_none(a)))
+
     jones_types = [
         _get_jones_types("dde1_jones", dde1_jones, 5, 6),
         _get_jones_types("source_coh", source_coh, 4, 5),
@@ -387,6 +404,9 @@ def predict_vis(time_index, antenna1, antenna2,
         jones_type = ptypes[0]
     except IndexError:
         raise ValueError("No Jones Matrices were supplied")
+
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
 
     # Create functions that we will use inside our predict function
     out_fn = output_factory(have_ddes, have_coh, have_dies, out_dtype)
