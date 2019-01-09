@@ -1,16 +1,16 @@
 #include <cupy/carray.cuh>
 
+{% from "rime/cuda/macros.j2" import warp_transpose %}
 
-{% macro create_arg(name, type, dims, input=True) -%}
+{%- macro create_arg(name, type, dims, input=True) -%}
 {%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
 {%- endmacro -%}
 
-
-{# Construct the kernel argument list #}
+{#- Construct the kernel argument list #}
 {%- set kernel_args = [
-	create_arg("time_index", "int", 1),
-	create_arg("antenna1", "int", 1),
-	create_arg("antenna2", "int", 1) ] -%}
+    create_arg("time_index", "int", 1),
+    create_arg("antenna1", "int", 1),
+    create_arg("antenna2", "int", 1) ] -%}
 
 {%- if have_dde1 %}
 {%- do kernel_args.append(create_arg("dde1", dde1_type, dde1_ndim)) %}
@@ -24,19 +24,181 @@
 {%- if have_die1 %}
 {%- do kernel_args.append(create_arg("die1", die1_type, die1_ndim)) %}
 {%- endif %}
-{%- if have_bvis %}
+{%- if have_base_vis %}
 {%- do kernel_args.append(create_arg("base_vis", base_vis_type, base_vis_ndim)) %}
 {%- endif %}
-{%- if have_dde2 %}
+{%- if have_die2 %}
 {%- do kernel_args.append(create_arg("die2", die2_type, die2_ndim)) %}
 {%- endif %}
 
+{%- do kernel_args.append(create_arg("output", out_type, out_ndim, False)) %}
+{# End kernel argument list construction #}
 
-{% do kernel_args.append(create_arg("output", out_type, out_ndim, False)) %}
+
+{%- set have_ddes = have_dde1 and have_dde2 %}
+{%- set have_dies = have_die1 and have_die2 %}
+
+{#- Determine nrow and nchan variables #}
+{%- if have_ddes %}
+{%- set nchan = "dde1.shape()[3]" %}
+{%- elif have_coh %}
+{%- set nchan = "source_coh.shape()[2]" %}
+{%- elif have_dies %}
+{%- set nchan = "die1.shape()[2]" %}
+{%- endif %}
+{%- set nrow = "time_index.shape()[0]" %}
+{#- end nrow and nchan variable determination #}
+
+{#- Determine nsrc variable #}
+{%- set do_coherencies = have_ddes or have_coh %}
+{%- if have_ddes %}
+{%- set nsrc = "dde1.shape()[0]" %}
+{%- elif have_coh %}
+{%- set nsrc = "source_coh.shape()[0]" %}
+{%- endif %}
+{#- End nsrc variable determination #}
 
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
 )
 {
+    int row = blockDim.y*blockIdx.y + threadIdx.y;
+    int chan = blockDim.x*blockIdx.x + threadIdx.x;
+
+    // Guard
+    // row >= nrow || chan >= nchan
+    if(row >= {{nrow}} || chan >= {{nchan}})
+        { return; }
+
+    int ti = time_index[row];
+    int ant1 = antenna1[row];
+    int ant2 = antenna2[row];
+
+    // Declare and initialise result
+    {{out_type}} vis[{{corrs}}];
+    {%- for c in range(corrs) %}
+    vis[{{c}}] = make_{{out_type}}(0, 0);
+    {%- endfor %}
+
+    {% if do_coherencies %}
+    // Loop over nsrc
+    for(int src=0; src < {{nsrc}}; ++src)
+    {
+        {{out_type}} scratch[{{corrs}}];
+        {%- for c in range(corrs) %}
+        scratch[{{c}}] = make_{{out_type}}(0, 0);
+        {%- endfor %}
+
+        {%- if have_ddes %}
+        // Load in second direction dependent effect term
+        ptrdiff_t dde2_idx [] = {src, ti, ant2, chan, 0};
+        {%- for c in range(corrs) %}
+        dde2_idx[4] = {{c}}; scratch[{{c}}] = dde2[dde2_idx];
+        {%- endfor %}
+
+        {{ warp_transpose("scratch", out_type, corrs) }}
+
+        {%- for c in range(corrs) %}
+        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
+        {%- endfor %}
+
+        {%- endif %}
+
+
+
+        {%- if have_coh %}
+        // Load in Source Coherencies
+        ptrdiff_t coh_idx [] = {src, row, chan, 0};
+        {%- for c in range(corrs) %}
+        coh_idx[3] = {{c}}; scratch[{{c}}] = source_coh[coh_idx];
+        {%- endfor %}
+
+        {{ warp_transpose("scratch", out_type, corrs) }}
+
+        {%- for c in range(corrs) %}
+        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
+        {%- endfor %}
+
+        {%- endif %}
+
+
+
+        {%- if have_ddes %}
+        // Load in first direction dependent effect term
+        ptrdiff_t dde1_idx [] = {src, ti, ant1, chan, 0};
+        {%- for c in range(corrs) %}
+        dde1_idx[4] = {{c}}; scratch[{{c}}] = dde1[dde1_idx];
+        {%- endfor %}
+
+        {{ warp_transpose("scratch", out_type, corrs) }}
+
+        {%- for c in range(corrs) %}
+        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
+        {%- endfor %}
+
+        {%- endif %}
+
+
+
+
+
+    }
+    {%- endif %}
+
+    {{out_type}} scratch[{{corrs}}];
+    {%- for c in range(corrs) %}
+    scratch[{{c}}] = make_{{out_type}}(0, 0);
+    {%- endfor %}
+
+
+    {%- if have_base_vis %}
+    // Add base visibilities if any
+    {%- for c in range(corrs) %}
+    scratch[{{c}}] = base_vis[{{c}}];
+    {%- endfor %}
+    {{ warp_transpose("scratch", out_type, corrs) }}
+    {%- for c in range(corrs) %}
+    vis[{{c}}].x += scratch[{{c}}].x;
+    vis[{{c}}].y += scratch[{{c}}].y;
+    {%- endfor %}
+    {%- endif %}
+
+    {%- if have_dies %}
+    ptrdiff_t die2_idx [] = {ti, ant2, chan, 0};
+    {%- for c in range(corrs) %}
+    die2_idx[3] = {{c}}; scratch[{{c}}] = die2[die2_idx];
+    {%- endfor %}
+    {{ warp_transpose("scratch", out_type, corrs) }}
+    {%- for c in range(corrs) %}
+    vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
+    {%- endfor %}
+    {%- endif %}
+
+    {%- if have_dies %}
+    ptrdiff_t die1_idx [] = {ti, ant1, chan, 0};
+    {%- for c in range(corrs) %}
+    die1_idx[3] = {{c}}; scratch[{{c}}] = die1[die1_idx];
+    {%- endfor %}
+    {{ warp_transpose("scratch", out_type, corrs) }}
+    {%- for c in range(corrs) %}
+    vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
+    {%- endfor %}
+    {%- endif %}
+
+
+
+    ptrdiff_t out_idx [] = {row, chan, 0};
+    {%- for c in range(corrs) %}
+    out_idx[2] = {{c}}; output[out_idx] = vis[{{c}}];
+    {%- endfor %}
+
 }
+
+// jinja2 parameters
+// dde1: {{have_dde1}} {{dde1_type}} {{dde1_ndim}}
+// source_coh: {{have_coh}} {{coh_type}} {{coh_ndim}}
+// have_ddes2 = {{have_dde2}}
+// have_dies1 = {{have_die1}}
+// have_base_vis = {{have_base_vis}}
+// have_dies2 = {{have_die2}}
