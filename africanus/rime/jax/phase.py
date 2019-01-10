@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as onp
+
 try:
     import jax.numpy as np
 except ImportError as e:
@@ -28,7 +30,8 @@ def phase_delay(lm, uvw, frequency):
 
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
 
-    real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
+    real_phase = l * u + m * v + n * w
+    real_phase = lm.dtype.type(minus_two_pi_over_c) * real_phase
     real_phase *= frequency[None, None, :]
 
     return np.exp(1j*real_phase)
