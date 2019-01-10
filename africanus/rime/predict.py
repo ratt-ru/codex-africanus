@@ -11,8 +11,8 @@ import numba
 from numba import types, generated_jit, njit
 import numpy as np
 
-from ..util.docs import DocstringTemplate, on_rtd
-from ..util.numba import is_numba_type_none
+from africanus.util.docs import DocstringTemplate, on_rtd
+from africanus.util.numba import is_numba_type_none
 
 
 JONES_NOT_PRESENT = 0
