@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import ast
@@ -9,11 +11,25 @@ import subprocess
 import sys
 import tempfile
 
+from os.path import join as pjoin
+from pkg_resources import resource_filename
+
+import distutils
 from distutils import ccompiler
 from distutils import errors
 from distutils import msvccompiler
 from distutils import sysconfig
 from distutils import unixccompiler
+
+from africanus.util.code import format_code
+from africanus.util.requirements import requires_optional
+
+try:
+    import cupy as cp
+except ImportError as e:
+    cupy_import_error = e
+else:
+    cupy_import_error = None
 
 
 def print_warning(*lines):
@@ -46,7 +62,7 @@ maximum_cudnn_version = 7999
 
 _cuda_path = 'NOT_INITIALIZED'
 _compiler_base_options = None
-_cuda_devices = None
+_cuda_info = None
 
 
 @contextlib.contextmanager
@@ -220,7 +236,7 @@ def _get_compiler_base_options():
     return []
 
 
-def _get_cuda_devices():
+def _get_cuda_info():
     nvcc_path = get_nvcc_path()
 
     code = '''
@@ -230,7 +246,9 @@ def _get_cuda_devices():
         int nDevices;
         cudaGetDeviceCount(&nDevices);
 
-        printf("[\\n");
+        printf("{\\n");
+        printf("'cuda_version': %d,\\n", CUDA_VERSION);
+        printf("'devices': [\\n");
 
         for(int d=0; d < nDevices; ++d) {
             cudaDeviceProp props;
@@ -258,6 +276,7 @@ def _get_cuda_devices():
         }
 
         printf("]\\n");
+        printf("}\\n");
 
         return 0;
     }
@@ -294,45 +313,13 @@ def _get_cuda_devices():
         return ast.literal_eval(out)
 
 
-def get_cuda_devices():
-    global _cuda_devices
+def get_cuda_info():
+    global _cuda_info
 
-    if _cuda_devices is None:
-        _cuda_devices = _get_cuda_devices()
+    if _cuda_info is None:
+        _cuda_info = _get_cuda_info()
 
-    return _cuda_devices
-
-
-_cuda_version = None
-_cudnn_version = None
-_nccl_version = None
-
-
-def check_cuda_version(compiler, settings):
-    global _cuda_version
-    try:
-        out = build_and_run(compiler, '''
-        #include <cuda.h>
-        #include <stdio.h>
-        int main(int argc, char* argv[]) {
-          printf("%d", CUDA_VERSION);
-          return 0;
-        }
-        ''', include_dirs=settings['include_dirs'])
-
-    except Exception as e:
-        print_warning('Cannot check CUDA version', str(e))
-        return False
-
-    _cuda_version = int(out)
-
-    if _cuda_version < minimum_cuda_version:
-        print_warning(
-            'CUDA version is too old: %d' % _cuda_version,
-            'CUDA v7.0 or newer is required')
-        return False
-
-    return True
+    return _cuda_info
 
 
 def _format_cuda_version(version):
@@ -341,121 +328,19 @@ def _format_cuda_version(version):
 
 def get_cuda_version(formatted=False):
     """Return CUDA Toolkit version cached in check_cuda_version()."""
-    global _cuda_version
-    if _cuda_version is None:
-        msg = 'check_cuda_version() must be called first.'
-        raise RuntimeError(msg)
-    if formatted:
-        return _format_cuda_version(_cuda_version)
-    return _cuda_version
+    _cuda_version = get_cuda_info()['cuda_version']
 
+    if _cuda_version < minimum_cuda_version:
+        raise ValueError('CUDA version is too old: %d'
+                         'CUDA v7.0 or newer is required' % _cuda_version)
 
-def check_cudnn_version(compiler, settings):
-    global _cudnn_version
-    try:
-        out = build_and_run(compiler, '''
-        #include <cudnn.h>
-        #include <stdio.h>
-        int main(int argc, char* argv[]) {
-          printf("%d", CUDNN_VERSION);
-          return 0;
-        }
-        ''', include_dirs=settings['include_dirs'])
-
-    except Exception as e:
-        print_warning('Cannot check cuDNN version\n{0}'.format(e))
-        return False
-
-    _cudnn_version = int(out)
-
-    if not minimum_cudnn_version <= _cudnn_version <= maximum_cudnn_version:
-        min_major = _format_cuda_version(minimum_cudnn_version)
-        max_major = _format_cuda_version(maximum_cudnn_version)
-        print_warning(
-            'Unsupported cuDNN version: {}'.format(
-                _format_cuda_version(_cudnn_version)),
-            'cuDNN v{}= and <=v{} is required'.format(min_major, max_major))
-        return False
-
-    return True
-
-
-def get_cudnn_version(formatted=False):
-    """Return cuDNN version cached in check_cudnn_version()."""
-    global _cudnn_version
-    if _cudnn_version is None:
-        msg = 'check_cudnn_version() must be called first.'
-        raise RuntimeError(msg)
-    if formatted:
-        return _format_cuda_version(_cudnn_version)
-    return _cudnn_version
-
-
-def check_nccl_version(compiler, settings):
-    global _nccl_version
-
-    # NCCL 1.x does not provide version information.
-    try:
-        out = build_and_run(compiler, '''
-        #include <nccl.h>
-        #include <stdio.h>
-        #ifdef NCCL_MAJOR
-        #  define NCCL_VERSION \
-                (NCCL_MAJOR * 1000 + NCCL_MINOR * 100 + NCCL_PATCH)
-        #else
-        #  define NCCL_VERSION 0
-        #endif
-        int main(int argc, char* argv[]) {
-          printf("%d", NCCL_VERSION);
-          return 0;
-        }
-        ''', include_dirs=settings['include_dirs'])
-
-    except Exception as e:
-        print_warning('Cannot include NCCL\n{0}'.format(e))
-        return False
-
-    _nccl_version = int(out)
-
-    return True
-
-
-def get_nccl_version(formatted=False):
-    """Return NCCL version cached in check_nccl_version()."""
-    global _nccl_version
-    if _nccl_version is None:
-        msg = 'check_nccl_version() must be called first.'
-        raise RuntimeError(msg)
-    if formatted:
-        if _nccl_version == 0:
-            return '1.x'
-        return _format_cuda_version(_nccl_version)
-    return _nccl_version
-
-
-def check_nvtx(compiler, settings):
-    if PLATFORM_WIN32:
-        path = os.environ.get('NVTOOLSEXT_PATH', None)
-        if path is None:
-            print_warning(
-                'NVTX unavailable: NVTOOLSEXT_PATH is not set')
-        elif not os.path.exists(path):
-            print_warning(
-                'NVTX unavailable: NVTOOLSEXT_PATH is set but the directory '
-                'does not exist')
-        elif search_on_path(['nvToolsExt64_1.dll']) is None:
-            print_warning(
-                'NVTX unavailable: nvToolsExt64_1.dll not found in PATH')
-        else:
-            return True
-        return False
-    return True
+    return str(_cuda_version) if formatted else _cuda_version
 
 
 def get_gencode_options():
     return ["--generate-code=arch=compute_{a},code=sm_{a}".format(
             a=dev['major']*10 + dev['minor'])
-            for dev in get_cuda_devices()]
+            for dev in get_cuda_info()['devices']]
 
 
 def build_and_run(compiler, source, libraries=(),
@@ -510,6 +395,7 @@ class _UnixCCompiler(unixccompiler.UnixCCompiler):
             cuda_version = get_cuda_version()
             postargs = get_gencode_options() + [
                 '-O2', '--compiler-options="-fPIC"']
+            postargs += extra_postargs
             print('NVCC options:', postargs)
 
             return unixccompiler.UnixCCompiler._compile(
@@ -538,6 +424,7 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
         cuda_version = get_cuda_version()
         postargs = get_gencode_options() + ['-O2']
         postargs += ['-Xcompiler', '/MD']
+        postargs += extra_postargs
         print('NVCC options:', postargs)
 
         for obj in objects:
@@ -573,8 +460,96 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
         return other_objects + cu_objects
 
 
+_compiler = None
+
+
 def get_compiler():
-    if not PLATFORM_WIN32:
-        return _UnixCCompiler
-    else:
-        return _MSVCCompiler
+    global _compiler
+
+    if _compiler is None:
+        if not PLATFORM_WIN32:
+            _compiler = _UnixCCompiler()
+        else:
+            _compiler = _MSVCCompiler()
+
+    return _compiler
+
+
+@contextlib.contextmanager
+def stdchannel_redirected(stdchannel, dest_filename):
+    """
+    A context manager to temporarily redirect stdout or stderr
+
+    e.g.:
+
+    with stdchannel_redirected(sys.stderr, os.devnull):
+        if compiler.has_function('clock_gettime', libraries=['rt']):
+            libraries.append('rt')
+    """
+
+    try:
+        oldstdchannel = os.dup(stdchannel.fileno())
+        dest_file = open(dest_filename, 'w')
+        os.dup2(dest_file.fileno(), stdchannel.fileno())
+
+        yield
+    finally:
+        if oldstdchannel is not None:
+            os.dup2(oldstdchannel, stdchannel.fileno())
+        if dest_file is not None:
+            dest_file.close()
+
+
+@requires_optional("cupy", cupy_import_error)
+def compile_using_nvcc(source, options=None, arch=None, filename='kern.cu'):
+    options = options or []
+
+    if arch is None:
+        cuda_info = get_cuda_info()
+        arch = min([dev['major']*10 + dev['minor']
+                   for dev in cuda_info['devices']])
+
+    cc = get_compiler()
+    settings = get_compiler_setting()
+    arch = "--generate-code=arch=compute_{a},code=sm_{a}".format(a=arch)
+
+    options += ['-cubin']
+
+    cupy_path = resource_filename("cupy", pjoin("core", "include"))
+    settings['include_dirs'].append(cupy_path)
+
+    with _tempdir() as tmpdir:
+        tmpfile = pjoin(tmpdir, filename)
+
+        with open(tmpfile, "w") as f:
+            f.write(source)
+
+        try:
+            stderr_file = pjoin(tmpdir, "stderr.txt")
+
+            with stdchannel_redirected(sys.stderr, stderr_file):
+                objects = cc.compile([tmpfile],
+                                     include_dirs=settings['include_dirs'],
+                                     macros=settings['define_macros'],
+                                     extra_postargs=options)
+        except errors.CompileError as e:
+            with open(stderr_file, "r") as f:
+                errs = f.read()
+
+            lines = ["The following source code",
+                     format_code(source),
+                     "",
+                     "created the following compilation errors",
+                     "",
+                     errs.strip(),
+                     str(e).strip()]
+
+            ex = errors.CompileError("\n".join(lines))
+            raise (ex, None, sys.exc_info()[2])
+
+        assert len(objects) == 1
+
+        mod = cp.cuda.function.Module()
+        mod.load_file(objects[0])
+
+        return mod
