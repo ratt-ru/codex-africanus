@@ -40,7 +40,7 @@ class InstallCubException(Exception):
 
 
 def download_cub(archive_file):
-    response = urlopen(_cub_url)
+    response = urlopen(_cub_url).decode('utf-8')
 
     if not os.path.exists(downloads_dir):
         os.makedirs(downloads_dir)
