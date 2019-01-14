@@ -18,9 +18,10 @@ with open('HISTORY.rst') as history_file:
 # requirements
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
-# Basic requirements that contain no C extensions.
+# Basic requirements containing no C extensions.
 # This is necessary for building on RTD
-requirements = ['decorator']
+requirements = ['appdirs >= 1.4.3',
+                'decorator']
 
 if not on_rtd:
     requirements += [
