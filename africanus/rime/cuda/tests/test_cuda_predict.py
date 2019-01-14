@@ -56,4 +56,3 @@ def test_cuda_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                             cp.asarray(g2_jones) if g2j else None)
 
     assert model_vis.shape == (r, c) + corr_shape
-
