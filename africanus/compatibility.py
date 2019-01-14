@@ -18,6 +18,8 @@ if PY3:
     zip = zip
     unicode = str
     string_types = (str,)
+    from urllib.request import urlopen
+    from urllib.parse import urlparse, urlsplit, quote, unquote
 elif PY2:
     import __builtin__ as builtins
     range = xrange
@@ -25,6 +27,8 @@ elif PY2:
     from itertools import izip as zip
     unicode = unicode
     string_types = (basestring,)
-
+    from urllib2 import urlopen
+    from urlparse import urlparse, urlsplit
+    from urllib import quote, unquote
 else:
     raise ValueError("Unknown python version %s" % (sys.version_info,))

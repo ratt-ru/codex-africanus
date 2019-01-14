@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import ast
 import contextlib
+import logging
 import os
 import re
 import shutil
@@ -32,11 +35,7 @@ else:
     cupy_import_error = None
 
 
-def print_warning(*lines):
-    print('**************************************************')
-    for line in lines:
-        print('*** WARNING: %s' % line)
-    print('**************************************************')
+log = logging.getLogger(__name__)
 
 
 def get_path(key):
@@ -85,18 +84,16 @@ def get_cuda_path():
     nvcc_path = search_on_path(('nvcc', 'nvcc.exe'))
     cuda_path_default = None
     if nvcc_path is None:
-        print_warning('nvcc not in path.',
-                      'Please set path to nvcc.')
+        log.warn('nvcc not in path. Please set path to nvcc.')
     else:
         cuda_path_default = os.path.normpath(
             os.path.join(os.path.dirname(nvcc_path), '..'))
 
     cuda_path = os.environ.get('CUDA_PATH', '')  # Nvidia default on Windows
     if len(cuda_path) > 0 and cuda_path != cuda_path_default:
-        print_warning(
-            'nvcc path != CUDA_PATH',
-            'nvcc path: %s' % cuda_path_default,
-            'CUDA_PATH: %s' % cuda_path)
+        log.warn('nvcc path != CUDA_PATH')
+        log.warn('nvcc path: %s' % cuda_path_default)
+        log.warn('CUDA_PATH: %s' % cuda_path)
 
     if os.path.exists(cuda_path):
         _cuda_path = cuda_path
@@ -298,7 +295,6 @@ def _get_cuda_info():
         stderrlines = stderrdata.split(b'\n')
 
         if proc.returncode != 0:
-            print(code)
             raise RuntimeError("Cannot determine "
                                "compute architecture {0}"
                                .format(stderrdata))
@@ -309,7 +305,6 @@ def _get_cuda_info():
             msg = 'Cannot execute a stub file.\nOriginal error: {0}'.format(e)
             raise Exception(msg)
 
-        print(out)
         return ast.literal_eval(out)
 
 
@@ -343,38 +338,6 @@ def get_gencode_options():
             for dev in get_cuda_info()['devices']]
 
 
-def build_and_run(compiler, source, libraries=(),
-                  include_dirs=(), library_dirs=(), define_macros=None):
-    with _tempdir() as temp_dir:
-        fname = os.path.join(temp_dir, 'a.cpp')
-        with open(fname, 'w') as f:
-            f.write(source)
-
-        objects = compiler.compile([fname], output_dir=temp_dir,
-                                   include_dirs=include_dirs,
-                                   macros=define_macros)
-
-        try:
-            postargs = ['/MANIFEST'] if PLATFORM_WIN32 else []
-            compiler.link_executable(objects,
-                                     os.path.join(temp_dir, 'a'),
-                                     libraries=libraries,
-                                     library_dirs=library_dirs,
-                                     extra_postargs=postargs,
-                                     target_lang='c++')
-        except Exception as e:
-            msg = 'Cannot build a stub file.\nOriginal error: {0}'.format(e)
-            raise Exception(msg)
-
-        try:
-            out = subprocess.check_output(os.path.join(temp_dir, 'a'))
-            return out
-
-        except Exception as e:
-            msg = 'Cannot execute a stub file.\nOriginal error: {0}'.format(e)
-            raise Exception(msg)
-
-
 class _UnixCCompiler(unixccompiler.UnixCCompiler):
     src_extensions = list(unixccompiler.UnixCCompiler.src_extensions)
     src_extensions.append('.cu')
@@ -396,7 +359,7 @@ class _UnixCCompiler(unixccompiler.UnixCCompiler):
             postargs = get_gencode_options() + [
                 '-O2', '--compiler-options="-fPIC"']
             postargs += extra_postargs
-            print('NVCC options:', postargs)
+            # print('NVCC options:', postargs)
 
             return unixccompiler.UnixCCompiler._compile(
                 self, obj, src, ext, base_opts + cc_args, postargs, pp_opts)
@@ -425,7 +388,7 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
         postargs = get_gencode_options() + ['-O2']
         postargs += ['-Xcompiler', '/MD']
         postargs += extra_postargs
-        print('NVCC options:', postargs)
+        # print('NVCC options:', postargs)
 
         for obj in objects:
             try:
