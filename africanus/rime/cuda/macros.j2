@@ -1,0 +1,164 @@
+{#
+Implement an in-place warp transpose using
+Kepler's register shuffle instructions as described in del Mundo's
+
+`Towards a performance-portable FFT library for heterogeneous computing`
+https://doi.org/10.1145/2597917.2597943
+https://homes.cs.washington.edu/~cdel/papers/cf14-fft.pdf
+The poster is especially informative
+https://homes.cs.washington.edu/~cdel/posters/073113-on-efficacy-shuffle-sc2013.pdf
+
+and
+
+`Enabling Efficient Intra-Warp Communication for Fourier Transforms in a Many-Core Architecture.`
+https://homes.cs.washington.edu/~cdel/papers/sc13-shuffle-abstract.pdf
+http://sc13.supercomputing.org/sites/default/files/PostersArchive/spost142.html
+
+The implementation is complex, but
+
+1. Avoids spilling registers to local memory by indexing array variables
+   with constant indices.
+2. Performs the transpose in-place
+3. Uses a minimal number of registers
+
+Limitations
+
+1. Variable length must be 1 (noop) or a multiple of 2.
+2. Variable type must be a standard cuda type or cuda vector type
+3. The warp transpose must occur in thread groups of var_length.
+   This makes the grid extent guard, as well as
+   global reads and writes slightly more complex than a standard CUDA kernel.
+   TODO(sjperkins). Decipher the warp transpose in trove or cub
+   https://github.com/bryancatanzaro/trove
+   https://github.com/NVlabs/cub
+   to make this easier to use.
+
+
+General usage pattern within a jinja CUDA template should be the following
+
+
+    __global__ void kernel(float * in, float * out, int N)
+    {
+
+        // Element within the global grid space
+        int n = blockIdx.x*blockDim.x + threadIdx.x;
+        // N rounded up to a multiple of variable_length
+        int NMULUP = {{var_length}}*((N + {{var_length - 1}}) / {{var_length}});
+
+        // Guard
+        // Warp transpose must occur in adjacent threads of var_length
+        // and so we can't just guard with n < N.
+        // This makes the global reads and writes slightly more complex
+        if(n >= NMULUP)
+            { return; }
+
+        // Allocate array for our data
+        float data[{{var_length}}];
+
+        // Read in data
+        // data[{{elem}}] = inputs[{{elem}}*N + n]
+        // as N may not be a multiple
+        {
+            int idx = n;
+            int upper = {{var_length}}*N;
+            {%- for elem in range(var_length) %}
+            if(idx < {{var_length}}*N)
+            {
+                data[{{elem}}] = inputs[idx];
+                idx += NMULUP;
+            }
+            {%- endfor %}
+        }
+
+        {{ warp_transpose("data", "float", var_length) }}
+
+        // Do some processing on data
+
+        {{ warp_transpose("data", "float", var_length) }}
+
+        // Write the data
+        {
+            int idx = n;
+            int upper = {{var_length}}*N;
+            {%- for elem in range(var_length) %}
+            if(idx < {{var_length}}*N)
+            {
+                out[idx] = data[{{elem}}];
+                idx += NMULUP;
+            }
+            {%- endfor %}
+        }
+    }
+#}
+
+{% macro warp_transpose(var_name, var_type, var_length,
+                        mask_var="activemask", tmp_name="tmp") %}
+
+{%- if (var_length < 1 or (var_length.__and__(var_length - 1) != 0)) %}
+{{ throw("var_length must be 1 or a power of 2") }}
+{%- endif %}
+
+{%- set comps = var_type[-1]|int(-1) %}
+{%- set comps = 1 if comps == -1 else comps %}
+
+{%- if comps == 1 %}
+{%- set comp_ext = [""] %}
+{%- elif comps <= 4 %}
+{%- set comp_ext = [".x", ".y", ".z", ".w"][:comps] %}
+{%- else %}
+{{ throw("1 <= components <= 4 must hold") }}
+{% endif %}
+
+{%- if var_length > 1 %}
+    {
+        {%- if mask_var is none %}
+        int mask = 0xFFFFFFFF;
+        {%- elif mask_var == "activemask" %}
+        int mask = __activemask();
+        {%- else %}
+        int mask = {{mask_var}};
+        {%- endif %}
+        int case_id = threadIdx.x & {{var_length - 1}};
+        {{var_type}} {{tmp_name}};  // For variable swaps
+
+        // Horizontal (inter-thread) Rotation
+        int addr = case_id;
+        {%- for case in range(var_length) %}
+        {%- for ext in comp_ext %}
+        {{var_name}}[{{case}}]{{ext}} = __shfl_sync(mask, {{var_name}}[{{case}}]{{ext}}, addr, {{var_length}});
+        {%- endfor %}
+        {%- if not loop.last %}
+        addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}}, {{var_length}});
+        {%- endif %}
+        {%- endfor %}
+
+        // Vertical (intra-thread) Rotation
+        {%- for case in range(var_length) %}
+        // Case {{case}}
+        {%- set cycles = register_assign_cycles(var_length, case) %}
+        {%- for cycle in cycles %}
+        {%- set cstart = cycle[0][0] %}
+        {{tmp_name}} = {{var_name}}[{{cstart}}];
+        {%- for dest, src in cycle %}
+        {%- set src_var = tmp_name if cstart == src else var_name + "[" + src|string + "]" %}
+        {%- for ext in comp_ext %}
+        {{var_name}}[{{dest}}]{{ext}} = case_id == {{case}} ? {{src_var}}{{ext}} : {{var_name}}[{{dest}}]{{ext}};
+        {%- endfor %}
+        {%- endfor %}
+        {%- endfor %}
+        {%- endfor %}
+
+        // Horizontal (inter-thread) Rotation
+        addr = ({{var_length}} - case_id) & {{var_length - 1}};
+        {%- for case in range(var_length) %}
+        {%- for ext in comp_ext %}
+        {{var_name}}[{{case}}]{{ext}} = __shfl_sync(mask, {{var_name}}[{{case}}]{{ext}}, addr, {{var_length}});
+        {%- endfor %}
+        {%- if not loop.last %}
+        addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) & {{var_length - 1}}, {{var_length}});
+        {%- endif %}
+        {%- endfor %}
+    }
+{%- endif %}
+
+{%- endmacro %}

@@ -7,27 +7,31 @@ from __future__ import print_function
 from collections import OrderedDict
 from functools import wraps
 
-from .phase import phase_delay_docs
-from .phase import phase_delay as np_phase_delay
-from .parangles import parallactic_angles as np_parangles
-from .feeds import feed_rotation as np_feed_rotation
-from .transform import transform_sources as np_transform_sources
-from .beam_cubes import beam_cube_dde as np_beam_cude_dde
-from .predict import PREDICT_DOCS
-from .predict import predict_vis as np_predict_vis
-from .zernike import zernike_dde as np_zernike_dde
+from africanus.rime.phase import (phase_delay as np_phase_delay,
+                                  PHASE_DELAY_DOCS)
+from africanus.rime.parangles import parallactic_angles as np_parangles
+from africanus.rime.feeds import feed_rotation as np_feed_rotation
+from africanus.rime.feeds import FEED_ROTATION_DOCS
+from africanus.rime.transform import transform_sources as np_transform_sources
+from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
+from africanus.rime.predict import PREDICT_DOCS
+from africanus.rime.predict import predict_vis as np_predict_vis
+from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
-from ..util.docs import doc_tuple_to_str, mod_docs
-from ..util.requirements import requires_optional
+from africanus.util.docs import doc_tuple_to_str, mod_docs
+from africanus.util.requirements import requires_optional
+from africanus.util.type_inference import infer_complex_dtype
 
 import numpy as np
 
 try:
     import dask.array as da
     from dask.sharedict import ShareDict
-except ImportError:
-    pass
+except ImportError as e:
+    da_import_error = e
+else:
+    da_import_error = None
 
 try:
     import cytoolz as toolz
@@ -39,19 +43,18 @@ except ImportError:
 
 
 @wraps(np_phase_delay)
-def _phase_delay_wrap(uvw, lm, frequency, dtype_):
-    return np_phase_delay(uvw[0], lm[0], frequency, dtype=dtype_)
+def _phase_delay_wrap(lm, uvw, frequency):
+    return np_phase_delay(lm[0], uvw[0], frequency)
 
 
-@requires_optional('dask.array')
-def phase_delay(uvw, lm, frequency, dtype=np.complex128):
+@requires_optional('dask.array', da_import_error)
+def phase_delay(lm, uvw, frequency):
     """ Dask wrapper for phase_delay function """
     return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
-                        uvw, ("row", "(u,v,w)"),
                         lm, ("source", "(l,m)"),
+                        uvw, ("row", "(u,v,w)"),
                         frequency, ("chan",),
-                        dtype=dtype,
-                        dtype_=dtype)
+                        dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
 @wraps(np_parangles)
@@ -59,7 +62,7 @@ def _parangle_wrapper(t, ap, fc, **kw):
     return np_parangles(t, ap[0], fc[0], **kw)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
     return da.core.atop(_parangle_wrapper, ("time", "ant"),
@@ -70,7 +73,7 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
                         **kwargs)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def feed_rotation(parallactic_angles, feed_type):
     pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
     corr_dims = ('corr-1', 'corr-2')
@@ -98,7 +101,7 @@ def _xform_wrap(lm, parallactic_angles, pointing_errors,
                                 frequency, dtype=dtype_)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def transform_sources(lm, parallactic_angles, pointing_errors,
                       antenna_scaling, frequency, dtype=None):
 
@@ -124,7 +127,7 @@ def _beam_wrapper(beam, coords, l_grid, m_grid, freq_grid,
                             spline_order=spline_order, mode=mode)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
                   spline_order=1, mode='nearest'):
 
@@ -154,7 +157,7 @@ def _zernike_wrapper(coords, coeffs, noll_index):
     return np_zernike_dde(coords[0], coeffs[0], noll_index[0])
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def zernike_dde(coords, coeffs, noll_index):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
@@ -210,7 +213,7 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           die2_jones[0] if die2_jones else None)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
@@ -421,93 +424,90 @@ def predict_vis(time_index, antenna1, antenna2,
     return da.Array(array_dsk, name, chunks, dtype=out_dtype)
 
 
-phase_delay.__doc__ = doc_tuple_to_str(phase_delay_docs,
-                                       [(":class:`numpy.ndarray`",
-                                         ":class:`dask.array.Array`")])
+try:
+    phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
+                            array_type=":class:`dask.array.Array`")
 
-parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
-                                      [(":class:`numpy.ndarray`",
-                                        ":class:`dask.array.Array`")])
+    parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
+                                          [(":class:`numpy.ndarray`",
+                                            ":class:`dask.array.Array`")])
 
-feed_rotation.__doc__ = mod_docs(np_feed_rotation.__doc__,
-                                 [(":class:`numpy.ndarray`",
-                                   ":class:`dask.array.Array`")])
+    feed_rotation.__doc__ = FEED_ROTATION_DOCS.substitute(
+                                array_type=":class:`numpy.ndarray`")
 
-transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
+    transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
+                                         [(":class:`numpy.ndarray`",
+                                           ":class:`dask.array.Array`")])
+
+    beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                      [(":class:`numpy.ndarray`",
                                        ":class:`dask.array.Array`")])
 
-beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
-                                 [(":class:`numpy.ndarray`",
-                                   ":class:`dask.array.Array`")])
+    zernike_dde.__doc__ = mod_docs(np_zernike_dde.__doc__,
+                                   [(":class:`numpy.ndarray`",
+                                     ":class:`dask.array.Array`")])
 
-zernike_dde.__doc__ = mod_docs(np_zernike_dde.__doc__,
-                               [(":class:`numpy.ndarray`",
-                                   ":class:`dask.array.Array`")])
+    EXTRA_DASK_NOTES = """
+    * The ``ant`` dimension should only contain a single chunk equal
+      to the number of antenna. Since each ``row`` can contain
+      any antenna, random access must be preserved along this dimension.
+    * The chunks in the ``row`` and ``time`` dimension **must** align.
+      This subtle point **must be understood otherwise
+      invalid results will be produced** by the chunking scheme.
+      In the example below
+      we have four unique time indices :code:`[0,1,2,3]`, and
+      four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
 
+      .. code-block:: python
 
-EXTRA_DASK_NOTES = """
-* The ``ant`` dimension should only contain a single chunk equal
-  to the number of antenna. Since each ``row`` can contain
-  any antenna, random access must be preserved along this dimension.
-* The chunks in the ``row`` and ``time`` dimension **must** align.
-  This subtle point **must be understood otherwise
-  invalid results will be produced** by the chunking scheme.
-  In the example below
-  we have four unique time indices :code:`[0,1,2,3]`, and
-  four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
-
-  .. code-block:: python
-
-      #  Row indices into the time/antenna indexed arrays
-      time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
-      ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
-      ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+          #  Row indices into the time/antenna indexed arrays
+          time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+          ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
+          ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
 
 
-  A reasonable chunking scheme for the
-  ``row`` and ``time`` dimension would be :code:`(4,4,2)`
-  and :code:`(2,1,1)` respectively.
-  Another way of explaining this is that the first
-  four rows contain two unique timesteps, the second four
-  rows contain one unique timestep and the last two rows
-  contain one unique timestep.
+      A reasonable chunking scheme for the
+      ``row`` and ``time`` dimension would be :code:`(4,4,2)`
+      and :code:`(2,1,1)` respectively.
+      Another way of explaining this is that the first
+      four rows contain two unique timesteps, the second four
+      rows contain one unique timestep and the last two rows
+      contain one unique timestep.
 
-  Some rules of thumb:
+      Some rules of thumb:
 
-  1. The number chunks in ``row`` and ``time`` must match
-     although the individual chunk sizes need not.
-  2. Unique timesteps should not be split across row chunks.
-  3. For a Measurement Set whose rows are ordered on the
-     ``TIME`` column, the following is a good way of obtaining
-     the row chunking strategy:
+      1. The number chunks in ``row`` and ``time`` must match
+         although the individual chunk sizes need not.
+      2. Unique timesteps should not be split across row chunks.
+      3. For a Measurement Set whose rows are ordered on the
+         ``TIME`` column, the following is a good way of obtaining
+         the row chunking strategy:
 
-     .. code-block:: python
+         .. code-block:: python
 
-        import numpy as np
-        import pyrap.tables as pt
+            import numpy as np
+            import pyrap.tables as pt
 
-        ms = pt.table("data.ms")
-        times = ms.getcol("TIME")
-        unique_times, chunks = np.unique(times, return_counts=True)
+            ms = pt.table("data.ms")
+            times = ms.getcol("TIME")
+            unique_times, chunks = np.unique(times, return_counts=True)
 
-  4. Use :func:`~africanus.util.shapes.aggregate_chunks`
-     to aggregate multiple ``row`` and ``time``
-     chunks into chunks large enough such that functions operating
-     on the resulting data can drop the GIL and spend time
-     processing the data. Expanding the previous example:
+      4. Use :func:`~africanus.util.shapes.aggregate_chunks`
+         to aggregate multiple ``row`` and ``time``
+         chunks into chunks large enough such that functions operating
+         on the resulting data can drop the GIL and spend time
+         processing the data. Expanding the previous example:
 
-     .. code-block:: python
+         .. code-block:: python
 
-        # Aggregate row
-        utimes = unique_times.size
-        # Single chunk for each unique time
-        time_chunks = (1,)*utimes
-        # Aggregate row chunks into chunks <= 10000
-        aggregate_chunks((chunks, time_chunks), (10000, utimes))
-"""
+            # Aggregate row
+            utimes = unique_times.size
+            # Single chunk for each unique time
+            time_chunks = (1,)*utimes
+            # Aggregate row chunks into chunks <= 10000
+            aggregate_chunks((chunks, time_chunks), (10000, utimes))
+    """
 
-try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`dask.array.Array`",
                                 extra_notes=EXTRA_DASK_NOTES)

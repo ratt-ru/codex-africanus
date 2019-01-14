@@ -8,9 +8,9 @@ from __future__ import print_function
 import argparse
 import logging
 
-from ..filters import convolution_filter, taper
-from ..util.cmdline import parse_python_assigns
-from ..util.requirements import requires_optional
+from africanus.filters import convolution_filter, taper
+from africanus.util.cmdline import parse_python_assigns
+from africanus.util.requirements import requires_optional
 
 import numpy as np
 
@@ -19,8 +19,10 @@ try:
     from matplotlib import cm
     from matplotlib.ticker import LinearLocator, FormatStrFormatter
     from mpl_toolkits.mplot3d import Axes3D  # noqa
-except ImportError:
+except ImportError as mpl_ie:
     pass
+else:
+    mpl_ie = None
 
 
 def create_parser():
@@ -43,7 +45,7 @@ def create_parser():
     return p
 
 
-@requires_optional('matplotlib.pyplot', 'mpl_toolkits.mplot3d')
+@requires_optional('matplotlib.pyplot', 'mpl_toolkits.mplot3d', mpl_ie)
 def _plot_taper(data, ny, nx, beta=None):
     hy = ny // 2
     hx = nx // 2

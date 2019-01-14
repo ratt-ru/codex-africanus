@@ -55,8 +55,8 @@ def w_stacking_bins(w_min, w_max, w_layers):
 
         w_bins = np.digitize(w, bins) - 1
 
-    Note
-    ----
+    Notes
+    -----
 
     A small epsilon is added to ``w_max`` to force this
     W coordinate into the last bin.

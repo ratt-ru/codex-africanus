@@ -1,5 +1,6 @@
 .. _rime-api-anchor:
 
+-----------------------------------------
 Radio Interferometer Measurement Equation
 -----------------------------------------
 
@@ -58,6 +59,19 @@ Numpy
 .. autofunction:: transform_sources
 .. autofunction:: beam_cube_dde
 .. autofunction:: zernike_dde
+
+Cuda
+~~~~
+
+.. currentmodule:: africanus.rime.cuda
+
+.. autosummary::
+    phase_delay
+    feed_rotation
+
+.. autofunction:: phase_delay
+.. autofunction:: feed_rotation
+
 
 Dask
 ~~~~

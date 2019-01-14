@@ -51,7 +51,7 @@ def parallactic_angles(times, antenna_positions, field_centre,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    parallactic_angles : :class:`numpy.ndarray`
         Parallactic angles of shape :code:`(time,ant)`
     """
     if backend not in _standard_backends:

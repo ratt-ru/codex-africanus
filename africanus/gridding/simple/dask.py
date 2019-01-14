@@ -9,14 +9,17 @@ from operator import mul
 
 import numpy as np
 
-from .gridding import (grid as np_grid_fn, degrid as np_degrid_fn)
-from ...util.docs import mod_docs
-from ...util.requirements import requires_optional
+from africanus.gridding.simple.gridding import (grid as np_grid_fn,
+                                                degrid as np_degrid_fn)
+from africanus.util.docs import mod_docs
+from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da
-except ImportError:
-    pass
+except ImportError as e:
+    da_import_error = e
+else:
+    da_import_error = None
 
 
 # Unfortunately necessary to introduce an extra dim
@@ -29,7 +32,7 @@ def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter,
                       nx=nx, ny=ny)[None, :]
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def grid(vis, uvw, flags, weights, ref_wave,
          convolution_filter, cell_size, nx=1024, ny=1024):
     """ Documentation below """
@@ -54,7 +57,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
     return grids.sum(axis=0)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', da_import_error)
 def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
     """ Documentation below """
 
@@ -66,7 +69,7 @@ def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
     assert weights.shape[1] == ref_wave.shape[0]
 
     # Creation correlation dimension strings for each correlation
-    corrs = tuple('corr-%d' for i in range(len(grid.shape[2:])))
+    corrs = tuple('corr-%d' % i for i in range(len(grid.shape[2:])))
 
     return da.core.atop(np_degrid_fn, ("row", "chan") + corrs,
                         grid, ("ny", "nx") + corrs,
