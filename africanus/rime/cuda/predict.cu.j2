@@ -1,6 +1,7 @@
 #include <cupy/carray.cuh>
+#include <cub/cub.cuh>
 
-{% from "rime/cuda/macros.j2" import warp_transpose %}
+
 
 {%- macro create_arg(name, type, dims, input=True) -%}
 {%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
@@ -58,11 +59,50 @@
 {%- endif %}
 {#- End nsrc variable determination #}
 
+// Create BlockLoad algorithm types
+{%- if have_dde1 %}
+typedef cub::BlockLoad<{{dde1_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadDDE1;
+{%- endif %}
+
+{%- if have_coh %}
+typedef cub::BlockLoad<{{coh_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadCOH;
+{%- endif %}
+
+{%- if have_dde2 %}
+typedef cub::BlockLoad<{{dde2_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadDDE2;
+{%- endif %}
+
+{%- if have_die1 %}
+typedef cub::BlockLoad<{{die1_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadDIE1;
+{%- endif %}
+
+{%- if have_base_vis %}
+typedef cub::BlockLoad<{{base_vis_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadBVIS;
+{%- endif %}
+
+{%- if have_die2 %}
+typedef cub::BlockLoad<{{die1_type}}, {{blockdimx}}, {{corrs}},
+                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
+                       {{blockdimy}}> BlockLoadDIE2;
+{%- endif %}
+
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
 )
 {
+    using namespace cub;
+
     int row = blockDim.y*blockIdx.y + threadIdx.y;
     int chan = blockDim.x*blockIdx.x + threadIdx.x;
 
@@ -70,6 +110,33 @@ extern "C" __global__ void {{kernel_name}}(
     // row >= nrow || chan >= nchan
     if(row >= {{nrow}} || chan >= {{nchan}})
         { return; }
+
+    // Shared memory (unioned) for loads
+    __shared__ union {
+        {%- if have_dde1 %}
+        typename BlockLoadDDE1::TempStorage dde1;
+        {%- endif %}
+
+        {%- if have_coh %}
+        typename BlockLoadCOH::TempStorage coh;
+        {%- endif %}
+
+        {%- if have_dde2 %}
+        typename BlockLoadDDE2::TempStorage dde2;
+        {%- endif %}
+
+        {%- if have_die1 %}
+        typename BlockLoadDIE1::TempStorage die1;
+        {%- endif %}
+
+        {%- if have_base_vis %}
+        typename BlockLoadBVIS::TempStorage bvis;
+        {%- endif %}
+
+        {%- if have_die2 %}
+        typename BlockLoadDIE2::TempStorage die2;
+        {%- endif %}
+    } shared;
 
     int ti = time_index[row];
     int ant1 = antenna1[row];
@@ -85,113 +152,54 @@ extern "C" __global__ void {{kernel_name}}(
     // Loop over nsrc
     for(int src=0; src < {{nsrc}}; ++src)
     {
-        {{out_type}} scratch[{{corrs}}];
-        {%- for c in range(corrs) %}
-        scratch[{{c}}] = make_{{out_type}}(0, 0);
-        {%- endfor %}
-
         {%- if have_ddes %}
-        // Load in second direction dependent effect term
-        ptrdiff_t dde2_idx [] = {src, ti, ant2, chan, 0};
-        {%- for c in range(corrs) %}
-        dde2_idx[4] = {{c}}; scratch[{{c}}] = dde2[dde2_idx];
-        {%- endfor %}
-
-        {{ warp_transpose("scratch", out_type, corrs) }}
-
-        {%- for c in range(corrs) %}
-        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
-        {%- endfor %}
-
+        {
+            {{dde2_type}} data[{{corrs}}];
+            // Load in second direction dependent effect term
+            BlockLoadDDE2(shared.dde2).Load(&dde2[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        }
         {%- endif %}
-
-
 
         {%- if have_coh %}
-        // Load in Source Coherencies
-        ptrdiff_t coh_idx [] = {src, row, chan, 0};
-        {%- for c in range(corrs) %}
-        coh_idx[3] = {{c}}; scratch[{{c}}] = source_coh[coh_idx];
-        {%- endfor %}
-
-        {{ warp_transpose("scratch", out_type, corrs) }}
-
-        {%- for c in range(corrs) %}
-        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
-        {%- endfor %}
-
+        {
+            {{coh_type}} data[{{corrs}}];
+            BlockLoadCOH(shared.coh).Load(&source_coh[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        }
         {%- endif %}
-
-
 
         {%- if have_ddes %}
-        // Load in first direction dependent effect term
-        ptrdiff_t dde1_idx [] = {src, ti, ant1, chan, 0};
-        {%- for c in range(corrs) %}
-        dde1_idx[4] = {{c}}; scratch[{{c}}] = dde1[dde1_idx];
-        {%- endfor %}
-
-        {{ warp_transpose("scratch", out_type, corrs) }}
-
-        {%- for c in range(corrs) %}
-        vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
-        {%- endfor %}
-
+        {
+            {{dde1_type}} data[{{corrs}}];
+            // Load in first direction dependent effect term
+            BlockLoadDDE1(shared.dde1).Load(&dde1[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        }
         {%- endif %}
-
-
-
-
-
     }
     {%- endif %}
 
-    {{out_type}} scratch[{{corrs}}];
-    {%- for c in range(corrs) %}
-    scratch[{{c}}] = make_{{out_type}}(0, 0);
-    {%- endfor %}
-
+    {%- if have_dies %}
+    {
+        {{die2_type}} data[{{corrs}}];
+        // Load in second direction dependent effect term
+        BlockLoadDIE2(shared.die2).Load(&die2[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+    }
+    {%- endif %}
 
     {%- if have_base_vis %}
-    // Add base visibilities if any
-    {%- for c in range(corrs) %}
-    scratch[{{c}}] = base_vis[{{c}}];
-    {%- endfor %}
-    {{ warp_transpose("scratch", out_type, corrs) }}
-    {%- for c in range(corrs) %}
-    vis[{{c}}].x += scratch[{{c}}].x;
-    vis[{{c}}].y += scratch[{{c}}].y;
-    {%- endfor %}
+    {
+        {{base_vis_type}} data[{{corrs}}];
+        BlockLoadBVIS(shared.bvis).Load(&base_vis[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+    }
     {%- endif %}
 
     {%- if have_dies %}
-    ptrdiff_t die2_idx [] = {ti, ant2, chan, 0};
-    {%- for c in range(corrs) %}
-    die2_idx[3] = {{c}}; scratch[{{c}}] = die2[die2_idx];
-    {%- endfor %}
-    {{ warp_transpose("scratch", out_type, corrs) }}
-    {%- for c in range(corrs) %}
-    vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
-    {%- endfor %}
+    {
+        {{die1_type}} data[{{corrs}}];
+        // Load in first direction dependent effect term
+        BlockLoadDIE1(shared.die1).Load(&die1[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+    }
     {%- endif %}
 
-    {%- if have_dies %}
-    ptrdiff_t die1_idx [] = {ti, ant1, chan, 0};
-    {%- for c in range(corrs) %}
-    die1_idx[3] = {{c}}; scratch[{{c}}] = die1[die1_idx];
-    {%- endfor %}
-    {{ warp_transpose("scratch", out_type, corrs) }}
-    {%- for c in range(corrs) %}
-    vis[{{c}}].x += scratch[{{c}}].x; vis[{{c}}].y += scratch[{{c}}].y;
-    {%- endfor %}
-    {%- endif %}
-
-
-
-    ptrdiff_t out_idx [] = {row, chan, 0};
-    {%- for c in range(corrs) %}
-    out_idx[2] = {{c}}; output[out_idx] = vis[{{c}}];
-    {%- endfor %}
 
 }
 

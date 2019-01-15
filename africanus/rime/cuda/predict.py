@@ -14,6 +14,8 @@ from africanus.compatibility import reduce
 from africanus.rime.predict import PREDICT_DOCS, predict_checks
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_function, cuda_type, grids
+from africanus.util.nvcc import compile_using_nvcc
+from africanus.util.cub import cub_dir
 from africanus.util.jinja2 import jinja_env
 from africanus.util.requirements import requires_optional
 
@@ -59,7 +61,10 @@ def _generate_kernel(time_index, antenna1, antenna2,
     out_dtype = np.result_type(dde1_jones, source_coh, dde2_jones,
                                die1_jones, base_vis, die2_jones)
 
+    block = (512, 1, 1)
+
     code = render(kernel_name=name,
+                  blockdimx=block[0], blockdimy=block[1],
                   have_dde1=have_ddes1,
                   dde1_type=cuda_type(dde1_jones) if have_ddes1 else "int",
                   dde1_ndim=dde1_jones.ndim if have_ddes1 else 1,
@@ -83,9 +88,10 @@ def _generate_kernel(time_index, antenna1, antenna2,
                   out_ndim=out_ndim)
     code = code.encode('utf-8')
 
-    block = (512, 1, 1)
+    mod = compile_using_nvcc(code, options=["-I " + cub_dir(), "-std=c++11"])
+    kernel = mod.get_function(name)
 
-    return cp.RawKernel(code, name), block, out_dtype
+    return kernel, block, code, out_dtype
 
 
 @requires_optional("cupy", opt_import_error)
@@ -147,22 +153,22 @@ def predict_vis(time_index, antenna1, antenna2,
 
     out_shape = (row, chan) + (flat_corrs,)
 
-    kernel, block, out_dtype = _generate_kernel(time_index,
-                                                antenna1,
-                                                antenna2,
-                                                dde1_jones,
-                                                source_coh,
-                                                dde2_jones,
-                                                die1_jones,
-                                                base_vis,
-                                                die2_jones,
-                                                corrs,
-                                                len(out_shape))
+    kernel, block, code, out_dtype = _generate_kernel(time_index,
+                                                      antenna1,
+                                                      antenna2,
+                                                      dde1_jones,
+                                                      source_coh,
+                                                      dde2_jones,
+                                                      die1_jones,
+                                                      base_vis,
+                                                      die2_jones,
+                                                      corrs,
+                                                      len(out_shape))
 
     grid = grids((1, 1, 1), block)
     out = cp.empty(shape=out_shape, dtype=out_dtype)
 
-    print(format_code(kernel.code))
+    print(format_code(code))
 
     args = (time_index, antenna1, antenna2,
             dde1_jones, source_coh, dde2_jones,
