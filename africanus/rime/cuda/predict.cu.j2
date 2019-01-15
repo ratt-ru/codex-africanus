@@ -1,8 +1,6 @@
 #include <cupy/carray.cuh>
 #include <cub/cub.cuh>
 
-
-
 {%- macro create_arg(name, type, dims, input=True) -%}
 {%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
 {%- endmacro -%}
@@ -41,11 +39,15 @@
 
 {#- Determine nrow and nchan variables #}
 {%- if have_ddes %}
+{%- set ntime = "dde1.shape()[1]" %}
+{%- set na = "dde1.shape()[2]" %}
 {%- set nchan = "dde1.shape()[3]" %}
+{%- elif have_dies %}
+{%- set ntime = "die1.shape()[0]" %}
+{%- set na = "die1.shape()[1]" %}
+{%- set nchan = "die1.shape()[2]" %}
 {%- elif have_coh %}
 {%- set nchan = "source_coh.shape()[2]" %}
-{%- elif have_dies %}
-{%- set nchan = "die1.shape()[2]" %}
 {%- endif %}
 {%- set nrow = "time_index.shape()[0]" %}
 {#- end nrow and nchan variable determination #}
@@ -59,43 +61,55 @@
 {%- endif %}
 {#- End nsrc variable determination #}
 
-// Create BlockLoad algorithm types
+#define WARP_STRIPED false
+
+// Create BlockExchange algorithm types
 {%- if have_dde1 %}
-typedef cub::BlockLoad<{{dde1_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadDDE1;
+typedef cub::BlockExchange<{{dde1_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDDE1;
 {%- endif %}
 
 {%- if have_coh %}
-typedef cub::BlockLoad<{{coh_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadCOH;
+typedef cub::BlockExchange<{{coh_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeCOH;
 {%- endif %}
 
 {%- if have_dde2 %}
-typedef cub::BlockLoad<{{dde2_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadDDE2;
+typedef cub::BlockExchange<{{dde2_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDDE2;
 {%- endif %}
 
 {%- if have_die1 %}
-typedef cub::BlockLoad<{{die1_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadDIE1;
+typedef cub::BlockExchange<{{die1_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDIE1;
 {%- endif %}
 
 {%- if have_base_vis %}
-typedef cub::BlockLoad<{{base_vis_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadBVIS;
+typedef cub::BlockExchange<{{base_vis_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeBVIS;
 {%- endif %}
 
 {%- if have_die2 %}
-typedef cub::BlockLoad<{{die1_type}}, {{blockdimx}}, {{corrs}},
-                       cub::BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED,
-                       {{blockdimy}}> BlockLoadDIE2;
+typedef cub::BlockExchange<{{die1_type}}, {{blockdimx}}, {{corrs}},
+                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDIE2;
 {%- endif %}
 
+
+
+// Warp Striped Load of Correlation Data
+template <typename InputT,
+          int CORRS_PER_THREAD,
+          typename InputIteratorT>
+__device__ __forceinline__ void
+CorrLoad(InputIteratorT input,
+         unsigned int N,
+         unsigned int offset,
+         InputT (&corrs)[CORRS_PER_THREAD])
+{
+    #pragma unroll
+    for(int CORR=0; CORR < CORRS_PER_THREAD; ++CORR)
+        { corrs[CORR] = input[N*CORR + offset]; }
+}
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
@@ -111,30 +125,30 @@ extern "C" __global__ void {{kernel_name}}(
     if(row >= {{nrow}} || chan >= {{nchan}})
         { return; }
 
-    // Shared memory (unioned) for loads
+    // Shared memory (unioned) for exchanges
     __shared__ union {
         {%- if have_dde1 %}
-        typename BlockLoadDDE1::TempStorage dde1;
+        typename BlockExchangeDDE1::TempStorage dde1;
         {%- endif %}
 
         {%- if have_coh %}
-        typename BlockLoadCOH::TempStorage coh;
+        typename BlockExchangeCOH::TempStorage coh;
         {%- endif %}
 
         {%- if have_dde2 %}
-        typename BlockLoadDDE2::TempStorage dde2;
+        typename BlockExchangeDDE2::TempStorage dde2;
         {%- endif %}
 
         {%- if have_die1 %}
-        typename BlockLoadDIE1::TempStorage die1;
+        typename BlockExchangeDIE1::TempStorage die1;
         {%- endif %}
 
         {%- if have_base_vis %}
-        typename BlockLoadBVIS::TempStorage bvis;
+        typename BlockExchangeBVIS::TempStorage bvis;
         {%- endif %}
 
         {%- if have_die2 %}
-        typename BlockLoadDIE2::TempStorage die2;
+        typename BlockExchangeDIE2::TempStorage die2;
         {%- endif %}
     } shared;
 
@@ -152,55 +166,89 @@ extern "C" __global__ void {{kernel_name}}(
     // Loop over nsrc
     for(int src=0; src < {{nsrc}}; ++src)
     {
+        {{out_type}} scratch[{{corrs}}];
+
         {%- if have_ddes %}
         {
-            {{dde2_type}} data[{{corrs}}];
             // Load in second direction dependent effect term
-            BlockLoadDDE2(shared.dde2).Load(&dde2[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+            {{dde2_type}} data[{{corrs}}];
+            CorrLoad(&dde2[0], {{nsrc}}*{{ntime}}*{{na}}*{{nchan}},
+                     ((src*{{ntime}} + ti)*{{na}} + ant2)*{{nchan}} + chan,
+                     data);
+            BlockExchangeDDE2(shared.dde2).WarpStripedToBlocked(data, data);
+            __syncthreads();
         }
         {%- endif %}
 
         {%- if have_coh %}
         {
             {{coh_type}} data[{{corrs}}];
-            BlockLoadCOH(shared.coh).Load(&source_coh[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+            CorrLoad(&source_coh[0], {{nsrc}}*{{nrow}}*{{nchan}},
+                     ((src*{{nrow}} + row)*{{nchan}}) + chan,
+                     data);
+            BlockExchangeCOH(shared.coh).WarpStripedToBlocked(data, data);
+            __syncthreads();
         }
         {%- endif %}
 
         {%- if have_ddes %}
         {
-            {{dde1_type}} data[{{corrs}}];
             // Load in first direction dependent effect term
-            BlockLoadDDE1(shared.dde1).Load(&dde1[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+            {{dde1_type}} data[{{corrs}}];
+            CorrLoad(&dde1[0], {{nsrc}}*{{ntime}}*{{na}}*{{nchan}},
+                     ((src*{{ntime}} + ti)*{{na}} + ant1)*{{nchan}} + chan,
+                     data);
+            BlockExchangeDDE1(shared.dde1).WarpStripedToBlocked(data, data);
+            __syncthreads();
         }
         {%- endif %}
+
+        // Add in contributions from this source correlation
+        #pragma unroll
+        for(int CORR=0; CORR < {{corrs}}; ++CORR)
+            { vis[CORR].x += scratch[CORR].x; vis[CORR].y += scratch[CORR].y; }
+
     }
     {%- endif %}
 
     {%- if have_dies %}
     {
-        {{die2_type}} data[{{corrs}}];
         // Load in second direction dependent effect term
-        BlockLoadDIE2(shared.die2).Load(&die2[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        {{die2_type}} data[{{corrs}}];
+        CorrLoad(&die2[0], {{ntime}}*{{na}}*{{nchan}},
+                 (ti*{{na}} + ant2)*{{nchan}} + chan,
+                 data);
+
+        BlockExchangeDIE2(shared.die2).WarpStripedToBlocked(data, data);
+        __syncthreads();
     }
     {%- endif %}
 
     {%- if have_base_vis %}
     {
         {{base_vis_type}} data[{{corrs}}];
-        BlockLoadBVIS(shared.bvis).Load(&base_vis[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        // Load in base visibility term
+        CorrLoad(&base_vis[0], {{nrow}}*{{nchan}},
+                 row*{{nchan}} + chan,
+                 data);
+
+        BlockExchangeBVIS(shared.bvis).WarpStripedToBlocked(data, data);
+        __syncthreads();
     }
     {%- endif %}
 
     {%- if have_dies %}
     {
-        {{die1_type}} data[{{corrs}}];
         // Load in first direction dependent effect term
-        BlockLoadDIE1(shared.die1).Load(&die1[blockIdx.x*{{blockdimx}}*{{corrs}}], data);
+        {{die1_type}} data[{{corrs}}];
+        CorrLoad(&die1[0], {{ntime}}*{{na}}*{{nchan}},
+                 (ti*{{na}} + ant1)*{{nchan}} + chan,
+                 data);
+
+        BlockExchangeDIE1(shared.die1).WarpStripedToBlocked(data, data);
+        __syncthreads();
     }
     {%- endif %}
-
-
 }
 
 // jinja2 parameters
