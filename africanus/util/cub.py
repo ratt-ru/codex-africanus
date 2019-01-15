@@ -40,12 +40,12 @@ class InstallCubException(Exception):
 
 
 def download_cub(archive_file):
-    response = urlopen(_cub_url).decode('utf-8')
+    response = urlopen(_cub_url)
 
     if not os.path.exists(downloads_dir):
         os.makedirs(downloads_dir)
 
-    with open(archive_file, "w") as f:
+    with open(archive_file, "wb") as f:
         shutil.copyfileobj(response, f)
 
     return sha_hash_file(archive_file)
