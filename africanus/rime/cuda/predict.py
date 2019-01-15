@@ -61,7 +61,8 @@ def _generate_kernel(time_index, antenna1, antenna2,
     out_dtype = np.result_type(dde1_jones, source_coh, dde2_jones,
                                die1_jones, base_vis, die2_jones)
 
-    block = (512, 1, 1)
+    # 32 channels, 16 rows
+    block = (32, 16, 1)
 
     code = render(kernel_name=name,
                   blockdimx=block[0], blockdimy=block[1],
@@ -165,7 +166,7 @@ def predict_vis(time_index, antenna1, antenna2,
                                                       corrs,
                                                       len(out_shape))
 
-    grid = grids((1, 1, 1), block)
+    grid = grids((chan, row, 1), block)
     out = cp.empty(shape=out_shape, dtype=out_dtype)
 
     print(format_code(code))
