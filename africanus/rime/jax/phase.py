@@ -19,12 +19,11 @@ from africanus.util.requirements import requires_optional
 
 @requires_optional('jax', opt_import_error)
 def phase_delay(lm, uvw, frequency):
-    const_type = np.result_type(lm, uvw, frequency)
-    out_dtype = np.result_type(const_type, np.complex64)
+    out_dtype = np.result_type(lm, uvw, frequency, np.complex64)
 
-    one = const_type.type(1.0)
+    one = lm.dtype.type(1.0)
+    neg_two_pi_over_c = lm.dtype.type(minus_two_pi_over_c)
     complex_one = out_dtype.type(1j)
-    neg_two_pi_over_c = const_type.type(minus_two_pi_over_c)
 
     l = lm[:, 0, None, None]
     m = lm[:, 1, None, None]
