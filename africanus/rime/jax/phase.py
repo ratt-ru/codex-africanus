@@ -14,7 +14,6 @@ else:
     opt_import_error = None
 
 from africanus.constants import minus_two_pi_over_c
-import africanus.util.jax_init
 from africanus.util.requirements import requires_optional
 
 
