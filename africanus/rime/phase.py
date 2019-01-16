@@ -11,13 +11,17 @@ import math
 import numba
 import numpy as np
 
-from ..constants import minus_two_pi_over_c
-from ..util.docs import DocstringTemplate, on_rtd
-from ..util.numba import is_numba_type_none
-from ..util.type_inference import infer_complex_dtype
+from africanus.constants import minus_two_pi_over_c
+from africanus.util.docs import DocstringTemplate, on_rtd
+from africanus.util.numba import is_numba_type_none
+from africanus.util.type_inference import infer_complex_dtype
 
 
 def phase_delay(lm, uvw, frequency):
+    # Bake constants in with the correct type
+    one = lm.dtype(1.0)
+    neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
+
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
     @wraps(phase_delay)
@@ -28,13 +32,13 @@ def phase_delay(lm, uvw, frequency):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
-            n = math.sqrt(1.0 - l**2 - m**2) - 1.0
+            n = math.sqrt(one - l**2 - m**2) - one
 
             # For each uvw coordinate
             for row in range(uvw.shape[0]):
                 u, v, w = uvw[row]
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
+                real_phase = neg_two_pi_over_c * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
                 for chan in range(frequency.shape[0]):

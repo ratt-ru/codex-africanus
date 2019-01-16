@@ -21,6 +21,10 @@ from africanus.util.requirements import requires_optional
 def phase_delay(lm, uvw, frequency):
     out_dtype = np.result_type(lm, uvw, frequency, np.complex64)
 
+    one = lm.dtype.type(1.0)
+    neg_two_pi_over_c = lm.dtype.type(minus_two_pi_over_c)
+    complex_one = out_dtype.type(1j)
+
     l = lm[:, 0, None, None]
     m = lm[:, 1, None, None]
 
@@ -28,10 +32,10 @@ def phase_delay(lm, uvw, frequency):
     v = uvw[None, :, 1, None]
     w = uvw[None, :, 2, None]
 
-    n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+    n = np.sqrt(one - l**2 - m**2) - one
 
-    real_phase = l * u + m * v + n * w
-    real_phase = lm.dtype.type(minus_two_pi_over_c) * real_phase
-    real_phase *= frequency[None, None, :]
+    real_phase = (neg_two_pi_over_c *
+                  (l * u + m * v + n * w) *
+                  frequency[None, None, :])
 
-    return np.exp(1j*real_phase)
+    return np.exp(complex_one*real_phase)
