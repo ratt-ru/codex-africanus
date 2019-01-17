@@ -51,7 +51,7 @@ def download_trove(archive_file):
     return sha_hash_file(archive_file)
 
 
-def is_trove_installed(readme_filename, header_filename, trove_version_str):
+def is_trove_installed(readme_filename):
     # Check if the README.md exists
     if (not os.path.exists(readme_filename) or
             not os.path.isfile(readme_filename)):
@@ -112,8 +112,7 @@ def _install_trove():
         log.info("NVIDIA trove archive unzipped into '%s'" % _trove_dir)
 
     # Final check on installation
-    there, reason = is_trove_installed(_trove_readme, _trove_header,
-                                       _trove_version_str)
+    there, reason = is_trove_installed(_trove_readme)
 
     if not there:
         raise InstallTroveException(reason)
@@ -122,8 +121,7 @@ def _install_trove():
 _trove_install_lock = Lock()
 
 with _trove_install_lock:
-    _trove_installed, _ = is_trove_installed(_trove_readme, _trove_header,
-                                             _trove_version_str)
+    _trove_installed, _ = is_trove_installed(_trove_readme)
 
 
 def trove_dir():
