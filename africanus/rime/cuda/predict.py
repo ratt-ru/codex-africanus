@@ -15,7 +15,7 @@ from africanus.rime.predict import PREDICT_DOCS, predict_checks
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_function, cuda_type, grids
 from africanus.util.nvcc import compile_using_nvcc
-from africanus.util.cub import cub_dir
+from africanus.util.trove import trove_dir
 from africanus.util.jinja2 import jinja_env
 from africanus.util.requirements import requires_optional
 
@@ -61,8 +61,9 @@ def _generate_kernel(time_index, antenna1, antenna2,
     out_dtype = np.result_type(dde1_jones, source_coh, dde2_jones,
                                die1_jones, base_vis, die2_jones)
 
-    # 32 channels, 16 rows
-    block = (32, 16, 1)
+    # channels, rows
+    block = (16, 16, 1)
+    options = ["-I " + trove_dir(), "-std=c++11"]
 
     code = render(kernel_name=name,
                   blockdimx=block[0], blockdimy=block[1],
@@ -87,12 +88,10 @@ def _generate_kernel(time_index, antenna1, antenna2,
                   out_type=cuda_type(out_dtype),
                   corrs=reduce(mul, corrs, 1),
                   out_ndim=out_ndim)
-    code = code.encode('utf-8')
-
-    mod = compile_using_nvcc(code, options=["-I " + cub_dir(), "-std=c++11"])
+    mod = compile_using_nvcc(code.encode('utf-8'), options=options)
     kernel = mod.get_function(name)
 
-    return kernel, block, code, out_dtype
+    return kernel, code, block, out_dtype
 
 
 @requires_optional("cupy", opt_import_error)
@@ -154,7 +153,7 @@ def predict_vis(time_index, antenna1, antenna2,
 
     out_shape = (row, chan) + (flat_corrs,)
 
-    kernel, block, code, out_dtype = _generate_kernel(time_index,
+    kernel, code, block, out_dtype = _generate_kernel(time_index,
                                                       antenna1,
                                                       antenna2,
                                                       dde1_jones,
@@ -179,7 +178,7 @@ def predict_vis(time_index, antenna1, antenna2,
     try:
         kernel(grid, block, tuple(a for a in args if a is not None))
     except CompileException:
-        log.exception(format_code(kernel.code))
+        log.exception(format_code(code))
         raise
 
     return out.reshape((row, chan) + corrs)

@@ -1,5 +1,5 @@
 #include <cupy/carray.cuh>
-#include <cub/cub.cuh>
+#include <trove/block.h>
 
 {%- macro create_arg(name, type, dims, input=True) -%}
 {%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
@@ -61,194 +61,296 @@
 {%- endif %}
 {#- End nsrc variable determination #}
 
-#define WARP_STRIPED false
-
-// Create BlockExchange algorithm types
-{%- if have_dde1 %}
-typedef cub::BlockExchange<{{dde1_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDDE1;
-{%- endif %}
-
-{%- if have_coh %}
-typedef cub::BlockExchange<{{coh_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeCOH;
-{%- endif %}
-
-{%- if have_dde2 %}
-typedef cub::BlockExchange<{{dde2_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDDE2;
-{%- endif %}
-
-{%- if have_die1 %}
-typedef cub::BlockExchange<{{die1_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDIE1;
-{%- endif %}
-
-{%- if have_base_vis %}
-typedef cub::BlockExchange<{{base_vis_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeBVIS;
-{%- endif %}
-
-{%- if have_die2 %}
-typedef cub::BlockExchange<{{die1_type}}, {{blockdimx}}, {{corrs}},
-                           WARP_STRIPED, {{blockdimy}}> BlockExchangeDIE2;
-{%- endif %}
-
-
-
-// Warp Striped Load of Correlation Data
-template <typename InputT,
-          int CORRS_PER_THREAD,
-          typename InputIteratorT>
-__device__ __forceinline__ void
-CorrLoad(InputIteratorT input,
-         unsigned int N,
-         unsigned int offset,
-         InputT (&corrs)[CORRS_PER_THREAD])
+// Used to convert between complex trove arrays of different types
+template <typename U, typename T>
+__device__ __forceinline__
+trove::array<U, {{corrs}}>
+assign(const trove::array<T, {{corrs}}> & src)
 {
-    #pragma unroll
-    for(int CORR=0; CORR < CORRS_PER_THREAD; ++CORR)
-        { corrs[CORR] = input[N*CORR + offset]; }
+    trove::array<U, {{corrs}}> dest;
+
+    {%- for c in range(corrs) %}
+    trove::get<{{c}}>(dest).x = trove::get<{{c}}>(src).x;
+    trove::get<{{c}}>(dest).y = trove::get<{{c}}>(src).y;
+    {%- endfor %}
+
+    return std::move(dest);
+}
+
+// Handle warp convergence/non-convergence cases
+template <int corrs, typename T>
+__device__ __forceinline__
+trove::array<T, corrs>
+trove_load(const T * ptr, int i)
+{
+    if(!trove::warp_converged())
+        { return trove::load_array<{{corrs}}>(ptr, i); }
+
+    return trove::load_array_warp_contiguous<{{corrs}}>(ptr, i);
+}
+
+template <typename T>
+__device__ __forceinline__
+void
+add_complex_arrays(trove::array<T, {{corrs}}> & dest,
+                   const trove::array<T, {{corrs}}> & src)
+{
+    {%- for c in range(corrs) %}
+    trove::get<{{c}}>(dest).x += trove::get<{{c}}>(src).x;
+    trove::get<{{c}}>(dest).y += trove::get<{{c}}>(src).y;
+    {%- endfor %}
+}
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex_in_place(T & a, const T & b)
+{
+    /* Copy input a. */
+    T a1 = a;
+
+    /* Multiply complex numbers: a = a * b. */
+    a.x *= b.x;
+    a.y = a1.x * b.y;
+    a.x -= a1.y * b.y; /* RE*RE - IM*IM */
+    a.y += a1.y * b.x; /* RE*IM + IM*RE */
+}
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex_conjugate_in_place(T & a, const T & b)
+{
+    /* Copy input a. */
+    double2 a1 = a;
+
+    /* Multiply complex numbers: a = a * conjugate(b). */
+    a.x *= b.x;
+    a.y = a1.y * b.x;
+    a.x += a1.y * b.y; /* RE*RE + IM*IM */
+    a.y -= a1.x * b.y; /* IM*RE - RE*IM */
+}
+
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex(T & out, const T & a, const T & b)
+{
+    out.x = a.x * b.x;
+    out.y = a.x * b.y;
+    out.x -= a.y * b.y; /* RE*RE - IM*IM */
+    out.y += a.y * b.x; /* RE*IM + IM*RE */
+}
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex_conjugate(T & out, const T & a, const T & b)
+{
+    /* Multiply complex numbers a and conjugate(b). */
+    out.x = a.x * b.x;
+    out.y = a.y * b.x;
+    out.x += a.y * b.y; /* RE*RE + IM*IM */
+    out.y -= a.x * b.y; /* IM*RE - RE*IM */
+}
+
+// More intuitive indexing for trove gets
+constexpr int A = 0;
+constexpr int B = 1;
+constexpr int C = 2;
+constexpr int D = 3;
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex_matrix_in_place(trove::array<T, {{corrs}}> & m1,
+                                      const trove::array<T, {{corrs}}> & m2)
+{
+
+    // Copy a and c from the target matrix.
+    T t;
+    T a = trove::get<C>(m1);   // a1
+    T c = trove::get<C>(m1);   // c1;
+
+    multiply_complex_in_place(trove::get<A>(m1), trove::get<A>(m2)); /* a = a1 a2 + b1 c2 */
+    multiply_complex(t, trove::get<B>(m1), trove::get<C>(m2));
+    trove::get<A>(m1).x += t.x;
+    trove::get<A>(m1).y += t.y;
+    multiply_complex_in_place(trove::get<C>(m1), trove::get<A>(m2)); /* c = c1 a2 + d1 c2 */
+    multiply_complex(t, trove::get<D>(m1), trove::get<C>(m2));
+    trove::get<C>(m1).x += t.x; /* Real part. */
+    trove::get<C>(m1).y += t.y; /* Imag part. */
+    multiply_complex_in_place(trove::get<B>(m1), trove::get<D>(m2)); /* b = a1 b2 + b1 d2 */
+    multiply_complex(t, a, trove::get<B>(m2));
+    trove::get<B>(m1).x += t.x;
+    trove::get<B>(m1).y += t.y;
+    multiply_complex_in_place(trove::get<D>(m1), trove::get<D>(m2)); /* d = c1 b2 + d1 d2 */
+    multiply_complex(t, c, trove::get<B>(m2));
+    trove::get<D>(m1).x += t.x;
+    trove::get<D>(m1).y += t.y;
+}
+
+template <typename T>
+__device__ __forceinline__
+void multiply_complex_matrix_conjugate_transpose_in_place(
+    trove::array<T, {{corrs}}> & m1,
+    const trove::array<T, {{corrs}}> & m2)
+{
+    // Copy a and c from the target matrix.
+    T t;
+    T a = trove::get<C>(m1);   // a1
+    T c = trove::get<C>(m1);   // c1;
+
+    /* First, evaluate result a. */
+    multiply_complex_conjugate_in_place(trove::get<A>(m1), trove::get<A>(m2));
+    multiply_complex_conjugate(t, trove::get<B>(m1), trove::get<B>(m2));
+    trove::get<A>(m1).x += t.x; /* Real part. */
+    trove::get<A>(m1).y += t.y; /* Imag part. */
+
+    /* Second, evaluate result c. */
+    multiply_complex_conjugate_in_place(trove::get<C>(m1), trove::get<A>(m2));
+    multiply_complex_conjugate(t, trove::get<D>(m1), trove::get<B>(m2));
+    trove::get<C>(m1).x += t.x; /* Real part. */
+    trove::get<C>(m1).y += t.y; /* Imag part. */
+
+    /* Third, evaluate result b. */
+    multiply_complex_conjugate_in_place(trove::get<B>(m1), trove::get<D>(m2));
+    multiply_complex_conjugate(t, a, trove::get<C>(m2));
+    trove::get<B>(m1).x += t.x; /* Real part. */
+    trove::get<B>(m1).y += t.y; /* Imag part. */
+
+    /* Fourth, evaluate result d. */
+    multiply_complex_conjugate_in_place(trove::get<D>(m1), trove::get<D>(m2));
+    multiply_complex_conjugate(t, c, trove::get<C>(m2));
+    trove::get<D>(m1).x += t.x; /* Real part. */
+    trove::get<D>(m1).y += t.y; /* Imag part. */
+}
+
+
+// If the arguments are in registers this should be a noop
+// See https://stackoverflow.com/a/19563246/1611416
+template <typename T>
+__device__ __forceinline__
+void cuda_swap(T & a, T & b)
+{
+    T tmp(a); a = b; b = tmp;
 }
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
 )
 {
-    using namespace cub;
-
     int row = blockDim.y*blockIdx.y + threadIdx.y;
     int chan = blockDim.x*blockIdx.x + threadIdx.x;
+
+    // Declare and initialise result
+    typedef trove::array<{{out_type}}, {{corrs}}> vis_type;
+
+    // TODO(sjperkins)
+    // A double precision, four correlation kernel uses 80 registers
+    // which limits the occupancy of this kernel.
+    // It's possible shared memory to hold visibility data and setting
+    // "--maxrregcount=64" doubles the possible occupancy of a four correlation
+    // double precision kernel.
+    // However, the increased shared memory bandwidth triples the execution
+    // time, compared to a register only kernel!
+    // __shared__ vis_type svis[{{blockdimy}}][{{blockdimx}}];
+    // vis_type & vis = svis[threadIdx.y][threadIdx.x];
 
     // Guard
     // row >= nrow || chan >= nchan
     if(row >= {{nrow}} || chan >= {{nchan}})
         { return; }
 
-    // Shared memory (unioned) for exchanges
-    __shared__ union {
-        {%- if have_dde1 %}
-        typename BlockExchangeDDE1::TempStorage dde1;
-        {%- endif %}
-
-        {%- if have_coh %}
-        typename BlockExchangeCOH::TempStorage coh;
-        {%- endif %}
-
-        {%- if have_dde2 %}
-        typename BlockExchangeDDE2::TempStorage dde2;
-        {%- endif %}
-
-        {%- if have_die1 %}
-        typename BlockExchangeDIE1::TempStorage die1;
-        {%- endif %}
-
-        {%- if have_base_vis %}
-        typename BlockExchangeBVIS::TempStorage bvis;
-        {%- endif %}
-
-        {%- if have_die2 %}
-        typename BlockExchangeDIE2::TempStorage die2;
-        {%- endif %}
-    } shared;
-
-    int ti = time_index[row];
+    int time = time_index[row];
     int ant1 = antenna1[row];
     int ant2 = antenna2[row];
 
-    // Declare and initialise result
-    {{out_type}} vis[{{corrs}}];
+    vis_type vis;
+
+    {%- if have_base_vis %}
+    {
+        // Load in base visibility term
+        int i = row*{{nchan}} + chan;
+        vis = assign<{{out_type}}>(trove_load<{{corrs}}>(&base_vis[0], i));
+    }
+    {%- else %}
     {%- for c in range(corrs) %}
-    vis[{{c}}] = make_{{out_type}}(0, 0);
+    trove::get<{{c}}>(vis) = make_{{out_type}}(0.0, 0.0);
     {%- endfor %}
+    {%- endif %}
 
     {% if do_coherencies %}
     // Loop over nsrc
     for(int src=0; src < {{nsrc}}; ++src)
     {
-        {{out_type}} scratch[{{corrs}}];
-
-        {%- if have_ddes %}
-        {
-            // Load in second direction dependent effect term
-            {{dde2_type}} data[{{corrs}}];
-            CorrLoad(&dde2[0], {{nsrc}}*{{ntime}}*{{na}}*{{nchan}},
-                     ((src*{{ntime}} + ti)*{{na}} + ant2)*{{nchan}} + chan,
-                     data);
-            BlockExchangeDDE2(shared.dde2).WarpStripedToBlocked(data, data);
-            __syncthreads();
-        }
-        {%- endif %}
-
-        {%- if have_coh %}
-        {
-            {{coh_type}} data[{{corrs}}];
-            CorrLoad(&source_coh[0], {{nsrc}}*{{nrow}}*{{nchan}},
-                     ((src*{{nrow}} + row)*{{nchan}}) + chan,
-                     data);
-            BlockExchangeCOH(shared.coh).WarpStripedToBlocked(data, data);
-            __syncthreads();
-        }
-        {%- endif %}
+        trove::array<{{out_type}}, {{corrs}}> scratch;
 
         {%- if have_ddes %}
         {
             // Load in first direction dependent effect term
-            {{dde1_type}} data[{{corrs}}];
-            CorrLoad(&dde1[0], {{nsrc}}*{{ntime}}*{{na}}*{{nchan}},
-                     ((src*{{ntime}} + ti)*{{na}} + ant1)*{{nchan}} + chan,
-                     data);
-            BlockExchangeDDE1(shared.dde1).WarpStripedToBlocked(data, data);
-            __syncthreads();
+            int i = ((src*{{ntime}} + time)*{{na}} + ant1)*{{nchan}} + chan;
+            scratch = assign<{{out_type}}>(trove_load<{{corrs}}>(&dde1[0], i));
         }
         {%- endif %}
 
-        // Add in contributions from this source correlation
-        #pragma unroll
-        for(int CORR=0; CORR < {{corrs}}; ++CORR)
-            { vis[CORR].x += scratch[CORR].x; vis[CORR].y += scratch[CORR].y; }
 
+        {%- if have_coh %}
+        {
+            // Load in source coherency term
+            int i = ((src*{{nrow}}) + row)*{{nchan}} + chan;
+            {%- if have_ddes %}
+            vis_type coh_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&source_coh[0], i));
+            multiply_complex_matrix_in_place(scratch, coh_term);
+            {%- else %}
+            scratch = assign<{{out_type}}>(trove_load<{{corrs}}>(&source_coh[0], i));
+            {%- endif %}
+        }
+        {%- endif %}
+
+
+        {%- if have_ddes %}
+        {
+            // Load in second direction dependent effect term
+            int i = ((src*{{ntime}} + time)*{{na}} + ant2)*{{nchan}} + chan;
+            vis_type dde2_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&dde2[0], i));
+            multiply_complex_matrix_conjugate_transpose_in_place(scratch, dde2_term);
+        }
+        {%- endif %}
+
+
+        add_complex_arrays(vis, scratch);
     }
     {%- endif %}
+
 
     {%- if have_dies %}
     {
-        // Load in second direction dependent effect term
-        {{die2_type}} data[{{corrs}}];
-        CorrLoad(&die2[0], {{ntime}}*{{na}}*{{nchan}},
-                 (ti*{{na}} + ant2)*{{nchan}} + chan,
-                 data);
-
-        BlockExchangeDIE2(shared.die2).WarpStripedToBlocked(data, data);
-        __syncthreads();
+        // Load in second direction independent effect term
+        int i = (time*{{na}} + ant2)*{{nchan}} + chan;
+        vis_type die2_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&die2[0], i));
+        multiply_complex_matrix_conjugate_transpose_in_place(vis, die2_term);
     }
     {%- endif %}
 
-    {%- if have_base_vis %}
-    {
-        {{base_vis_type}} data[{{corrs}}];
-        // Load in base visibility term
-        CorrLoad(&base_vis[0], {{nrow}}*{{nchan}},
-                 row*{{nchan}} + chan,
-                 data);
-
-        BlockExchangeBVIS(shared.bvis).WarpStripedToBlocked(data, data);
-        __syncthreads();
-    }
-    {%- endif %}
 
     {%- if have_dies %}
     {
-        // Load in first direction dependent effect term
-        {{die1_type}} data[{{corrs}}];
-        CorrLoad(&die1[0], {{ntime}}*{{na}}*{{nchan}},
-                 (ti*{{na}} + ant1)*{{nchan}} + chan,
-                 data);
-
-        BlockExchangeDIE1(shared.die1).WarpStripedToBlocked(data, data);
-        __syncthreads();
+        // Load in second direction independent effect term
+        int i = (time*{{na}} + ant1)*{{nchan}} + chan;
+        vis_type die1_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&die1[0], i));
+        cuda_swap(vis, die1_term);
+        multiply_complex_matrix_in_place(vis, die1_term);
     }
     {%- endif %}
+
+
+    {
+        // Write out the visibilities
+        int i = row*{{nchan}} + chan;
+
+        if(!trove::warp_converged())
+            { trove::store_array<{{corrs}}>(&output[0], i, vis); }
+
+        trove::store_array_warp_contiguous<{{corrs}}>(&output[0], i, vis);
+    }
+
 }
 
 // jinja2 parameters
