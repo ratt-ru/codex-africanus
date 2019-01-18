@@ -162,7 +162,7 @@ __device__ __forceinline__
 void multiply_complex_matrix_in_place(trove::array<T, {{corrs}}> & m1,
                                       const trove::array<T, {{corrs}}> & m2)
 {
-
+    {%- if corrs == 4 %}
     // Copy a and c from the target matrix.
     T t;
     T a = trove::get<C>(m1);   // a1
@@ -172,18 +172,32 @@ void multiply_complex_matrix_in_place(trove::array<T, {{corrs}}> & m1,
     multiply_complex(t, trove::get<B>(m1), trove::get<C>(m2));
     trove::get<A>(m1).x += t.x;
     trove::get<A>(m1).y += t.y;
+
     multiply_complex_in_place(trove::get<C>(m1), trove::get<A>(m2)); /* c = c1 a2 + d1 c2 */
     multiply_complex(t, trove::get<D>(m1), trove::get<C>(m2));
     trove::get<C>(m1).x += t.x; /* Real part. */
     trove::get<C>(m1).y += t.y; /* Imag part. */
+
     multiply_complex_in_place(trove::get<B>(m1), trove::get<D>(m2)); /* b = a1 b2 + b1 d2 */
     multiply_complex(t, a, trove::get<B>(m2));
     trove::get<B>(m1).x += t.x;
     trove::get<B>(m1).y += t.y;
+
     multiply_complex_in_place(trove::get<D>(m1), trove::get<D>(m2)); /* d = c1 b2 + d1 d2 */
     multiply_complex(t, c, trove::get<B>(m2));
     trove::get<D>(m1).x += t.x;
     trove::get<D>(m1).y += t.y;
+
+    {%- elif corrs == 2 %}
+    multiply_complex_in_place(trove::get<A>(m1), trove::get<A>(m2));
+    multiply_complex_in_place(trove::get<B>(m1), trove::get<B>(m2));
+
+    {%- elif corrs == 1 %}
+    multiply_complex_in_place(trove::get<A>(m1), trove::get<A>(m2));
+
+    {%- else %}
+    {{ throw("Correlations (%d) must be in (4, 2, 1)" % corrs)}}
+    {%- endif %}
 }
 
 template <typename T>
@@ -192,6 +206,7 @@ void multiply_complex_matrix_conjugate_transpose_in_place(
     trove::array<T, {{corrs}}> & m1,
     const trove::array<T, {{corrs}}> & m2)
 {
+    {%- if corrs == 4 %}
     // Copy a and c from the target matrix.
     T t;
     T a = trove::get<C>(m1);   // a1
@@ -220,6 +235,19 @@ void multiply_complex_matrix_conjugate_transpose_in_place(
     multiply_complex_conjugate(t, c, trove::get<C>(m2));
     trove::get<D>(m1).x += t.x; /* Real part. */
     trove::get<D>(m1).y += t.y; /* Imag part. */
+
+    {%- elif corrs == 2 %}
+
+    multiply_complex_conjugate_in_place(trove::get<A>(m1), trove::get<A>(m2));
+    multiply_complex_conjugate_in_place(trove::get<B>(m1), trove::get<B>(m2));
+
+    {%- elif corrs == 1 %}
+
+    multiply_complex_conjugate_in_place(trove::get<A>(m1), trove::get<A>(m2));
+
+    {%- else %}
+    {{ throw("Correlations (%d) must be in (4, 2, 1)" % corrs)}}
+    {%- endif %}
 }
 
 
