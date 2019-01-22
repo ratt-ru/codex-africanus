@@ -28,7 +28,7 @@ def da_proj_l1_plus_pos(x, tau):
 
 def power_dask(L, LT, im_size, tol=1e-8, max_iter=2000):
     np.random.seed(123)
-    x = da.random.random((im_size[0], im_size[1]), chunks=([im_size[0], im_size[1]]))
+    x = da.random.random(im_size, chunks=im_size)
     x /= da.linalg.norm(x, 'fro')
     init_val = 1
 
@@ -66,7 +66,7 @@ def pow_method(L, LT, im_size, tol=1e-12, max_iter=2000):
     @return: spectral radius of the operator
     """
     np.random.seed(123)
-    x = np.random.randn(im_size[0], im_size[1])
+    x = np.random.randn(*im_size)
     x /= np.linalg.norm(x, 'fro')
     init_val = 1
 

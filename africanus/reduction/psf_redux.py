@@ -32,16 +32,19 @@ def make_dim_reduce_ops(uvw, lm, freq, vis, Sigma):
     """
 
     npix = int(da.sqrt(lm.shape[0]))
-    # generate gridded visibilites
+
+    print('generate gridded visibilites')
     im_dirty = vis_to_im(Sigma*vis, uvw, lm, freq).reshape([npix, npix])
     vis_grid = FFT(im_dirty)/vis.shape[0]
 
-    # generate PSF_hat for execution
+    print('generate PSF_hat for execution')
     PSF = vis_to_im(Sigma, uvw, lm, freq).reshape([npix, npix]).real
     PSF_hat = FFT(PSF)/vis.shape[0]
 
-    # generate new weights and return
-    Sigma_hat = make_Sigma_hat(uvw, lm, freq, Sigma, npix)
+    print('generate new weights')
+    Sigma_hat = make_Sigma_hat(uvw, lm, freq, Sigma, npix)  # np.sqrt(np.abs(PSF_hat))  #
+
+    print('The size of the data sets have been reduced')
 
     return vis_grid, PSF_hat, Sigma_hat
 
@@ -64,13 +67,12 @@ def make_Sigma_hat(uvw, lm, freq, sigma, npix):
         source = da.from_array(np.ones([1, 1]), chunks=[1, 1])
         sigma_hat = np.zeros([npix**2, 1])
         for pixel in range(npix**2):
-            vis_form = sigma.dot(im_to_vis(source, uvw, lm[pixel:pixel+1], freq))
+            vis_form = sigma*(im_to_vis(source, uvw, lm[pixel:pixel+1], freq))
             covariance = vis_to_im(vis_form, uvw, lm, freq).real.compute()
             sigma_hat[pixel] = FFT(covariance.reshape([npix, npix])).flatten()[pixel]
 
         sigma_hat.tofile('Sigma_hat.dat')
-
-    return sigma_hat/sigma_hat.max()
+    return abs(sigma_hat/sigma_hat.max())
 
 
 def whiten_noise(grid_vis, psf_hat, sigma_hat, NCPU=8):
@@ -81,7 +83,7 @@ def whiten_noise(grid_vis, psf_hat, sigma_hat, NCPU=8):
     :param sigma_hat: the noise covariance matrix to be applied to the matrices
     :return: visibilities and psf_hat with half-whitened noise, half since it is applied twice
     """
-    half_sigma = np.sqrt(1/sigma_hat)
+    half_sigma = np.sqrt(sigma_hat)
 
     white_vis = da.from_array(half_sigma*grid_vis, chunks=[half_sigma.shape[0], half_sigma.shape[1]//NCPU])
     white_psf_hat = da.from_array(half_sigma*psf_hat, chunks=[half_sigma.shape[0], half_sigma.shape[1]//NCPU])

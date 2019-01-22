@@ -35,9 +35,10 @@ def gen_image_space(uvw, freqs, l_val, m_val):
     fov = max(max(abs(l_val)), max(abs(m_val))) * 1.5  # making sure the source is not at the edge of the field
 
     # set number of pixels required to properly oversample the image
-    npix = int(2 * fov / cell_size_rad)#//6
-    if not npix % 2:
-        npix += 1  # make sure it is odd
+    # npix = int(2 * fov / cell_size_rad)#//6
+    # if not npix % 2:
+    #     npix += 1  # make sure it is odd
+    npix = 65
 
     print("You need to use at least npix = ", npix)
 
@@ -67,18 +68,18 @@ def data_reader(data_path, ra_dec=[0.1, 0.1], NCPU=8, nchan=1, nrow=1000, pad_fa
     spw_ds = list(xds_from_table("::".join((data_path, "SPECTRAL_WINDOW")), group_cols="__row__"))[0]
 
     # make sure we are oversampling the image enough
-    uvw = xds.UVW.data[0:nrow, :]
+    uvw = xds.UVW.data[0:nrow, :].compute()
     # uvw[:, 2] = 0.0  # this is for testing
-    vis = xds.DATA.data[0:nrow, 0:nchan, 0]
-    freqs = spw_ds.CHAN_FREQ.data[0:nchan]
+    vis = xds.DATA.data[0:nrow, 0:nchan, 0].compute()
+    freqs = spw_ds.CHAN_FREQ.data[0:nchan].compute()
 
     # normalisation factor (equal to max(PSF))
-    weights = xds.WEIGHT.data[0:nrow, 0:nchan]
+    weights = xds.WEIGHT.data[0:nrow, 0:nchan].compute()
 
     # generate lm-coordinates
     l_val, m_val = radec_to_lm(0, 0, ra_dec[0, :], ra_dec[1, :])
 
-    lm, npix, cs, fov = gen_image_space(uvw.compute(), freqs.compute(), l_val, m_val)
+    lm, npix, cs, fov = gen_image_space(uvw, freqs, l_val, m_val)
     lm_pad, pad_pix, padding = gen_padding_space(npix, pad_fact, cs, fov)
 
     # Turn DFT into lambda functions for easy, single input access
@@ -86,9 +87,11 @@ def data_reader(data_path, ra_dec=[0.1, 0.1], NCPU=8, nchan=1, nrow=1000, pad_fa
     lm_dask = da.from_array(lm, chunks=(npix ** 2, 2))
     lm_pad_dask = da.from_array(lm_pad, chunks=(pad_pix ** 2, 2))
     uvw_dask = da.from_array(uvw, chunks=(chunkrow, 3))
-    frequency_dask = spw_ds.CHAN_FREQ.data.rechunk(nchan)[0:nchan]
+    frequency_dask = da.from_array(freqs, chunks=nchan)
     weights_dask = da.from_array(weights, chunks=(chunkrow, nchan))
     vis_dask = da.from_array(vis, chunks=(chunkrow, nchan))
+
+    print("The data file has been read successfully")
 
     # return all necessary information to the main process
     return uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding

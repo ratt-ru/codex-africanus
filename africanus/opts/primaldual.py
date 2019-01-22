@@ -108,8 +108,12 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             diff = differ(x_new, x, n)
 
             # Set new values to current values
-            x = x_new.compute()
-            v = v_new.compute()
+            if dask:
+                x = x_new.compute()
+                v = v_new.compute()
+            else:
+                x = x_new
+                v = v_new
 
             if diff < tolerance:
                 break

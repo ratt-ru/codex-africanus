@@ -74,7 +74,7 @@ def test_primal_dual_PSF():
     data_path = "/home/antonio/Documents/Masters/Helpful_Stuff/WSCMSSSMFTestSuite/SSMF.MS_p0"
     ra_dec = np.array([[3.15126500e-05], [-0.00551471375]])
 
-    uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path, ra_dec, nrow=35100)
+    uvw_dask, lm_dask, lm_pad_dask, frequency_dask, weights_dask, vis_dask, padding = data_reader(data_path, ra_dec, nrow=1000)
 
     wsum = da.sum(weights_dask)
     pad_pix = int(da.sqrt(lm_pad_dask.shape[0]))
@@ -89,7 +89,7 @@ def test_primal_dual_PSF():
     start = np.zeros_like(dirty, dtype=np.float64)
     start[pad_pix // 2, pad_pix // 2] = 10
 
-    cleaned = primal_dual_solver(start, white_vis, PSF_op, PSF_adj)
+    cleaned = primal_dual_solver(start, white_vis, PSF_op, PSF_adj, dask=True)
 
     plt.figure('ID')
     plt.imshow(dirty[padding:-padding, padding:-padding])
