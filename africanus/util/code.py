@@ -12,6 +12,20 @@ except ImportError:
     from threading import Lock
 
 
+class SingletonMixin(object):
+    __singleton_lock = Lock()
+    __singleton_instance = None
+
+    @classmethod
+    def instance(cls):
+        if not cls.__singleton_instance:
+            with cls.__singleton_lock:
+                if not cls.__singleton_instance:
+                    cls.__singleton_instance = cls()
+
+        return cls.__singleton_instance
+
+
 def format_code(code):
     """
     Formats some code with line numbers
@@ -26,7 +40,6 @@ def format_code(code):
     str
         Code prefixed with line numbers
     """
-    return code
     lines = ['']
     lines.extend(["%-5d %s" % (i, l) for i, l
                   in enumerate(code.split('\n'), 1)])
@@ -86,6 +99,7 @@ class memoize_on_key(object):
                                          ncorrs=ncorrs)
             return cp.RawKernel(code, "phase_delay")
     """
+
     def __init__(self, key_fn):
         self._key_fn = key_fn
         self._lock = Lock()

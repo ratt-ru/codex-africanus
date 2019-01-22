@@ -113,7 +113,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
     returns="""
     Returns
     -------
-    :class:`numpy.ndarray`
+    visibilties : :class:`numpy.ndarray`
         complex of shape :code:`(row, chan)`
     """
 )
@@ -155,7 +155,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
     returns="""
     Returns
     -------
-    :class:`numpy.ndarray`
+    image : :class:`numpy.ndarray`
         float of shape :code:`(source, chan)`
     """
 )

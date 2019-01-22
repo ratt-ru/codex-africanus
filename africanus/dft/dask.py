@@ -6,19 +6,21 @@ from __future__ import print_function
 
 from functools import wraps
 
-from .kernels import im_to_vis_docs, vis_to_im_docs
-from .kernels import im_to_vis as np_im_to_vis
-from .kernels import vis_to_im as np_vis_to_im
+from africanus.dft.kernels import im_to_vis_docs, vis_to_im_docs
+from africanus.dft.kernels import im_to_vis as np_im_to_vis
+from africanus.dft.kernels import vis_to_im as np_vis_to_im
 
-from ..util.docs import doc_tuple_to_str
-from ..util.requirements import requires_optional
+from africanus.util.docs import doc_tuple_to_str
+from africanus.util.requirements import requires_optional
 
 import numpy as np
 
 try:
     import dask.array as da
-except ImportError:
+except ImportError as dask_import_error:
     pass
+else:
+    dask_import_error = None
 
 
 @wraps(np_im_to_vis)
@@ -27,7 +29,7 @@ def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
                         frequency, dtype=dtype_)
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
     """ Dask wrapper for phase_delay function """
     if lm.chunks[0][0] != lm.shape[0]:
@@ -54,7 +56,7 @@ def _vis_to_im_wrapper(vis, uvw, lm, frequency, dtype_):
                         dtype=dtype_)[None, :]
 
 
-@requires_optional('dask.array')
+@requires_optional('dask.array', dask_import_error)
 def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
     """ Dask wrapper for phase_delay_adjoint function """
 

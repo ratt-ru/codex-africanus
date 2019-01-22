@@ -79,7 +79,7 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    coords : :class:`numpy.ndarray`
         coordinates of shape :code:`(3, src, time, antenna, chan)`
         where each coordinate component represents **l**, **m** and
         **frequency**, respectively.

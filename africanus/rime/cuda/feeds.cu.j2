@@ -1,0 +1,64 @@
+#include <cupy/carray.cuh>
+
+{%- if out_type in ("int", "unsigned int", "float") %}
+{% set vis_align = 8 %}
+{%- elif out_type == "double" %}
+{% set vis_align = 16 %}
+{%- else %}
+{{ throw("Unhandled alignment type %s" % out_type) }}
+{%- endif %}
+
+{%- if feed_type == "linear" %}
+typedef struct __align__({{vis_align}}) {
+    {{out_type}}2 XX;
+    {{out_type}}2 XY;
+    {{out_type}}2 YX;
+    {{out_type}}2 YY;
+} correlation;
+{%- elif feed_type == "circular" %}
+typedef struct __align__({{vis_align}}) {
+    {{out_type}}2 RR;
+    {{out_type}}2 RL;
+    {{out_type}}2 LR;
+    {{out_type}}2 LL;
+} correlation;
+{%- else %}
+{{ throw("Invalid feed_type %s" % feed_type) }}
+{%- endif %}
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{pa_type}}, 1> parangles,
+    CArray<{{out_type}}2, 2> feed_rotation)
+{
+    const ptrdiff_t & npa = parangles.shape()[0];
+    const int pa = blockIdx.x*blockDim.x + threadIdx.x;
+
+    // Guard
+    if(pa >= npa)
+        { return; }
+
+    {{pa_type}} pa_sin;
+    {{pa_type}} pa_cos;
+
+    {{sincos_fn}}(parangles[pa], &pa_sin, &pa_cos);
+
+    correlation vis;
+    {%- if feed_type == 'linear' %}
+    vis.XX = make_{{out_type}}2(pa_cos, 0.0);
+    vis.XY = make_{{out_type}}2(pa_sin, 0.0);
+    vis.YX = make_{{out_type}}2(-pa_sin, 0.0);
+    vis.YY = make_{{out_type}}2(pa_cos, 0.0);
+    {%- elif feed_type == 'circular' %}
+    vis.RR = make_{{out_type}}2(pa_cos, -pa_sin);
+    vis.RL = make_{{out_type}}2(0.0, 0.0);
+    vis.LR = make_{{out_type}}2(0.0, 0.0);
+    vis.LL = make_{{out_type}}2(pa_cos, pa_sin);
+    {%- else %}
+    {{ throw("Invalid feed_type %s" % feed_type) }}
+    {% endif %}
+
+    // Recast output type
+    correlation * base_ptr = reinterpret_cast<correlation *>(&feed_rotation[0]);
+    base_ptr[pa] = vis;
+
+}

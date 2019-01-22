@@ -22,6 +22,25 @@ cuda_fns = {
 }
 
 
+numpy_to_cuda_type_map = {
+    np.dtype('int8'): "char",
+    np.dtype('uint8'): "unsigned char",
+    np.dtype('int16'): "short",
+    np.dtype('uint16'): "unsigned short",
+    np.dtype('int32'): "int",
+    np.dtype('uint32'): "unsigned int",
+    np.dtype('float32'): "float",
+    np.dtype('float64'): "double",
+    np.dtype('complex64'): "float2",
+    np.dtype('complex128'): "double2"
+}
+
+# Also map the types
+numpy_to_cuda_type_map.update({k.type: v
+                               for k, v
+                               in numpy_to_cuda_type_map.items()})
+
+
 def grids(dims, blocks):
     """
     Determine the grid size, given space dimensions sizes and blocks
@@ -59,3 +78,10 @@ def cuda_function(function_name, dtype):
         return type_map[function_name]
     except KeyError:
         raise ValueError("Unknown CUDA function %s" % function_name)
+
+
+def cuda_type(dtype):
+    try:
+        return numpy_to_cuda_type_map[dtype]
+    except KeyError:
+        raise ValueError("No registered map for type %s" % dtype)
