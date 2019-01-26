@@ -6,10 +6,11 @@ from __future__ import print_function
 
 from functools import wraps
 
-from .component_spi import SPI_DOCSTRING
-from .component_spi import fit_spi_components as np_fit_spi_components
+from africanus.model.spi.component_spi import SPI_DOCSTRING
+from africanus.model.spi.component_spi import (
+                                fit_spi_components as np_fit_spi_components)
 
-from ...util.requirements import requires_optional
+from africanus.util.requirements import requires_optional
 
 import numpy as np
 
