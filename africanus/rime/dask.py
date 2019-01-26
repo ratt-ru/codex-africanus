@@ -27,9 +27,8 @@ import numpy as np
 
 try:
     import dask.array as da
-    from dask.array.core import blockwise
-    from dask.sharedict import ShareDict
-    from dask.blockwise import make_blockwise_graph
+    from dask.highlevelgraph import HighLevelGraph
+    from dask.blockwise import blockwise
 except ImportError as e:
     da_import_error = e
 else:
@@ -52,11 +51,11 @@ def _phase_delay_wrap(lm, uvw, frequency):
 @requires_optional('dask.array', da_import_error)
 def phase_delay(lm, uvw, frequency):
     """ Dask wrapper for phase_delay function """
-    return blockwise(_phase_delay_wrap, ("source", "row", "chan"),
-                     lm, ("source", "(l,m)"),
-                     uvw, ("row", "(u,v,w)"),
-                     frequency, ("chan",),
-                     dtype=infer_complex_dtype(lm, uvw, frequency))
+    return da.core.blockwise(_phase_delay_wrap, ("source", "row", "chan"),
+                             lm, ("source", "(l,m)"),
+                             uvw, ("row", "(u,v,w)"),
+                             frequency, ("chan",),
+                             dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
 @wraps(np_parangles)
@@ -67,12 +66,12 @@ def _parangle_wrapper(t, ap, fc, **kw):
 @requires_optional('dask.array', da_import_error)
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
-    return blockwise(_parangle_wrapper, ("time", "ant"),
-                     times, ("time",),
-                     antenna_positions, ("ant", "xyz"),
-                     field_centre, ("fc",),
-                     dtype=times.dtype,
-                     **kwargs)
+    return da.core.blockwise(_parangle_wrapper, ("time", "ant"),
+                             times, ("time",),
+                             antenna_positions, ("ant", "xyz"),
+                             field_centre, ("fc",),
+                             dtype=times.dtype,
+                             **kwargs)
 
 
 @requires_optional('dask.array', da_import_error)
@@ -88,11 +87,11 @@ def feed_rotation(parallactic_angles, feed_type):
         raise ValueError("parallactic_angles have "
                          "non-floating point dtype")
 
-    return blockwise(np_feed_rotation, pa_dims + corr_dims,
-                     parallactic_angles, pa_dims,
-                     feed_type=feed_type,
-                     new_axes={'corr-1': 2, 'corr-2': 2},
-                     dtype=dtype)
+    return da.core.blockwise(np_feed_rotation, pa_dims + corr_dims,
+                             parallactic_angles, pa_dims,
+                             feed_type=feed_type,
+                             new_axes={'corr-1': 2, 'corr-2': 2},
+                             dtype=dtype)
 
 
 @wraps(np_transform_sources)
@@ -110,15 +109,17 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
     if dtype is None:
         dtype = np.float64
 
-    return blockwise(_xform_wrap, ("comp", "src", "time", "ant", "chan"),
-                     lm, ("src", "lm"),
-                     parallactic_angles, ("time", "ant"),
-                     pointing_errors, ("time", "ant", "lm"),
-                     antenna_scaling, ("ant", "chan"),
-                     frequency, ("chan",),
-                     new_axes={"comp": 3},
-                     dtype=dtype,
-                     dtype_=dtype)
+    xform_inds = ("comp", "src", "time", "ant", "chan")
+
+    return da.core.blockwise(_xform_wrap, xform_inds,
+                             lm, ("src", "lm"),
+                             parallactic_angles, ("time", "ant"),
+                             pointing_errors, ("time", "ant", "lm"),
+                             antenna_scaling, ("ant", "chan"),
+                             frequency, ("chan",),
+                             new_axes={"comp": 3},
+                             dtype=dtype,
+                             dtype_=dtype)
 
 
 @wraps(np_beam_cude_dde)
@@ -140,15 +141,15 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
     beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
 
-    return blockwise(_beam_wrapper, coord_dims + corr_dims,
-                     beam, beam_dims,
-                     coords, ("coords",) + coord_dims,
-                     l_grid, ("beam_lw",),
-                     m_grid, ("beam_mh",),
-                     freq_grid, ("beam_nud",),
-                     spline_order=spline_order,
-                     mode=mode,
-                     dtype=beam.dtype)
+    return da.core.blockwise(_beam_wrapper, coord_dims + corr_dims,
+                             beam, beam_dims,
+                             coords, ("coords",) + coord_dims,
+                             l_grid, ("beam_lw",),
+                             m_grid, ("beam_mh",),
+                             freq_grid, ("beam_nud",),
+                             spline_order=spline_order,
+                             mode=mode,
+                             dtype=beam.dtype)
 
 
 @wraps(np_zernike_dde)
@@ -164,15 +165,15 @@ def zernike_dde(coords, coeffs, noll_index):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
 
-    return blockwise(_zernike_wrapper,
-                     ("source", "time", "ant", "chan") + corr_dims,
-                     coords,
-                     ("three", "source", "time", "ant", "chan"),
-                     coeffs,
-                     ("ant", "chan") + corr_dims + ("poly",),
-                     noll_index,
-                     ("ant", "chan") + corr_dims + ("poly",),
-                     dtype=coeffs.dtype)
+    return da.core.blockwise(_zernike_wrapper,
+                             ("source", "time", "ant", "chan") + corr_dims,
+                             coords,
+                             ("three", "source", "time", "ant", "chan"),
+                             coeffs,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             noll_index,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             dtype=coeffs.dtype)
 
 
 @wraps(np_predict_vis)
@@ -294,7 +295,7 @@ def predict_vis(time_index, antenna1, antenna2,
     # This means that the number of chunks of these
     # two dimensions must match even though the chunk sizes may not.
     # blockwise insists on matching chunk sizes.
-    # For this reason, we use the lower level make_blockwise_graph and
+    # For this reason, we use the lower level blockwise and
     # substitute "row" for "time" in arrays such as dde1_jones
     # and die1_jones.
     token = da.core.tokenize(time_index, antenna1, antenna2,
@@ -307,7 +308,7 @@ def predict_vis(time_index, antenna1, antenna2,
     # 1. Optional top arguments
     # 2. Optional numblocks kwarg
     # 3. dask graph inputs
-    array_dsk = ShareDict()
+    array_dsk = {}
     bw_args = [time_index.name, ("row",),
                antenna1.name, ("row",),
                antenna2.name, ("row",)]
@@ -359,9 +360,9 @@ def predict_vis(time_index, antenna1, antenna2,
     assert len(bw_args) // 2 == 9, len(bw_args) // 2
 
     name = "-".join(("predict_vis", token))
-    dsk = make_blockwise_graph(_predict_coh_wrapper,
-                               name, ("src", "row", "chan") + cdims,
-                               *bw_args, numblocks=numblocks)
+    dsk = blockwise(_predict_coh_wrapper,
+                    name, ("src", "row", "chan") + cdims,
+                    *bw_args, numblocks=numblocks)
 
     array_dsk.update(dsk)
 
@@ -383,7 +384,7 @@ def predict_vis(time_index, antenna1, antenna2,
     # 1. Optional top arguments
     # 2. Optional numblocks kwarg
     # 3. dask graph inputs
-    array_dsk = ShareDict()
+    array_dsk = {}
     bw_args = [time_index.name, ("row",),
                antenna1.name, ("row",),
                antenna2.name, ("row",)]
@@ -415,9 +416,9 @@ def predict_vis(time_index, antenna1, antenna2,
     token = da.core.tokenize(time_index, antenna1, antenna2,
                              die1_jones, sum_coherencies, die2_jones)
     name = '-'.join(("predict_vis", token))
-    dsk = make_blockwise_graph(_predict_dies_wrapper,
-                               name, ("row", "chan") + cdims,
-                               *bw_args, numblocks=numblocks)
+    dsk = blockwise(_predict_dies_wrapper,
+                    name, ("row", "chan") + cdims,
+                    *bw_args, numblocks=numblocks)
     array_dsk.update(dsk)
 
     chunks = (time_index.chunks[0],) + other_chunks
