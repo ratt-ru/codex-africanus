@@ -305,9 +305,9 @@ def predict_vis(time_index, antenna1, antenna2,
     gjones_dims = ("row", "ant", "chan") + cdims
 
     # Setup
-    # 1. Optional top arguments
+    # 1. Optional blockwise arguments
     # 2. Optional numblocks kwarg
-    # 3. dask graph inputs
+    # 3. HighLevelGraph dependencies
     array_dsk = {}
     bw_args = [time_index.name, ("row",),
                antenna1.name, ("row",),
@@ -318,16 +318,14 @@ def predict_vis(time_index, antenna1, antenna2,
         antenna2.name: antenna2.numblocks
     }
 
-    # Merge input graphs into the top graph
-    array_dsk.update(time_index.__dask_graph__())
-    array_dsk.update(antenna1.__dask_graph__())
-    array_dsk.update(antenna2.__dask_graph__())
+    # Dependencies
+    deps = [time_index, antenna1, antenna2]
 
     # Handle presence/absence of dde1_jones
     if have_ants:
         bw_args.extend([dde1_jones.name, ajones_dims])
         numblocks[dde1_jones.name] = dde1_jones.numblocks
-        array_dsk.update(dde1_jones.__dask_graph__())
+        deps.append(dde1_jones)
         other_chunks = dde1_jones.chunks[3:]
         src_chunks = dde1_jones.chunks[0]
     else:
@@ -339,7 +337,7 @@ def predict_vis(time_index, antenna1, antenna2,
         numblocks[source_coh.name] = source_coh.numblocks
         other_chunks = source_coh.chunks[2:]
         src_chunks = source_coh.chunks[0]
-        array_dsk.update(source_coh.__dask_graph__())
+        deps.append(source_coh)
     else:
         bw_args.extend([None, None])
 
@@ -348,7 +346,7 @@ def predict_vis(time_index, antenna1, antenna2,
         bw_args.extend([dde2_jones.name, ajones_dims])
         numblocks[dde2_jones.name] = dde2_jones.numblocks
         other_chunks = dde1_jones.chunks[3:]
-        array_dsk.update(dde2_jones.__dask_graph__())
+        deps.append(dde2_jones)
         other_chunks = dde2_jones.chunks[3:]
         src_chunks = dde1_jones.chunks[0]
     else:
@@ -360,16 +358,16 @@ def predict_vis(time_index, antenna1, antenna2,
     assert len(bw_args) // 2 == 9, len(bw_args) // 2
 
     name = "-".join(("predict_vis", token))
-    dsk = blockwise(_predict_coh_wrapper,
-                    name, ("src", "row", "chan") + cdims,
-                    *bw_args, numblocks=numblocks)
+    layer = blockwise(_predict_coh_wrapper,
+                      name, ("src", "row", "chan") + cdims,
+                      *bw_args, numblocks=numblocks)
 
-    array_dsk.update(dsk)
+    graph = HighLevelGraph.from_collections(name, layer, deps)
 
     # We can infer output chunk sizes from source_coh
     chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
 
-    sum_coherencies = da.Array(array_dsk, name, chunks, dtype=out_dtype)
+    sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
     sum_coherencies = sum_coherencies.sum(axis=0)
 
     if have_coh:
@@ -381,10 +379,9 @@ def predict_vis(time_index, antenna1, antenna2,
     # Now apply any Direction Independent Effect Terms
 
     # Setup
-    # 1. Optional top arguments
+    # 1. Optional blockwise arguments
     # 2. Optional numblocks kwarg
-    # 3. dask graph inputs
-    array_dsk = {}
+    # 3. HighLevelGraph dependencies
     bw_args = [time_index.name, ("row",),
                antenna1.name, ("row",),
                antenna2.name, ("row",)]
@@ -394,9 +391,7 @@ def predict_vis(time_index, antenna1, antenna2,
         antenna2.name: antenna2.numblocks
     }
 
-    array_dsk.update(time_index.__dask_graph__())
-    array_dsk.update(antenna1.__dask_graph__())
-    array_dsk.update(antenna2.__dask_graph__())
+    deps = [time_index, antenna1, antenna2]
 
     # dde1_jones, source_coh  and dde2_jones not present
     bw_args.extend([None, None, None, None, None, None])
@@ -407,23 +402,22 @@ def predict_vis(time_index, antenna1, antenna2,
     numblocks[die1_jones.name] = die1_jones.numblocks
     numblocks[sum_coherencies.name] = sum_coherencies.numblocks
     numblocks[die2_jones.name] = die2_jones.numblocks
-    array_dsk.update(die1_jones.__dask_graph__())
-    array_dsk.update(sum_coherencies.__dask_graph__())
-    array_dsk.update(die2_jones.__dask_graph__())
+
+    deps.extend([die1_jones, sum_coherencies, die2_jones])
 
     assert len(bw_args) // 2 == 9
 
     token = da.core.tokenize(time_index, antenna1, antenna2,
                              die1_jones, sum_coherencies, die2_jones)
     name = '-'.join(("predict_vis", token))
-    dsk = blockwise(_predict_dies_wrapper,
-                    name, ("row", "chan") + cdims,
-                    *bw_args, numblocks=numblocks)
-    array_dsk.update(dsk)
+    layer = blockwise(_predict_dies_wrapper,
+                      name, ("row", "chan") + cdims,
+                      *bw_args, numblocks=numblocks)
 
+    graph = HighLevelGraph.from_collections(name, layer, deps)
     chunks = (time_index.chunks[0],) + other_chunks
 
-    return da.Array(array_dsk, name, chunks, dtype=out_dtype)
+    return da.Array(graph, name, chunks, dtype=out_dtype)
 
 
 try:
