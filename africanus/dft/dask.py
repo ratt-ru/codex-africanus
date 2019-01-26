@@ -41,13 +41,13 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
     if image.chunks[0][0] != lm.chunks[0][0]:
         raise ValueError("Image chunks and lm chunks must "
                          "match on first axis")
-    return da.core.atop(_im_to_vis_wrapper, ("row", "chan"),
-                        image, ("source", "chan"),
-                        uvw, ("row", "(u,v,w)"),
-                        lm, ("source", "(l,m)"),
-                        frequency, ("chan",),
-                        dtype=dtype,
-                        dtype_=dtype)
+    return da.core.blockwise(_im_to_vis_wrapper, ("row", "chan"),
+                             image, ("source", "chan"),
+                             uvw, ("row", "(u,v,w)"),
+                             lm, ("source", "(l,m)"),
+                             frequency, ("chan",),
+                             dtype=dtype,
+                             dtype_=dtype)
 
 
 @wraps(np_vis_to_im)
@@ -60,14 +60,14 @@ def _vis_to_im_wrapper(vis, uvw, lm, frequency, dtype_):
 def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
     """ Dask wrapper for phase_delay_adjoint function """
 
-    ims = da.core.atop(_vis_to_im_wrapper, ("row", "source", "chan"),
-                       vis, ("row", "chan"),
-                       uvw, ("row", "(u,v,w)"),
-                       lm, ("source", "(l,m)"),
-                       frequency, ("chan",),
-                       adjust_chunks={"row": 1},
-                       dtype=dtype,
-                       dtype_=dtype)
+    ims = da.core.blockwise(_vis_to_im_wrapper, ("row", "source", "chan"),
+                            vis, ("row", "chan"),
+                            uvw, ("row", "(u,v,w)"),
+                            lm, ("source", "(l,m)"),
+                            frequency, ("chan",),
+                            adjust_chunks={"row": 1},
+                            dtype=dtype,
+                            dtype_=dtype)
 
     return ims.sum(axis=0)
 

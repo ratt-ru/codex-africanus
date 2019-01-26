@@ -32,8 +32,8 @@ if not on_rtd:
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
-    'dask': ['dask[array] >= 0.18.0, < 0.20.0'],
-    'jax': ['jax == 0.1.15', 'jaxlib == 0.1.3'],
+    'dask': ['dask[array] >= 1.1.0'],
+    'jax': ['jax == 0.1.16', 'jaxlib == 0.1.6'],
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
     'python-casacore': ['python-casacore >= 2.2.1'],
