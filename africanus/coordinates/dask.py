@@ -35,11 +35,11 @@ def _radec_to_lmn(radec, phase_centre):
 def radec_to_lmn(radec, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(_radec_to_lmn, ("source", "lmn"),
-                        radec, ("source", "radec"),
-                        phase_centre, phase_centre_dims,
-                        new_axes={"lmn": 3},
-                        dtype=radec.dtype)
+    return da.core.blockwise(_radec_to_lmn, ("source", "lmn"),
+                             radec, ("source", "radec"),
+                             phase_centre, phase_centre_dims,
+                             new_axes={"lmn": 3},
+                             dtype=radec.dtype)
 
 
 @wraps(np_lmn_to_radec)
@@ -51,11 +51,11 @@ def _lmn_to_radec(lmn, phase_centre):
 def lmn_to_radec(lmn, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(_lmn_to_radec, ("source", "radec"),
-                        lmn, ("source", "lmn"),
-                        phase_centre, phase_centre_dims,
-                        new_axes={"radec": 2},
-                        dtype=lmn.dtype)
+    return da.core.blockwise(_lmn_to_radec, ("source", "radec"),
+                             lmn, ("source", "lmn"),
+                             phase_centre, phase_centre_dims,
+                             new_axes={"radec": 2},
+                             dtype=lmn.dtype)
 
 
 @wraps(np_radec_to_lm)
@@ -67,11 +67,11 @@ def _radec_to_lm(radec, phase_centre):
 def radec_to_lm(radec, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(_radec_to_lm, ("source", "lm"),
-                        radec, ("source", "radec"),
-                        phase_centre, phase_centre_dims,
-                        new_axes={"lm": 2},
-                        dtype=radec.dtype)
+    return da.core.blockwise(_radec_to_lm, ("source", "lm"),
+                             radec, ("source", "radec"),
+                             phase_centre, phase_centre_dims,
+                             new_axes={"lm": 2},
+                             dtype=radec.dtype)
 
 
 @wraps(np_lm_to_radec)
@@ -83,11 +83,11 @@ def _lm_to_radec(lm, phase_centre):
 def lm_to_radec(lm, phase_centre=None):
     phase_centre_dims = ("radec",) if phase_centre is not None else None
 
-    return da.core.atop(_lm_to_radec, ("source", "radec"),
-                        lm, ("source", "lm"),
-                        phase_centre, phase_centre_dims,
-                        new_axes={"radec": 2},
-                        dtype=lm.dtype)
+    return da.core.blockwise(_lm_to_radec, ("source", "radec"),
+                             lm, ("source", "lm"),
+                             phase_centre, phase_centre_dims,
+                             new_axes={"radec": 2},
+                             dtype=lm.dtype)
 
 
 try:
