@@ -49,6 +49,7 @@
 {%- elif have_coh %}
 {%- set nchan = "source_coh.shape()[2]" %}
 {%- endif %}
+
 {%- set nrow = "time_index.shape()[0]" %}
 {#- end nrow and nchan variable determination #}
 
@@ -60,6 +61,13 @@
 {%- set nsrc = "source_coh.shape()[0]" %}
 {%- endif %}
 {#- End nsrc variable determination #}
+
+{%- set nwarps = (blockdimy*blockdimx + warp_size - 1) // warp_size %}
+{%- if nwarps > warp_size %}
+{{ throw("A single warp is insufficient to handle the block reduction "
+         "of the minimum time index. Code needs to be improved. ") }}
+{%- endif %}
+
 
 // Used to convert between complex trove arrays of different types
 template <typename U, typename T>
@@ -80,7 +88,7 @@ assign(const trove::array<T, {{corrs}}> & src)
 // Handle warp convergence/non-convergence cases
 template <int corrs, typename T>
 __device__ __forceinline__
-trove::array<T, corrs>
+trove::array<T, {{corrs}}>
 trove_load(const T * ptr, int i)
 {
     if(!trove::warp_converged())
@@ -88,6 +96,19 @@ trove_load(const T * ptr, int i)
 
     return trove::load_array_warp_contiguous<{{corrs}}>(ptr, i);
 }
+
+template <int corrs, typename T>
+__device__ __forceinline__
+trove::array<T, {{corrs}}>
+trove_store(T * ptr, int i, const trove::array<T, {{corrs}}> & data)
+{
+    if(!trove::warp_converged())
+        { trove::store_array(ptr, i, data); }
+
+    trove::store_array_warp_contiguous(ptr, i, data);
+}
+
+
 
 template <typename T>
 __device__ __forceinline__
@@ -120,7 +141,7 @@ __device__ __forceinline__
 void multiply_complex_conjugate_in_place(T & a, const T & b)
 {
     /* Copy input a. */
-    double2 a1 = a;
+    T a1 = a;
 
     /* Multiply complex numbers: a = a * conjugate(b). */
     a.x *= b.x;
@@ -165,7 +186,7 @@ void multiply_complex_matrix_in_place(trove::array<T, {{corrs}}> & m1,
     {%- if corrs == 4 %}
     // Copy a and c from the target matrix.
     T t;
-    T a = trove::get<C>(m1);   // a1
+    T a = trove::get<A>(m1);   // a1
     T c = trove::get<C>(m1);   // c1;
 
     multiply_complex_in_place(trove::get<A>(m1), trove::get<A>(m2)); /* a = a1 a2 + b1 c2 */
@@ -209,7 +230,7 @@ void multiply_complex_matrix_conjugate_transpose_in_place(
     {%- if corrs == 4 %}
     // Copy a and c from the target matrix.
     T t;
-    T a = trove::get<C>(m1);   // a1
+    T a = trove::get<A>(m1);   // a1
     T c = trove::get<C>(m1);   // c1;
 
     /* First, evaluate result a. */
@@ -256,9 +277,7 @@ void multiply_complex_matrix_conjugate_transpose_in_place(
 template <typename T>
 __device__ __forceinline__
 void cuda_swap(T & a, T & b)
-{
-    T tmp(a); a = b; b = tmp;
-}
+    { T tmp(a); a = b; b = tmp; }
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
@@ -368,17 +387,8 @@ extern "C" __global__ void {{kernel_name}}(
     }
     {%- endif %}
 
-
-    {
-        // Write out the visibilities
-        int i = row*{{nchan}} + chan;
-
-        if(!trove::warp_converged())
-            { trove::store_array<{{corrs}}>(&output[0], i, vis); }
-
-        trove::store_array_warp_contiguous<{{corrs}}>(&output[0], i, vis);
-    }
-
+    // Write out the visibilities
+    trove_store<{{corrs}}>(&output[0], (row*{{nchan}} + chan)*{{corrs}}, vis);
 }
 
 // jinja2 parameters
