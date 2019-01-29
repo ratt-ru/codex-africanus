@@ -21,7 +21,7 @@ def rc(*a, **kw):
     ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
 ])
 @pytest.mark.parametrize('a1j,blj,a2j', [
     [True, True, True],
@@ -95,7 +95,7 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
     ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil"),
+     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
 ])
 @pytest.mark.parametrize('a1j,blj,a2j', [
     [True, True, True],
