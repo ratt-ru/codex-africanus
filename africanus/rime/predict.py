@@ -112,10 +112,10 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
                 a2_yx_H = np.conj(a2j[1, 0])
                 a2_yy_H = np.conj(a2j[1, 1])
 
-                xx = blj[0, 0] * a2_xx_H + blj[0, 1] * a2_yx_H
-                xy = blj[0, 0] * a2_xy_H + blj[0, 1] * a2_yy_H
-                yx = blj[1, 0] * a2_xx_H + blj[1, 1] * a2_yx_H
-                yy = blj[1, 0] * a2_xy_H + blj[1, 1] * a2_yy_H
+                xx = blj[0, 0] * a2_xx_H + blj[0, 1] * a2_xy_H
+                xy = blj[0, 0] * a2_yx_H + blj[0, 1] * a2_yy_H
+                yx = blj[1, 0] * a2_xx_H + blj[1, 1] * a2_xy_H
+                yy = blj[1, 0] * a2_yx_H + blj[1, 1] * a2_yy_H
 
                 if accumulate:
                     out[0, 0] += a1j[0, 0] * xx + a1j[0, 1] * yx
@@ -147,15 +147,15 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
                 a2_yy_H = np.conj(a2j[1, 1])
 
                 if accumulate:
-                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_yx_H
-                    out[0, 1] += a1j[0, 0] * a2_xy_H + a1j[0, 1] * a2_yy_H
-                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_yx_H
-                    out[1, 1] += a1j[1, 0] * a2_xy_H + a1j[1, 1] * a2_yy_H
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
                 else:
-                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_yx_H
-                    out[0, 1] += a1j[0, 0] * a2_xy_H + a1j[0, 1] * a2_yy_H
-                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_yx_H
-                    out[1, 1] += a1j[1, 0] * a2_xy_H + a1j[1, 1] * a2_yy_H
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
         else:
             raise ex
     elif not have_ants and have_bl:
