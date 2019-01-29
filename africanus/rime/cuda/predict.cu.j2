@@ -286,6 +286,59 @@ extern "C" __global__ void {{kernel_name}}(
     int row = blockDim.y*blockIdx.y + threadIdx.y;
     int chan = blockDim.x*blockIdx.x + threadIdx.x;
 
+    // Guard
+    // row >= nrow || chan >= nchan
+    bool pred = row >= {{nrow}} || chan >= {{nchan}};
+    if(pred)
+        { return; }
+
+    int time = time_index[row];
+    int ant1 = antenna1[row];
+    int ant2 = antenna2[row];
+
+    // Work out the minimum time index
+    // Shared memory to hold the minimum time index for each warp
+    // __shared__ int smin_time[{{nwarps}}];
+
+    // int min_time = time;
+    // int bid = blockIdx.y*gridDim.x + blockIdx.x;
+    // int tid = threadIdx.y*{{blockdimx}} + threadIdx.x; // Block thread ID
+    // int wid = tid / {{warp_size}};                     // Warp ID
+    // int lane = tid % {{warp_size}};                    // Lane ID
+    // unsigned int mask = __ballot_sync(0xFFFFFFF, !pred);
+
+    // // Compute minimum time index within the warp
+    // #pragma unroll
+    // for(int offset = {{warp_size // 2}}; offset > 0; offset /= 2)
+    // {
+    //     int save = min_time;
+    //     min_time = min(min_time, __shfl_xor_sync(mask, min_time, offset));
+    //     if(row == 66)
+    //         { printf("%d, %d %d %d %d %d %d %d\n", mask, bid, tid, row, chan, min_time, save, time); }
+
+    // }
+
+    // // Warp's reduction result lies in lane 0, write to shared memory
+    // if(lane == 0)
+    //     { smin_time[wid] = min_time; }
+
+    // // Synchronise across the block
+    // __syncthreads();
+
+    // // Read minimum time index for each warp in the block
+    // min_time = tid < {{nwarps}} ?  smin_time[lane] : 0;
+
+    // // Compute minimum time index within the block
+    // #pragma unroll
+    // for(int offset = {{warp_size // 2}}; offset > 0; offset /= 2)
+    //     { min_time = min(min_time, __shfl_xor_sync(mask, min_time, offset)); }
+
+    // if(tid == 0)
+    //     { printf("Current %d vs min %d\n", time, min_time);}
+
+    // Normalise the time index
+    // time -= min_time;
+
     // Declare and initialise result
     typedef trove::array<{{out_type}}, {{corrs}}> vis_type;
 
@@ -299,16 +352,6 @@ extern "C" __global__ void {{kernel_name}}(
     // time, compared to a register only kernel!
     // __shared__ vis_type svis[{{blockdimy}}][{{blockdimx}}];
     // vis_type & vis = svis[threadIdx.y][threadIdx.x];
-
-    // Guard
-    // row >= nrow || chan >= nchan
-    if(row >= {{nrow}} || chan >= {{nchan}})
-        { return; }
-
-    int time = time_index[row];
-    int ant1 = antenna1[row];
-    int ant2 = antenna2[row];
-
     vis_type vis;
 
     {%- if have_base_vis %}
@@ -323,6 +366,7 @@ extern "C" __global__ void {{kernel_name}}(
     {%- endfor %}
     {%- endif %}
 
+
     {% if do_coherencies %}
     // Loop over nsrc
     for(int src=0; src < {{nsrc}}; ++src)
@@ -332,7 +376,7 @@ extern "C" __global__ void {{kernel_name}}(
         {%- if have_ddes %}
         {
             // Load in first direction dependent effect term
-            int i = ((src*{{ntime}} + time)*{{na}} + ant1)*{{nchan}} + chan;
+            int i = (((src*{{ntime}} + time)*{{na}} + ant1)*{{nchan}} + chan)*{{corrs}};
             scratch = assign<{{out_type}}>(trove_load<{{corrs}}>(&dde1[0], i));
         }
         {%- endif %}
@@ -341,7 +385,7 @@ extern "C" __global__ void {{kernel_name}}(
         {%- if have_coh %}
         {
             // Load in source coherency term
-            int i = ((src*{{nrow}}) + row)*{{nchan}} + chan;
+            int i = (((src*{{nrow}}) + row)*{{nchan}} + chan)*{{corrs}};
             {%- if have_ddes %}
             vis_type coh_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&source_coh[0], i));
             multiply_complex_matrix_in_place(scratch, coh_term);
@@ -355,7 +399,7 @@ extern "C" __global__ void {{kernel_name}}(
         {%- if have_ddes %}
         {
             // Load in second direction dependent effect term
-            int i = ((src*{{ntime}} + time)*{{na}} + ant2)*{{nchan}} + chan;
+            int i = (((src*{{ntime}} + time)*{{na}} + ant2)*{{nchan}} + chan)*{{corrs}};
             vis_type dde2_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&dde2[0], i));
             multiply_complex_matrix_conjugate_transpose_in_place(scratch, dde2_term);
         }
@@ -370,17 +414,16 @@ extern "C" __global__ void {{kernel_name}}(
     {%- if have_dies %}
     {
         // Load in second direction independent effect term
-        int i = (time*{{na}} + ant2)*{{nchan}} + chan;
+        int i = ((time*{{na}} + ant2)*{{nchan}} + chan)*{{corrs}};
         vis_type die2_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&die2[0], i));
         multiply_complex_matrix_conjugate_transpose_in_place(vis, die2_term);
     }
     {%- endif %}
 
-
     {%- if have_dies %}
     {
         // Load in second direction independent effect term
-        int i = (time*{{na}} + ant1)*{{nchan}} + chan;
+        int i = ((time*{{na}} + ant1)*{{nchan}} + chan)*{{corrs}};
         vis_type die1_term = assign<{{out_type}}>(trove_load<{{corrs}}>(&die1[0], i));
         cuda_swap(vis, die1_term);
         multiply_complex_matrix_in_place(vis, die1_term);

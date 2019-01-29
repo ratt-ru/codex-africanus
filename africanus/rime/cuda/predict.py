@@ -35,9 +35,40 @@ log = logging.getLogger(__name__)
 _TEMPLATE_PATH = pjoin("rime", "cuda", "predict.cu.j2")
 
 
+def _estimate_blockmul_factor(nvis, ncorrs, dtype):
+    """
+    Estimate whether we can double number of blocks and increase occupancy.
+
+    Parameters
+    ----------
+    nvis : integer
+        Number of visibilities that need to be represented in registers
+        in the kernel.
+    ncorrs : integer
+        Number of correlations in a visibility
+    dtype : numpy.dtype
+        Output visibility type
+
+    Returns
+    -------
+    int
+        multiplication factor to be applied to a a thread block
+    """
+
+    # Compiler seems to allocate 32 registers by default for this kernel
+    # Each register takes 4 bytes of space
+    regs = 32 + nvis*np.dtype(dtype).itemsize*ncorrs/4
+
+    if regs > 64:
+        return 1
+
+    return 2
+
+
 def _key_fn(*args):
     """ Hash on array datatypes and rank """
-    return tuple((a.dtype, a.ndim) if isinstance(a, (np.ndarray, cp.ndarray))
+    return tuple((a.dtype, a.ndim)
+                 if isinstance(a, (np.ndarray, cp.ndarray))
                  else a for a in args)
 
 
@@ -61,12 +92,16 @@ def _generate_kernel(time_index, antenna1, antenna2,
     out_dtype = np.result_type(dde1_jones, source_coh, dde2_jones,
                                die1_jones, base_vis, die2_jones)
 
+    ncorrs = reduce(mul, corrs, 1)
+
     # channels, rows
-    block = (16, 16, 1)
+    blockdimx = 16 * _estimate_blockmul_factor(3, ncorrs, out_dtype)
+    blockdimy = 16
     options = ["-I " + trove_dir(), "-std=c++11"]
 
-    code = render(kernel_name=name,
-                  blockdimx=block[0], blockdimy=block[1],
+    block = (blockdimx, blockdimy, 1)
+
+    code = render(kernel_name=name, blockdimx=blockdimx, blockdimy=blockdimy,
                   have_dde1=have_ddes1,
                   dde1_type=cuda_type(dde1_jones) if have_ddes1 else "int",
                   dde1_ndim=dde1_jones.ndim if have_ddes1 else 1,
@@ -86,8 +121,9 @@ def _generate_kernel(time_index, antenna1, antenna2,
                   die2_type=cuda_type(die2_jones) if have_dies2 else "int",
                   die2_ndim=die2_jones.ndim if have_dies2 else 1,
                   out_type=cuda_type(out_dtype),
-                  corrs=reduce(mul, corrs, 1),
-                  out_ndim=out_ndim)
+                  corrs=ncorrs,
+                  out_ndim=out_ndim,
+                  warp_size=32)
     mod = compile_using_nvcc(code.encode('utf-8'), options=options)
     kernel = mod.get_function(name)
 
