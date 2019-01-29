@@ -31,7 +31,7 @@ corr_shape_parametrization = pytest.mark.parametrize(
         ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
         ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
         ((2, 2), ((1, 0), (0, 1)),
-            "srcij,srcjk,srckl->rcil", "rcij,rcjk,rckl->rcil")
+            "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil")
     ])
 
 
