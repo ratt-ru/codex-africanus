@@ -35,36 +35,6 @@ log = logging.getLogger(__name__)
 _TEMPLATE_PATH = pjoin("rime", "cuda", "predict.cu.j2")
 
 
-def _estimate_blockmul_factor(nvis, ncorrs, dtype):
-    """
-    Estimate whether we can double number of blocks and increase occupancy.
-
-    Parameters
-    ----------
-    nvis : integer
-        Number of visibilities that need to be represented in registers
-        in the kernel.
-    ncorrs : integer
-        Number of correlations in a visibility
-    dtype : numpy.dtype
-        Output visibility type
-
-    Returns
-    -------
-    int
-        multiplication factor to be applied to a a thread block
-    """
-
-    # Compiler seems to allocate 32 registers by default for this kernel
-    # Each register takes 4 bytes of space
-    regs = 32 + nvis*np.dtype(dtype).itemsize*ncorrs/4
-
-    if regs > 64:
-        return 1
-
-    return 2
-
-
 def _key_fn(*args):
     """ Hash on array datatypes and rank """
     return tuple((a.dtype, a.ndim)
