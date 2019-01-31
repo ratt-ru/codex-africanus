@@ -14,7 +14,7 @@ from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
 from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
-from africanus.rime.predict import PREDICT_DOCS
+from africanus.rime.predict import PREDICT_DOCS, predict_checks
 from africanus.rime.predict import predict_vis as np_predict_vis
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
@@ -221,20 +221,15 @@ def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
 
-    have_a1 = dde1_jones is not None
-    have_a2 = dde2_jones is not None
-    have_bl = source_coh is not None
-    have_g1 = die1_jones is not None
-    have_coh = base_vis is not None
-    have_g2 = die2_jones is not None
+    tup = predict_checks(time_index, antenna1, antenna2,
+                         dde1_jones, source_coh, dde2_jones,
+                         die1_jones, base_vis, die2_jones)
 
-    if have_a1 ^ have_a2:
-        raise ValueError("Both dde1_jones and dde2_jones "
-                         "must be present or absent")
+    (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
 
-    have_ants = have_a1 and have_a2
+    have_ddes = have_ddes1 and have_ddes2
 
-    if have_ants:
+    if have_ddes:
         if dde1_jones.shape[2] != dde1_jones.chunks[2][0]:
             raise ValueError("Subdivision of antenna dimension into "
                              "multiple chunks is not supported.")
@@ -251,11 +246,7 @@ def predict_vis(time_index, antenna1, antenna2,
                              "number of time chunks (%s)." %
                              (time_index.chunks[0], dde1_jones.chunks[1]))
 
-    if have_g1 ^ have_g2:
-        raise ValueError("Both die1_jones and die2_jones "
-                         "must be present or absent")
-
-    have_dies = have_g1 and have_g2
+    have_dies = have_dies1 and have_dies2
 
     if have_dies:
         if die1_jones.shape[1] != die1_jones.chunks[1][0]:
@@ -275,9 +266,9 @@ def predict_vis(time_index, antenna1, antenna2,
                              (time_index.chunks[0], die1_jones.chunks[1]))
 
     # Generate strings for the correlation dimensions
-    if have_ants:
+    if have_ddes:
         cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
-    elif have_bl:
+    elif have_coh:
         cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
     elif have_dies:
         cdims = tuple("corr-%d" % i for i in range(len(die1_jones.shape[3:])))
@@ -322,7 +313,7 @@ def predict_vis(time_index, antenna1, antenna2,
     deps = [time_index, antenna1, antenna2]
 
     # Handle presence/absence of dde1_jones
-    if have_ants:
+    if have_ddes:
         bw_args.extend([dde1_jones.name, ajones_dims])
         numblocks[dde1_jones.name] = dde1_jones.numblocks
         deps.append(dde1_jones)
@@ -332,7 +323,7 @@ def predict_vis(time_index, antenna1, antenna2,
         bw_args.extend([None, None])
 
     # Handle presence/absence of source_coh
-    if have_bl:
+    if have_coh:
         bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
         numblocks[source_coh.name] = source_coh.numblocks
         other_chunks = source_coh.chunks[2:]
@@ -342,7 +333,7 @@ def predict_vis(time_index, antenna1, antenna2,
         bw_args.extend([None, None])
 
     # Handle presence/absence of dde2_jones
-    if have_ants:
+    if have_ddes:
         bw_args.extend([dde2_jones.name, ajones_dims])
         numblocks[dde2_jones.name] = dde2_jones.numblocks
         other_chunks = dde1_jones.chunks[3:]
@@ -370,7 +361,7 @@ def predict_vis(time_index, antenna1, antenna2,
     sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
     sum_coherencies = sum_coherencies.sum(axis=0)
 
-    if have_coh:
+    if have_bvis:
         sum_coherencies += base_vis
 
     if not have_dies:

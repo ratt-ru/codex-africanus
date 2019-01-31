@@ -17,31 +17,51 @@ def rc(*a, **kw):
     return rf(*a, **kw) + 1j*rf(*a, **kw)
 
 
-@pytest.mark.parametrize('corr_shape, idm, einsum_sig1, einsum_sig2', [
-    ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
-])
-@pytest.mark.parametrize('a1j,blj,a2j', [
+chunk_parametrization = pytest.mark.parametrize("chunks", [
+    {
+        'source':  (2, 3, 4),
+        'time': (2, 1, 1),
+        'rows': (4, 4, 2),
+        'antenna': (4,),
+        'channels': (3, 2),
+    }])
+
+corr_shape_parametrization = pytest.mark.parametrize(
+    'corr_shape, idm, einsum_sig1, einsum_sig2', [
+        ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+        ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+        ((2, 2), ((1, 0), (0, 1)),
+            "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil")
+    ])
+
+
+dde_presence_parametrization = pytest.mark.parametrize('a1j,blj,a2j', [
     [True, True, True],
     [True, False, True],
     [False, True, False],
 ])
-@pytest.mark.parametrize('g1j,bvis,g2j', [
+
+die_presence_parametrization = pytest.mark.parametrize('g1j,bvis,g2j', [
     [True, True, True],
     [True, False, True],
     [False, True, False],
 ])
+
+
+@corr_shape_parametrization
+@dde_presence_parametrization
+@die_presence_parametrization
+@chunk_parametrization
 def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
-                     a1j, blj, a2j, g1j, bvis, g2j):
+                     a1j, blj, a2j, g1j, bvis, g2j,
+                     chunks):
     from africanus.rime.predict import predict_vis
 
-    s = 2       # sources
-    t = 4       # times
-    a = 4       # antennas
-    c = 5       # channels
-    r = 10      # rows
+    s = sum(chunks['source'])
+    t = sum(chunks['time'])
+    a = sum(chunks['antenna'])
+    c = sum(chunks['channels'])
+    r = sum(chunks['rows'])
 
     a1_jones = rc((s, t, a, c) + corr_shape)
     bl_jones = rc((s, r, c) + corr_shape)
@@ -91,24 +111,13 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     assert np.allclose(v, model_vis)
 
 
-@pytest.mark.parametrize('corr_shape, idm, einsum_sig1, einsum_sig2', [
-    ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
-])
-@pytest.mark.parametrize('a1j,blj,a2j', [
-    [True, True, True],
-    [True, False, True],
-    [False, True, False],
-])
-@pytest.mark.parametrize('g1j,bvis,g2j', [
-    [True, True, True],
-    [True, False, True],
-    [False, True, False],
-])
+@corr_shape_parametrization
+@dde_presence_parametrization
+@die_presence_parametrization
+@chunk_parametrization
 def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
-                          a1j, blj, a2j, g1j, bvis, g2j):
+                          a1j, blj, a2j, g1j, bvis, g2j,
+                          chunks):
 
     da = pytest.importorskip('dask.array')
     import numpy as np
@@ -116,11 +125,11 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     from africanus.rime.dask import predict_vis
 
     # chunk sizes
-    sc = (2, 3, 4)    # sources
-    tc = (2, 1, 1)    # times
-    rrc = (4, 4, 2)   # rows
-    ac = (4,)         # antennas
-    cc = (3, 2)       # channels
+    sc = chunks['source']
+    tc = chunks['time']
+    rrc = chunks['rows']
+    ac = chunks['antenna']
+    cc = chunks['channels']
 
     # dimension sizes
     s = sum(sc)       # sources

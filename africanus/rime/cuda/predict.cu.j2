@@ -1,0 +1,357 @@
+#include <cupy/carray.cuh>
+
+{%- macro create_arg(name, type, dims, input=True) -%}
+{%- if input %}const{% endif %} CArray<{{type}}, {{dims}}> {{name}}
+{%- endmacro -%}
+
+{#- Construct the kernel argument list #}
+{%- set kernel_args = [
+    create_arg("time_index", "int", 1),
+    create_arg("antenna1", "int", 1),
+    create_arg("antenna2", "int", 1) ] -%}
+
+{%- if have_dde1 %}
+{%- do kernel_args.append(create_arg("dde1", dde1_type, dde1_ndim)) %}
+{%- endif %}
+{%- if have_coh %}
+{%- do kernel_args.append(create_arg("source_coh", coh_type, coh_ndim)) %}
+{%- endif %}
+{%- if have_dde2 %}
+{%- do kernel_args.append(create_arg("dde2", dde2_type, dde2_ndim)) %}
+{%- endif %}
+{%- if have_die1 %}
+{%- do kernel_args.append(create_arg("die1", die1_type, die1_ndim)) %}
+{%- endif %}
+{%- if have_base_vis %}
+{%- do kernel_args.append(create_arg("base_vis", base_vis_type, base_vis_ndim)) %}
+{%- endif %}
+{%- if have_die2 %}
+{%- do kernel_args.append(create_arg("die2", die2_type, die2_ndim)) %}
+{%- endif %}
+
+{%- do kernel_args.append(create_arg("output", out_type, out_ndim, False)) %}
+{# End kernel argument list construction #}
+
+
+{%- set have_ddes = have_dde1 and have_dde2 %}
+{%- set have_dies = have_die1 and have_die2 %}
+
+{#- Determine nrow and nchan variables #}
+{%- if have_ddes %}
+{%- set ntime = "dde1.shape()[1]" %}
+{%- set na = "dde1.shape()[2]" %}
+{%- set nchan = "dde1.shape()[3]" %}
+{%- elif have_dies %}
+{%- set ntime = "die1.shape()[0]" %}
+{%- set na = "die1.shape()[1]" %}
+{%- set nchan = "die1.shape()[2]" %}
+{%- elif have_coh %}
+{%- set nchan = "source_coh.shape()[2]" %}
+{%- endif %}
+
+{%- set nrow = "time_index.shape()[0]" %}
+{#- end nrow and nchan variable determination #}
+
+{#- Determine nsrc variable #}
+{%- set do_coherencies = have_ddes or have_coh %}
+{%- if have_ddes %}
+{%- set nsrc = "dde1.shape()[0]" %}
+{%- elif have_coh %}
+{%- set nsrc = "source_coh.shape()[0]" %}
+{%- endif %}
+{#- End nsrc variable determination #}
+
+{%- set nwarps = (blockdimy*blockdimx + warp_size - 1) // warp_size %}
+{%- if nwarps > warp_size %}
+{{ throw("A single warp is insufficient to handle the block reduction "
+         "of the minimum time index. Code needs to be improved. ") }}
+{%- endif %}
+
+template <typename T, int BLOCKDIMX, int CORRS,
+          int BLOCKDIMY=1, int BLOCKDIMZ=1, int WARP_SIZE=32>
+class JonesMultiplier {};
+
+
+// Specialise for four correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 4, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 4;
+
+    // | J0   J1 |     | K0   K1 |        | J0.K0+J1.K2     J0.K1+J1.K3 |
+    // |         |  *  |         |    =   |                             |
+    // | J2   J3 |     | K2   K3 |        | J2.K0+J3.K2     J2.K1+J3.K3 |
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // This will produce indexes with the following pattern
+        // 1 2 1 2 5 6 5 6 9 10 9 10 13 14 13 14
+        // Load in the value to multiply.
+        int lane_id = (threadIdx.y*BLOCKDIMX + threadIdx.x) % WARP_SIZE;
+        int base_vis_idx = CORRS*(lane_id/CORRS);
+        int is_odd_corr = lane_id & 0x1;
+        int shfl_idx = base_vis_idx + 1 + is_odd_corr;
+        int mask = __ballot_sync(WARP_SIZE - 1, 1);
+
+        T shfl_K;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        // a = J.x, b=J.y, c=shfl_K.x, d = shfl_K.y
+        T sum;
+        sum.x = J.x*shfl_K.x - J.y*shfl_K.y,
+        sum.y = J.x*shfl_K.y + J.y*shfl_K.x;
+
+        // Now shuffle the sums
+        // This will produce indexes with the following pattern
+        // 1 0 3 2 5 4 7 6 9 8 11 10 13 12 15 14
+        shfl_idx = lane_id + 1 + -2*is_odd_corr;
+        sum.x = __shfl_sync(mask, sum.x, shfl_idx, WARP_SIZE);
+        sum.y = __shfl_sync(mask, sum.y, shfl_idx, WARP_SIZE);
+
+        // This will produce indexes with the following pattern
+        // 0 3 0 3 4 7 4 7 8 11 8 11 12 15 12 15
+        shfl_idx = base_vis_idx + 3*is_odd_corr;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+        sum.x += J.x*shfl_K.x - J.y*shfl_K.y;
+        sum.y += J.x*shfl_K.y + J.y*shfl_K.x;
+
+        J = sum;
+    }
+
+    // | J0   J1 |     | K0   K1 |^H      | J0.K0^H + J1.K1^H   J0.K2^H + J1.K3^H |
+    // |         |  *  |         |    =   |                                       |
+    // | J2   J3 |     | K2   K3 |        | J2.K0^H + J3.K1^H   J2.K2^H + J3.K3^H |
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+        // This produces indexes with the following pattern
+        // 2 1 2 1 6 5 6 5 10 9 10 9 14 13 14 13
+        int lane_id = (threadIdx.y*BLOCKDIMX + threadIdx.x) % WARP_SIZE;
+        int base_vis_idx = CORRS*(lane_id/CORRS);
+        int is_odd_corr = lane_id & 0x1;
+        int shfl_idx = base_vis_idx + 1 + int(is_odd_corr == 0);
+        int mask = __ballot_sync(WARP_SIZE - 1, 1);
+
+        // Load in the correlation to multiply.
+        T shfl_K;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+
+        // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=shfl_K.x, d = shfl_K.y
+        T sum;
+        sum.x =  J.x*shfl_K.x + J.y*shfl_K.y;
+        sum.y = -J.x*shfl_K.y + J.y*shfl_K.x;
+
+        // Now shuffle the sums
+        // This produces indexes with the following pattern
+        // 1 0 3 2 5 4 7 6 9 8 11 10 13 12 15 14
+        shfl_idx = lane_id + 1 + -2*is_odd_corr;
+        sum.x = __shfl_sync(mask, sum.x, shfl_idx, WARP_SIZE);
+        sum.y = __shfl_sync(mask, sum.y, shfl_idx, WARP_SIZE);
+
+        // This produces indexes with the following pattern
+        // 0 3 0 3 4 7 4 7 8 11 8 11 12 15 12 15
+        shfl_idx = base_vis_idx + 3*is_odd_corr;
+
+        // Load in the correlation to multiply.
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+        // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        sum.x +=  J.x*shfl_K.x + J.y*shfl_K.y;
+        sum.y += -J.x*shfl_K.y + J.y*shfl_K.x;
+
+        J = sum;
+    }
+};
+
+// Specialise for two correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 2, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 2;
+
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.x * K.y;
+        J.x -= J1.y * K.y;
+        J.y += J1.y * K.x;
+    }
+
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+       // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=K.x, d = K.y
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.y * K.x;
+        J.x += J1.y * K.y;
+        J.y -= J1.x * K.y;
+    }
+};
+
+// Specialise for one correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 1, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 1;
+
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.x * K.y;
+        J.x -= J1.y * K.y;
+        J.y += J1.y * K.x;
+    }
+
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+       // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=K.x, d = K.y
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.y * K.x;
+        J.x += J1.y * K.y;
+        J.y -= J1.x * K.y;
+    }
+};
+
+
+
+template <typename T>
+__device__ __forceinline__
+void cuda_swap(T & a, T & b)
+{
+    T tmp = a; a = b; b= tmp;
+}
+
+
+extern "C" __global__ void {{kernel_name}}(
+{{kernel_args|join(",\n")}}
+)
+{
+    int row = blockIdx.y*{{blockdimy}} + threadIdx.y;
+    int corrchan = blockIdx.x*{{blockdimx}} + threadIdx.x;
+    int ncorrchan = {{nchan}}*{{corrs}};
+
+    typedef JonesMultiplier<{{out_type}}, {{blockdimx}}, {{corrs}},
+                            {{blockdimy}}, 1, {{warp_size}}> JM;
+
+    // Guard
+    // row >= nrow || corrchan >= ncorrchan
+    if(row >= {{nrow}} || corrchan >= ncorrchan)
+        { return; }
+
+    int ant1 = antenna1[row];
+    int ant2 = antenna2[row];
+    int time = time_index[row];
+
+    {%- if have_base_vis %}
+    // Load in base visibility term
+    {{out_type}} corr = base_vis[row*ncorrchan + corrchan];
+    {%- else %}
+    {{out_type}} corr = make_{{out_type}}(0.0, 0.0);
+    {%- endif %}
+
+    {% if do_coherencies %}
+    // Loop over nsrc
+    for(int src=0; src < {{nsrc}}; ++src)
+    {
+        {{out_type}} coherency;
+
+        {%- if have_ddes %}
+        {
+            // Load in first direction dependent effect term
+            int i = ((src*{{ntime}} + time)*{{na}} + ant1)*ncorrchan + corrchan;
+            coherency = dde1[i];
+        }
+        {%- endif %}
+
+        {%- if have_coh %}
+        {
+            // Load in source coherency term
+            int i = (src*{{nrow}} + row)*ncorrchan + corrchan;
+            {%- if have_ddes %}
+            {{out_type}} coh_term = source_coh[i];
+            JM::multiply(coherency, coh_term);
+            {%- else %}
+            coherency = source_coh[i];
+            {%- endif %}
+        }
+        {%- endif %}
+
+        {%- if have_ddes %}
+        {
+            // Load in second direction dependent effect term
+            int i = ((src*{{ntime}} + time)*{{na}} + ant2)*ncorrchan + corrchan;
+            {{out_type}} dde2_term = dde2[i];
+            JM::multiply_conjugate_transpose(coherency, dde2_term);
+        }
+        {%- endif %}
+
+
+        corr.x += coherency.x;
+        corr.y += coherency.y;
+    }
+    {%- endif %}
+
+    {%- if have_dies %}
+    {
+        // Load in second direction independent effect term
+        int i = (time*{{na}} + ant2)*ncorrchan + corrchan;
+        {{out_type}} die2_term = die2[i];
+        JM::multiply_conjugate_transpose(corr, die2_term);
+    }
+    {%- endif %}
+
+    {%- if have_dies %}
+    {
+        // Load in second direction independent effect term
+        int i = (time*{{na}} + ant1)*ncorrchan + corrchan;
+        {{out_type}} die1_term = die1[i];
+        cuda_swap(corr, die1_term);
+        JM::multiply(corr, die1_term);
+    }
+    {%- endif %}
+
+    output[row*ncorrchan + corrchan] = corr;
+}
+
+// jinja2 parameters
+// dde1: {{have_dde1}} {{dde1_type}} {{dde1_ndim}}
+// source_coh: {{have_coh}} {{coh_type}} {{coh_ndim}}
+// have_ddes2 = {{have_dde2}}
+// have_dies1 = {{have_die1}}
+// have_base_vis = {{have_base_vis}}
+// have_dies2 = {{have_die2}}

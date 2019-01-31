@@ -114,7 +114,8 @@ def _jinja2_env_factory():
     loader = PackageLoader('africanus', '.')
     autoescape = select_autoescape(['j2', 'cu.j2'])
     env = Environment(loader=loader,
-                      autoescape=autoescape)
+                      autoescape=autoescape,
+                      extensions=['jinja2.ext.do'])
 
     # TODO(sjperkins)
     # Find a better way to set globals

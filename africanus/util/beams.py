@@ -9,7 +9,8 @@ import string
 import re
 
 import numpy as np
-from six.moves import range
+
+from africanus.compatibility import range
 
 
 class FitsAxes(object):
