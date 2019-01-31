@@ -23,26 +23,9 @@ from africanus.rime.tests.test_predict import (corr_shape_parametrization,
 def test_cuda_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                           a1j, blj, a2j, g1j, bvis, g2j,
                           chunks):
-
     np.random.seed(40)
 
     cp = pytest.importorskip('cupy')
-
-    # chunks = {
-    #     'source':  (25, 25),
-    #     'time': (50, 50, 50),
-    #     'rows': (1024, 1024, 519),
-    #     'antenna': (7,),
-    #     'channels': (128,),
-    # }
-
-    # chunks = {
-    #     'source':  (25, 25),
-    #     'time': (5, 5, 5),
-    #     'rows': (32, 32, 3),
-    #     'antenna': (7,),
-    #     'channels': (128,),
-    # }
 
     s = sum(chunks['source'])
     t = sum(chunks['time'])
@@ -57,7 +40,8 @@ def test_cuda_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     base_vis = rc((r, c) + corr_shape)
     g2_jones = rc((t, a, c) + corr_shape)
 
-    time_idx = np.concatenate([np.full(rows, i, dtype=np.int32)
+    # Add 10 to the index to test time index normalisation
+    time_idx = np.concatenate([np.full(rows, i+10, dtype=np.int32)
                                for i, rows in enumerate(chunks['rows'])])
 
     ant1 = np.concatenate([np.random.randint(0, a, rows)

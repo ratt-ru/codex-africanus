@@ -94,10 +94,9 @@ def _generate_kernel(time_index, antenna1, antenna2,
 
     ncorrs = reduce(mul, corrs, 1)
 
-    # channels, rows
-    blockdimx = 16 * _estimate_blockmul_factor(3, ncorrs, out_dtype)
-    blockdimy = 16
-    options = ["-I " + trove_dir(), "-std=c++11"]
+    # corrs x channels, rows
+    blockdimx = 32
+    blockdimy = 24 if out_dtype == np.complex128 else 32
 
     block = (blockdimx, blockdimy, 1)
 
@@ -123,11 +122,9 @@ def _generate_kernel(time_index, antenna1, antenna2,
                   out_type=cuda_type(out_dtype),
                   corrs=ncorrs,
                   out_ndim=out_ndim,
-                  warp_size=32)
-    mod = compile_using_nvcc(code.encode('utf-8'), options=options)
-    kernel = mod.get_function(name)
+                  warp_size=32).encode('utf-8')
 
-    return kernel, code, block, out_dtype
+    return cp.RawKernel(code, name), block, out_dtype
 
 
 @requires_optional("cupy", opt_import_error)
@@ -189,22 +186,23 @@ def predict_vis(time_index, antenna1, antenna2,
 
     out_shape = (row, chan) + (flat_corrs,)
 
-    kernel, code, block, out_dtype = _generate_kernel(time_index,
-                                                      antenna1,
-                                                      antenna2,
-                                                      dde1_jones,
-                                                      source_coh,
-                                                      dde2_jones,
-                                                      die1_jones,
-                                                      base_vis,
-                                                      die2_jones,
-                                                      corrs,
-                                                      len(out_shape))
+    kernel, block, out_dtype = _generate_kernel(time_index,
+                                                antenna1,
+                                                antenna2,
+                                                dde1_jones,
+                                                source_coh,
+                                                dde2_jones,
+                                                die1_jones,
+                                                base_vis,
+                                                die2_jones,
+                                                corrs,
+                                                len(out_shape))
 
-    grid = grids((chan, row, 1), block)
+    grid = grids((chan*flat_corrs, row, 1), block)
     out = cp.empty(shape=out_shape, dtype=out_dtype)
 
-    print(format_code(code))
+    # Normalise the time index
+    time_index = time_index - time_index.min()
 
     args = (time_index, antenna1, antenna2,
             dde1_jones, source_coh, dde2_jones,
@@ -214,7 +212,7 @@ def predict_vis(time_index, antenna1, antenna2,
     try:
         kernel(grid, block, tuple(a for a in args if a is not None))
     except CompileException:
-        log.exception(format_code(code))
+        log.exception(format_code(kernel.code))
         raise
 
     return out.reshape((row, chan) + corrs)

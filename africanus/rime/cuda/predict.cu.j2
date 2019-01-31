@@ -67,341 +67,285 @@
          "of the minimum time index. Code needs to be improved. ") }}
 {%- endif %}
 
+template <typename T, int BLOCKDIMX, int CORRS,
+          int BLOCKDIMY=1, int BLOCKDIMZ=1, int WARP_SIZE=32>
+class JonesMultiplier {};
 
-{% set corr_names = ['a', 'b', 'c', 'd'][:corrs] %}
 
+// Specialise for four correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 4, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 4;
 
-template <typename T>
-struct vis_type {
-{%- for c in corr_names %}
-    T {{c}};
-{%- endfor %}
+    // | J0   J1 |     | K0   K1 |        | J0.K0+J1.K2     J0.K1+J1.K3 |
+    // |         |  *  |         |    =   |                             |
+    // | J2   J3 |     | K2   K3 |        | J2.K0+J3.K2     J2.K1+J3.K3 |
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // This will produce indexes with the following pattern
+        // 1 2 1 2 5 6 5 6 9 10 9 10 13 14 13 14
+        // Load in the value to multiply.
+        int lane_id = (threadIdx.y*BLOCKDIMX + threadIdx.x) % WARP_SIZE;
+        int base_vis_idx = CORRS*(lane_id/CORRS);
+        int is_odd_corr = lane_id & 0x1;
+        int shfl_idx = base_vis_idx + 1 + is_odd_corr;
+        int mask = __ballot_sync(WARP_SIZE - 1, 1);
+
+        T shfl_K;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        // a = J.x, b=J.y, c=shfl_K.x, d = shfl_K.y
+        T sum;
+        sum.x = J.x*shfl_K.x - J.y*shfl_K.y,
+        sum.y = J.x*shfl_K.y + J.y*shfl_K.x;
+
+        // Now shuffle the sums
+        // This will produce indexes with the following pattern
+        // 1 0 3 2 5 4 7 6 9 8 11 10 13 12 15 14
+        shfl_idx = lane_id + 1 + -2*is_odd_corr;
+        sum.x = __shfl_sync(mask, sum.x, shfl_idx, WARP_SIZE);
+        sum.y = __shfl_sync(mask, sum.y, shfl_idx, WARP_SIZE);
+
+        // This will produce indexes with the following pattern
+        // 0 3 0 3 4 7 4 7 8 11 8 11 12 15 12 15
+        shfl_idx = base_vis_idx + 3*is_odd_corr;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+        sum.x += J.x*shfl_K.x - J.y*shfl_K.y;
+        sum.y += J.x*shfl_K.y + J.y*shfl_K.x;
+
+        J = sum;
+    }
+
+    // | J0   J1 |     | K0   K1 |^H      | J0.K0^H + J1.K1^H   J0.K2^H + J1.K3^H |
+    // |         |  *  |         |    =   |                                       |
+    // | J2   J3 |     | K2   K3 |        | J2.K0^H + J3.K1^H   J2.K2^H + J3.K3^H |
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+        // This produces indexes with the following pattern
+        // 2 1 2 1 6 5 6 5 10 9 10 9 14 13 14 13
+        int lane_id = (threadIdx.y*BLOCKDIMX + threadIdx.x) % WARP_SIZE;
+        int base_vis_idx = CORRS*(lane_id/CORRS);
+        int is_odd_corr = lane_id & 0x1;
+        int shfl_idx = base_vis_idx + 1 + int(is_odd_corr == 0);
+        int mask = __ballot_sync(WARP_SIZE - 1, 1);
+
+        // Load in the correlation to multiply.
+        T shfl_K;
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+
+        // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=shfl_K.x, d = shfl_K.y
+        T sum;
+        sum.x =  J.x*shfl_K.x + J.y*shfl_K.y;
+        sum.y = -J.x*shfl_K.y + J.y*shfl_K.x;
+
+        // Now shuffle the sums
+        // This produces indexes with the following pattern
+        // 1 0 3 2 5 4 7 6 9 8 11 10 13 12 15 14
+        shfl_idx = lane_id + 1 + -2*is_odd_corr;
+        sum.x = __shfl_sync(mask, sum.x, shfl_idx, WARP_SIZE);
+        sum.y = __shfl_sync(mask, sum.y, shfl_idx, WARP_SIZE);
+
+        // This produces indexes with the following pattern
+        // 0 3 0 3 4 7 4 7 8 11 8 11 12 15 12 15
+        shfl_idx = base_vis_idx + 3*is_odd_corr;
+
+        // Load in the correlation to multiply.
+        shfl_K.x = __shfl_sync(mask, K.x, shfl_idx, WARP_SIZE);
+        shfl_K.y = __shfl_sync(mask, K.y, shfl_idx, WARP_SIZE);
+        // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        sum.x +=  J.x*shfl_K.x + J.y*shfl_K.y;
+        sum.y += -J.x*shfl_K.y + J.y*shfl_K.x;
+
+        J = sum;
+    }
+};
+
+// Specialise for two correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 2, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 2;
+
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.x * K.y;
+        J.x -= J1.y * K.y;
+        J.y += J1.y * K.x;
+    }
+
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+       // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=K.x, d = K.y
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.y * K.x;
+        J.x += J1.y * K.y;
+        J.y -= J1.x * K.y;
+    }
+};
+
+// Specialise for one correlations
+template <typename T,
+          int BLOCKDIMX,
+          int BLOCKDIMY,
+          int BLOCKDIMZ,
+          int WARP_SIZE>
+class JonesMultiplier<T, BLOCKDIMX, 1, BLOCKDIMY, BLOCKDIMZ, WARP_SIZE>
+{
+public:
+    static const int CORRS = 1;
+
+    static __device__ __forceinline__
+    void multiply(T & J, const T & K)
+    {
+        // (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.x * K.y;
+        J.x -= J1.y * K.y;
+        J.y += J1.y * K.x;
+    }
+
+    static __device__ __forceinline__
+    void multiply_conjugate_transpose(T & J, const T & K)
+    {
+       // (a+bi)*conj(c+di) = (a+bi)*(c-di) = (ac+bd) + (-ad+bc)i
+        // a = J.x, b=J.y, c=K.x, d = K.y
+        T J1 = J;
+
+        J.x *= K.x;
+        J.y = J1.y * K.x;
+        J.x += J1.y * K.y;
+        J.y -= J1.x * K.y;
+    }
 };
 
 
-// Used to convert between complex trove arrays of different types
-template <typename U, typename T>
-__device__ __forceinline__
-vis_type<U>
-assign(const vis_type<T> & src)
-{
-    vis_type<U> dest;
 
-    {%- for c in corr_names %}
-    dest.{{c}}.x = src.{{c}}.x;
-    dest.{{c}}.y = src.{{c}}.y;
-    {%- endfor %}
-
-    return std::move(dest);
-}
-
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex_in_place(T & a, const T & b)
-{
-    T a1 = a;
-
-    a.x *= b.x;
-    a.y = a1.x * b.y;
-    a.x -= a1.y * b.y;
-    a.y += a1.y * b.x;
-}
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex_conjugate_in_place(T & a, const T & b)
-{
-    T a1 = a;
-
-    a.x *= b.x;
-    a.y = a1.y * b.x;
-    a.x += a1.y * b.y;
-    a.y -= a1.x * b.y;
-}
-
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex(T & out, const T & a, const T & b)
-{
-    out.x = a.x * b.x;
-    out.y = a.x * b.y;
-    out.x -= a.y * b.y;
-    out.y += a.y * b.x;
-}
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex_conjugate(T & out, const T & a, const T & b)
-{
-    out.x = a.x * b.x;
-    out.y = a.y * b.x;
-    out.x += a.y * b.y;
-    out.y -= a.x * b.y;
-}
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex_matrix_in_place(vis_type<T> & m1,
-                                      const vis_type<T> & m2)
-{
-    {%- if corrs == 4 %}
-    // Copy a and c from the target matrix.
-    T t;
-    T a = m1.a;   // a1
-    T c = m1.c;   // c1;
-
-    multiply_complex_in_place(m1.a, m2.a); // a = a1 a2 + b1 c2
-    multiply_complex(t, m1.b, m2.c);
-    m1.a.x += t.x;
-    m1.a.y += t.y;
-
-    multiply_complex_in_place(m1.c, m2.a); // c = c1 a2 + d1 c2
-    multiply_complex(t, m1.d, m2.c);
-    m1.c.x += t.x;
-    m1.c.y += t.y;
-
-    multiply_complex_in_place(m1.b, m2.d); // b = a1 b2 + b1 d2
-    multiply_complex(t, a, m2.b);
-    m1.b.x += t.x;
-    m1.b.y += t.y;
-
-    multiply_complex_in_place(m1.d, m2.d); // d = c1 b2 + d1 d2
-    multiply_complex(t, c, m2.b);
-    m1.d.x += t.x;
-    m1.d.y += t.y;
-
-    {%- elif corrs == 2 %}
-    multiply_complex_in_place(m1.a, m2.a);
-    multiply_complex_in_place(m1.b, m2.b);
-
-    {%- elif corrs == 1 %}
-    multiply_complex_in_place(m1.a, m2.a);
-
-    {%- else %}
-    {{ throw("Correlations (%d) must be in (4, 2, 1)" % corrs)}}
-    {%- endif %}
-}
-
-template <typename T>
-__device__ __forceinline__
-void multiply_complex_matrix_conjugate_transpose_in_place(
-    vis_type<T> & m1,
-    const vis_type<T> & m2)
-{
-    {%- if corrs == 4 %}
-    // Copy a and c from the target matrix.
-    T t;
-    T a = m1.a;   // a1
-    T c = m1.c;   // c1;
-
-    multiply_complex_conjugate_in_place(m1.a, m2.a);
-    multiply_complex_conjugate(t, m1.b, m2.b);
-    m1.a.x += t.x;
-    m1.a.y += t.y;
-
-
-    multiply_complex_conjugate_in_place(m1.c, m2.a);
-    multiply_complex_conjugate(t, m1.d, m2.b);
-    m1.c.x += t.x;
-    m1.c.y += t.y;
-
-
-    multiply_complex_conjugate_in_place(m1.b, m2.d);
-    multiply_complex_conjugate(t, a, m2.c);
-    m1.b.x += t.x;
-    m1.b.y += t.y;
-
-
-    multiply_complex_conjugate_in_place(m1.d, m2.d);
-    multiply_complex_conjugate(t, c, m2.c);
-    m1.d.x += t.x;
-    m1.d.y += t.y;
-
-    {%- elif corrs == 2 %}
-    multiply_complex_conjugate_in_place(m1.a, m2.a);
-    multiply_complex_conjugate_in_place(m1.b, m2.b);
-
-    {%- elif corrs == 1 %}
-
-    multiply_complex_conjugate_in_place(m1.a, m2.a);
-
-    {%- else %}
-    {{ throw("Correlations (%d) must be in (4, 2, 1)" % corrs)}}
-    {%- endif %}
-}
-
-
-// If the arguments are in registers this should be a noop
-// See https://stackoverflow.com/a/19563246/1611416
 template <typename T>
 __device__ __forceinline__
 void cuda_swap(T & a, T & b)
-    { T tmp(a); a = b; b = tmp; }
+{
+    T tmp = a; a = b; b= tmp;
+}
+
 
 extern "C" __global__ void {{kernel_name}}(
 {{kernel_args|join(",\n")}}
 )
 {
-    int row = blockDim.y*blockIdx.y + threadIdx.y;
-    int chan = blockDim.x*blockIdx.x + threadIdx.x;
+    int row = blockIdx.y*{{blockdimy}} + threadIdx.y;
+    int corrchan = blockIdx.x*{{blockdimx}} + threadIdx.x;
+    int ncorrchan = {{nchan}}*{{corrs}};
+
+    typedef JonesMultiplier<{{out_type}}, {{blockdimx}}, {{corrs}},
+                            {{blockdimy}}, 1, {{warp_size}}> JM;
 
     // Guard
-    // row >= nrow || chan >= nchan
-    if(row >= {{nrow}} || chan >= {{nchan}})
+    // row >= nrow || corrchan >= ncorrchan
+    if(row >= {{nrow}} || corrchan >= ncorrchan)
         { return; }
 
-    int time = time_index[row];
     int ant1 = antenna1[row];
     int ant2 = antenna2[row];
-
-    // Work out the minimum time index
-    // Shared memory to hold the minimum time index for each warp
-    // __shared__ int smin_time[{{nwarps}}];
-
-    // int min_time = time;
-    // int bid = blockIdx.y*gridDim.x + blockIdx.x;
-    // int tid = threadIdx.y*{{blockdimx}} + threadIdx.x; // Block thread ID
-    // int wid = tid / {{warp_size}};                     // Warp ID
-    // int lane = tid % {{warp_size}};                    // Lane ID
-    // unsigned int mask = __ballot_sync(0xFFFFFFF, !pred);
-
-    // // Compute minimum time index within the warp
-    // #pragma unroll
-    // for(int offset = {{warp_size // 2}}; offset > 0; offset /= 2)
-    // {
-    //     int save = min_time;
-    //     min_time = min(min_time, __shfl_xor_sync(mask, min_time, offset));
-    //     if(row == 66)
-    //         { printf("%d, %d %d %d %d %d %d %d\n", mask, bid, tid, row, chan, min_time, save, time); }
-
-    // }
-
-    // // Warp's reduction result lies in lane 0, write to shared memory
-    // if(lane == 0)
-    //     { smin_time[wid] = min_time; }
-
-    // // Synchronise across the block
-    // __syncthreads();
-
-    // // Read minimum time index for each warp in the block
-    // min_time = tid < {{nwarps}} ?  smin_time[lane] : 0;
-
-    // // Compute minimum time index within the block
-    // #pragma unroll
-    // for(int offset = {{warp_size // 2}}; offset > 0; offset /= 2)
-    //     { min_time = min(min_time, __shfl_xor_sync(mask, min_time, offset)); }
-
-    // if(tid == 0)
-    //     { printf("Current %d vs min %d\n", time, min_time);}
-
-    // Normalise the time index
-    // time -= min_time;
-
-    // Declare and initialise result
-    // TODO(sjperkins)
-    // A double precision, four correlation kernel uses 80 registers
-    // which limits the occupancy of this kernel.
-    // It's possible shared memory to hold visibility data and setting
-    // "--maxrregcount=64" doubles the possible occupancy of a four correlation
-    // double precision kernel.
-    // However, the increased shared memory bandwidth triples the execution
-    // time, compared to a register only kernel!
-    // __shared__ vis_type svis[{{blockdimy}}][{{blockdimx}}];
-    // vis_type & vis = svis[threadIdx.y][threadIdx.x];
-    typedef vis_type<{{out_type}}> visibility;
-    visibility vis;
+    int time = time_index[row];
 
     {%- if have_base_vis %}
-    {
-        // Load in base visibility term
-        int i = row*{{nchan}} + chan;
-        vis = base_vis[i];
-    }
+    // Load in base visibility term
+    {{out_type}} corr = base_vis[row*ncorrchan + corrchan];
     {%- else %}
-    {%- for c in corr_names %}
-    vis.{{c}} = make_{{out_type}}(0.0, 0.0);
-    {%- endfor %}
+    {{out_type}} corr = make_{{out_type}}(0.0, 0.0);
     {%- endif %}
-
 
     {% if do_coherencies %}
     // Loop over nsrc
     for(int src=0; src < {{nsrc}}; ++src)
     {
-        vis_type<{{out_type}}> scratch;
+        {{out_type}} coherency;
 
         {%- if have_ddes %}
         {
             // Load in first direction dependent effect term
-            int i = (((src*{{ntime}} + time)*{{na}} + ant1)*{{nchan}} + chan)*{{corrs}};
-            const visibility * ptr = reinterpret_cast<const visibility *>(&dde1[0]);
-            scratch = assign<{{out_type}}>(ptr[i]);
+            int i = ((src*{{ntime}} + time)*{{na}} + ant1)*ncorrchan + corrchan;
+            coherency = dde1[i];
         }
         {%- endif %}
-
 
         {%- if have_coh %}
         {
             // Load in source coherency term
-            int i = (((src*{{nrow}}) + row)*{{nchan}} + chan)*{{corrs}};
-            const visibility * ptr = reinterpret_cast<const visibility *>(&source_coh[0]);
+            int i = (src*{{nrow}} + row)*ncorrchan + corrchan;
             {%- if have_ddes %}
-            visibility coh_term = assign<{{out_type}}>(ptr[i]);
-            multiply_complex_matrix_in_place(scratch, coh_term);
+            {{out_type}} coh_term = source_coh[i];
+            JM::multiply(coherency, coh_term);
             {%- else %}
-            scratch = assign<{{out_type}}>(ptr[i]);
+            coherency = source_coh[i];
             {%- endif %}
         }
         {%- endif %}
 
-
         {%- if have_ddes %}
         {
             // Load in second direction dependent effect term
-            int i = (((src*{{ntime}} + time)*{{na}} + ant2)*{{nchan}} + chan)*{{corrs}};
-            const visibility * ptr = reinterpret_cast<const visibility *>(&dde2[0]);
-            visibility dde2_term = assign<{{out_type}}>(ptr[i]);
-            multiply_complex_matrix_conjugate_transpose_in_place(scratch, dde2_term);
+            int i = ((src*{{ntime}} + time)*{{na}} + ant2)*ncorrchan + corrchan;
+            {{out_type}} dde2_term = dde2[i];
+            JM::multiply_conjugate_transpose(coherency, dde2_term);
         }
         {%- endif %}
 
 
-        {%- for c in corr_names %}
-        vis.{{c}}.x += scratch.{{c}}.x;
-        vis.{{c}}.y += scratch.{{c}}.y;
-        {%- endfor %}
-    }
-    {%- endif %}
-
-
-    {%- if have_dies %}
-    {
-        // Load in second direction independent effect term
-        int i = ((time*{{na}} + ant2)*{{nchan}} + chan)*{{corrs}};
-        const visibility * ptr = reinterpret_cast<const visibility *>(&die2[0]);
-        visibility die2_term = assign<{{out_type}}>(ptr[i]);
-        multiply_complex_matrix_conjugate_transpose_in_place(vis, die2_term);
+        corr.x += coherency.x;
+        corr.y += coherency.y;
     }
     {%- endif %}
 
     {%- if have_dies %}
     {
         // Load in second direction independent effect term
-        int i = ((time*{{na}} + ant1)*{{nchan}} + chan)*{{corrs}};
-        const visibility * ptr = reinterpret_cast<const visibility *>(&die1[0]);
-        visibility die1_term = assign<{{out_type}}>(ptr[i]);
-        cuda_swap(vis, die1_term);
-        multiply_complex_matrix_in_place(vis, die1_term);
+        int i = (time*{{na}} + ant2)*ncorrchan + corrchan;
+        {{out_type}} die2_term = die2[i];
+        JM::multiply_conjugate_transpose(corr, die2_term);
     }
     {%- endif %}
 
+    {%- if have_dies %}
     {
-        // Write out the visibilities
-        visibility * ptr = reinterpret_cast<visibility *>(&output[0]);
-        ptr[(row*{{nchan}} + chan)*{{corrs}}] = vis;
+        // Load in second direction independent effect term
+        int i = (time*{{na}} + ant1)*ncorrchan + corrchan;
+        {{out_type}} die1_term = die1[i];
+        cuda_swap(corr, die1_term);
+        JM::multiply(corr, die1_term);
     }
+    {%- endif %}
+
+    output[row*ncorrchan + corrchan] = corr;
 }
 
 // jinja2 parameters
