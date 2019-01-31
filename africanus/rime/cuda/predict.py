@@ -202,6 +202,8 @@ def predict_vis(time_index, antenna1, antenna2,
     out = cp.empty(shape=out_shape, dtype=out_dtype)
 
     # Normalise the time index
+    # TODO(sjperkins)
+    # Normalise the time index with a device-wide reduction
     time_index = time_index - time_index.min()
 
     args = (time_index, antenna1, antenna2,
