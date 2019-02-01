@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numba
 import numpy as np
 import math
@@ -101,15 +107,15 @@ def zernike_dde(coords, coeffs, noll_index):
     return result.reshape((sources, times, ants, chans) + corr_shape)
 
 
-_ZERNICKE_DOCSTRING = (
+_ZERNIKE_DOCSTRING = (
     """
 Computes Direction Dependent Effects by evaluating
-`Zernicke Polynomials <zernike_wiki_>`_
+`Zernike Polynomials <zernike_wiki_>`_
 defined by coefficients ``coeffs``
 and noll indexes ``noll_index``
 at the specified coordinates ``coords``.
 
-Decomposition of a voxel beam cube into Zernicke
+Decomposition of a voxel beam cube into Zernike
 polynomial coefficients can be achieved through the
 use of the eidos_ package.
 
@@ -124,7 +130,7 @@ coords : :class:`numpy.ndarray`
    the first dimension represent
    l, m and frequency coordinates, respectively.
 coeffs : :class:`numpy.ndarray`
-  complex Zernicke polynomial coefficients.
+  complex Zernike polynomial coefficients.
   Has shape :code:`(ant, chan, corr_1, ..., corr_n, poly)`
   where ``poly`` is the number of polynomial coefficients
   and ``corr_1, ..., corr_n`` are a variable number of
@@ -140,4 +146,4 @@ dde : :class:`numpy.ndarray`
    :code:`(source, time, ant, chan, corr_1, ..., corr_n)`
 """)
 
-zernike_dde.__doc__ = _ZERNICKE_DOCSTRING
+zernike_dde.__doc__ = _ZERNIKE_DOCSTRING
