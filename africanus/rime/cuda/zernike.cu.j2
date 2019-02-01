@@ -1,12 +1,130 @@
 #include <cupy/carray.cuh>
 
 
+template<typename FT, typename CT>
+__device__ __forceinline__ CT
+mul_CT_FT(FT floatval, CT complexval)
+{
+    return {floatval * complexval.x, floatval * complexval.y};
+}
+
+template <typename FT>
+__device__ __forceinline__ FT
+factorial(unsigned n)
+{
+    if(n == 0)
+        { return 1. };
+
+    FT fac = 1;
+
+    for(int i = 1; i <= n; i++)
+        { fac *= i; }
+
+    return fac;
+}
+
+template <typename FT, typename CT>
+__device__ __forceinline__ FT
+pre_fac(int k, int n, int m)
+{
+    FT numerator = factorial<FT>(n - k);
+
+    if(k % 2 == 1)
+        { numerator *= -1; }
+
+    FT denominator = factorial<FT>(k) *
+                     factorial<FT>((n+m)/2.0 - k) *
+                     factorial<FT>((n-m)/2.0 - k);
+
+    return numerator / denominator;
+}
+
+template <typename FT, typename CT>
+__device__ __forceinline__ FT
+zernike_rad(int m, int n, FT rho)
+{
+    FT radial_component = 0.0;
+
+    for(int k = 0; k < ((n - m) / 2) + 1; k++)
+    {
+        radial_component += pre_fac<FT, CT>(k, n, m) *
+                            pow(rho, n - 2.0 * k);
+    }
+
+    return radial_component;
+}
+
+template<typename FT, typename CT>
+__device__ __forceinline__ FT
+zernike(int j, FT rho, FT phi)
+{
+    if(rho >= 1)
+    {
+        return 0.;
+    }
+
+    // Convert from Noll to regular dual index
+    int n = 0;
+    j += 1;
+    int j1 = j - 1;
+
+    while(j1 > n)
+    {
+        n += 1;
+        j1 -= n;
+    }
+
+    int m = ((n % 2) + 2 * ((j1 + ((n + 1) % 2)) / 2));
+
+    if(j % 2 == 1)
+        { m *= -1 };
+
+    // Evaluate Zernike polynomials
+    if(m > 0)
+    {
+        return zernike_rad<FT, CT>(m, n, rho) * cos(m * phi);
+    }
+    else if(m < 0)
+    {
+        return zernike_rad<FT, CT>(-1 * m, n, rho) * sin(-1 * m * phi);
+    }
+
+    return zernike_rad<FT, CT>(0, n, rho);
+}
+
+{%- set nsrc = "coords.shape()[1]" %}
+{%- set ntime = "coords.shape()[2]" %}
+{%- set na = "coords.shape()[3]" %}
+{%- set nchan = "coords.shape()[4]" %}
+{%- set npoly = "coeffs.shape()[coeffs.ndim - 1]" %}
+
 extern "C" __global__ void {{kernel_name}}(
     const CArray<{{coords_type}}, {{coords_dims}}> coords,
     const CArray<{{coeffs_type}}, {{coeffs_dims}}> coeffs,
     const CArray<{{noll_index_type}}, {{noll_index_dims}}> noll_index,
     CArray<{{out_type}}, {{out_dims}}> ddes)
 {
-    int ant = blockIdx.y*blockDim.y + threadIdx.y;
     int chan = blockIdx.x*blockDim.x + threadIdx.x;
+    int ant = blockIdx.y*blockDim.y + threadIdx.y;
+    int time = blockIdx.z*blockDim.z + threadIdx.z;
+    int npoly = coeffs.shape()[coeffs.ndim - 1];
+
+    int coord_stride = {{nsrc}}*{{ntime}}*{{na}}*{{nchan}};
+
+    for(int src=0; src < {{nsrc}}; ++src)
+    {
+        int i = ((src*{{ntime}} + time)*{{na}} + ant)*{{nchan}} + chan;
+        {{coords_type}} l = coords[coord_stride*0 + i];
+        {{coords_type}} m = coords[coord_stride*1 + i];
+        {{coords_type}} freq = coords[coord_stride*2 + i];
+
+        {{coords_type}} rho = sqrt(l*l + m*m);
+        {{coords_type}} phi = atan2(l, m);
+
+
+        for(int poly=0; poly < npoly; ++poly)
+        {
+
+        }
+    }
 }

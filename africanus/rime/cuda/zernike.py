@@ -27,7 +27,9 @@ log = logging.getLogger(__name__)
 
 
 def _key_fn(coords, coeffs, noll_index):
-    return (coords.dtype, coeffs.dtype, noll_index.dtype)
+    return (coords.dtype, coords.ndim,
+            coeffs.dtype, coeffs.ndim,
+            noll_index.dtype, noll_index.ndim)
 
 
 _TEMPLATE_PATH = pjoin("rime", "cuda", "zernike.cu.j2")
@@ -40,7 +42,7 @@ def _generate_kernel(coords, coeffs, noll_index):
 
     # Block sizes
     blockdimx = 32
-    blockdimy = 32
+    blockdimy = 16
     block = (blockdimx, blockdimy, 1)
 
     # Create template
