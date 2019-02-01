@@ -1,0 +1,12 @@
+#include <cupy/carray.cuh>
+
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{coords_type}}, {{coords_dims}}> coords,
+    const CArray<{{coeffs_type}}, {{coeffs_dims}}> coeffs,
+    const CArray<{{noll_index_type}}, {{noll_index_dims}}> noll_index,
+    CArray<{{out_type}}, {{out_dims}}> ddes)
+{
+    int ant = blockIdx.y*blockDim.y + threadIdx.y;
+    int chan = blockIdx.x*blockDim.x + threadIdx.x;
+}

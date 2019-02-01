@@ -8,6 +8,8 @@ import numba
 import numpy as np
 import math
 
+from africanus.util.docs import DocstringTemplate
+
 
 @numba.jit(nogil=True, nopython=True, cache=True)
 def fac(x):
@@ -107,8 +109,7 @@ def zernike_dde(coords, coeffs, noll_index):
     return result.reshape((sources, times, ants, chans) + corr_shape)
 
 
-_ZERNIKE_DOCSTRING = (
-    """
+_ZERNIKE_DOCSTRING = DocstringTemplate(r"""
 Computes Direction Dependent Effects by evaluating
 `Zernike Polynomials <zernike_wiki_>`_
 defined by coefficients ``coeffs``
@@ -124,26 +125,30 @@ use of the eidos_ package.
 
 Parameters
 ---------------
-coords : :class:`numpy.ndarray`
+coords : $(array_type)
    Float coordinates at which to evaluate the zernike polynomials.
    Has shape :code:`(3, source, time, ant, chan)`. The three components in
    the first dimension represent
    l, m and frequency coordinates, respectively.
-coeffs : :class:`numpy.ndarray`
+coeffs : $(array_type)
   complex Zernike polynomial coefficients.
   Has shape :code:`(ant, chan, corr_1, ..., corr_n, poly)`
   where ``poly`` is the number of polynomial coefficients
   and ``corr_1, ..., corr_n`` are a variable number of
   correlation dimensions.
-noll_index : :class:`numpy.ndarray`
+noll_index : $(array_type)
   Noll index associated with each polynomial coefficient.
   Has shape :code:`(ant, chan, corr_1, ..., corr_n, poly)`.
 
 Returns
 ----------
-dde : :class:`numpy.ndarray`
+ddes : $(array_type)
    complex values with shape
    :code:`(source, time, ant, chan, corr_1, ..., corr_n)`
 """)
 
-zernike_dde.__doc__ = _ZERNIKE_DOCSTRING
+try:
+    zernike_dde.__doc__ = _ZERNIKE_DOCSTRING.substitute(
+                                array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass

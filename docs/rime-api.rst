@@ -69,10 +69,12 @@ Cuda
     predict_vis
     phase_delay
     feed_rotation
+    zernike_dde
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: feed_rotation
+.. autofunction:: zernike_dde
 
 
 Dask
