@@ -1,1 +1,1 @@
-from .consts import *
+from .consts import *  # noqa

@@ -12,7 +12,7 @@ try:
     import pyrap.measures
     import pyrap.quanta as pq
 except ImportError as e:
-    casa_import_error = None
+    casa_import_error = e
     have_casa_parangles = False
 else:
     casa_import_error = None

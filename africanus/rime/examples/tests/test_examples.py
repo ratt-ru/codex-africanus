@@ -4,7 +4,7 @@ def test_examples():
     other import issues caused by renames etc.
     """
 
-    from africanus.rime.examples.predict import predict
+    from africanus.rime.examples.predict import predict  # noqa
 
     # TODO(sjperkins)
     # Call with a fake MS once pytest-ms is available

@@ -13,15 +13,12 @@ import numpy as np
 from africanus.compatibility import reduce
 from africanus.rime.predict import PREDICT_DOCS, predict_checks
 from africanus.util.code import format_code, memoize_on_key
-from africanus.util.cuda import cuda_function, cuda_type, grids
-from africanus.util.nvcc import compile_using_nvcc
-from africanus.util.trove import trove_dir
+from africanus.util.cuda import cuda_type, grids
 from africanus.util.jinja2 import jinja_env
 from africanus.util.requirements import requires_optional
 
 try:
     import cupy as cp
-    from cupy.core._scalar import get_typename as _get_typename
     from cupy.cuda.compiler import CompileException
 except ImportError as e:
     opt_import_error = e

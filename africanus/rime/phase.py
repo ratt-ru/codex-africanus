@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple
 from functools import wraps
 import math
 
@@ -13,7 +12,6 @@ import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
 from africanus.util.docs import DocstringTemplate, on_rtd
-from africanus.util.numba import is_numba_type_none
 from africanus.util.type_inference import infer_complex_dtype
 
 

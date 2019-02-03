@@ -8,7 +8,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import pytest
 
 from africanus.util.type_inference import infer_complex_dtype
 

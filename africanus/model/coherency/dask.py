@@ -8,16 +8,17 @@ from functools import wraps
 
 from africanus.compatibility import range
 
-from .conversion import (convert_setup, convert_impl,
-                         convert as np_stokes_convert,
-                         CONVERT_DOCS)
+from africanus.model.coherency.conversion import (convert_setup,
+                                                  convert_impl,
+                                                  convert as np_stokes_convert,
+                                                  CONVERT_DOCS)
 
 from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da
-except ImportError as da_import_error:
-    pass
+except ImportError as e:
+    da_import_error = e
 else:
     da_import_error = None
 
