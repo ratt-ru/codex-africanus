@@ -82,6 +82,7 @@ Ready to contribute? Here's how to set up `codex-africanus` for local developmen
 
     $ py.test -v africanus
     $ autopep8 -r -i africanus
+    $ flake8 africanus
     $ pycodestyle africanus
 
    To get autopep8 and pycodestyle, just pip install them into your virtualenv.

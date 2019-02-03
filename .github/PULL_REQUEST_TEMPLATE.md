@@ -4,13 +4,14 @@
   $ py.test -v -s africanus
   ```
 
-  If the pycodestyle tests fail, the quickest way to correct
-  this is to run `autopep8` and then `pycodestyle` to fix the
-  remaining issues.
+  If the pep8 tests fail, the quickest way to correct
+  this is to run `autopep8` and then `flake8` and
+  `pycodestyle` to fix the remaining issues.
 
   ```
-  $ pip install -U autopep8 pycodestyle
+  $ pip install -U autopep8 flake8 pycodestyle
   $ autopep8 -r -i africanus
+  $ flake8 africanus
   $ pycodestyle africanus
   ```
 
