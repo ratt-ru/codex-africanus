@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import numba
 import numpy as np
-import math
 
 from africanus.util.docs import DocstringTemplate
 

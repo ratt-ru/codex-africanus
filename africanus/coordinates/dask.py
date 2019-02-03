@@ -6,13 +6,10 @@ from __future__ import print_function
 
 from functools import wraps
 
-import numba
-import numpy as np
-
 try:
     import dask.array as da
-except ImportError as dask_import_error:
-    pass
+except ImportError as e:
+    dask_import_error = e
 else:
     dask_import_error = None
 

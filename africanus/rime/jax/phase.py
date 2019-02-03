@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as onp
-
 try:
     import jax.numpy as np
 except ImportError as e:
@@ -25,7 +23,7 @@ def phase_delay(lm, uvw, frequency):
     neg_two_pi_over_c = lm.dtype.type(minus_two_pi_over_c)
     complex_one = out_dtype.type(1j)
 
-    l = lm[:, 0, None, None]
+    l = lm[:, 0, None, None]  # noqa
     m = lm[:, 1, None, None]
 
     u = uvw[None, :, 0, None]

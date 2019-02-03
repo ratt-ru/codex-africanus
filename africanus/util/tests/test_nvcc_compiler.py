@@ -10,9 +10,6 @@ import pytest
 
 
 def test_nvcc_compiler(tmpdir):
-    from pkg_resources import resource_filename
-    from os.path import join as pjoin
-
     from africanus.util.nvcc import compile_using_nvcc
 
     cp = pytest.importorskip('cupy')

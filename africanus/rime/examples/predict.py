@@ -68,7 +68,7 @@ def predict(args):
         phase = phase_delay(lm, xds.UVW.data, frequency)
         # (source, corr1, corr2)
         brightness = convert(stokes, ["I", "Q", "U", "V"],
-                                     [["XX", "XY"], ["YX", "YY"]])
+                             [["XX", "XY"], ["YX", "YY"]])
 
         # (source, row, frequency, corr1, corr2)
         jones = da.einsum("srf, sij -> srfij", phase, brightness)

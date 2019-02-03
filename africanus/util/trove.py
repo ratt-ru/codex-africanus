@@ -16,8 +16,8 @@ try:
 except ImportError:
     from threading import Lock
 
-from africanus.compatibility import urlopen, urlsplit
-from africanus.util.appdirs import user_data_dir, downloads_dir, include_dir
+from africanus.compatibility import urlopen
+from africanus.util.appdirs import downloads_dir, include_dir
 from africanus.util.files import sha_hash_file
 
 _trove_dir = pjoin(include_dir, "trove")

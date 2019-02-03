@@ -36,7 +36,6 @@ def register_assign_cycles(N, case=0):
     src = [(N - case + n) % N for n in dest]
 
     deps = {d: s for d, s in zip(dest, src) if d != s}
-    saved_deps = deps.copy()
 
     for di, d in enumerate(dest):
         si = src.index(d)

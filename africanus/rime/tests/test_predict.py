@@ -3,7 +3,6 @@
 
 """Tests for `codex-africanus` package."""
 
-import numba
 import numpy as np
 
 import pytest

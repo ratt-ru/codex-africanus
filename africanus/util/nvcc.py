@@ -18,10 +18,8 @@ from os.path import join as pjoin
 from pkg_resources import resource_filename
 
 import distutils
-from distutils import ccompiler
 from distutils import errors
 from distutils import msvccompiler
-from distutils import sysconfig
 from distutils import unixccompiler
 
 from africanus.util.code import format_code
@@ -78,7 +76,7 @@ def get_cuda_path():
 
     # Use a magic word to represent the cache not filled because None is a
     # valid return value.
-    if _cuda_path is not 'NOT_INITIALIZED':
+    if _cuda_path != 'NOT_INITIALIZED':
         return _cuda_path
 
     nvcc_path = search_on_path(('nvcc', 'nvcc.exe'))
@@ -110,7 +108,7 @@ def get_cuda_path():
 def get_nvcc_path():
     nvcc = os.environ.get('NVCC', None)
     if nvcc:
-        return distutil.split_quoted(nvcc)
+        return distutils.split_quoted(nvcc)
 
     cuda_path = get_cuda_path()
     if cuda_path is None:
@@ -292,7 +290,6 @@ def _get_cuda_info():
             stderr=subprocess.PIPE)
 
         stdoutdata, stderrdata = proc.communicate()
-        stderrlines = stderrdata.split(b'\n')
 
         if proc.returncode != 0:
             raise RuntimeError("Cannot determine "
@@ -355,7 +352,7 @@ class _UnixCCompiler(unixccompiler.UnixCCompiler):
             base_opts = get_compiler_base_options()
             self.set_executable('compiler_so', nvcc_path)
 
-            cuda_version = get_cuda_version()
+            cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
             postargs = get_gencode_options() + [
                 '-O2', '--compiler-options="-fPIC"']
             postargs += extra_postargs
@@ -384,7 +381,7 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
 
         compiler_so = get_nvcc_path()
         cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
-        cuda_version = get_cuda_version()
+        cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
         postargs = get_gencode_options() + ['-O2']
         postargs += ['-Xcompiler', '/MD']
         postargs += extra_postargs
@@ -470,7 +467,7 @@ def compile_using_nvcc(source, options=None, arch=None, filename='kern.cu'):
     if arch is None:
         cuda_info = get_cuda_info()
         arch = min([dev['major']*10 + dev['minor']
-                   for dev in cuda_info['devices']])
+                    for dev in cuda_info['devices']])
 
     cc = get_compiler()
     settings = get_compiler_setting()

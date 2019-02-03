@@ -1,6 +1,6 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# flake8: noqa
 
-from .coordinates import (radec_to_lmn, radec_to_lm,
-                          lmn_to_radec, lm_to_radec)
+from .coordinates import radec_to_lmn
+from .coordinates import radec_to_lm
+from .coordinates import lmn_to_radec
+from .coordinates import lm_to_radec
