@@ -4,11 +4,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple
 from functools import wraps
 
-import numba
-from numba import types, generated_jit, njit
+from numba import generated_jit, njit
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate, on_rtd

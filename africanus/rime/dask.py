@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import OrderedDict
 from functools import wraps
 
 from africanus.rime.phase import (phase_delay as np_phase_delay,
@@ -19,7 +18,7 @@ from africanus.rime.predict import predict_vis as np_predict_vis
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
-from africanus.util.docs import doc_tuple_to_str, mod_docs
+from africanus.util.docs import mod_docs
 from africanus.util.requirements import requires_optional
 from africanus.util.type_inference import infer_complex_dtype
 
@@ -33,14 +32,6 @@ except ImportError as e:
     da_import_error = e
 else:
     da_import_error = None
-
-try:
-    import cytoolz as toolz
-except ImportError:
-    try:
-        import toolz
-    except ImportError:
-        pass
 
 
 @wraps(np_phase_delay)
@@ -299,7 +290,6 @@ def predict_vis(time_index, antenna1, antenna2,
     # 1. Optional blockwise arguments
     # 2. Optional numblocks kwarg
     # 3. HighLevelGraph dependencies
-    array_dsk = {}
     bw_args = [time_index.name, ("row",),
                antenna1.name, ("row",),
                antenna2.name, ("row",)]

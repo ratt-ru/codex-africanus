@@ -6,11 +6,11 @@ from __future__ import print_function
 
 from functools import wraps
 
-import numba
 import numpy as np
+import numba
 
-from ..util.docs import on_rtd, DocstringTemplate
-from ..util.numba import is_numba_type_none
+from africanus.util.docs import on_rtd, DocstringTemplate
+from africanus.util.numba import is_numba_type_none
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -52,7 +52,7 @@ def radec_to_lmn(radec, phase_centre=None):
             sin_d = np.sin(radec[s, 1])
             cos_d = np.cos(radec[s, 1])
 
-            lmn[s, 0] = l = cos_d*sin_da
+            lmn[s, 0] = l = cos_d*sin_da  # noqa
             lmn[s, 1] = m = sin_d*cos_d0 - cos_d*sin_d0*cos_da
             lmn[s, 2] = np.sqrt(1.0 - l**2 - m**2)
 
@@ -90,8 +90,8 @@ def radec_to_lm(radec, phase_centre=None):
             sin_d = np.sin(radec[s, 1])
             cos_d = np.cos(radec[s, 1])
 
-            lm[s, 0] = l = cos_d*sin_da
-            lm[s, 1] = m = sin_d*cos_d0 - cos_d*sin_d0*cos_da
+            lm[s, 0] = cos_d*sin_da
+            lm[s, 1] = sin_d*cos_d0 - cos_d*sin_d0*cos_da
 
         return lm
 

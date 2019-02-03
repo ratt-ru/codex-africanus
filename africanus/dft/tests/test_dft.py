@@ -56,7 +56,7 @@ def test_im_to_vis_zero_w():
     I0 = np.random.randn(nsource)
     ref_freq = frequency[nchan//2]
     image = I0[:, None] * (frequency/ref_freq)**(-0.7)
-    l = 0.001 + 0.1*np.random.random(nsource)
+    l = 0.001 + 0.1*np.random.random(nsource)  # noqa
     m = 0.001 + 0.1*np.random.random(nsource)
     lm = np.vstack((l, m)).T
     vis = im_to_vis(image, uvw, lm, frequency)
@@ -84,7 +84,7 @@ def test_im_to_vis_single_baseline_and_chan():
     nrow = 1
     uvw = np.random.random(size=(nrow, 3))
     frequency = np.array([1.5e9])
-    l = 0.015
+    l = 0.015  # noqa
     m = -0.0123
     lm = np.array([[l, m]])
     n = np.sqrt(1 - l**2 - m**2)
@@ -226,7 +226,7 @@ def test_symmetric_covariance():
     lmmax = 0.05
     nsource = 25
 
-    l = -0.8*lmmax + 1.6*lmmax*np.random.random(nsource)
+    l = -0.8*lmmax + 1.6*lmmax*np.random.random(nsource)  # noqa
     m = -0.8 * lmmax + 1.6 * lmmax * np.random.random(nsource)
     lm = np.vstack((l, m)).T
 

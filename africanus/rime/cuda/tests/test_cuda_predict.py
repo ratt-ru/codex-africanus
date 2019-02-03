@@ -13,7 +13,7 @@ from africanus.rime.tests.test_predict import (corr_shape_parametrization,
                                                die_presence_parametrization,
                                                dde_presence_parametrization,
                                                chunk_parametrization,
-                                               rf, rc)
+                                               rc)
 
 
 @corr_shape_parametrization
