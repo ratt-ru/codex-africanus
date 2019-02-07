@@ -11,13 +11,12 @@ import numpy as np
 
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.util.code import format_code, memoize_on_key
-from africanus.util.cuda import cuda_function, grids
+from africanus.util.cuda import cuda_function, cuda_type, grids
 from africanus.util.jinja2 import jinja_env
 from africanus.util.requirements import requires_optional
 
 try:
     import cupy as cp
-    from cupy.core._scalar import get_typename as _get_typename
     from cupy.cuda.compiler import CompileException
 except ImportError as e:
     opt_import_error = e
@@ -54,8 +53,8 @@ def _generate_kernel(parallactic_angles, feed_type):
     code = render(kernel_name=name,
                   feed_type=feed_type,
                   sincos_fn=cuda_function('sincos', dtype),
-                  pa_type=_get_typename(dtype),
-                  out_type=_get_typename(dtype))
+                  angle_type=cuda_type(dtype),
+                  out_type=cuda_type(dtype))
 
     code = code.encode('utf-8')
 
