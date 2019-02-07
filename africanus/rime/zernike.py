@@ -66,7 +66,7 @@ def _convert_coords(l, m):
 @numba.jit(nogil=True, nopython=True, cache=True)
 def nb_zernike_dde(coords, coeffs, noll_index, out):
     sources, times, ants, chans, corrs = out.shape
-    npoly = coeffs.shape[-1]
+    npoly = coeffs.shape[2]
 
     for s in range(sources):
         for t in range(times):
@@ -75,15 +75,11 @@ def nb_zernike_dde(coords, coeffs, noll_index, out):
                     l, m, freq = coords[:, s, t, a, c]
                     rho, phi = _convert_coords(l, m)
 
-                    for co in range(corrs):
-                        zernike_sum = 0
-
-                        for p in range(npoly):
-                            zc = coeffs[a, c, co, p]
-                            zn = noll_index[a, c, co, p]
-                            zernike_sum += zc * zernike(zn, rho, phi)
-
-                        out[s, t, a, c, co] = zernike_sum
+                    for p in range(npoly):
+                        for co in range(corrs):
+                            zc = coeffs[a, c, p, co]
+                            zn = noll_index[a, c, p, co]
+                            out[s, t, a, c, co] += zc * zernike(zn, rho, phi)
 
     return out
 
@@ -91,16 +87,16 @@ def nb_zernike_dde(coords, coeffs, noll_index, out):
 def zernike_dde(coords, coeffs, noll_index):
     """ Wrapper for :func:`nb_zernike_dde` """
     _, sources, times, ants, chans = coords.shape
-    # ant, chan, corr_1, ..., corr_n, poly
-    corr_shape = coeffs.shape[2:-1]
-    npoly = coeffs.shape[-1]
+    # ant, chan, poly, corr_1, ..., corr_n
+    corr_shape = coeffs.shape[3:]
+    npoly = coeffs.shape[2]
 
     # Flatten correlation dimensions for numba function
     fcorrs = np.product(corr_shape)
-    ddes = np.empty((sources, times, ants, chans, fcorrs), coeffs.dtype)
+    ddes = np.zeros((sources, times, ants, chans, fcorrs), coeffs.dtype)
 
-    coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))
-    noll_index = noll_index.reshape((ants, chans, fcorrs, npoly))
+    coeffs = coeffs.reshape((ants, chans, npoly, fcorrs))
+    noll_index = noll_index.reshape((ants, chans, npoly, fcorrs))
 
     result = nb_zernike_dde(coords, coeffs, noll_index, ddes)
 

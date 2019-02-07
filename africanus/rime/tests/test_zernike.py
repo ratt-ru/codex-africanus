@@ -23,12 +23,12 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, ncorr, npoly))
+    coeffs = np.empty((na, nchan, npoly, ncorr), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, ncorr), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[0, 0, 0, :] = coeff_xx[:thresh]
-    noll_indices[0, 0, 0, :] = noll_index_xx[:thresh]
+    coeffs[0, 0, :, 0] = coeff_xx[:thresh]
+    noll_indices[0, 0, :, 0] = noll_index_xx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -62,12 +62,12 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, ncorr, npoly))
+    coeffs = np.empty((na, nchan, npoly, ncorr), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, ncorr), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[0, 0, 0, :] = coeff_xy[:thresh]
-    noll_indices[0, 0, 0, :] = noll_index_xy[:thresh]
+    coeffs[0, 0, :, 0] = coeff_xy[:thresh]
+    noll_indices[0, 0, :, 0] = noll_index_xy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -101,12 +101,12 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, ncorr, npoly))
+    coeffs = np.empty((na, nchan, npoly, ncorr), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, ncorr), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[0, 0, 0, :] = coeff_yx[:thresh]
-    noll_indices[0, 0, 0, :] = noll_index_yx[:thresh]
+    coeffs[0, 0, :, 0] = coeff_yx[:thresh]
+    noll_indices[0, 0, :, 0] = noll_index_yx[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -140,12 +140,12 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, 1, npoly))
+    coeffs = np.empty((na, nchan, npoly, ncorr), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, ncorr), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[0, 0, 0, :] = coeff_yy[:thresh]
-    noll_indices[0, 0, 0, :] = noll_index_yy[:thresh]
+    coeffs[0, 0, :, 0] = coeff_yy[:thresh]
+    noll_indices[0, 0, :, 0] = noll_index_yy[:thresh]
 
     # I left 0 as all the freq values
     coords[0, 0:nsrc, 0, 0, 0] = lm[0:nsrc, 0]
@@ -180,12 +180,12 @@ def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
+    coeffs = np.empty((na, nchan, npoly, corr1, corr2), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, corr1, corr2), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[:] = coeff_xx[:npoly]
-    noll_indices[:] = noll_index_xx[:npoly]
+    coeffs[:] = coeff_xx[None, None, :npoly, None, None]
+    noll_indices[:] = noll_index_xx[None, None, :npoly, None, None]
 
     # I left 0 as all the freq values
     coords[0, :, :, :, :] = lm[:, 0, None, None, None]
@@ -221,12 +221,12 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
 
     # Initializing coords, coeffs, and noll_indices
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
-    coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
-    noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
+    coeffs = np.empty((na, nchan, npoly, corr1, corr2), dtype=np.complex128)
+    noll_indices = np.empty((na, nchan, npoly, corr1, corr2), dtype=np.int32)
 
     # Assign Values to coeffs and noll_indices
-    coeffs[:] = coeff_xx[:npoly]
-    noll_indices[:] = noll_index_xx[:npoly]
+    coeffs[:] = coeff_xx[None, None, :npoly, None, None]
+    noll_indices[:] = noll_index_xx[None, None, :npoly, None, None]
 
     # I left 0 as all the freq values
     coords[0, :, :, :, :] = lm[:, 0, None, None, None]
@@ -241,10 +241,12 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
     ant_c = (4, 3)
     chan_c = (2, 4, 2)
 
-    coords = da.from_array(coords, (3, npix, time_c, ant_c, chan_c))
-    coeffs = da.from_array(coeffs, (ant_c, chan_c, corr1, corr2, npoly))
-    noll_indices = da.from_array(
-        noll_indices, (ant_c, chan_c, corr1, corr2, npoly))
+    coords = da.from_array(coords,
+                           (3, npix, time_c, ant_c, chan_c))
+    coeffs = da.from_array(coeffs,
+                           (ant_c, chan_c, npoly, corr1, corr2))
+    noll_indices = da.from_array(noll_indices,
+                                 (ant_c, chan_c, npoly, corr1, corr2))
 
     dask_vals = zernike_dde(coords, coeffs, noll_indices)
 

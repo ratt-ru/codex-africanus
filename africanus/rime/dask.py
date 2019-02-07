@@ -153,17 +153,16 @@ def _zernike_wrapper(coords, coeffs, noll_index):
 
 @requires_optional('dask.array', da_import_error)
 def zernike_dde(coords, coeffs, noll_index):
-    ncorrs = len(coeffs.shape[2:-1])
-    corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
+    corr_dims = tuple("corr-%d" % i for i in range(len(coeffs.shape[3:])))
 
     return da.core.blockwise(_zernike_wrapper,
                              ("source", "time", "ant", "chan") + corr_dims,
                              coords,
                              ("three", "source", "time", "ant", "chan"),
                              coeffs,
-                             ("ant", "chan") + corr_dims + ("poly",),
+                             ("ant", "chan", "poly") + corr_dims,
                              noll_index,
-                             ("ant", "chan") + corr_dims + ("poly",),
+                             ("ant", "chan", "poly") + corr_dims,
                              dtype=coeffs.dtype)
 
 
