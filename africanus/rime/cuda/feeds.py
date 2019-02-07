@@ -51,6 +51,7 @@ def _generate_kernel(parallactic_angles, feed_type):
     name = "feed_rotation"
 
     code = render(kernel_name=name,
+                  blockdimx=block[0],
                   feed_type=feed_type,
                   sincos_fn=cuda_function('sincos', dtype),
                   angle_type=cuda_type(dtype),
