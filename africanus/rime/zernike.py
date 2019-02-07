@@ -58,12 +58,6 @@ def zernike(j, rho, phi):
 
 
 @numba.jit(nogil=True, nopython=True, cache=True)
-def _convert_coords(l, m):
-    rho, phi = (l**2 + m ** 2) ** 0.5, np.arctan2(l, m)
-    return rho, phi
-
-
-@numba.jit(nogil=True, nopython=True, cache=True)
 def nb_zernike_dde(coords, coeffs, noll_index, out):
     sources, times, ants, chans, corrs = out.shape
     npoly = coeffs.shape[2]
@@ -72,8 +66,9 @@ def nb_zernike_dde(coords, coeffs, noll_index, out):
         for t in range(times):
             for a in range(ants):
                 for c in range(chans):
-                    l, m, freq = coords[:, s, t, a, c]
-                    rho, phi = _convert_coords(l, m)
+                    l, m, _ = coords[:, s, t, a, c]
+                    rho = np.sqrt(l**2 + m**2)
+                    phi = np.arctan2(l, m)
 
                     for p in range(npoly):
                         for co in range(corrs):
