@@ -90,7 +90,6 @@ zernike(int j, {{coords_type}} rho, {{coords_type}} phi)
 {%- set ntime = "coords.shape()[2]" %}
 {%- set na = "coords.shape()[3]" %}
 {%- set nchan = "coords.shape()[4]" %}
-{%- set npoly = "coeffs.shape()[coeffs.ndim - 1]" %}
 
 extern "C" __global__ void {{kernel_name}}(
     const CArray<{{coords_type}}, {{coords_dims}}> coords,
@@ -103,18 +102,25 @@ extern "C" __global__ void {{kernel_name}}(
     int time = blockIdx.z*blockDim.z + threadIdx.z;
     int npoly = coeffs.shape()[coeffs.ndim - 1];
 
+    if(time >= {{ntime}} || ant >= {{na}} || chan >= {{nchan}})
+        { return; }
+
     int coord_stride = {{nsrc}}*{{ntime}}*{{na}}*{{nchan}};
+
+    __shared__ struct {
+        {{coeffs_type}} coeffs[{{blockdimz}}][{{blockdimy}}][{{blockdimx}}][{{npoly}}][{{corrs}}];
+        {{noll_index_type}} noll_index[{{blockdimz}}][{{blockdimy}}][{{blockdimx}}][{{npoly}}][{{corrs}}];
+    } shared;
 
     for(int src=0; src < {{nsrc}}; ++src)
     {
         int i = ((src*{{ntime}} + time)*{{na}} + ant)*{{nchan}} + chan;
         {{coords_type}} l = coords[coord_stride*0 + i];
         {{coords_type}} m = coords[coord_stride*1 + i];
-        {{coords_type}} freq = coords[coord_stride*2 + i];
+        // {{coords_type}} freq = coords[coord_stride*2 + i];
 
         {{coords_type}} rho = {{sqrt_fn}}(l*l + m*m);
         {{coords_type}} phi = {{atan2_fn}}(l, m);
-
 
         for(int poly=0; poly < npoly; ++poly)
         {

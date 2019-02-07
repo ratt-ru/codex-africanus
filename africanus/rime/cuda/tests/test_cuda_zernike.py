@@ -29,8 +29,8 @@ def test_cuda_zernike():
     npoly = 16
 
     coords = rf((3, src, time, ant, chan))
-    coeffs = rf((ant, chan) + corrs + (npoly,))
-    noll_index = rf((ant, chan) + corrs + (npoly,)).astype(np.int32)
+    coeffs = rf((ant, chan, npoly) + corrs)
+    noll_index = rf((ant, chan, npoly) + corrs).astype(np.int32)
 
     ddes = zernike_dde(cp.asarray(coords),
                        cp.asarray(coeffs),

@@ -29,6 +29,8 @@ log = logging.getLogger(__name__)
 def _key_fn(coords, coeffs, noll_index):
     return (coords.dtype, coords.ndim,
             coeffs.dtype, coeffs.ndim,
+            coeffs.shape[2],  # Memoize on number of polynomials
+            coeffs.shape[3:], # Memoize on correlations
             noll_index.dtype, noll_index.ndim)
 
 
@@ -40,10 +42,15 @@ def _generate_kernel(coords, coeffs, noll_index):
     # Floating point output type
     out_dtype = np.result_type(coords, coeffs, noll_index, np.complex64)
 
+    npoly = coeffs.shape[2]
+    corr_shape = coeffs.shape[3:]
+    ncorrs = reduce(mul, corr_shape, 1)
+
     # Block sizes
     blockdimx = 32
-    blockdimy = 16
-    block = (blockdimx, blockdimy, 1)
+    blockdimy = 4
+    blockdimz = 1
+    block = (blockdimx, blockdimy, blockdimz)
 
     # Create template
     render = jinja_env.get_template(_TEMPLATE_PATH).render
@@ -56,6 +63,8 @@ def _generate_kernel(coords, coeffs, noll_index):
                   coeffs_dims=coeffs.ndim,
                   noll_index_type=cuda_type(noll_index.dtype),
                   noll_index_dims=noll_index.ndim,
+                  npoly=npoly,
+                  corrs=ncorrs,
                   sin_fn=cuda_function('cos', coords.dtype),
                   cos_fn=cuda_function('sin', coords.dtype),
                   pow_fn=cuda_function('pow', coords.dtype),
@@ -64,7 +73,8 @@ def _generate_kernel(coords, coeffs, noll_index):
                   out_type=cuda_type(out_dtype),
                   out_dims=coords.ndim + len(coeffs.shape[2:-1]),
                   blockdimx=blockdimx,
-                  blockdimy=blockdimy).encode('utf-8')
+                  blockdimy=blockdimy,
+                  blockdimz=blockdimz).encode('utf-8')
 
     # Complex output type
     out_dtype = np.result_type(out_dtype, np.complex64)
