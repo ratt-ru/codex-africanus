@@ -27,11 +27,19 @@ _array_types = tuple(_array_types)
 
 cuda_fns = {
     np.dtype(np.float32): {
+        'atan2': 'atan2f',
+        'cos': 'cosf',
+        'pow': 'powf',
+        'sin': 'sinf',
         'sqrt': 'sqrtf',
         'sincos': 'sincosf',
         'sincospi': 'sincospif',
     },
     np.dtype(np.float64): {
+        'atan2': 'atan2',
+        'cos': 'cos',
+        'pow': 'pow',
+        'sin': 'sin',
         'sqrt': 'sqrt',
         'sincos': 'sincos',
         'sincospi': 'sincospi',

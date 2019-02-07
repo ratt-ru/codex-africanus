@@ -8,14 +8,13 @@ mul_CT_FT(FT floatval, CT complexval)
     return {floatval * complexval.x, floatval * complexval.y};
 }
 
-template <typename FT>
-__device__ __forceinline__ FT
+__device__ __forceinline__ {{coords_type}}
 factorial(unsigned n)
 {
     if(n == 0)
-        { return 1. };
+        { return 1.0; }
 
-    FT fac = 1;
+    {{coords_type}} fac = 1;
 
     for(int i = 1; i <= n; i++)
         { fac *= i; }
@@ -23,45 +22,40 @@ factorial(unsigned n)
     return fac;
 }
 
-template <typename FT, typename CT>
-__device__ __forceinline__ FT
+__device__ __forceinline__ {{coords_type}}
 pre_fac(int k, int n, int m)
 {
-    FT numerator = factorial<FT>(n - k);
+    {{coords_type}} numerator = factorial(n - k);
 
     if(k % 2 == 1)
         { numerator *= -1; }
 
-    FT denominator = factorial<FT>(k) *
-                     factorial<FT>((n+m)/2.0 - k) *
-                     factorial<FT>((n-m)/2.0 - k);
+    {{coords_type}} denominator = factorial(k) *
+                                 factorial((n+m)/2.0 - k) *
+                                 factorial((n-m)/2.0 - k);
 
     return numerator / denominator;
 }
 
-template <typename FT, typename CT>
-__device__ __forceinline__ FT
-zernike_rad(int m, int n, FT rho)
+__device__ __forceinline__ {{coords_type}}
+zernike_rad(int m, int n, {{coords_type}} rho)
 {
-    FT radial_component = 0.0;
+    {{coords_type}} radial_component = 0.0;
 
     for(int k = 0; k < ((n - m) / 2) + 1; k++)
     {
-        radial_component += pre_fac<FT, CT>(k, n, m) *
-                            pow(rho, n - 2.0 * k);
+        radial_component += pre_fac(k, n, m) *
+                            {{pow_fn}}(rho, n - 2.0 * k);
     }
 
     return radial_component;
 }
 
-template<typename FT, typename CT>
-__device__ __forceinline__ FT
-zernike(int j, FT rho, FT phi)
+__device__ __forceinline__ {{coords_type}}
+zernike(int j, {{coords_type}} rho, {{coords_type}} phi)
 {
     if(rho >= 1)
-    {
-        return 0.;
-    }
+        { return 0.0; }
 
     // Convert from Noll to regular dual index
     int n = 0;
@@ -77,19 +71,19 @@ zernike(int j, FT rho, FT phi)
     int m = ((n % 2) + 2 * ((j1 + ((n + 1) % 2)) / 2));
 
     if(j % 2 == 1)
-        { m *= -1 };
+        { m *= -1; }
 
     // Evaluate Zernike polynomials
     if(m > 0)
     {
-        return zernike_rad<FT, CT>(m, n, rho) * cos(m * phi);
+        return zernike_rad(m, n, rho) * {{cos_fn}}(m * phi);
     }
     else if(m < 0)
     {
-        return zernike_rad<FT, CT>(-1 * m, n, rho) * sin(-1 * m * phi);
+        return zernike_rad(-1 * m, n, rho) * {{sin_fn}}(-1 * m * phi);
     }
 
-    return zernike_rad<FT, CT>(0, n, rho);
+    return zernike_rad(0, n, rho);
 }
 
 {%- set nsrc = "coords.shape()[1]" %}
@@ -118,8 +112,8 @@ extern "C" __global__ void {{kernel_name}}(
         {{coords_type}} m = coords[coord_stride*1 + i];
         {{coords_type}} freq = coords[coord_stride*2 + i];
 
-        {{coords_type}} rho = sqrt(l*l + m*m);
-        {{coords_type}} phi = atan2(l, m);
+        {{coords_type}} rho = {{sqrt_fn}}(l*l + m*m);
+        {{coords_type}} phi = {{atan2_fn}}(l, m);
 
 
         for(int poly=0; poly < npoly; ++poly)
