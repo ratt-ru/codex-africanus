@@ -73,12 +73,11 @@ if args.fitsresidual:
     ResidCube = np.asarray(residhdu[0].data, dtype=np.float64).squeeze()
     rms = np.std(ResidCube.flatten())
     Threshold = rms * args.threshold
+    assert ModelCube.shape == ResidCube.shape
 else:
     ResidCube = None
     print("This works better with a residual. Ignoring!")
     Threshold = 0.1 * ModelCube.max()
-
-assert ModelCube.shape == ResidCube.shape
 
 image_shape = ModelCube.shape
 
