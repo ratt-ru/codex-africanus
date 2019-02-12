@@ -7,6 +7,23 @@ from __future__ import print_function
 
 import numpy as np
 
+_array_types = [np.ndarray]
+
+try:
+    import dask.array as da
+except ImportError:
+    pass
+else:
+    _array_types.append(da.Array)
+
+try:
+    import cupy as cp
+except ImportError:
+    pass
+else:
+    _array_types.append(cp.ndarray)
+
+_array_types = tuple(_array_types)
 
 cuda_fns = {
     np.dtype(np.float32): {
@@ -81,6 +98,9 @@ def cuda_function(function_name, dtype):
 
 
 def cuda_type(dtype):
+    if isinstance(dtype, _array_types):
+        dtype = dtype.dtype
+
     try:
         return numpy_to_cuda_type_map[dtype]
     except KeyError:

@@ -94,7 +94,7 @@ else:
 cell_size_rad = np.deg2rad(cell_size / (60*60))
 
 if args.n_wlayers is None:
-    l = np.mgrid[-(args.npix//2):args.npix//2:1j*args.npix] * cell_size_rad
+    l = np.mgrid[-(args.npix//2):args.npix//2:1j*args.npix] * cell_size_rad  # noqa
     m = np.mgrid[-(args.npix//2):args.npix//2:1j*args.npix] * cell_size_rad
     w_layers = w_stacking_layers(wmin, wmax, l, m)
 else:
@@ -109,7 +109,7 @@ logging.info("Chose a cell_size of %.3f arcseconds" % cell_size)
 
 
 def phase_screen(npix):
-    l = np.mgrid[-(npix//2):npix//2:1j*npix] * cell_size_rad
+    l = np.mgrid[-(npix//2):npix//2:1j*npix] * cell_size_rad  # noqa
     m = np.mgrid[-(npix//2):npix//2:1j*npix] * cell_size_rad
     square = l[None, :]**2 + m[:, None]**2
     valid = square < 1.0

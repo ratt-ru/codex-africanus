@@ -4,8 +4,10 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
-* cupy implement of `feed_rotation` (:pr:`67`)
-* cupy implemention of `stokes_convert` kernel (:pr:`65`)
+* cupy implementation of `predict_vis` (:pr:`73`)
+* Introduce transpose in second antenna term of predict (:pr:`72`)
+* cupy implementation of `feed_rotation` (:pr:`67`)
+* cupy implementation of `stokes_convert` kernel (:pr:`65`)
 * Add a basic RIME example (:pr:`64`)
 * requires_optional accepts ImportError's for a
   better debugging experience (:pr:`62`, :pr:`63`)

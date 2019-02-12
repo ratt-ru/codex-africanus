@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import OrderedDict
 from functools import wraps
 
 from africanus.rime.phase import (phase_delay as np_phase_delay,
@@ -14,12 +13,12 @@ from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
 from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
-from africanus.rime.predict import PREDICT_DOCS
+from africanus.rime.predict import PREDICT_DOCS, predict_checks
 from africanus.rime.predict import predict_vis as np_predict_vis
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
-from africanus.util.docs import doc_tuple_to_str, mod_docs
+from africanus.util.docs import mod_docs
 from africanus.util.requirements import requires_optional
 from africanus.util.type_inference import infer_complex_dtype
 
@@ -27,19 +26,12 @@ import numpy as np
 
 try:
     import dask.array as da
-    from dask.sharedict import ShareDict
+    from dask.highlevelgraph import HighLevelGraph
+    from dask.blockwise import blockwise
 except ImportError as e:
     da_import_error = e
 else:
     da_import_error = None
-
-try:
-    import cytoolz as toolz
-except ImportError:
-    try:
-        import toolz
-    except ImportError:
-        pass
 
 
 @wraps(np_phase_delay)
@@ -50,11 +42,11 @@ def _phase_delay_wrap(lm, uvw, frequency):
 @requires_optional('dask.array', da_import_error)
 def phase_delay(lm, uvw, frequency):
     """ Dask wrapper for phase_delay function """
-    return da.core.atop(_phase_delay_wrap, ("source", "row", "chan"),
-                        lm, ("source", "(l,m)"),
-                        uvw, ("row", "(u,v,w)"),
-                        frequency, ("chan",),
-                        dtype=infer_complex_dtype(lm, uvw, frequency))
+    return da.core.blockwise(_phase_delay_wrap, ("source", "row", "chan"),
+                             lm, ("source", "(l,m)"),
+                             uvw, ("row", "(u,v,w)"),
+                             frequency, ("chan",),
+                             dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
 @wraps(np_parangles)
@@ -65,12 +57,12 @@ def _parangle_wrapper(t, ap, fc, **kw):
 @requires_optional('dask.array', da_import_error)
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
-    return da.core.atop(_parangle_wrapper, ("time", "ant"),
-                        times, ("time",),
-                        antenna_positions, ("ant", "xyz"),
-                        field_centre, ("fc",),
-                        dtype=times.dtype,
-                        **kwargs)
+    return da.core.blockwise(_parangle_wrapper, ("time", "ant"),
+                             times, ("time",),
+                             antenna_positions, ("ant", "xyz"),
+                             field_centre, ("fc",),
+                             dtype=times.dtype,
+                             **kwargs)
 
 
 @requires_optional('dask.array', da_import_error)
@@ -86,11 +78,11 @@ def feed_rotation(parallactic_angles, feed_type):
         raise ValueError("parallactic_angles have "
                          "non-floating point dtype")
 
-    return da.core.atop(np_feed_rotation, pa_dims + corr_dims,
-                        parallactic_angles, pa_dims,
-                        feed_type=feed_type,
-                        new_axes={'corr-1': 2, 'corr-2': 2},
-                        dtype=dtype)
+    return da.core.blockwise(np_feed_rotation, pa_dims + corr_dims,
+                             parallactic_angles, pa_dims,
+                             feed_type=feed_type,
+                             new_axes={'corr-1': 2, 'corr-2': 2},
+                             dtype=dtype)
 
 
 @wraps(np_transform_sources)
@@ -108,15 +100,17 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
     if dtype is None:
         dtype = np.float64
 
-    return da.core.atop(_xform_wrap, ("comp", "src", "time", "ant", "chan"),
-                        lm, ("src", "lm"),
-                        parallactic_angles, ("time", "ant"),
-                        pointing_errors, ("time", "ant", "lm"),
-                        antenna_scaling, ("ant", "chan"),
-                        frequency, ("chan",),
-                        new_axes={"comp": 3},
-                        dtype=dtype,
-                        dtype_=dtype)
+    xform_inds = ("comp", "src", "time", "ant", "chan")
+
+    return da.core.blockwise(_xform_wrap, xform_inds,
+                             lm, ("src", "lm"),
+                             parallactic_angles, ("time", "ant"),
+                             pointing_errors, ("time", "ant", "lm"),
+                             antenna_scaling, ("ant", "chan"),
+                             frequency, ("chan",),
+                             new_axes={"comp": 3},
+                             dtype=dtype,
+                             dtype_=dtype)
 
 
 @wraps(np_beam_cude_dde)
@@ -138,15 +132,15 @@ def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
 
     beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
 
-    return da.core.atop(_beam_wrapper, coord_dims + corr_dims,
-                        beam, beam_dims,
-                        coords, ("coords",) + coord_dims,
-                        l_grid, ("beam_lw",),
-                        m_grid, ("beam_mh",),
-                        freq_grid, ("beam_nud",),
-                        spline_order=spline_order,
-                        mode=mode,
-                        dtype=beam.dtype)
+    return da.core.blockwise(_beam_wrapper, coord_dims + corr_dims,
+                             beam, beam_dims,
+                             coords, ("coords",) + coord_dims,
+                             l_grid, ("beam_lw",),
+                             m_grid, ("beam_mh",),
+                             freq_grid, ("beam_nud",),
+                             spline_order=spline_order,
+                             mode=mode,
+                             dtype=beam.dtype)
 
 
 @wraps(np_zernike_dde)
@@ -162,15 +156,15 @@ def zernike_dde(coords, coeffs, noll_index):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
 
-    return da.core.atop(_zernike_wrapper,
-                        ("source", "time", "ant", "chan") + corr_dims,
-                        coords,
-                        ("three", "source", "time", "ant", "chan"),
-                        coeffs,
-                        ("ant", "chan") + corr_dims + ("poly",),
-                        noll_index,
-                        ("ant", "chan") + corr_dims + ("poly",),
-                        dtype=coeffs.dtype)
+    return da.core.blockwise(_zernike_wrapper,
+                             ("source", "time", "ant", "chan") + corr_dims,
+                             coords,
+                             ("three", "source", "time", "ant", "chan"),
+                             coeffs,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             noll_index,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             dtype=coeffs.dtype)
 
 
 @wraps(np_predict_vis)
@@ -218,20 +212,15 @@ def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
 
-    have_a1 = dde1_jones is not None
-    have_a2 = dde2_jones is not None
-    have_bl = source_coh is not None
-    have_g1 = die1_jones is not None
-    have_coh = base_vis is not None
-    have_g2 = die2_jones is not None
+    tup = predict_checks(time_index, antenna1, antenna2,
+                         dde1_jones, source_coh, dde2_jones,
+                         die1_jones, base_vis, die2_jones)
 
-    if have_a1 ^ have_a2:
-        raise ValueError("Both dde1_jones and dde2_jones "
-                         "must be present or absent")
+    (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
 
-    have_ants = have_a1 and have_a2
+    have_ddes = have_ddes1 and have_ddes2
 
-    if have_ants:
+    if have_ddes:
         if dde1_jones.shape[2] != dde1_jones.chunks[2][0]:
             raise ValueError("Subdivision of antenna dimension into "
                              "multiple chunks is not supported.")
@@ -248,11 +237,7 @@ def predict_vis(time_index, antenna1, antenna2,
                              "number of time chunks (%s)." %
                              (time_index.chunks[0], dde1_jones.chunks[1]))
 
-    if have_g1 ^ have_g2:
-        raise ValueError("Both die1_jones and die2_jones "
-                         "must be present or absent")
-
-    have_dies = have_g1 and have_g2
+    have_dies = have_dies1 and have_dies2
 
     if have_dies:
         if die1_jones.shape[1] != die1_jones.chunks[1][0]:
@@ -272,9 +257,9 @@ def predict_vis(time_index, antenna1, antenna2,
                              (time_index.chunks[0], die1_jones.chunks[1]))
 
     # Generate strings for the correlation dimensions
-    if have_ants:
+    if have_ddes:
         cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
-    elif have_bl:
+    elif have_coh:
         cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
     elif have_dies:
         cdims = tuple("corr-%d" % i for i in range(len(die1_jones.shape[3:])))
@@ -291,8 +276,8 @@ def predict_vis(time_index, antenna1, antenna2,
     # are related to a contiguous series of timesteps.
     # This means that the number of chunks of these
     # two dimensions must match even though the chunk sizes may not.
-    # da.core.atop insists on matching chunk sizes.
-    # For this reason, we use the lower level da.core.top and
+    # blockwise insists on matching chunk sizes.
+    # For this reason, we use the lower level blockwise and
     # substitute "row" for "time" in arrays such as dde1_jones
     # and die1_jones.
     token = da.core.tokenize(time_index, antenna1, antenna2,
@@ -302,75 +287,71 @@ def predict_vis(time_index, antenna1, antenna2,
     gjones_dims = ("row", "ant", "chan") + cdims
 
     # Setup
-    # 1. Optional top arguments
+    # 1. Optional blockwise arguments
     # 2. Optional numblocks kwarg
-    # 3. dask graph inputs
-    array_dsk = ShareDict()
-    top_args = [time_index.name, ("row",),
-                antenna1.name, ("row",),
-                antenna2.name, ("row",)]
+    # 3. HighLevelGraph dependencies
+    bw_args = [time_index.name, ("row",),
+               antenna1.name, ("row",),
+               antenna2.name, ("row",)]
     numblocks = {
         time_index.name: time_index.numblocks,
         antenna1.name: antenna1.numblocks,
         antenna2.name: antenna2.numblocks
     }
 
-    # Merge input graphs into the top graph
-    array_dsk.update(time_index.__dask_graph__())
-    array_dsk.update(antenna1.__dask_graph__())
-    array_dsk.update(antenna2.__dask_graph__())
+    # Dependencies
+    deps = [time_index, antenna1, antenna2]
 
     # Handle presence/absence of dde1_jones
-    if have_ants:
-        top_args.extend([dde1_jones.name, ajones_dims])
+    if have_ddes:
+        bw_args.extend([dde1_jones.name, ajones_dims])
         numblocks[dde1_jones.name] = dde1_jones.numblocks
-        array_dsk.update(dde1_jones.__dask_graph__())
+        deps.append(dde1_jones)
         other_chunks = dde1_jones.chunks[3:]
         src_chunks = dde1_jones.chunks[0]
     else:
-        top_args.extend([None, None])
+        bw_args.extend([None, None])
 
     # Handle presence/absence of source_coh
-    if have_bl:
-        top_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
+    if have_coh:
+        bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
         numblocks[source_coh.name] = source_coh.numblocks
         other_chunks = source_coh.chunks[2:]
         src_chunks = source_coh.chunks[0]
-        array_dsk.update(source_coh.__dask_graph__())
+        deps.append(source_coh)
     else:
-        top_args.extend([None, None])
+        bw_args.extend([None, None])
 
     # Handle presence/absence of dde2_jones
-    if have_ants:
-        top_args.extend([dde2_jones.name, ajones_dims])
+    if have_ddes:
+        bw_args.extend([dde2_jones.name, ajones_dims])
         numblocks[dde2_jones.name] = dde2_jones.numblocks
         other_chunks = dde1_jones.chunks[3:]
-        array_dsk.update(dde2_jones.__dask_graph__())
+        deps.append(dde2_jones)
         other_chunks = dde2_jones.chunks[3:]
         src_chunks = dde1_jones.chunks[0]
     else:
-        top_args.extend([None, None])
+        bw_args.extend([None, None])
 
     # die1_jones, base_vis and die2_jones absent for this part of the graph
-    top_args.extend([None, None, None, None, None, None])
+    bw_args.extend([None, None, None, None, None, None])
 
-    assert len(top_args) // 2 == 9, len(top_args) // 2
+    assert len(bw_args) // 2 == 9, len(bw_args) // 2
 
     name = "-".join(("predict_vis", token))
-    dsk = da.core.top(_predict_coh_wrapper,
+    layer = blockwise(_predict_coh_wrapper,
                       name, ("src", "row", "chan") + cdims,
-                      *top_args,
-                      numblocks=numblocks)
+                      *bw_args, numblocks=numblocks)
 
-    array_dsk.update(dsk)
+    graph = HighLevelGraph.from_collections(name, layer, deps)
 
     # We can infer output chunk sizes from source_coh
     chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
 
-    sum_coherencies = da.Array(array_dsk, name, chunks, dtype=out_dtype)
+    sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
     sum_coherencies = sum_coherencies.sum(axis=0)
 
-    if have_coh:
+    if have_bvis:
         sum_coherencies += base_vis
 
     if not have_dies:
@@ -379,49 +360,45 @@ def predict_vis(time_index, antenna1, antenna2,
     # Now apply any Direction Independent Effect Terms
 
     # Setup
-    # 1. Optional top arguments
+    # 1. Optional blockwise arguments
     # 2. Optional numblocks kwarg
-    # 3. dask graph inputs
-    array_dsk = ShareDict()
-    top_args = [time_index.name, ("row",),
-                antenna1.name, ("row",),
-                antenna2.name, ("row",)]
+    # 3. HighLevelGraph dependencies
+    bw_args = [time_index.name, ("row",),
+               antenna1.name, ("row",),
+               antenna2.name, ("row",)]
     numblocks = {
         time_index.name: time_index.numblocks,
         antenna1.name: antenna1.numblocks,
         antenna2.name: antenna2.numblocks
     }
 
-    array_dsk.update(time_index.__dask_graph__())
-    array_dsk.update(antenna1.__dask_graph__())
-    array_dsk.update(antenna2.__dask_graph__())
+    deps = [time_index, antenna1, antenna2]
 
     # dde1_jones, source_coh  and dde2_jones not present
-    top_args.extend([None, None, None, None, None, None])
+    bw_args.extend([None, None, None, None, None, None])
 
-    top_args.extend([die1_jones.name, gjones_dims])
-    top_args.extend([sum_coherencies.name, ("row", "chan") + cdims])
-    top_args.extend([die2_jones.name, gjones_dims])
+    bw_args.extend([die1_jones.name, gjones_dims])
+    bw_args.extend([sum_coherencies.name, ("row", "chan") + cdims])
+    bw_args.extend([die2_jones.name, gjones_dims])
     numblocks[die1_jones.name] = die1_jones.numblocks
     numblocks[sum_coherencies.name] = sum_coherencies.numblocks
     numblocks[die2_jones.name] = die2_jones.numblocks
-    array_dsk.update(die1_jones.__dask_graph__())
-    array_dsk.update(sum_coherencies.__dask_graph__())
-    array_dsk.update(die2_jones.__dask_graph__())
 
-    assert len(top_args) // 2 == 9
+    deps.extend([die1_jones, sum_coherencies, die2_jones])
+
+    assert len(bw_args) // 2 == 9
 
     token = da.core.tokenize(time_index, antenna1, antenna2,
                              die1_jones, sum_coherencies, die2_jones)
     name = '-'.join(("predict_vis", token))
-    dsk = da.core.top(_predict_dies_wrapper,
+    layer = blockwise(_predict_dies_wrapper,
                       name, ("row", "chan") + cdims,
-                      *top_args, numblocks=numblocks)
-    array_dsk.update(dsk)
+                      *bw_args, numblocks=numblocks)
 
+    graph = HighLevelGraph.from_collections(name, layer, deps)
     chunks = (time_index.chunks[0],) + other_chunks
 
-    return da.Array(array_dsk, name, chunks, dtype=out_dtype)
+    return da.Array(graph, name, chunks, dtype=out_dtype)
 
 
 try:
