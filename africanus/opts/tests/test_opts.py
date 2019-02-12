@@ -81,15 +81,15 @@ def test_primal_dual_PSF():
 
     vis_grid, PSF_hat, Sigma_hat = make_dim_reduce_ops(uvw_dask, lm_pad_dask, frequency_dask, vis_dask, weights_dask)
     white_vis, white_psf_hat = whiten_noise(vis_grid, PSF_hat, Sigma_hat)
-    dirty = da.absolute(iFFT(white_vis))/da.absolute(da.sqrt(da.sum(Sigma_hat)))
+    dirty = da.absolute(iFFT(white_vis))#/da.absolute(da.sqrt(da.sum(Sigma_hat)))
 
     PSF_op = lambda image: PSF_response(image, white_psf_hat)
-    PSF_adj = lambda vis: PSF_adjoint(vis, white_psf_hat)
+    PSF_adj = lambda vis: PSF_adjoint(vis, white_psf_hat)/wsum
 
     start = np.zeros_like(dirty, dtype=np.float64)
     start[pad_pix // 2, pad_pix // 2] = 10
 
-    cleaned = primal_dual_solver(start, white_vis, PSF_op, PSF_adj, dask=True)
+    cleaned = primal_dual_solver(start, white_vis, PSF_op, PSF_adj, dask=False)
 
     plt.figure('ID')
     plt.imshow(dirty[padding:-padding, padding:-padding])

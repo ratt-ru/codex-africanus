@@ -72,7 +72,8 @@ def make_Sigma_hat(uvw, lm, freq, sigma, npix):
             sigma_hat[pixel] = FFT(covariance.reshape([npix, npix])).flatten()[pixel]
 
         sigma_hat.tofile('Sigma_hat.dat')
-    return abs(sigma_hat/sigma_hat.max())
+        # sigma_hat[sigma_hat<0] = 0
+    return abs(sigma_hat)
 
 
 def whiten_noise(grid_vis, psf_hat, sigma_hat, NCPU=8):

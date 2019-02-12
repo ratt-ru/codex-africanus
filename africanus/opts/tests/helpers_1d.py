@@ -1,5 +1,6 @@
 import dask.array as da
 import scipy as sp
+import scipy.fftpack as scifft
 import numpy as np
 
 c = 2.99792458e8
@@ -7,11 +8,11 @@ two_pi_over_c = 2*sp.pi/c
 
 
 def FFT(x):
-    return np.fft.fftshift(np.fft.fft(np.fft.ifftshift(x)))
+    return scifft.fftshift(scifft.fft(scifft.ifftshift(x)))
 
 
 def iFFT(x):
-    return np.fft.fftshift(np.fft.ifft(np.fft.ifftshift(x)))
+    return scifft.fftshift(scifft.ifft(scifft.ifftshift(x)))
 
 
 def im_to_vis(image, u_row, l_row):
@@ -66,6 +67,6 @@ def make_dft_matrix(uvw, lm, weights=None):
     else:
         wsum = np.sum(weights)
 
-    DFT_mat = da.exp(-2.0j * np.pi * (uvw.dot(lm.T)))/np.sqrt(wsum)
+    DFT_mat = da.exp(-2.0j * np.pi * (uvw.dot(lm.T)))
 
     return DFT_mat

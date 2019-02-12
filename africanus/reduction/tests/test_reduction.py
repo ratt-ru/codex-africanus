@@ -499,7 +499,7 @@ def test_compare_diagonals():
     true_diag = true_diag/abs(true_diag).max()
 
     # diagonal from operators
-    lm_point = lm_pad[pad_pix**2//2+1]
+    lm_point = lm_pad[pad_pix**2//2]
     operator = lambda im: im_to_vis(im, uvw, lm_point, frequency)
     adjoint = lambda vis: vis_to_im(vis, uvw, lm_pad, frequency)
     op_diag = make_Sigma_hat(uvw, lm_pad, frequency, weight, pad_pix).flatten()

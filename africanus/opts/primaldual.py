@@ -1,7 +1,7 @@
 from .sub_opts import *
 
 
-def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, maxiter=200, tolerance=1e-6, tau=None,
+def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, maxiter=200, tol=1e-5, tau=None,
                        sigma=None, llambda=None):
 
     M = v_0.shape[0]  # dimension of data
@@ -11,18 +11,16 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
         L_norm = power_dask(L, LT, x_0.shape)
         l2ball = lambda v_i: da_proj_l2ball(v_i, eps, v_0)
         l1 = lambda x, t: da_proj_l1_plus_pos(x, t)
-        differ = lambda x_new, x, n: da_get_diff(x_new, x, n)
     else:
         L_norm = pow_method(L, LT, x_0.shape)
         l2ball = lambda v_i: proj_l2ball(v_i, eps, v_0)
         l1 = lambda x, t: proj_l1_plus_pos(x, t)
-        differ = lambda x_new, x, n: get_diff(x_new, x, n)
 
     if tau is None:
-        tau = 0.95/(np.sqrt(L_norm))
+        tau = 0.95/(2*np.sqrt(L_norm))
 
     if sigma is None:
-        sigma = 0.95/(2*np.sqrt(L_norm))
+        sigma = 0.95/(np.sqrt(L_norm))
 
     if llambda is None:
         llambda = 1
@@ -36,7 +34,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
 
         for n in range(maxiter):
             # Calculate x update step
-            x_i = x - tau*LT(v)
+            x_i = x - abs(tau*LT(v))
             p_n = l1(x_i, tau)
 
             # Calculate v update step
@@ -47,13 +45,32 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             x_new = x + llambda * (p_n - x)
             v_new = v + llambda * (q_n - v)
 
-            diff = differ(x_new, x, n)
+            # Get new norms
+            norm2 = da.linalg.norm(x_new)
+            norm1 = da.linalg.norm(x_new, 1)
+
+            if norm1 == 0:
+                norm1 = 1
+            if norm2 == 0:
+                norm2 = 1
+
+            # get diff i.t.o. 1-norm
+            diff1 = da.linalg.norm(x_new - x, 1) / norm1
+            # get diff i.t.o. 2-norm
+            diff2 = da.linalg.norm(x_new - x) / norm2
+
+            if dask:
+                x_new, v_new, norm1, norm2, diff1, diff2 = da.compute(x_new, v_new, norm1, norm2, diff1, diff2)
+
+            print('L1 norm=', norm1, ' L2 norm=', norm2)
+            print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
 
             # Set new values to current values
             x = x_new
             v = v_new
 
-            if diff < tolerance:
+            diff = max(diff1, diff2)
+            if diff < tol:
                 break
 
         return x
@@ -76,13 +93,38 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             x_new = x + llambda * (p_n - x)
             v_new = v + llambda * (q_n - v)
 
-            diff = differ(x_new, x, n)
+            # Get new norms
+            norm2 = da.linalg.norm(x_new)
+            norm1 = da.linalg.norm(x_new, 1)
+
+            if norm1 == 0:
+                norm1 = 1
+            if norm2 == 0:
+                norm2 = 1
+
+            # get diff i.t.o. 1-norm
+            diff1 = da.linalg.norm(x_new - x, 1) / norm1
+            # get diff i.t.o. 2-norm
+            diff2 = da.linalg.norm(x_new - x) / norm2
+
+            if dask:
+                x_new, v_new, norm1, norm2, diff1, diff2 = da.compute(x_new, v_new, norm1, norm2, diff1, diff2)
+
+            print('L1 norm=', norm1, ' L2 norm=', norm2)
+            print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
 
             # Set new values to current values
             x = x_new
             v = v_new
 
-            if diff < tolerance:
+            # import matplotlib.pyplot as plt
+            # plt.figure("Primal Dual image")
+            # plt.plot(x)
+            # # plt.imshow(x.reshape([129, 129]))
+            # plt.show()
+
+            diff = max(diff1, diff2)
+            if diff < tol:
                 break
 
         return x
@@ -98,27 +140,50 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             q_n = v_i - l2ball(v_i)
 
             # Calculate v update step
-            x_i = x - tau * sigma * LT(2 * q_n - v)
+            temp = LT(2 * q_n - v)
+            x_i = x - tau * sigma * temp
             p_n = l1(x_i, tau)
 
             # Update x and v
             x_new = x + llambda * (p_n - x)
             v_new = v + llambda * (q_n - v)
 
-            diff = differ(x_new, x, n)
+            # Get new norms
+            norm2 = da.linalg.norm(x_new)
+            norm1 = da.linalg.norm(x_new, 1)
+
+            if norm1 == 0:
+                norm1 = 1
+            if norm2 == 0:
+                norm2 = 1
+
+            # get diff i.t.o. 1-norm
+            diff1 = da.linalg.norm(x_new - x, 1) / norm1
+            # get diff i.t.o. 2-norm
+            diff2 = da.linalg.norm(x_new - x) / norm2
+
+            if dask:
+                x_new, v_new, norm1, norm2, diff1, diff2 = da.compute(x_new, v_new, norm1, norm2, diff1, diff2)
+
+            print('L1 norm=', norm1, ' L2 norm=', norm2)
+            print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
+
 
             # Set new values to current values
-            if dask:
-                x = x_new.compute()
-                v = v_new.compute()
-            else:
-                x = x_new
-                v = v_new
+            x = x_new
+            v = v_new
 
-            if diff < tolerance:
+            # import matplotlib.pyplot as plt
+            # plt.figure("Primal Dual image")
+            # plt.plot(x)
+            # # plt.imshow(x.reshape([129, 129]))
+            # plt.show()
+
+            diff = max(diff1, diff2)
+            if diff < tol:
                 break
 
-        return x
+        return x_new
 
     def symmetric_pd():
         print("Using Symmetric Primal-Dual")
@@ -138,13 +203,38 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             x_new = x + llambda * (p_n - x)
             v_new = v + llambda * (q_n - v)
 
-            diff = differ(x_new, x, n)
+            # Get new norms
+            norm2 = da.linalg.norm(x_new)
+            norm1 = da.linalg.norm(x_new, 1)
+
+            if norm1 == 0:
+                norm1 = 1
+            if norm2 == 0:
+                norm2 = 1
+
+            # get diff i.t.o. 1-norm
+            diff1 = da.linalg.norm(x_new - x, 1) / norm1
+            # get diff i.t.o. 2-norm
+            diff2 = da.linalg.norm(x_new - x) / norm2
+
+            if dask:
+                x_new, v_new, norm1, norm2, diff1, diff2 = da.compute(x_new, v_new, norm1, norm2, diff1, diff2)
+
+            print('L1 norm=', norm1, ' L2 norm=', norm2)
+            print('Iter = %i, diff1 = %f, diff2 = %f' % (n, diff1, diff2))
 
             # Set new values to current values
             x = x_new
             v = v_new
 
-            if diff < tolerance:
+            # import matplotlib.pyplot as plt
+            # plt.figure("Primal Dual image")
+            # plt.plot(x)
+            # # plt.imshow(x.reshape([129, 129]))
+            # plt.show()
+
+            diff = max(diff1, diff2)
+            if diff < tol:
                 break
 
         return x
