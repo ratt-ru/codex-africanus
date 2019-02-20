@@ -21,9 +21,6 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
                        return_time=False,
                        return_antenna=False):
 
-    if len(vis.shape) != 3:
-        raise ValueError("visibilities must have shape (row, chan, corr)")
-
     nbl = ubl.shape[0]
     ntime = utime.shape[0]
     nchan = vis.shape[1]
@@ -146,9 +143,8 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
                 # Normalise any remaining data in the last channel bin
                 if chan_count > 0:
                     # output[orow, cbin, c] /= chan_count
-                    # chan_count = 0
-                    # cbin += 1
-                    pass
+                    chan_count = 0
+                    cbin += 1
 
             valid_times += 1
 
@@ -161,7 +157,6 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
 
                 valid_times = 0
                 tbin += 1
-                pass
 
         # Normalise any remaining data in the last time bin
         if valid_times > 0:
@@ -169,9 +164,8 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
             #     for c in range(ncorr):
             #         output[orow, f, c] /= valid_times
 
-            # valid_times = 0
-            # tbin += 1
-            pass
+            valid_times = 0
+            tbin += 1
 
     return_shape = output.shape[:2] + corr_shape
 
