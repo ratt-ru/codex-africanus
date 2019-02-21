@@ -12,22 +12,43 @@ import pytest
 from africanus.compatibility import reduce
 
 
+@pytest.fixture
+def time():
+    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
+
+
+@pytest.fixture
+def ant1():
+    return np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1])    # noqa
+
+
+@pytest.fixture
+def ant2():
+    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2])    # noqa
+
+
+@pytest.fixture
+def vis():
+    def _vis(row, chan, fcorrs):
+        return (np.arange(row*chan*fcorrs, dtype=np.float32) +
+                np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+
+    return _vis
+
+
 @pytest.mark.parametrize("corrs", [(1,), (2,), (2, 2)])
-def test_time_and_channel_averaging(corrs):
+def test_time_and_channel_averaging(time, ant1, ant2, vis, corrs):
     from africanus.averaging import time_and_channel
 
-    time = np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
-    ant1 = np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1])    # noqa
-    ant2 = np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2])    # noqa
+    # time = np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
+    # ant1 = np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1])    # noqa
+    # ant2 = np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2])    # noqa
 
     row = time.shape[0]
     chan = 5
     fcorrs = reduce(mul, corrs, 1)
 
-    vis = (np.arange(row*chan*fcorrs, dtype=np.float32) +
-           np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
-
-    vis = vis.reshape((row, chan) + corrs)
+    vis = vis(row, chan, fcorrs).reshape((row, chan) + corrs)
     flags = np.zeros(vis.shape, dtype=np.uint8)
 
     # Test no averaging case
@@ -58,3 +79,44 @@ def test_time_and_channel_averaging(corrs):
 
     assert vis.sum() == avg_vis.sum()
 
+
+@pytest.mark.parametrize("corrs", [(1,), (2,), (2, 2)])
+def test_dask_time_and_channel_averaging(time, ant1, ant2, vis, corrs):
+    """
+    This doesn't test much and especially doesn't not test that the
+    numpy version exactly matches that produced by the dask version.
+    This is because the dask version does not average across chunk
+    boundaries.
+    """
+    da = pytest.importorskip('dask.array')
+
+    from africanus.averaging.dask import time_and_channel
+
+    dask_time = da.concatenate([time]*3)
+    dask_ant1 = da.concatenate([ant1]*3)
+    dask_ant2 = da.concatenate([ant2]*3)
+
+    rc = dask_time.chunks[0]
+    fc = (5, 5)
+
+    row = sum(rc)
+    chan = sum(fc)
+    fcorrs = reduce(mul, corrs, 1)
+    avg_time = 2
+    avg_chan = 2
+
+    vis = vis(row, chan, fcorrs).reshape((row, chan) + corrs)
+    dask_vis = da.from_array(vis, chunks=(rc, fc) + corrs)
+    dask_flags = da.zeros(dask_vis.shape, dtype=np.uint8)
+
+    avg_vis = time_and_channel(dask_time, dask_ant1, dask_ant2,
+                               dask_vis, dask_flags,
+                               avg_time=avg_time, avg_chan=avg_chan,
+                               return_time=False, return_antenna=False)
+
+    expected_chans = sum((c + avg_chan - 1) // avg_chan
+                         for c in dask_vis.chunks[1])
+
+    avg_vis = avg_vis.compute()
+
+    assert avg_vis.shape[1] == expected_chans
