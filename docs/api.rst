@@ -11,6 +11,7 @@ API
     deconv-api.rst
     coordinates-api.rst
     model-api.rst
+    averaging-api.rst
     util-api.rst
 
 
