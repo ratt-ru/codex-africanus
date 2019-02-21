@@ -243,7 +243,7 @@ def time_and_channel(time, ant1, ant2, vis, flags,
         corrs = vis.shape[2:]
         fcorr = reduce(mul, vis.shape[2:], 1)
         flat_vis = vis.reshape(vis.shape[:2] + (fcorr,))
-        flat_flags = flags.reshape(vis.shape[:2] + (fcorr,))
+        flat_flags = flags.reshape(flags.shape[:2] + (fcorr,))
     else:
         corrs = vis.shape[2:]
         flat_vis = vis

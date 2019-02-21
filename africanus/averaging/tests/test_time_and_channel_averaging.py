@@ -109,16 +109,26 @@ def test_dask_time_and_channel_averaging(time, ant1, ant2, vis, corrs):
 
     vis = vis(row, chan, fcorrs).reshape((row, chan) + corrs)
     dask_vis = da.from_array(vis, chunks=(rc, fc) + corrs)
-    dask_flags = da.zeros(dask_vis.shape, dtype=np.uint8)
+    dask_flags = da.zeros(dask_vis.shape, chunks=(rc, fc) + corrs,
+                          dtype=np.uint8)
 
     avg_vis = time_and_channel(dask_time, dask_ant1, dask_ant2,
                                dask_vis, dask_flags,
                                avg_time=avg_time, avg_chan=avg_chan,
                                return_time=False, return_antenna=False)
 
+    avg_vis, avg_time, avg_ant1, avg_ant2 = time_and_channel(
+                                dask_time, dask_ant1, dask_ant2,
+                                dask_vis, dask_flags,
+                                avg_time=avg_time, avg_chan=avg_chan,
+                                return_time=True, return_antenna=True)
+
     expected_chans = sum((c + avg_chan - 1) // avg_chan
                          for c in dask_vis.chunks[1])
 
     avg_vis = avg_vis.compute()
+    avg_time = avg_time.compute()
+    avg_ant1 = avg_ant1.compute()
+    avg_ant2 = avg_ant2.compute()
 
     assert avg_vis.shape[1] == expected_chans
