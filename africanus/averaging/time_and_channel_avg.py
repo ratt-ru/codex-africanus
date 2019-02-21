@@ -103,6 +103,9 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
 
     # Allocate output
     output = np.zeros((out_rows, chan_bins, ncorr), dtype=vis.dtype)
+    scratch = np.empty((chan_bins, ncorr), dtype=vis.dtype)
+    chan_counts = np.empty(ncorr, dtype=np.int32)
+    cbins = np.empty(ncorr, dtype=np.int32)
 
     new_time = np.empty((out_rows,), dtype=time.dtype)
     new_ant1 = np.empty((out_rows,), dtype=ant1.dtype)
@@ -123,45 +126,62 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
             if r == -1 or lookup[bli, tbin] == time_sentinel:
                 continue
 
+            # Ignore if everything is flagged for this row
+            if not flags[r, :, :].sum() == 0:
+                continue
+
+            # Lookup output row
             orow = inv_argsort[bl_off + tbin]
 
             new_time[orow] = lookup[bli, tbin]
             new_ant1[orow] = ant1[r]
             new_ant2[orow] = ant2[r]
 
-            # Track whether we actually encounter
-            # unflagged data for this timestep
-            have_sample = False
+            # --------------------
+            # Average over channel
+            # --------------------
 
+            # Zero scratch space
+            for f in range(chan_bins):
+                for c in range(ncorr):
+                    scratch[f, c] = 0.0
+
+            # Zero per-correlation channel counts and current bin
             for c in range(ncorr):
-                cbin = numba.int32(0)        # Channel averaging bin
-                chan_count = numba.int32(0)  # Counter variable
+                chan_counts[c] = 0
+                cbins[c] = 0
 
-                for f in range(nchan):
-                    # Ignore flagged data
+            # Add any samples into the scratch space
+            for f in range(nchan):
+                for c in range(ncorr):
                     if flags[r, f, c] != 0:
                         continue
 
-                    have_sample = True
-
-                    output[orow, cbin, c] += vis[r, f, c]
-                    chan_count += 1
+                    scratch[cbins[c], c] += vis[r, f, c]
+                    chan_counts[c] += 1
 
                     # If we've completely filled the channel bin
-                    # normalise by channel count
-                    if chan_count == chan_bin_size:
-                        # output[orow, cbin, c] /= chan_count
-                        chan_count = 0
-                        cbin += 1
+                    # normalise by the channel count
+                    if chan_counts[c] == chan_bin_size:
+                        # scratch[cbins[c], c] /= chan_counts[c]
+                        chan_counts[c] = 0
+                        cbins[c] += 1
 
-                # Normalise any remaining data in the last channel bin
-                if chan_count > 0:
-                    # output[orow, cbin, c] /= chan_count
-                    chan_count = 0
-                    cbin += 1
+            # Normalise any remaining data in the last channel bin
+            for c in range(ncorr):
+                if chan_counts[c] > 0:
+                    # scratch[cbins[c], c] /= chan_counts[c]
+                    chan_counts[c] = 0
+                    cbins[c] += 1
 
-            if not have_sample:
-                continue
+            # Copy from the scratch into the output
+            for f in range(chan_bins):
+                for c in range(ncorr):
+                    output[orow, f, c] += scratch[f, c]
+
+            # -----------------
+            # Average over time
+            # -----------------
 
             valid_times += 1
 
