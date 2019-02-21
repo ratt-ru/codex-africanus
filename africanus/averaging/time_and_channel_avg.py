@@ -16,7 +16,7 @@ from africanus.util.docs import DocstringTemplate
 @numba.jit(nogil=True, cache=True)
 def _time_and_chan_avg(time, ant1, ant2, vis,
                        utime, time_inv, ubl, bl_inv,
-                       time_bins, chan_bins,
+                       avg_time, avg_chan,
                        corr_shape,
                        return_time=False,
                        return_antenna=False):
@@ -36,9 +36,13 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
         bli = bl_inv[r]
         mask[bli, ti] = r
 
-    # Determine bins size for time and channel
-    time_bin_size = (ntime + time_bins - 1) // time_bins
-    chan_bin_size = (nchan + chan_bins - 1) // chan_bins
+    # Determine bins size for time and channel.
+    # using a single bin for each sample if no averaging is indicated
+    time_bin_size = 1 if avg_time is None else avg_time
+    chan_bin_size = 1 if avg_chan is None else avg_chan
+
+    time_bins = (ntime + time_bin_size - 1) // time_bin_size
+    chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size
 
     # Create a lookup table of averaged times for each baseline,
     # used to order visibilities in the output data.
@@ -182,7 +186,7 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
 
 
 def time_and_channel(time, ant1, ant2, vis,
-                     time_bins=1, chan_bins=1,
+                     avg_time=None, avg_chan=None,
                      return_time=False,
                      return_antenna=False):
     utime, time_inv = np.unique(time, return_inverse=True)
@@ -195,16 +199,21 @@ def time_and_channel(time, ant1, ant2, vis,
     elif len(vis) > 3:
         corrs = vis.shape[2:]
         fcorr = reduce(mul, vis.shape[2:], 1)
-        vis = vis.reshape(vis.shape[:2] + (fcorr,))
+        flat_vis = vis.reshape(vis.shape[:2] + (fcorr,))
     else:
         corrs = vis.shape[2:]
+        flat_vis = vis
 
-    result = _time_and_chan_avg(time, ant1, ant2, vis,
-                                utime, time_inv, ubl, bl_inv,
-                                time_bins, chan_bins,
-                                corrs,
-                                return_time=return_time,
-                                return_antenna=return_antenna)
+    # No averaging requested
+    if avg_time is None and avg_chan is None:
+        result = vis, time, ant1, ant2
+    else:
+        result = _time_and_chan_avg(time, ant1, ant2, flat_vis,
+                                    utime, time_inv, ubl, bl_inv,
+                                    avg_time, avg_chan,
+                                    corrs,
+                                    return_time=return_time,
+                                    return_antenna=return_antenna)
 
     if return_time and return_antenna:
         return result
@@ -229,10 +238,12 @@ antenna2 : $(array_type)
     antenna2 of shape :code:`(row,)`
 vis : $(array_type)
     visibility data of shape :code:`(row, chan, corr)`
-time_bins : int, optional
-    Defaults to 1
-chan_bins : int, optional
-    Defaults to 1
+avg_time : None or int, optional
+    Number of times to average into each time bin.
+    Defaults to None, in which case no averaging is performed.
+avg_chan : None or int, optional
+    Number of channels to average into each channel bin.
+    Defaults to None, in which case no averaging is performed.
 return_time : {True, False}
     Return time centroids of averaged visibilities.
     Defaults to False.

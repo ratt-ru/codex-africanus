@@ -21,7 +21,7 @@ def test_time_and_channel_averaging(corrs):
     ant2 = np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2])    # noqa
 
     row = time.shape[0]
-    chan = 17
+    chan = 5
     fcorrs = reduce(mul, corrs, 1)
 
     vis = (np.arange(row*chan*fcorrs, dtype=np.float32) +
@@ -29,9 +29,21 @@ def test_time_and_channel_averaging(corrs):
 
     vis = vis.reshape((row, chan) + corrs)
 
+    # Test no averaging case
     avg_vis, avg_time, avg_ant1, avg_ant2 = time_and_channel(
                                 time, ant1, ant2, vis,
-                                time_bins=2, chan_bins=4,
+                                avg_time=None, avg_chan=None,
+                                return_time=True, return_antenna=True)
+
+    np.testing.assert_array_almost_equal(avg_ant1, ant1)
+    np.testing.assert_array_almost_equal(avg_ant2, ant2)
+    np.testing.assert_array_almost_equal(avg_time, time)
+    np.testing.assert_array_almost_equal(avg_vis, vis)
+
+    # Now do some averaging
+    avg_vis, avg_time, avg_ant1, avg_ant2 = time_and_channel(
+                                time, ant1, ant2, vis,
+                                avg_time=2, avg_chan=2,
                                 return_time=True, return_antenna=True)
 
     np.testing.assert_array_almost_equal(avg_time,
@@ -44,3 +56,4 @@ def test_time_and_channel_averaging(corrs):
     assert vis.shape[2:] == avg_vis.shape[2:] == corrs
 
     assert vis.sum() == avg_vis.sum()
+
