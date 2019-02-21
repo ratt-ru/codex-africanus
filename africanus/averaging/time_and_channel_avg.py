@@ -14,6 +14,16 @@ from africanus.util.docs import DocstringTemplate
 
 
 @numba.jit(nogil=True, cache=True)
+def _minus_one_if_all_flagged(flags, r):
+    for f in range(flags.shape[1]):
+        for c in range(flags.shape[2]):
+            if flags[r, f, c] == 0:
+                return r
+
+    return -1
+
+
+@numba.jit(nogil=True, cache=True)
 def _time_and_chan_avg(time, ant1, ant2, vis, flags,
                        utime, time_inv, ubl, bl_inv,
                        avg_time, avg_chan,
@@ -34,6 +44,10 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
     for r in range(vis.shape[0]):
         ti = time_inv[r]
         bli = bl_inv[r]
+
+        # Indicate absence if all data is flagged for this row
+        r = _minus_one_if_all_flagged(flags, r)
+
         mask[bli, ti] = r
 
     # Determine bins size for time and channel.
@@ -101,7 +115,7 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
     for i, a in enumerate(argsort):
         inv_argsort[a] = i
 
-    # Allocate output
+    # Allocate output and scratch space
     output = np.zeros((out_rows, chan_bins, ncorr), dtype=vis.dtype)
     scratch = np.empty((chan_bins, ncorr), dtype=vis.dtype)
     chan_counts = np.empty(ncorr, dtype=np.int32)
@@ -124,10 +138,6 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
 
             # Ignore missing values
             if r == -1 or lookup[bli, tbin] == time_sentinel:
-                continue
-
-            # Ignore if everything is flagged for this row
-            if not flags[r, :, :].sum() == 0:
                 continue
 
             # Lookup output row
