@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from operator import getitem
-
 from africanus.averaging.time_and_channel_avg import (
                         time_and_channel as np_time_and_channel,
                         TIME_AND_CHANNEL_DOCS)
