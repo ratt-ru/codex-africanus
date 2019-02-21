@@ -173,14 +173,14 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
                     # If we've completely filled the channel bin
                     # normalise by the channel count
                     if chan_counts[c] == chan_bin_size:
-                        # scratch[cbins[c], c] /= chan_counts[c]
+                        scratch[cbins[c], c] /= chan_counts[c]
                         chan_counts[c] = 0
                         cbins[c] += 1
 
             # Normalise any remaining data in the last channel bin
             for c in range(ncorr):
                 if chan_counts[c] > 0:
-                    # scratch[cbins[c], c] /= chan_counts[c]
+                    scratch[cbins[c], c] /= chan_counts[c]
                     chan_counts[c] = 0
                     cbins[c] += 1
 
@@ -198,18 +198,18 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
             # If we've completely filled the time bin
             # normalise by time count
             if valid_times == time_bin_size:
-                # for f in range(chan_bins):
-                #     for c in range(ncorr):
-                #         output[orow, f, c] /= valid_times
+                for f in range(chan_bins):
+                    for c in range(ncorr):
+                        output[orow, f, c] /= valid_times
 
                 valid_times = 0
                 tbin += 1
 
         # Normalise any remaining data in the last time bin
         if valid_times > 0:
-            # for f in range(chan_bins):
-            #     for c in range(ncorr):
-            #         output[orow, f, c] /= valid_times
+            for f in range(chan_bins):
+                for c in range(ncorr):
+                    output[orow, f, c] /= valid_times
 
             valid_times = 0
             tbin += 1
