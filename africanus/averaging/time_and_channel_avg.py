@@ -14,7 +14,7 @@ from africanus.util.docs import DocstringTemplate
 
 
 @numba.jit(nogil=True, cache=True)
-def _time_and_chan_avg(time, ant1, ant2, vis,
+def _time_and_chan_avg(time, ant1, ant2, vis, flags,
                        utime, time_inv, ubl, bl_inv,
                        avg_time, avg_chan,
                        corr_shape,
@@ -129,11 +129,21 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
             new_ant1[orow] = ant1[r]
             new_ant2[orow] = ant2[r]
 
+            # Track whether we actually encounter
+            # unflagged data for this timestep
+            have_sample = False
+
             for c in range(ncorr):
                 cbin = numba.int32(0)        # Channel averaging bin
                 chan_count = numba.int32(0)  # Counter variable
 
                 for f in range(nchan):
+                    # Ignore flagged data
+                    if flags[r, f, c] != 0:
+                        continue
+
+                    have_sample = True
+
                     output[orow, cbin, c] += vis[r, f, c]
                     chan_count += 1
 
@@ -149,6 +159,9 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
                     # output[orow, cbin, c] /= chan_count
                     chan_count = 0
                     cbin += 1
+
+            if not have_sample:
+                continue
 
             valid_times += 1
 
@@ -185,7 +198,7 @@ def _time_and_chan_avg(time, ant1, ant2, vis,
     #     return output, None, None, None
 
 
-def time_and_channel(time, ant1, ant2, vis,
+def time_and_channel(time, ant1, ant2, vis, flags,
                      avg_time=None, avg_chan=None,
                      return_time=False,
                      return_antenna=False):
@@ -200,15 +213,17 @@ def time_and_channel(time, ant1, ant2, vis,
         corrs = vis.shape[2:]
         fcorr = reduce(mul, vis.shape[2:], 1)
         flat_vis = vis.reshape(vis.shape[:2] + (fcorr,))
+        flat_flags = flags.reshape(vis.shape[:2] + (fcorr,))
     else:
         corrs = vis.shape[2:]
         flat_vis = vis
+        flat_flags = flags
 
     # No averaging requested
     if avg_time is None and avg_chan is None:
         result = vis, time, ant1, ant2
     else:
-        result = _time_and_chan_avg(time, ant1, ant2, flat_vis,
+        result = _time_and_chan_avg(time, ant1, ant2, flat_vis, flat_flags,
                                     utime, time_inv, ubl, bl_inv,
                                     avg_time, avg_chan,
                                     corrs,
@@ -231,13 +246,15 @@ Average visibility data over time and channel.
 Parameters
 ----------
 time : $(array_type)
-    time data of shape :code:`(row,)`
+    time data of shape :code:`(row,)`.
 antenna1 : $(array_type)
-    antenna1 of shape :code:`(row,)`
+    antenna1 of shape :code:`(row,)`.
 antenna2 : $(array_type)
-    antenna2 of shape :code:`(row,)`
+    antenna2 of shape :code:`(row,)`.
 vis : $(array_type)
-    visibility data of shape :code:`(row, chan, corr)`
+    visibility data of shape :code:`(row, chan, corr)`.
+flags : $(array_type)
+    flags of shape :code:`(row, chan, corr)`.
 avg_time : None or int, optional
     Number of times to average into each time bin.
     Defaults to None, in which case no averaging is performed.

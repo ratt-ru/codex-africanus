@@ -28,10 +28,11 @@ def test_time_and_channel_averaging(corrs):
            np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
 
     vis = vis.reshape((row, chan) + corrs)
+    flags = np.zeros(vis.shape, dtype=np.uint8)
 
     # Test no averaging case
     avg_vis, avg_time, avg_ant1, avg_ant2 = time_and_channel(
-                                time, ant1, ant2, vis,
+                                time, ant1, ant2, vis, flags,
                                 avg_time=None, avg_chan=None,
                                 return_time=True, return_antenna=True)
 
@@ -42,7 +43,7 @@ def test_time_and_channel_averaging(corrs):
 
     # Now do some averaging
     avg_vis, avg_time, avg_ant1, avg_ant2 = time_and_channel(
-                                time, ant1, ant2, vis,
+                                time, ant1, ant2, vis, flags,
                                 avg_time=2, avg_chan=2,
                                 return_time=True, return_antenna=True)
 
