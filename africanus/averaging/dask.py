@@ -68,6 +68,12 @@ def time_and_channel(time, ant1, ant2, vis, flags,
     deps = (time, ant1, ant2, vis, flags)
     graph = HighLevelGraph.from_collections(tc_name, layers, deps)
 
+    # The numpy function we're wrapping may return a tuple
+    # depending on whether we're asking it to return
+    # averaged times and antennas. In this cases we need to
+    # create dask arrays that encapsulate operations which
+    # called getitem on these tuples.
+
     if not return_time and not return_antenna:
         vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
         return da.Array(graph, tc_name, vis_chunks, dtype=vis.dtype)
@@ -86,6 +92,10 @@ def time_and_channel(time, ant1, ant2, vis, flags,
         vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
         vis = da.Array(graph0, name0, vis_chunks, dtype=vis.dtype)
 
+        # The averaged times, ant1 and ant2 are computed multiple times
+        # if there are multiple channel or correlation blocks.
+        # This is wasted computation and we simply take the
+        # time/ant1/ant2 from that of the first channel/correlation blocks
         nextra_blocks = len(vis.numblocks[1:])
         extra_blocks = (1,)*nextra_blocks
         numblocks = {tc_name: (vis.numblocks[0],) + extra_blocks}
