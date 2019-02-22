@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import argparse
 
+from dask.diagnostics import ProgressBar
 import numpy as np
 
 try:
@@ -29,6 +30,8 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("ms")
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
+    p.add_argument("-ft", "--feed-type", choices=["linear", "circular"],
+                   default="linear")
     return p
 
 
@@ -54,7 +57,8 @@ def predict(args):
 
     # Construct a graph for each DATA_DESC_ID
     for xds in xds_from_ms(args.ms,
-                           columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
+                           columns=["UVW", "ANTENNA1", "ANTENNA2"
+                                    "TIME", "DATA"],
                            group_cols=["DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
 
@@ -67,11 +71,36 @@ def predict(args):
         # (source, row, frequency)
         phase = phase_delay(lm, xds.UVW.data, frequency)
         # (source, corr1, corr2)
+
+        # Reason about calculation based on number of correlations
+        corrs = xds.dims["corr"]
+
+        if corrs == 4:
+            if args.feed_type == "linear":
+                corr_schema = [["XX", "XY"], ["YX", "YY"]]
+            elif args.feed_type == "circular":
+                corr_schema = [["RR", "RL"], ["LR", "LL"]]
+            einsum_schema = "srf, sij -> srfij"
+        elif corrs == 2:
+            if args.feed_type == "linear":
+                corr_schema = ["XX", "YY"]
+            elif args.feed_type == "circular":
+                corr_schema = ["RR", "LL"]
+            einsum_schema = "srf, si -> srfi"
+        elif corrs == 1:
+            if args.feed_type == "linear":
+                corr_schema = ["XX"]
+            elif args.feed_type == "circular":
+                corr_schema = ["RR"]
+            einsum_schema = "srf, si -> srfi"
+        else:
+            raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
+
         brightness = convert(stokes, ["I", "Q", "U", "V"],
-                             [["XX", "XY"], ["YX", "YY"]])
+                             corr_schema)
 
         # (source, row, frequency, corr1, corr2)
-        jones = da.einsum("srf, sij -> srfij", phase, brightness)
+        jones = da.einsum(einsum_schema, phase, brightness)
 
         # Identify time indices
         _, time_index = da.unique(xds.TIME.data, return_inverse=True)
@@ -81,7 +110,8 @@ def predict(args):
                           None, jones, None, None, None, None)
 
         # Reshape (2, 2) correlation to shape (4,)
-        vis = vis.reshape(vis.shape[:2] + (4,))
+        if corrs == 4:
+            vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
         model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
@@ -92,7 +122,8 @@ def predict(args):
         writes.append(write)
 
     # Submit all graph computations in parallel
-    dask.compute(writes)
+    with ProgressBar():
+        dask.compute(writes)
 
 
 if __name__ == "__main__":
