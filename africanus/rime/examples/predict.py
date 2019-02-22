@@ -57,7 +57,7 @@ def predict(args):
 
     # Construct a graph for each DATA_DESC_ID
     for xds in xds_from_ms(args.ms,
-                           columns=["UVW", "ANTENNA1", "ANTENNA2"
+                           columns=["UVW", "ANTENNA1", "ANTENNA2",
                                     "TIME", "DATA"],
                            group_cols=["DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
