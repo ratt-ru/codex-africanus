@@ -38,13 +38,15 @@ def create_parser():
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
 def predict(args):
     # Numpy arrays
-    radec = np.array([[1.0, 1.2]]*10)
+    radec = np.array([[0.0, 0.0]]*10)
     stokes = np.array([[1.0, 0.0, 0.0, 0.0]]*10)
 
     # Dask arrays
     radec = da.from_array(radec, chunks=(3, 2))
     stokes = da.from_array(stokes, chunks=(3, 4))
-    lm = radec_to_lm(radec)
+
+    field_ds = list(xds_from_table('::'.join((args.ms, "FIELD")),
+                                   group_cols="__row__"))
 
     ddid_ds = list(xds_from_table('::'.join((args.ms, "DATA_DESCRIPTION")),
                                   group_cols="__row__"))
@@ -59,14 +61,17 @@ def predict(args):
     for xds in xds_from_ms(args.ms,
                            columns=["UVW", "ANTENNA1", "ANTENNA2",
                                     "TIME", "DATA"],
-                           group_cols=["DATA_DESC_ID"],
+                           group_cols=["FIELD_ID", "DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
 
         # Extract frequencies from the spectral window associated
         # with this data descriptor id
+        field = field_ds[xds.attrs['FIELD_ID']]
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
         frequency = spw.CHAN_FREQ.data
+
+        lm = radec_to_lm(radec, field.PHASE_DIR.data)
 
         # (source, row, frequency)
         phase = phase_delay(lm, xds.UVW.data, frequency)
