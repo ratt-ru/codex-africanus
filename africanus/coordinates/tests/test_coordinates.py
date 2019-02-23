@@ -16,6 +16,9 @@ from africanus.coordinates.coordinates import astropy_radec_to_lmn
 
 def test_radec_to_lmn():
     """ Tests that basics run """
+
+    np.random.seed(42)
+
     radec = np.random.random((10, 2))
     phase_centre = np.random.random(2)
 
@@ -37,7 +40,10 @@ def test_radec_to_lmn():
 
 
 def test_radec_to_lmn_astropy():
-    """ Check that our code agrees with astropy"""
+    """ Check that our code agrees with astropy """
+
+    np.random.seed(42)
+
     astropy = pytest.importorskip('astropy')
     SkyCoord = astropy.coordinates.SkyCoord
     units = astropy.units
@@ -59,6 +65,9 @@ def test_radec_to_lmn_astropy():
 
 def test_radec_to_lmn_wraps():
     """ Test that the radec can be recovered exactly """
+
+    np.random.seed(42)
+
     radec = np.random.random((10, 2))
     phase_centre = np.random.random(2)
 
@@ -78,6 +87,8 @@ def test_dask_radec_to_lmn():
                                             lmn_to_radec as da_lmn_to_radec,
                                             lm_to_radec as da_lm_to_radec)
 
+    np.random.seed(42)
+
     source_chunks = (5, 5, 5)
     coord_chunks = (2,)
 
@@ -87,7 +98,7 @@ def test_dask_radec_to_lmn():
     radec = np.random.random((source, coords))*10
     da_radec = da.from_array(radec, chunks=(source_chunks, coord_chunks))
 
-    phase_centre = np.random.random(coord_chunks)*np.pi
+    phase_centre = np.random.random(coord_chunks)
     da_phase_centre = da.from_array(phase_centre, chunks=(coord_chunks,))
 
     np_lmn = np_radec_to_lmn(radec, phase_centre)
