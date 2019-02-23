@@ -58,9 +58,7 @@ def test_radec_to_lmn_astropy():
                                 unit=units.rad)
     ast_lmn = astropy_radec_to_lmn(ast_radec, ast_phase_centre)
 
-    assert_array_almost_equal(ast_lmn[0], lmn[:, 0])
-    assert_array_almost_equal(ast_lmn[1], lmn[:, 1])
-    assert_array_almost_equal(ast_lmn[2], lmn[:, 2])
+    assert_array_almost_equal(ast_lmn, lmn)
 
 
 def test_radec_to_lmn_wraps():

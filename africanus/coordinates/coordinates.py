@@ -179,12 +179,32 @@ if not on_rtd():
 
 @requires_optional("astropy", opt_import_error)
 def astropy_radec_to_lmn(radec, phase_centre):
-    # Determine relative sky position
-    todc = radec.transform_to(phase_centre.skyoffset_frame())
-    dc = todc.represent_as(CartesianRepresentation)
-    # Do coordinate transformation - astropy's relative coordinates do
-    # not quite follow imaging conventions
-    return dc.y.value, dc.z.value, dc.x.value
+    """
+    Astropy radec_to_lmn conversion, useful for testing.
+
+    Parameters
+    ----------
+    radec : :class:`astropy.coordinates.SkyCoord`
+        Sky coordinates
+    phase_centre : :class:`astropy.coordinates.SkyCoord`
+        Phase Centre
+
+    Returns
+    -------
+    lmn : :class:`numpy.ndarray`
+        lmn coordinates of shape :code:`(source, 3)`
+
+    """
+    # Transform radec relative to phase centre
+    relative = radec.transform_to(phase_centre.skyoffset_frame())
+    ret = relative.represent_as(CartesianRepresentation)
+
+    # Rearrange astropy's coordinates into lmn convention
+    result = np.empty((ret.x.value.shape[0], 3), dtype=ret.x.value.dtype)
+    result[:, 0] = ret.y.value
+    result[:, 1] = ret.z.value
+    result[:, 2] = ret.x.value
+    return result
 
 
 RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
