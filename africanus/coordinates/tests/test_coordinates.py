@@ -10,11 +10,13 @@ from africanus.coordinates import (radec_to_lmn as np_radec_to_lmn,
                                    lmn_to_radec as np_lmn_to_radec,
                                    lm_to_radec as np_lm_to_radec)
 
+from africanus.coordinates.coordinates import astropy_radec_to_lmn
+
 
 def test_radec_to_lmn():
     """ Tests that basics run """
-    radec = np.random.random((10, 2))*np.pi
-    phase_centre = np.random.random(2)*np.pi
+    radec = np.random.random((10, 2))
+    phase_centre = np.random.random(2)
 
     lmn = np_radec_to_lmn(radec, phase_centre)
     final_radec = np_lmn_to_radec(lmn, phase_centre)
@@ -33,11 +35,31 @@ def test_radec_to_lmn():
     assert np.all(np_lm_to_radec(lm) == np_lm_to_radec(lm, zpc))
 
 
-@pytest.mark.xfail
+def test_radec_to_lmn_astropy():
+    """ Check that our code agrees with astropy"""
+    astropy = pytest.importorskip('astropy')
+    SkyCoord = astropy.coordinates.SkyCoord
+    units = astropy.units
+
+    radec = np.random.random((10, 2))
+    phase_centre = np.random.random(2)
+
+    lmn = np_radec_to_lmn(radec, phase_centre)
+
+    ast_radec = SkyCoord(radec[:, 0], radec[:, 1], unit=units.rad)
+    ast_phase_centre = SkyCoord(phase_centre[0], phase_centre[1],
+                                unit=units.rad)
+    ast_lmn = astropy_radec_to_lmn(ast_radec, ast_phase_centre)
+
+    assert np.allclose(ast_lmn[0], lmn[:, 0])
+    assert np.allclose(ast_lmn[1], lmn[:, 1])
+    assert np.allclose(ast_lmn[2], lmn[:, 2])
+
+
 def test_radec_to_lmn_wraps():
     """ Test that the radec can be recovered exactly """
-    radec = np.random.random((10, 2))*np.pi
-    phase_centre = np.random.random(2)*np.pi
+    radec = np.random.random((10, 2))
+    phase_centre = np.random.random(2)
 
     lmn = np_radec_to_lmn(radec, phase_centre)
     final_radec = np_lmn_to_radec(lmn, phase_centre)

@@ -11,6 +11,14 @@ import numba
 
 from africanus.util.docs import on_rtd, DocstringTemplate
 from africanus.util.numba import is_numba_type_none
+from africanus.util.requirements import requires_optional
+
+try:
+    from astropy.coordinates import CartesianRepresentation
+except ImportError as e:
+    opt_import_error = e
+else:
+    opt_import_error = None
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -167,6 +175,16 @@ if not on_rtd():
     lm_to_radec = jitter(lm_to_radec)
     radec_to_lmn = jitter(radec_to_lmn)
     radec_to_lm = jitter(radec_to_lm)
+
+
+@requires_optional("astropy", opt_import_error)
+def astropy_radec_to_lmn(radec, phase_centre):
+    # Determine relative sky position
+    todc = radec.transform_to(phase_centre.skyoffset_frame())
+    dc = todc.represent_as(CartesianRepresentation)
+    # Do coordinate transformation - astropy's relative coordinates do
+    # not quite follow imaging conventions
+    return dc.y.value, dc.z.value, dc.x.value
 
 
 RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
