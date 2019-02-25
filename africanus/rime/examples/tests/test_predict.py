@@ -8,9 +8,9 @@ from __future__ import print_function
 import itertools
 from os.path import join as pjoin
 import subprocess
+import sys
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal
 
 from africanus.rime.examples.predict import (create_parser,
                                              parse_sky_model,
@@ -30,7 +30,7 @@ def create_meq_sky_model(filename, tigger_lsm):
 
     # Create the tigger sky model
     with open(tigger_lsm, 'w') as f:
-        f.write('#format: ra_d dec_d i q u v spi freq0 emaj_s emin_s pa_d\n')
+        f.write('#format: ra_d dec_d i q u v spi freq0\n')
 
         radec = np.rad2deg(radec)
 
@@ -43,7 +43,7 @@ def create_meq_sky_model(filename, tigger_lsm):
                     '{i} {q} {u} {v} {spi} '
                     '{rf:.20f}\n'.format(ra=ra, dec=dec,
                                          i=i, q=q, u=u, v=v,
-                                         spi=0, rf=1.0))
+                                         spi=0.0, rf=1.0))
 
             f.write(line)
 
@@ -110,7 +110,10 @@ def run_meqtrees(args):
 def compare_columns(args, codex_column, meqtrees_column):
     with pt.table(args.ms) as T:
         codex_vis = T.getcol(codex_column)
-        meqtrees_vis = T.getcol(meqtrees_column)
+        # Meqtrees visibilities are conjugated compared to codex
+        # Codex used e^(-2*pi*1j*(l*u + m*v + (n-1)*w)
+        # Meqtrees used e^(2*pi*1j*(l*u + m*v + (n-1)*w)
+        meqtrees_vis = np.conj(T.getcol(meqtrees_column))
 
         # Compare
         close = np.isclose(meqtrees_vis, codex_vis)
@@ -119,13 +122,13 @@ def compare_columns(args, codex_column, meqtrees_column):
 
         # Everything agrees, exit
         if problems[0].size == 0:
-            return
+            return True
 
         bad_vis_file = 'bad_visibilities.txt'
 
         # Some visibilities differ, do some analysis
-        print("Codex Africanus differs from MeqTrees by {nc}/{t} visibilities. "
-              "Writing them out to '{bvf}'"
+        print("Codex Africanus differs from MeqTrees by {nc}/{t} "
+              "visibilities. Writing them out to '{bvf}'"
               .format(nc=problems[0].size, t=not_close.size, bvf=bad_vis_file))
 
         mb_problems = codex_vis[problems]
@@ -147,11 +150,12 @@ def compare_columns(args, codex_column, meqtrees_column):
                         "Difference {d} Absolute Difference {ad} \n"
                         .format(i=i, t=p, mb=mb, meq=meq, d=d, ad=amp))
 
-        assert_array_almost_equal(codex_vis, meqtrees_vis)
+        return False
 
 
 if __name__ == "__main__":
     args = create_parser().parse_args()
     run_meqtrees(args)
     predict(args)
-    compare_columns(args, "MODEL_DATA", "CORRECTED_DATA")
+    if not compare_columns(args, "MODEL_DATA", "CORRECTED_DATA"):
+        sys.exit(1)
