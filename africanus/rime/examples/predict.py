@@ -39,6 +39,9 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-sm", "--sky-model", default="sky-model.txt")
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
+    p.add_argument("-iuvw", "--invert-uvw", action="store_true",
+                   help="Invert UVW coordinates. Useful if we want "
+                        "compare our visibilities against MeqTrees")
     p.add_argument("-ft", "--feed-type", choices=["linear", "circular"],
                    default="linear")
     return p
@@ -102,9 +105,10 @@ def predict(args):
         frequency = spw.CHAN_FREQ.data
 
         lm = radec_to_lm(radec, field.PHASE_DIR.data)
+        uvw = -xds.UVW.data if args.invert_uvw else xds.UVW.data
 
         # (source, row, frequency)
-        phase = phase_delay(lm, xds.UVW.data, frequency)
+        phase = phase_delay(lm, uvw, frequency)
         # (source, corr1, corr2)
 
         # Reason about calculation based on number of correlations

@@ -109,10 +109,7 @@ def run_meqtrees(args):
 def compare_columns(args, codex_column, meqtrees_column):
     with pt.table(args.ms) as T:
         codex_vis = T.getcol(codex_column)
-        # Meqtrees visibilities are conjugated compared to codex
-        # Codex used e^(-2*pi*1j*(l*u + m*v + (n-1)*w)
-        # Meqtrees used e^(2*pi*1j*(l*u + m*v + (n-1)*w)
-        meqtrees_vis = np.conj(T.getcol(meqtrees_column))
+        meqtrees_vis = T.getcol(meqtrees_column)
 
         # Compare
         close = np.isclose(meqtrees_vis, codex_vis)
@@ -155,6 +152,10 @@ def compare_columns(args, codex_column, meqtrees_column):
 
 if __name__ == "__main__":
     args = create_parser().parse_args()
+    # Codex used e^(-2*pi*1j*(l*u + m*v + (n-1)*w)
+    # Meqtrees used e^(2*pi*1j*(l*u + m*v + (n-1)*w)
+    # Invert UVW coordinates to achieve equality
+    args.invert_uvw = True
     run_meqtrees(args)
     predict(args)
     if not compare_columns(args, "MODEL_DATA", "CORRECTED_DATA"):
