@@ -13,6 +13,12 @@ import numpy as np
 
 try:
     from astropy.coordinates import Angle
+except ImportError as e:
+    astropy_import_error = e
+else:
+    astropy_import_error = None
+
+try:
     import dask
     import dask.array as da
     import xarray as xr
@@ -38,7 +44,7 @@ def create_parser():
     return p
 
 
-@requires_optional('astropy', opt_import_error)
+@requires_optional('astropy', astropy_import_error)
 def parse_sky_model(filename):
     converters = {
         0: lambda c: Angle(c).rad, 1: lambda c: Angle(c).rad,
