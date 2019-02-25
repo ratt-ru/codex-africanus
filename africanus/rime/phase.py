@@ -64,9 +64,9 @@ PHASE_DELAY_DOCS = DocstringTemplate(
 
     .. math::
 
-        & {\Large e^{-2 \pi i (u l + v m + w n)} }
+        & {\Large e^{-2 \pi i (u l + v m + w (n - 1))} }
 
-        & \textrm{where } n = \sqrt{1 - l^2 - m^2} - 1
+        & \textrm{where } n = \sqrt{1 - l^2 - m^2}
 
     Parameters
     ----------
