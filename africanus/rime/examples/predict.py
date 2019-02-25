@@ -10,7 +10,9 @@ import argparse
 from dask.diagnostics import ProgressBar
 import numpy as np
 
+
 try:
+    from astropy.coordinates import Angle
     import dask
     import dask.array as da
     import xarray as xr
@@ -29,21 +31,43 @@ from africanus.util.requirements import requires_optional
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("ms")
+    p.add_argument("-sm", "--sky-model", default="sky-model.txt")
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-ft", "--feed-type", choices=["linear", "circular"],
                    default="linear")
     return p
 
 
+@requires_optional('astropy', opt_import_error)
+def parse_sky_model(filename):
+    converters = {
+        0: lambda c: Angle(c).rad, 1: lambda c: Angle(c).rad,
+        2: float, 3: float, 4: float, 5: float}
+
+    dtype = {
+        'names': ("ra", "dec", "I", "Q", "U", "V"),
+        'formats': (np.float64,)*6}
+
+    data = np.loadtxt(filename, delimiter=",",
+                      converters=converters, dtype=dtype)
+
+    # Transpose
+    data = zip(*data)
+
+    # Convert to numpy arrays
+    ra, dec, i, q, u, v = (np.asarray(a) for a in data)
+    radec = np.stack([ra, dec], axis=1)
+    stokes = np.stack([i, q, u, v], axis=1)
+
+    return radec, stokes
+
+
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
 def predict(args):
     # Numpy arrays
-    radec = np.array([[0.0, 0.0]]*10)
-    stokes = np.array([[1.0, 0.0, 0.0, 0.0]]*10)
 
     # Dask arrays
-    radec = da.from_array(radec, chunks=(3, 2))
-    stokes = da.from_array(stokes, chunks=(3, 4))
+    radec, stokes = parse_sky_model(args.sky_model)
 
     field_ds = list(xds_from_table('::'.join((args.ms, "FIELD")),
                                    group_cols="__row__"))
