@@ -13,69 +13,25 @@ from africanus.compatibility import reduce
 from africanus.util.docs import DocstringTemplate
 
 
-@numba.jit(nogil=True, cache=True)
-def _minus_one_if_all_flagged(flags, r):
-    for f in range(flags.shape[1]):
-        for c in range(flags.shape[2]):
-            if flags[r, f, c] == 0:
-                return r
-
-    return -1
-
-
-@numba.jit(nogil=True, cache=True)
-def _time_and_chan_avg(time, ant1, ant2, vis, flags,
-                       utime, time_inv, ubl, bl_inv,
-                       avg_time, avg_chan,
-                       corr_shape,
-                       return_time=False,
-                       return_antenna=False):
-
-    nbl = ubl.shape[0]
-    ntime = utime.shape[0]
-    nchan = vis.shape[1]
-    ncorr = vis.shape[2]
-
-    # Create a bl x time mask representing the full
-    # resolution matrix possible for this chunk of rows
-    mask = np.full((nbl, ntime), -1, dtype=np.int32)
-
-    # Fill mask indicating presence of row data
-    for r in range(vis.shape[0]):
-        ti = time_inv[r]
-        bli = bl_inv[r]
-
-        # Indicate absence if all data is flagged for this row
-        r = _minus_one_if_all_flagged(flags, r)
-
-        mask[bli, ti] = r
-
-    # Determine bins size for time and channel.
-    # using a single bin for each sample if no averaging is indicated
-    time_bin_size = 1 if avg_time is None else avg_time
-    chan_bin_size = 1 if avg_chan is None else avg_chan
-
-    time_bins = (ntime + time_bin_size - 1) // time_bin_size
-    chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size
-
+@numba.njit(nogil=True, cache=True)
+def _generate_time_lookup(mask, time, time_bins, time_bin_size):
     # Create a lookup table of averaged times for each baseline,
     # used to order visibilities in the output data.
     # time_sentinel, indicating absence of data,
     # set to maximum floating point value so that
     # missing data is moved to the end during an argsort of the lookup
-    time_sentinel = np.finfo(time.dtype).max
-    lookup_shape = (nbl, time_bins)
-    lookup = np.full(lookup_shape, time_sentinel, dtype=time.dtype)
 
-    # Number of output rows
+    time_sentinel = np.finfo(time.dtype).max
+    lookup_shape = (mask.shape[0], time_bins)
+    lookup = np.full(lookup_shape, time_sentinel, dtype=time.dtype)
     out_rows = 0
 
     # For each baseline, average associated times
-    for bli in range(ubl.shape[0]):
+    for bli in range(mask.shape[0]):
         tbin = numba.int32(0)         # Time averaging bin
         valid_times = numba.int32(0)  # Number of time samples
 
-        for ti in range(utime.shape[0]):
+        for ti in range(mask.shape[1]):
             r = mask[bli, ti]
 
             # Ignore non-existent entries
@@ -115,6 +71,58 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
     for i, a in enumerate(argsort):
         inv_argsort[a] = i
 
+    return lookup, inv_argsort, time_sentinel, out_rows
+
+
+@numba.njit(nogil=True, cache=True)
+def _minus_one_if_all_flagged(flags, r):
+    for f in range(flags.shape[1]):
+        for c in range(flags.shape[2]):
+            if flags[r, f, c] == 0:
+                return r
+
+    return -1
+
+
+@numba.njit(nogil=True, cache=True)
+def _time_and_chan_avg(time, ant1, ant2, vis, flags,
+                       utime, time_inv, ubl, bl_inv,
+                       avg_time, avg_chan,
+                       corr_shape,
+                       return_time=False,
+                       return_antenna=False):
+
+    nbl = ubl.shape[0]
+    ntime = utime.shape[0]
+    nchan = vis.shape[1]
+    ncorr = vis.shape[2]
+
+    # Create a bl x time mask representing the full
+    # resolution matrix possible for this chunk of rows
+    mask = np.full((nbl, ntime), -1, dtype=np.int32)
+
+    # Fill mask indicating presence of row data
+    for r in range(vis.shape[0]):
+        ti = time_inv[r]
+        bli = bl_inv[r]
+
+        # Indicate absence if all data is flagged for this row
+        r = _minus_one_if_all_flagged(flags, r)
+
+        mask[bli, ti] = r
+
+    # Determine bins size for time and channel.
+    # using a single bin for each sample if no averaging is indicated
+    time_bin_size = 1 if avg_time is None else avg_time
+    chan_bin_size = 1 if avg_chan is None else avg_chan
+
+    time_bins = (ntime + time_bin_size - 1) // time_bin_size
+    chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size
+
+    lookup, inv_argsort, time_sentinel, out_rows = _generate_time_lookup(
+                                                        mask, time, time_bins,
+                                                        time_bin_size)
+
     # Allocate output and scratch space
     output = np.zeros((out_rows, chan_bins, ncorr), dtype=vis.dtype)
     scratch = np.empty((chan_bins, ncorr), dtype=vis.dtype)
@@ -128,10 +136,10 @@ def _time_and_chan_avg(time, ant1, ant2, vis, flags,
     # For each baseline, average the visibility data
     # along the channel and time dimensions
     for bli in range(nbl):
-        tbin = numba.int32(0)         # Time averaging bin
-        valid_times = numba.int32(0)  # Number of time samples
-        bl_off = bli*time_bins        # Offset of this baseline in flat lookup
-        orow = argsort.dtype.type(0)  # Output row
+        tbin = numba.int32(0)             # Time averaging bin
+        valid_times = numba.int32(0)      # Number of time samples
+        bl_off = bli*time_bins            # Baseline offset in flat lookup
+        orow = inv_argsort.dtype.type(0)  # Output row
 
         for ti in range(ntime):
             r = mask[bli, ti]
