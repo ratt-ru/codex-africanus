@@ -66,9 +66,8 @@ def run_meqtrees(args):
     # Find the location of the meqtree pipeliner script
     meqpipe_actual = subprocess.check_output(['which', meqpipe]).strip()
 
+    # Create the tigger sky model
     create_meq_sky_model(args.sky_model, tigger_lsm)
-
-    print(meqpipe_actual)
 
     # ========================================
     # Call MeqTrees
@@ -122,6 +121,7 @@ def compare_columns(args, codex_column, meqtrees_column):
 
         # Everything agrees, exit
         if problems[0].size == 0:
+            print("Codex Africanus visibilities match Meqtrees")
             return True
 
         bad_vis_file = 'bad_visibilities.txt'
