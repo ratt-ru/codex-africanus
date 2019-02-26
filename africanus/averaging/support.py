@@ -12,27 +12,35 @@ from africanus.util.numba import is_numba_type_none
 
 @numba.njit(nogil=True, cache=True)
 def _unique_internal_inverse(data):
+    if len(data.shape) != 1:
+        raise ValueError("_unique_internal_inverse currently "
+                         "only supports 1D arrays")
+
     # See numpy's unique1d
     perm = np.argsort(data, kind='mergesort')
-    aux = data[perm]
 
+    aux = np.empty_like(data)
+
+    for i in range(aux.shape[0]):
+        aux[i] = data[perm[i]]
+
+    # Combine these arrays to save on allocations?
     mask = np.empty(aux.shape, dtype=np.bool_)
-    mask[0] = True
-
-    for i in range(1, aux.shape[0]):
-        mask[i] = aux[i] != aux[i - 1]
-
-    imask = np.empty(aux.shape, dtype=np.intp)
-    cumsum = 0
-
-    for i in range(imask.shape[0]):
-        cumsum += mask[i]
-        imask[i] = cumsum - 1
-
+    inv_mask = np.empty(aux.shape, dtype=np.intp)
     inv_idx = np.empty(mask.shape, dtype=np.intp)
 
-    for i, p in enumerate(perm):
-        inv_idx[p] = imask[i]
+    # Hard code element zero
+    mask[0] = True
+    cumsum = 1
+    inv_mask[0] = cumsum - 1
+    inv_idx[perm[0]] = inv_mask[0]
+
+    for i in range(1, aux.shape[0]):
+        d = aux[i] != aux[i - 1]
+        mask[i] = d
+        cumsum += d
+        inv_mask[i] = cumsum - 1
+        inv_idx[perm[i]] = inv_mask[i]
 
     return aux[mask], inv_idx
 
