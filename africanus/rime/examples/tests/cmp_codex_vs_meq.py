@@ -48,6 +48,7 @@ def create_meq_sky_model(filename, tigger_lsm):
             f.write(line)
 
 
+@requires_optional('pyrap.tables', opt_import_error)
 def run_meqtrees(args):
     # Directory in which meqtree-related files are read/written
     meq_dir = 'meqtrees'
@@ -60,7 +61,6 @@ def run_meqtrees(args):
     sim_script = pjoin(meq_dir, 'turbo-sim.py')
     tigger_lsm = pjoin(meq_dir, 'tigger_lsm.txt')
 
-    cfg_section = '-'.join(('codex', 'compare', args.feed_type))
     meqtrees_vis_column = "CORRECTED_DATA"
 
     # Find the location of the meqtree pipeliner script
@@ -68,6 +68,24 @@ def run_meqtrees(args):
 
     # Create the tigger sky model
     create_meq_sky_model(args.sky_model, tigger_lsm)
+
+    linear_corr_types = set([9, 10, 11, 12])
+    circular_corr_types = set([5, 6, 7, 8])
+
+    discovered_corr_types = set()
+
+    with pt.table("::".join((args.ms, "POLARIZATION"))) as pol:
+        for row in range(pol.nrows()):
+            corr_types = pol.getcol("CORR_TYPE", startrow=row, nrow=1)
+            discovered_corr_types.update(corr_types[0])
+
+    if discovered_corr_types.issubset(linear_corr_types):
+        cfg_section = '-'.join(('codex', 'compare', 'linear'))
+    elif discovered_corr_types.issubset(circular_corr_types):
+        cfg_section = '-'.join(('codex', 'compare', 'circular'))
+    else:
+        raise ValueError("MS Correlation types are not wholly "
+                         "linear or circular: %s" % discovered_corr_types)
 
     # ========================================
     # Call MeqTrees

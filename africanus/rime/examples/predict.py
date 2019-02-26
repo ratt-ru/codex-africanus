@@ -29,7 +29,6 @@ else:
     opt_import_error = None
 
 from africanus.coordinates.dask import radec_to_lm
-from africanus.compatibility import string_types
 from africanus.rime.dask import phase_delay, predict_vis
 from africanus.model.coherency.dask import convert
 from africanus.util.requirements import requires_optional
@@ -51,6 +50,19 @@ def create_parser():
 
 @requires_optional('astropy', astropy_import_error)
 def parse_sky_model(filename):
+    """
+    Parameters
+    ----------
+    filename : str
+        Sky Model filename
+
+    Returns
+    -------
+    radec : :class:`numpy.ndarray`
+        :code:`(source, 2)` array of source coordinates
+    stokes : :class:`numpy.ndarray`
+        :code:`(source, 4)` array of stokes parameters
+    """
     converters = {
         0: lambda c: Angle(c).rad, 1: lambda c: Angle(c).rad,
         2: float, 3: float, 4: float, 5: float}
@@ -74,29 +86,73 @@ def parse_sky_model(filename):
 
 
 def support_tables(args, tables):
+    """
+    Parameters
+    ----------
+    args : object
+        Script argument objects
+    tables : list of str
+        List of support tables to open
+
+    Returns
+    -------
+    table_map : dict of :class:`xarray.Dataset`
+        {name: dataset}
+    """
     return {t: [ds.compute() for ds in
-                xds_from_table("::".join((args.ms, t)), group_cols="__row__")]
+                xds_from_table("::".join((args.ms, t)),
+                               group_cols="__row__")]
             for t in tables}
 
 
-def corr_and_einsum_schema(pol):
+def corr_schema(pol):
+    """
+    Parameters
+    ----------
+    pol : :class:`xarray.Dataset`
+
+    Returns
+    -------
+    corr_schema : list of list
+        correlation schema from the POLARIZATION table,
+        `[[9, 10], [11, 12]]` for example
+    """
+
     corrs = pol.NUM_CORR.values
     corr_types = pol.CORR_TYPE.values
 
     if corrs == 4:
-        corr_schema = [[corr_types[0], corr_types[1]],
-                       [corr_types[2], corr_types[3]]]
-        einsum_schema = "srf, sij -> srfij"
+        return [[corr_types[0], corr_types[1]],
+                [corr_types[2], corr_types[3]]]  # (2, 2) shape
     elif corrs == 2:
-        corr_schema = [corr_type[0], corr_type[1]]
-        einsum_schema = "srf, si -> srfi"
+        return [corr_types[0], corr_types[1]]    # (2, ) shape
     elif corrs == 1:
-        corr_schema = [corr_type[0]]
-        einsum_schema = "srf, si -> srfi"
+        return [corr_types[0]]                   # (1, ) shape
     else:
         raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
 
-    return corr_schema, einsum_schema
+
+def einsum_schema(pol):
+    """
+    Returns an einsum schema suitable for multiplying per-baseline
+    phase and brightness terms.
+
+    Parameters
+    ----------
+    pol : :class:`xarray.Dataset`
+
+    Returns
+    -------
+    einsum_schema : str
+    """
+    corrs = pol.NUM_CORR.values
+
+    if corrs == 4:
+        return "srf, sij -> srfij"
+    elif corrs in (2, 1):
+        return "srf, si -> srfi"
+    else:
+        raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
 
 
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
@@ -142,13 +198,11 @@ def predict(args):
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
 
-        corr_schema, einsum_schema = corr_and_einsum_schema(pol)
-
         brightness = convert(stokes, ["I", "Q", "U", "V"],
-                             corr_schema)
+                             corr_schema(pol))
 
         # (source, row, frequency, corr1, corr2)
-        jones = da.einsum(einsum_schema, phase, brightness)
+        jones = da.einsum(einsum_schema(pol), phase, brightness)
 
         # Identify time indices
         _, time_index = da.unique(xds.TIME.data, return_inverse=True)
