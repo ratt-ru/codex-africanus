@@ -29,9 +29,13 @@ else:
     opt_import_error = None
 
 from africanus.coordinates.dask import radec_to_lm
+from africanus.compatibility import string_types
 from africanus.rime.dask import phase_delay, predict_vis
 from africanus.model.coherency.dask import convert
 from africanus.util.requirements import requires_optional
+
+
+SOURCE_CHUNKS = 10
 
 
 def create_parser():
@@ -42,8 +46,6 @@ def create_parser():
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
-    p.add_argument("-ft", "--feed-type", choices=["linear", "circular"],
-                   default="linear")
     return p
 
 
@@ -71,29 +73,56 @@ def parse_sky_model(filename):
     return radec, stokes
 
 
+def support_tables(args, tables):
+    return {t: [ds.compute() for ds in
+                xds_from_table("::".join((args.ms, t)), group_cols="__row__")]
+            for t in tables}
+
+
+def corr_and_einsum_schema(pol):
+    corrs = pol.NUM_CORR.values
+    corr_types = pol.CORR_TYPE.values
+
+    if corrs == 4:
+        corr_schema = [[corr_types[0], corr_types[1]],
+                       [corr_types[2], corr_types[3]]]
+        einsum_schema = "srf, sij -> srfij"
+    elif corrs == 2:
+        corr_schema = [corr_type[0], corr_type[1]]
+        einsum_schema = "srf, si -> srfi"
+    elif corrs == 1:
+        corr_schema = [corr_type[0]]
+        einsum_schema = "srf, si -> srfi"
+    else:
+        raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
+
+    return corr_schema, einsum_schema
+
+
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
 def predict(args):
     # Numpy arrays
 
-    # Dask arrays
+    # Convert source data into dask arrays
     radec, stokes = parse_sky_model(args.sky_model)
+    radec = da.from_array(radec, chunks=(SOURCE_CHUNKS, 2))
+    stokes = da.from_array(stokes, chunks=(SOURCE_CHUNKS, 4))
 
-    field_ds = list(xds_from_table('::'.join((args.ms, "FIELD")),
-                                   group_cols="__row__"))
+    # Get the support tables
+    tables = support_tables(args, ["FIELD", "DATA_DESCRIPTION",
+                                   "SPECTRAL_WINDOW", "POLARIZATION"])
 
-    ddid_ds = list(xds_from_table('::'.join((args.ms, "DATA_DESCRIPTION")),
-                                  group_cols="__row__"))
-
-    spw_ds = list(xds_from_table('::'.join((args.ms, "SPECTRAL_WINDOW")),
-                                 group_cols="__row__"))
+    field_ds = tables["FIELD"]
+    ddid_ds = tables["DATA_DESCRIPTION"]
+    spw_ds = tables["SPECTRAL_WINDOW"]
+    pol_ds = tables["POLARIZATION"]
 
     # List of write operations
     writes = []
 
     # Construct a graph for each DATA_DESC_ID
     for xds in xds_from_ms(args.ms,
-                           columns=["UVW", "ANTENNA1", "ANTENNA2",
-                                    "TIME", "DATA"],
+                           columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                            group_cols=["FIELD_ID", "DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
 
@@ -102,38 +131,18 @@ def predict(args):
         field = field_ds[xds.attrs['FIELD_ID']]
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
+        pol = pol_ds[ddid.POLARIZATION_ID.values]
         frequency = spw.CHAN_FREQ.data
+
+        corrs = pol.NUM_CORR.values
 
         lm = radec_to_lm(radec, field.PHASE_DIR.data)
         uvw = -xds.UVW.data if args.invert_uvw else xds.UVW.data
 
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
-        # (source, corr1, corr2)
 
-        # Reason about calculation based on number of correlations
-        corrs = xds.dims["corr"]
-
-        if corrs == 4:
-            if args.feed_type == "linear":
-                corr_schema = [["XX", "XY"], ["YX", "YY"]]
-            elif args.feed_type == "circular":
-                corr_schema = [["RR", "RL"], ["LR", "LL"]]
-            einsum_schema = "srf, sij -> srfij"
-        elif corrs == 2:
-            if args.feed_type == "linear":
-                corr_schema = ["XX", "YY"]
-            elif args.feed_type == "circular":
-                corr_schema = ["RR", "LL"]
-            einsum_schema = "srf, si -> srfi"
-        elif corrs == 1:
-            if args.feed_type == "linear":
-                corr_schema = ["XX"]
-            elif args.feed_type == "circular":
-                corr_schema = ["RR"]
-            einsum_schema = "srf, si -> srfi"
-        else:
-            raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
+        corr_schema, einsum_schema = corr_and_einsum_schema(pol)
 
         brightness = convert(stokes, ["I", "Q", "U", "V"],
                              corr_schema)
