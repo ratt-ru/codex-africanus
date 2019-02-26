@@ -68,6 +68,18 @@ PHASE_DELAY_DOCS = DocstringTemplate(
 
         & \textrm{where } n = \sqrt{1 - l^2 - m^2}
 
+    Notes
+    -----
+
+    Corresponds to the complex exponential of the `Van Cittert-Zernike Theorem
+    <https://en.wikipedia.org/wiki/Van_Cittert%E2%80%93Zernike_theorem_>`_.
+
+    `MeqTrees
+    <https://github.com/ska-sa/meqtrees-timba/blob/
+    6a7e873d4d1fe538981dec5851418cbd371b8388/MeqNodes/src/PSVTensor.cc#L314_>`_
+    uses a positive sign convention and so any UVW coordinates must be inverted
+    in order for their phase delay terms (and therefore visibilities) to agree.
+
     Parameters
     ----------
 
