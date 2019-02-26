@@ -283,11 +283,11 @@ Parameters
 input : $(array_type)
     Complex or floating point input data of shape
     :code:`(dim_1, ..., dim_n, icorr_1, ..., icorr_m)`
-input_schema : list
+input_schema : list of str or int
     A schema describing the :code:`icorr_1, ..., icorr_m`
     dimension of ``input``. Must have the same shape as
     the last dimensions of ``input``.
-output_schema : list
+output_schema : list of str or int
     A schema describing the :code:`ocorr_1, ..., ocorr_n`
     dimension of the return value.
 
