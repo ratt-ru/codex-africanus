@@ -134,7 +134,7 @@ def _element_indices_and_shape(data):
 
                 result[e] = current_idx + (i, )
             # We have a CASA integer Stokes ID, convert to string
-            elif np.issubdtype(e, np.integer):
+            elif np.issubdtype(type(e), np.integer):
                 try:
                     e = STOKES_ID_MAP[e]
                 except KeyError:
