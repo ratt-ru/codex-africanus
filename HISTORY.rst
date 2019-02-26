@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* Compare predict vis MeqTrees (:pr:`79`)
 * Time and channel averaging (:pr:`75`)
 * cupy implementation of `predict_vis` (:pr:`73`)
 * Introduce transpose in second antenna term of predict (:pr:`72`)
