@@ -12,10 +12,10 @@ from africanus.util.numba import is_numba_type_none
 
 def output_factory(present):
     if present:
-        def impl(new_shape, in_array):
-            return np.zeros(new_shape, in_array.dtype)
+        def impl(rows, array):
+            return np.zeros((rows,) + array.shape[1:], array.dtype)
     else:
-        def impl(new_shape, in_array):
+        def impl(rows, array):
             return None
 
     return numba.njit(nogil=True, cache=True)(impl)
@@ -46,28 +46,38 @@ def normaliser_factory(present):
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_average(time, ant1, ant2, metadata,
                 uvw=None, time_centroid=None,
-                interval=None, exposure=None):
+                interval=None, exposure=None,
+                weight=None, sigma=None):
     have_uvw = not is_numba_type_none(uvw)
     have_time_centroid = not is_numba_type_none(time_centroid)
     have_interval = not is_numba_type_none(interval)
     have_exposure = not is_numba_type_none(exposure)
+    have_weight = not is_numba_type_none(weight)
+    have_sigma = not is_numba_type_none(sigma)
 
     uvw_factory = output_factory(have_uvw)
     centroid_factory = output_factory(have_time_centroid)
     interval_factory = output_factory(have_interval)
     exposure_factory = output_factory(have_exposure)
+    weight_factory = output_factory(have_weight)
+    sigma_factory = output_factory(have_sigma)
 
     uvw_adder = add_factory(have_uvw)
     centroid_adder = add_factory(have_time_centroid)
     interval_adder = add_factory(have_interval)
     exposure_adder = add_factory(have_exposure)
+    weight_adder = add_factory(have_weight)
+    sigma_adder = add_factory(have_sigma)
 
     uvw_normaliser = normaliser_factory(have_uvw)
     centroid_normaliser = normaliser_factory(have_time_centroid)
+    weight_normaliser = normaliser_factory(have_weight)
+    sigma_normaliser = normaliser_factory(have_sigma)
 
     def impl(time, ant1, ant2, metadata,
              uvw=None, time_centroid=None,
-             interval=None, exposure=None):
+             interval=None, exposure=None,
+             weight=None, sigma=None):
 
         (in_lookup, time_lookup, out_lookup,
          out_rows, time_bin_size, sentinel) = metadata
@@ -82,10 +92,12 @@ def row_average(time, ant1, ant2, metadata,
         ant2_avg = np.empty(out_rows, ant2.dtype)
 
         # Possibly present outputs for possibly present inputs
-        uvw_avg = uvw_factory((out_rows, uvw.shape[1]), uvw)
+        uvw_avg = uvw_factory(out_rows, uvw)
         centroid_avg = centroid_factory(out_rows, time_centroid)
         interval_avg = interval_factory(out_rows, interval)
         exposure_avg = exposure_factory(out_rows, exposure)
+        weight_avg = weight_factory(out_rows, weight)
+        sigma_avg = sigma_factory(out_rows, sigma)
 
         for bli in range(nbl):
             off = bli*time_bins
@@ -114,21 +126,29 @@ def row_average(time, ant1, ant2, metadata,
                 centroid_adder(centroid_avg, orow, time_centroid, irow)
                 interval_adder(interval_avg, orow, interval, irow)
                 exposure_adder(exposure_avg, orow, exposure, irow)
+                weight_adder(weight_avg, orow, weight, irow)
+                sigma_adder(sigma_avg, orow, sigma, irow)
 
                 if nbin_values == time_bin_size:
                     uvw_normaliser(uvw_avg, orow, nbin_values)
                     centroid_normaliser(centroid_avg, orow, nbin_values)
+                    weight_normaliser(weight_avg, orow, nbin_values)
+                    sigma_normaliser(sigma_avg, orow, nbin_values)
+
                     tbin += 1
                     nbin_values = numba.uint32(0)
 
             if nbin_values > 0:
                 uvw_normaliser(uvw_avg, orow, nbin_values)
                 centroid_normaliser(centroid_avg, orow, nbin_values)
+                weight_normaliser(weight_avg, orow, nbin_values)
+                sigma_normaliser(sigma_avg, orow, nbin_values)
 
                 tbin += 1
 
         return (time_avg, ant1_avg, ant2_avg,
                 uvw_avg, centroid_avg,
-                interval_avg, exposure_avg)
+                interval_avg, exposure_avg,
+                weight_avg, sigma_avg)
 
     return impl

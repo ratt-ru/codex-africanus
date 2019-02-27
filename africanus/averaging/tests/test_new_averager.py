@@ -45,20 +45,34 @@ def uvw():
 
 @pytest.fixture
 def interval():
-    return np.asarray([2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+    return np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
 
 
-def test_new_averager(time, ant1, ant2, uvw, interval):
+@pytest.fixture
+def weight():
+    shape = (10, 4)
+    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+
+
+@pytest.fixture
+def sigma():
+    shape = (10, 4)
+    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+
+
+def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
     metadata = generate_lookups(time, ant1, ant2, 2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = metadata
 
     exposure = interval
 
     tup = row_average(time, ant1, ant2, metadata,
-                      uvw, time, interval, interval)
+                      uvw, time, interval, interval,
+                      weight, sigma)
     (time_avg, ant1_avg, ant2_avg,
      uvw_avg, time_centroid_avg,
-     interval_avg, exposure_avg) = tup
+     interval_avg, exposure_avg,
+     weight_avg, sigma_avg) = tup
 
     # Write out expected times, ant1 and ant2
     # Baseline 0 [0-2]: 1.0   -- from baselines [1]
@@ -73,10 +87,10 @@ def test_new_averager(time, ant1, ant2, uvw, interval):
     written_times = np.array([1.0,  1.5,  1.5,  2.0,  2.5, 3.0,  3.0])
 
     idx = [[1], [0, 4], [2, 5], [6], [3, 7], [8], [9]]
-    bin_samples = np.array([len(i) for i in idx])
+    bin_size = np.array([len(i) for i in idx])
 
     # Take mean time, but first ant1 and ant2
-    expected_times = [time[i].sum() for i in idx] / bin_samples
+    expected_times = [time[i].sum() for i in idx] / bin_size
     expected_ant1 = [ant1[i[0]] for i in idx]
     expected_ant2 = [ant2[i[0]] for i in idx]
 
@@ -84,10 +98,14 @@ def test_new_averager(time, ant1, ant2, uvw, interval):
     assert_array_equal(written_ant1, expected_ant1)
     assert_array_equal(written_ant2, expected_ant2)
 
+    print(weight_avg)
+
     # Take mean average, but sum of interval and exposure
-    expected_uvw = [uvw[i, :].sum(axis=0) for i in idx] / bin_samples[:, None]
+    expected_uvw = [uvw[i].sum(axis=0) for i in idx] / bin_size[:, None]
     expected_interval = [interval[i].sum() for i in idx]
     expected_exposure = [exposure[i].sum() for i in idx]
+    expected_weight = [weight[i].sum(axis=0) for i in idx] / bin_size[:, None]
+    expected_sigma = [sigma[i].sum(axis=0) for i in idx] / bin_size[:, None]
 
     assert_array_equal(time_avg, expected_times)
     assert_array_equal(ant1_avg, expected_ant1)
@@ -96,3 +114,5 @@ def test_new_averager(time, ant1, ant2, uvw, interval):
     assert_array_equal(time_centroid_avg, time_avg)
     assert_array_equal(interval_avg, expected_interval)
     assert_array_equal(exposure_avg, expected_exposure)
+    assert_array_equal(weight_avg, expected_weight)
+    assert_array_equal(sigma_avg, expected_sigma)
