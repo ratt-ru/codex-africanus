@@ -11,6 +11,8 @@ from africanus.util.numba import is_numba_type_none
 
 
 def output_factory(present):
+    """ Returns function creating an output if present """
+
     if present:
         def impl(rows, array):
             return np.zeros((rows,) + array.shape[1:], array.dtype)
@@ -22,6 +24,7 @@ def output_factory(present):
 
 
 def add_factory(present):
+    """ Returns function for adding data to a bin """
     if present:
         def impl(output, orow, input, irow):
             output[orow] += input[irow]
@@ -33,6 +36,7 @@ def add_factory(present):
 
 
 def normaliser_factory(present):
+    """ Returns function for normalising data in a bin """
     if present:
         def impl(data, idx, bin_size):
             data[idx] /= bin_size
@@ -87,6 +91,7 @@ def row_average(metadata, time, ant1, ant2,
 
         time_bins = (ntime + time_bin_size - 1) // time_bin_size
 
+        # These outputs are always present
         time_avg = np.empty(out_rows, time.dtype)
         ant1_avg = np.empty(out_rows, ant1.dtype)
         ant2_avg = np.empty(out_rows, ant2.dtype)
@@ -129,6 +134,7 @@ def row_average(metadata, time, ant1, ant2,
                 weight_adder(weight_avg, orow, weight, irow)
                 sigma_adder(sigma_avg, orow, sigma, irow)
 
+                # We've filled a bin, normalise it and start a new one
                 if nbin_values == time_bin_size:
                     uvw_normaliser(uvw_avg, orow, nbin_values)
                     centroid_normaliser(centroid_avg, orow, nbin_values)
@@ -138,6 +144,7 @@ def row_average(metadata, time, ant1, ant2,
                     tbin += 1
                     nbin_values = numba.uint32(0)
 
+            # Normalise anything remaining in the last bin
             if nbin_values > 0:
                 uvw_normaliser(uvw_avg, orow, nbin_values)
                 centroid_normaliser(centroid_avg, orow, nbin_values)
@@ -154,13 +161,14 @@ def row_average(metadata, time, ant1, ant2,
     return impl
 
 
-def row_and_chan_average(metadata, vis, flag, chan_bin_size=1):
+def row_chan_average(metadata, vis, flag, chan_bin_size=1):
     (in_lookup, time_lookup, out_lookup,
-     out_rows, time_bin_size, chan_bin_size) = metadata
+     out_rows, time_bin_size, sentinel) = metadata
 
     nbl = in_lookup.shape[0]
     ntime = in_lookup.shape[1]
     nchan = vis.shape[1]
+    ncorr = vis.shape[2]
 
     time_bins = (ntime + time_bin_size - 1) // time_bin_size
     chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size

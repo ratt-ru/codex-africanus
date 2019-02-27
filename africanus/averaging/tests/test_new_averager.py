@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import generate_metadata
-from africanus.averaging.row_averager import row_average
+from africanus.averaging.row_averager import row_average, row_chan_average
 
 
 @pytest.fixture
@@ -60,7 +60,25 @@ def sigma():
     return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 
 
-def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
+@pytest.fixture
+def vis():
+    def _vis(row, chan, fcorrs):
+        return (np.arange(row*chan*fcorrs, dtype=np.float32) +
+                np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+
+    return _vis
+
+
+@pytest.fixture
+def flag():
+    def _flag(row, chan, fcorrs):
+        return np.random.randint(0, 2, (row, chan, fcorrs))
+
+    return _flag
+
+
+def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma,
+                      vis, flag):
     metadata = generate_metadata(time, ant1, ant2, 2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = metadata
 
@@ -114,3 +132,8 @@ def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
     assert_array_equal(exposure_avg, expected_exposure)
     assert_array_equal(weight_avg, expected_weight)
     assert_array_equal(sigma_avg, expected_sigma)
+
+    row_chan_average(metadata,
+                     vis(10, 64, 4).reshape(10, 64, 4),
+                     flag(10, 64, 4).reshape(10, 64, 4),
+                     chan_bin_size=16)
