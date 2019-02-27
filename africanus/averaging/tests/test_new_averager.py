@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from africanus.averaging.support import generate_lookups
+from africanus.averaging.support import generate_metadata
 from africanus.averaging.row_averager import row_average
 
 
@@ -61,7 +61,7 @@ def sigma():
 
 
 def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
-    metadata = generate_lookups(time, ant1, ant2, 2)
+    metadata = generate_metadata(time, ant1, ant2, 2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = metadata
 
     exposure = interval

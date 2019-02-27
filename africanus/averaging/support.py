@@ -148,7 +148,7 @@ def row_or_minus_one_factory(flag_row, flag):
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
-def generate_lookups(time, ant1, ant2, time_bin_size=1,
+def generate_metadata(time, ant1, ant2, time_bin_size=1,
                      flag_row=None, flag=None):
 
     row_or_minus_one = row_or_minus_one_factory(flag_row, flag)

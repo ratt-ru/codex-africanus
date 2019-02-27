@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import (unique_baselines, unique_time,
-                                         generate_lookups)
+                                         generate_metadata)
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def test_unique_baselines(ant1, ant2):
 
 
 def test_lookups(time, ant1, ant2, vis):
-    tup = generate_lookups(time, ant1, ant2)
+    tup = generate_metadata(time, ant1, ant2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = tup
 
     # We have 5 unique baselines and 3 unique times
