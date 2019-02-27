@@ -81,6 +81,7 @@ def row_average(time, ant1, ant2, metadata,
         ant1_avg = np.empty(out_rows, ant1.dtype)
         ant2_avg = np.empty(out_rows, ant2.dtype)
 
+        # Possibly present outputs for possibly present inputs
         uvw_avg = uvw_factory((out_rows, uvw.shape[1]), uvw)
         centroid_avg = centroid_factory(out_rows, time_centroid)
         interval_avg = interval_factory(out_rows, interval)
