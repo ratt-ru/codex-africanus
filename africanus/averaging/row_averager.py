@@ -152,3 +152,47 @@ def row_average(metadata, time, ant1, ant2,
                 weight_avg, sigma_avg)
 
     return impl
+
+
+def row_and_chan_average(metadata, vis, flag, chan_bin_size=1):
+    (in_lookup, time_lookup, out_lookup,
+     out_rows, time_bin_size, chan_bin_size) = metadata
+
+    nbl = in_lookup.shape[0]
+    ntime = in_lookup.shape[1]
+    nchan = vis.shape[1]
+
+    time_bins = (ntime + time_bin_size - 1) // time_bin_size
+    chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size
+
+    output = np.zeros((out_rows, chan_bins, ncorr), dtype=vis.dtype)
+    scratch = np.empty((chan_bins, ncorr), dtype=vis.dtype)
+    chan_counts = np.empty(ncorr, dtype=np.int32)
+    cbins = np.empty(ncorr, dtype=np.int32)
+
+    for bli in range(nbl):
+        off = bli*time_bins
+        tbin = numba.uint32(0)
+        nbin_values = numba.uint32(0)
+
+        for ti in range(ntime):
+            # Lookup input row for this baseline and time
+            irow = in_lookup[bli, ti]
+
+            if irow == -1:
+                continue
+
+            # Lookup output row
+            orow = out_lookup[off + tbin]
+
+            nbin_values += 1
+
+            if nbin_values == time_bin_size:
+
+                tbin += 1
+                nbin_values = numba.uint32(0)
+
+        if nbin_values > 0:
+            tbin += 1
+
+    return None
