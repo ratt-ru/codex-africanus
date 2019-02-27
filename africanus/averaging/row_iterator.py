@@ -22,13 +22,10 @@ def row_iterator(rows, bin_size):
         # Yield row, bin and whether the bin is full
         yield row, row_bin, bin_full
 
-        # Only advance now
-        row += 1
-
         # Reset bin variables if the bin is full
         if bin_full:
             row_bin += 1
             bin_contents = 0
 
     # Bin is always full on the last iteration
-    yield row, row_bin, True
+    yield row + 1, row_bin, True
