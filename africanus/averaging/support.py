@@ -220,6 +220,6 @@ def generate_lookups(time, ant1, ant2, time_bin_size=1,
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
 
-        return in_lookup, inv_argsort
+        return in_lookup, inv_argsort, out_rows
 
     return impl
