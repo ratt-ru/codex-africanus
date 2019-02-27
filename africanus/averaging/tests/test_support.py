@@ -39,6 +39,8 @@ def vis():
 
 
 def test_unique_time(time):
+    time = np.flipud(time)
+
     utime, inv, counts = unique_time(time)
     assert_array_equal(utime, [1.0, 2.0, 3.0])
     assert_array_equal(utime[inv], time)
@@ -46,6 +48,9 @@ def test_unique_time(time):
 
 
 def test_unique_baselines(ant1, ant2):
+    ant1 = np.flipud(ant1)
+    ant2 = np.flipud(ant2)
+
     bl, inv, counts = unique_baselines(ant1, ant2)
     assert_array_equal(bl, [[0, 0], [0, 1], [0, 2], [1, 2], [2, 3]])
     assert_array_equal(bl[inv], np.stack([ant1, ant2], axis=1))
