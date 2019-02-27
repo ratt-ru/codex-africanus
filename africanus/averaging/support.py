@@ -19,28 +19,25 @@ def _unique_internal_inverse(data):
     # See numpy's unique1d
     perm = np.argsort(data, kind='mergesort')
 
-    aux = np.empty_like(data)
-
-    for i in range(aux.shape[0]):
-        aux[i] = data[perm[i]]
-
     # Combine these arrays to save on allocations?
+    aux = np.empty_like(data)
     mask = np.empty(aux.shape, dtype=np.bool_)
-    inv_mask = np.empty(aux.shape, dtype=np.intp)
     inv_idx = np.empty(mask.shape, dtype=np.intp)
 
-    # Hard code element zero
+    # Hard code first iteration
+    p = perm[0]
+    aux[0] = data[p]
     mask[0] = True
     cumsum = 1
-    inv_mask[0] = cumsum - 1
-    inv_idx[perm[0]] = inv_mask[0]
+    inv_idx[p] = cumsum - 1
 
     for i in range(1, aux.shape[0]):
+        p = perm[i]
+        aux[i] = data[p]
         d = aux[i] != aux[i - 1]
         mask[i] = d
         cumsum += d
-        inv_mask[i] = cumsum - 1
-        inv_idx[perm[i]] = inv_mask[i]
+        inv_idx[p] = cumsum - 1
 
     return aux[mask], inv_idx
 
