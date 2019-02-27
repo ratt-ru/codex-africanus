@@ -33,7 +33,7 @@ def row_average(time, ant1, ant2, metadata):
             # Lookup input row for this baseline and time
             in_row = in_lookup[bli, ti]
 
-            if in_row == -1 or time_lookup[bli, tbin] == sentinel:
+            if in_row == -1:
                 continue
 
             # Lookup output row
