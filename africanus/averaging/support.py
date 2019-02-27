@@ -92,23 +92,45 @@ def unique_baselines(ant1, ant2):
     return impl
 
 
-def flagged_factory(flag_row, flag):
+def row_or_minus_one_factory(flag_row, flag):
+    """
+    Factory function returning a function which returns
+    -1 if all values related to a row are flagged,
+    or the row itself.
+
+    Parameters
+    ----------
+    flag_row : :class:`numba.types.npytypes.Array` or \
+        :class:`numba.types.misc.Omitted`
+    flag : :class:`numba.types.npytypes.Array` or \
+        :class:`numba.types.misc.Omitted`
+
+    Returns
+    -------
+    callable
+        Function `f(flag_row, flag, r)` that returns -1
+        if everything in the row is flagged and `r` otherwise.
+    """
+
     have_flag_row = not is_numba_type_none(flag_row)
     have_flag = not is_numba_type_none(flag)
 
     if have_flag and have_flag_row:
-        def _minus_one_if_all_flagged(flag_row, flags, r):
-            if flag_row[r] == 0:
-                return r
+        def impl(flag_row, flag, r):
+            # Entire row is flagged, we can exit early
+            if flag_row[r] != 0:
+                return -1
 
+            # Return the row if anything is unflagged
             for f in range(flags.shape[1]):
                 for c in range(flags.shape[2]):
                     if flags[r, f, c] == 0:
                         return r
+
             return -1
 
     elif have_flag and not have_flag_row:
-        def _minus_one_if_all_flagged(flag_row, flags, r):
+        def impl(flag_row, flag, r):
             for f in range(flags.shape[1]):
                 for c in range(flags.shape[2]):
                     if flags[r, f, c] == 0:
@@ -116,20 +138,20 @@ def flagged_factory(flag_row, flag):
 
             return -1
     elif not have_flag and have_flag_row:
-        def _minus_one_if_all_flagged(flag_row, flags, r):
+        def impl(flag_row, flag, r):
             return r if flag_row[r] == 0 else -1
     else:
-        def _minus_one_if_all_flagged(flag_row, flags, r):
+        def impl(flag_row, flag, r):
             return r
 
-    return numba.njit(nogil=True, cache=True)(_minus_one_if_all_flagged)
+    return numba.njit(nogil=True, cache=True)(impl)
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def generate_lookups(time, ant1, ant2, time_bin_size=1,
                      flag_row=None, flag=None):
 
-    row_or_minus_one = flagged_factory(flag_row, flag)
+    row_or_minus_one = row_or_minus_one_factory(flag_row, flag)
 
     def impl(time, ant1, ant2, time_bin_size=1,
              flag_row=None, flag=None):
