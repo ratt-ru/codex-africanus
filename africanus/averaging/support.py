@@ -122,18 +122,18 @@ def row_or_minus_one_factory(flag_row, flag):
                 return -1
 
             # Return the row if anything is unflagged
-            for f in range(flags.shape[1]):
-                for c in range(flags.shape[2]):
-                    if flags[r, f, c] == 0:
+            for f in range(flag.shape[1]):
+                for c in range(flag.shape[2]):
+                    if flag[r, f, c] == 0:
                         return r
 
             return -1
 
     elif have_flag and not have_flag_row:
         def impl(flag_row, flag, r):
-            for f in range(flags.shape[1]):
-                for c in range(flags.shape[2]):
-                    if flags[r, f, c] == 0:
+            for f in range(flag.shape[1]):
+                for c in range(flag.shape[2]):
+                    if flag[r, f, c] == 0:
                         return r
 
             return -1
