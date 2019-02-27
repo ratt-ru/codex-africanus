@@ -58,7 +58,8 @@ def test_unique_baselines(ant1, ant2):
 
 
 def test_lookups(time, ant1, ant2, vis):
-    row_lookup, out_lookup, out_rows = generate_lookups(time, ant1, ant2)
+    tup = generate_lookups(time, ant1, ant2)
+    row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = tup
 
     # We have 5 unique baselines and 3 unique times
     expected_row_lookup = np.asarray([[-1,  3,  7],

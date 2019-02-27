@@ -48,7 +48,7 @@ def _unique_internal_inverse(data):
     return aux[mask], inv_idx, np.diff(np.array(counts))
 
 
-@numba.generated_jit(nogil=True, cache=True)
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
 def unique_time(time):
     """ Return unique time, inverse index and counts """
     if time.dtype not in (numba.float32, numba.float64):
@@ -60,7 +60,7 @@ def unique_time(time):
     return impl
 
 
-@numba.generated_jit(nogil=True, cache=True)
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
 def unique_baselines(ant1, ant2):
     """ Return unique baselines, inverse index and counts """
     if not ant1.dtype == numba.int32 or not ant2.dtype == numba.int32:
@@ -165,7 +165,7 @@ def generate_lookups(time, ant1, ant2, time_bin_size=1,
 
         sentinel = np.finfo(time.dtype).max
         in_lookup = np.full((nbl, ntime), -1, np.int32)
-        out_lookup = np.full((nbl, tbins), sentinel, time.dtype)
+        time_lookup = np.full((nbl, tbins), sentinel, time.dtype)
 
         out_rows = 0
 
@@ -189,23 +189,23 @@ def generate_lookups(time, ant1, ant2, time_bin_size=1,
 
                 # If we encounter the sentinel value, just assign
                 # otherwise add the value to the bin
-                if out_lookup[bli, tbin] == sentinel:
-                    out_lookup[bli, tbin] = time[r]
+                if time_lookup[bli, tbin] == sentinel:
+                    time_lookup[bli, tbin] = time[r]
                 else:
-                    out_lookup[bli, tbin] += time[r]
+                    time_lookup[bli, tbin] += time[r]
 
                 valid_times += 1
 
                 # If we've completely filled the time averaging bin,
                 # normalise it and advance to the next
                 if valid_times == time_bin_size:
-                    out_lookup[bli, tbin] /= valid_times
+                    time_lookup[bli, tbin] /= valid_times
                     tbin += 1
                     valid_times = 0
 
             # Handle normalisation of the last bin
             if valid_times > 0:
-                out_lookup[bli, tbin] /= valid_times
+                time_lookup[bli, tbin] /= valid_times
                 tbin += 1
 
             # Add number of bins to the output rows
@@ -214,12 +214,13 @@ def generate_lookups(time, ant1, ant2, time_bin_size=1,
         # Sort the averaged time values to determine their
         # location in the output. We use mergesort so that the
         # sort is stable.
-        argsort = np.argsort(out_lookup.ravel(), kind='mergesort')
+        argsort = np.argsort(time_lookup.ravel(), kind='mergesort')
         inv_argsort = np.empty_like(argsort)
 
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
 
-        return in_lookup, inv_argsort, out_rows
+        return (in_lookup, time_lookup, inv_argsort,
+                out_rows, time_bin_size, sentinel)
 
     return impl
