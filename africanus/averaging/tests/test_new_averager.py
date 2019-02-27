@@ -29,19 +29,20 @@ def ant2():
                       dtype=np.int32)
 
 
-def test_new_averager(time, ant1, ant2):
+@pytest.fixture
+def interval():
+    return np.asarray([2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+
+
+def test_new_averager(time, ant1, ant2, interval):
     metadata = generate_lookups(time, ant1, ant2, 2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = metadata
 
-    # print("row_lookup", row_lookup)
-    # print("time_lookup", time_lookup)
-    # print("out_lookup", out_lookup)
+    tup = row_average(time, ant1, ant2, metadata, interval, interval)
+    time_avg, ant1_avg, ant2_avg, interval_avg, exposure_avg = tup
 
-    time_avg, ant1_avg, ant2_avg = row_average(time, ant1, ant2, metadata)
-
-    np.testing.assert_array_almost_equal(time_avg,
-                                         [1.0, 1.5, 1.5, 2.0, 2.5, 3.0, 3.0])
-
-    np.testing.assert_array_almost_equal(ant1_avg, [0, 0, 1, 2, 0, 0, 1])
-    np.testing.assert_array_almost_equal(ant2_avg, [2, 1, 2, 3, 0, 1, 2])
-
+    assert_array_equal(time_avg, [1.0, 1.5, 1.5, 2.0, 2.5, 3.0, 3.0])
+    assert_array_equal(ant1_avg, [0, 0, 1, 2, 0, 0, 1])
+    assert_array_equal(ant2_avg, [2, 1, 2, 3, 0, 1, 2])
+    assert_array_equal(interval_avg, [2.0, 4.0, 4.0, 2.0, 4.0, 2.0, 2.0])
+    assert_array_equal(exposure_avg, [2.0, 4.0, 4.0, 2.0, 4.0, 2.0, 2.0])
