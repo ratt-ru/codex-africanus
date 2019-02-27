@@ -45,26 +45,30 @@ def normaliser_factory(present):
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_average(time, ant1, ant2, metadata,
-                time_centroid=None,
+                uvw=None, time_centroid=None,
                 interval=None, exposure=None):
+    have_uvw = not is_numba_type_none(uvw)
     have_time_centroid = not is_numba_type_none(time_centroid)
     have_interval = not is_numba_type_none(interval)
     have_exposure = not is_numba_type_none(exposure)
 
-    centroid_factory = output_factory(time_centroid)
+    uvw_factory = output_factory(have_uvw)
+    centroid_factory = output_factory(have_time_centroid)
     interval_factory = output_factory(have_interval)
     exposure_factory = output_factory(have_exposure)
 
+    uvw_adder = add_factory(have_uvw)
     centroid_adder = add_factory(have_time_centroid)
     interval_adder = add_factory(have_interval)
     exposure_adder = add_factory(have_exposure)
 
+    uvw_normaliser = normaliser_factory(have_uvw)
     centroid_normaliser = normaliser_factory(have_time_centroid)
 
     def impl(time, ant1, ant2, metadata,
-             time_centroid=None,
-             interval=None,
-             exposure=None):
+             uvw=None, time_centroid=None,
+             interval=None, exposure=None):
+
         (in_lookup, time_lookup, out_lookup,
          out_rows, time_bin_size, sentinel) = metadata
 
@@ -77,6 +81,7 @@ def row_average(time, ant1, ant2, metadata,
         ant1_avg = np.empty(out_rows, ant1.dtype)
         ant2_avg = np.empty(out_rows, ant2.dtype)
 
+        uvw_avg = uvw_factory((out_rows, uvw.shape[1]), uvw)
         centroid_avg = centroid_factory(out_rows, time_centroid)
         interval_avg = interval_factory(out_rows, interval)
         exposure_avg = exposure_factory(out_rows, exposure)
@@ -103,21 +108,26 @@ def row_average(time, ant1, ant2, metadata,
                 ant1_avg[orow] = ant1[irow]
                 ant2_avg[orow] = ant2[irow]
 
+                # Defer to functions for possibly missing input
+                uvw_adder(uvw_avg, orow, uvw, irow)
                 centroid_adder(centroid_avg, orow, time_centroid, irow)
                 interval_adder(interval_avg, orow, interval, irow)
                 exposure_adder(exposure_avg, orow, exposure, irow)
 
                 if nbin_values == time_bin_size:
-                    centroid_normaliser(centroid_avg, orow, time_bin_size)
+                    uvw_normaliser(uvw_avg, orow, nbin_values)
+                    centroid_normaliser(centroid_avg, orow, nbin_values)
                     tbin += 1
                     nbin_values = numba.uint32(0)
 
             if nbin_values > 0:
+                uvw_normaliser(uvw_avg, orow, nbin_values)
                 centroid_normaliser(centroid_avg, orow, nbin_values)
 
                 tbin += 1
 
         return (time_avg, ant1_avg, ant2_avg,
-                centroid_avg, interval_avg, exposure_avg)
+                uvw_avg, centroid_avg,
+                interval_avg, exposure_avg)
 
     return impl
