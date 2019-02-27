@@ -44,7 +44,7 @@ def normaliser_factory(present):
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
-def row_average(time, ant1, ant2, metadata,
+def row_average(metadata, time, ant1, ant2,
                 uvw=None, time_centroid=None,
                 interval=None, exposure=None,
                 weight=None, sigma=None):
@@ -74,13 +74,13 @@ def row_average(time, ant1, ant2, metadata,
     weight_normaliser = normaliser_factory(have_weight)
     sigma_normaliser = normaliser_factory(have_sigma)
 
-    def impl(time, ant1, ant2, metadata,
+    def impl(metadata, time, ant1, ant2,
              uvw=None, time_centroid=None,
              interval=None, exposure=None,
              weight=None, sigma=None):
 
         (in_lookup, time_lookup, out_lookup,
-         out_rows, time_bin_size, sentinel) = metadata
+         out_rows, time_bin_size, chan_bin_size) = metadata
 
         nbl = in_lookup.shape[0]
         ntime = in_lookup.shape[1]

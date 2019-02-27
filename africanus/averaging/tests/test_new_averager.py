@@ -66,7 +66,7 @@ def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
 
     exposure = interval
 
-    tup = row_average(time, ant1, ant2, metadata,
+    tup = row_average(metadata, time, ant1, ant2,
                       uvw, time, interval, interval,
                       weight, sigma)
     (time_avg, ant1_avg, ant2_avg,
