@@ -98,8 +98,6 @@ def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma):
     assert_array_equal(written_ant1, expected_ant1)
     assert_array_equal(written_ant2, expected_ant2)
 
-    print(weight_avg)
-
     # Take mean average, but sum of interval and exposure
     expected_uvw = [uvw[i].sum(axis=0) for i in idx] / bin_size[:, None]
     expected_interval = [interval[i].sum() for i in idx]
