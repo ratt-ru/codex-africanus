@@ -39,13 +39,17 @@ def vis():
 
 
 def test_unique_time(time):
-    utime, inv = unique_time(time)
+    utime, inv, counts = unique_time(time)
+    assert_array_equal(utime, [1.0, 2.0, 3.0])
     assert_array_equal(utime[inv], time)
+    assert_array_equal(counts, [3, 4, 3])
 
 
 def test_unique_baselines(ant1, ant2):
-    bl, inv = unique_baselines(ant1, ant2)
+    bl, inv, counts = unique_baselines(ant1, ant2)
+    assert_array_equal(bl, [[0, 0], [0, 1], [0, 2], [1, 2], [2, 3]])
     assert_array_equal(bl[inv], np.stack([ant1, ant2], axis=1))
+    assert_array_equal(counts, [2, 3, 1, 3, 1])
 
 
 def test_lookups(time, ant1, ant2, vis):

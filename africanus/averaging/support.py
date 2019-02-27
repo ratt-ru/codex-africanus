@@ -30,6 +30,7 @@ def _unique_internal_inverse(data):
     mask[0] = True
     cumsum = 1
     inv_idx[p] = cumsum - 1
+    counts = [np.intp(0)]
 
     for i in range(1, aux.shape[0]):
         p = perm[i]
@@ -39,12 +40,17 @@ def _unique_internal_inverse(data):
         cumsum += d
         inv_idx[p] = cumsum - 1
 
-    return aux[mask], inv_idx
+        if d:
+            counts.append(np.intp(i))
+
+    counts.append(aux.shape[0])
+
+    return aux[mask], inv_idx, np.diff(np.array(counts))
 
 
 @numba.generated_jit(nogil=True, cache=True)
 def unique_time(time):
-    """ Return unique time and inverse index """
+    """ Return unique time, inverse index and counts """
     if time.dtype not in (numba.float32, numba.float64):
         raise ValueError("time must be floating point but is %s" % time.dtype)
 
@@ -56,7 +62,7 @@ def unique_time(time):
 
 @numba.generated_jit(nogil=True, cache=True)
 def unique_baselines(ant1, ant2):
-    """ Return unique baselines and inverse index"""
+    """ Return unique baselines, inverse index and counts """
     if not ant1.dtype == numba.int32 or not ant2.dtype == numba.int32:
         # Need these to be int32 for the bl_32bit.view(np.int64) trick
         raise ValueError("ant1 and ant2 must be np.int32 "
@@ -75,10 +81,10 @@ def unique_baselines(ant1, ant2):
 
         bl = bl_32bit.view(np.int64).reshape(ant1.shape[0])
 
-        ret, inv = _unique_internal_inverse(bl)
+        ret, inv, counts = _unique_internal_inverse(bl)
 
         # Now reshape
-        return ret.view(np.int32).reshape(ret.shape[0], 2), inv
+        return ret.view(np.int32).reshape(ret.shape[0], 2), inv, counts
 
     return impl
 
@@ -125,8 +131,8 @@ def generate_lookups(time, ant1, ant2, time_bin_size=1,
     def impl(time, ant1, ant2, time_bin_size=1,
              flag_row=None, flag=None):
 
-        ubl, bl_inv = unique_baselines(ant1, ant2)
-        utime, time_inv = unique_time(time)
+        ubl, bl_inv, bl_counts = unique_baselines(ant1, ant2)
+        utime, time_inv, time_counts = unique_time(time)
 
         nbl = ubl.shape[0]
         ntime = utime.shape[0]
