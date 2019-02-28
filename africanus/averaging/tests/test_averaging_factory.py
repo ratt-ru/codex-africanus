@@ -66,5 +66,3 @@ def test_averaging_factory():
 
     for r in range(row):
         time_avg.add(time[r])
-
-    print(time_avg.result)
