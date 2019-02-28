@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import (unique_baselines, unique_time,
-                                         generate_metadata)
+                                         generate_metadata, better_lookup)
 
 
 @pytest.fixture
@@ -38,9 +38,7 @@ def vis():
     return _vis
 
 
-def test_simplified_lookup(time, ant1, ant2):
-    from africanus.averaging.support import better_lookup
-
+def test_better_lookup(time, ant1, ant2):
     utime, time_inv, _ = unique_time(time)
     ubl, bl_inv, _ = unique_baselines(ant1, ant2)
     mask = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
