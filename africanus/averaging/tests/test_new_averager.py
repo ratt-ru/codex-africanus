@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from africanus.averaging.support import better_lookup
+from africanus.averaging.row_mapping import row_mapper
 from africanus.averaging.new_averager import row_average
 
 
@@ -79,7 +79,7 @@ def flag():
 
 def test_row_averager(time, ant1, ant2, uvw, interval, weight, sigma,
                       vis, flag):
-    metadata = better_lookup(time, ant1, ant2, 2)
+    metadata = row_mapper(time, ant1, ant2, 2)
     row_lookup, time_avg = metadata
 
     exposure = interval

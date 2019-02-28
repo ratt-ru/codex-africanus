@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import (unique_baselines, unique_time,
-                                         generate_metadata, better_lookup)
+                                         generate_metadata)
 
 
 @pytest.fixture
@@ -36,35 +36,6 @@ def vis():
                 np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
 
     return _vis
-
-
-def test_better_lookup(time, ant1, ant2):
-    utime, time_inv, _ = unique_time(time)
-    ubl, bl_inv, _ = unique_baselines(ant1, ant2)
-    mask = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
-
-    mask[bl_inv, time_inv] = np.arange(time.size)
-
-    row_map, time_avg = better_lookup(time, ant1, ant2, time_bin_size=2)
-
-    # Now recalculate time_avg using the row_map
-    time_avg_2 = np.zeros_like(time_avg)
-    counts = np.zeros(time_avg.shape, dtype=np.uint32)
-
-    # Add times at row_map indices to time_avg_2
-    np.add.at(time_avg_2, row_map, time)
-    # Add 1 at row_map indices to counts
-    np.add.at(counts, row_map, 1)
-    # Normalise
-    time_avg_2 /= counts
-
-    ant1_avg = np.empty(time_avg.shape, dtype=ant1.dtype)
-    ant2_avg = np.empty(time_avg.shape, dtype=ant2.dtype)
-
-    ant1_avg[row_map] = ant1
-    ant2_avg[row_map] = ant2
-
-    assert_array_equal(time_avg, time_avg_2)
 
 
 def test_unique_time(time):
