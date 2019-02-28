@@ -9,7 +9,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import generate_metadata
-from africanus.averaging.row_averager import row_average, row_chan_average
+from africanus.averaging.row_averager import row_average
 
 
 @pytest.fixture
