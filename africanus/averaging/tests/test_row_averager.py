@@ -77,7 +77,7 @@ def flag():
     return _flag
 
 
-def test_new_averager(time, ant1, ant2, uvw, interval, weight, sigma,
+def test_row_averager(time, ant1, ant2, uvw, interval, weight, sigma,
                       vis, flag):
     metadata = generate_metadata(time, ant1, ant2, 2)
     row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = metadata
