@@ -53,12 +53,21 @@ def test_simplified_lookup(time, ant1, ant2):
     time_avg_2 = np.zeros_like(time_avg)
     counts = np.zeros(time_avg.shape, dtype=np.uint32)
 
-    for i, r in enumerate(row_map):
-        time_avg_2[r] += time[i]
-        counts[r] += 1
-
-    # Normalise by counts
+    # Add times at row_map indices to time_avg_2
+    np.add.at(time_avg_2, row_map, time)
+    # Add 1 at row_map indices to counts
+    np.add.at(counts, row_map, 1)
+    # Normalise
     time_avg_2 /= counts
+
+    ant1_avg = np.empty(time_avg.shape, dtype=ant1.dtype)
+    ant2_avg = np.empty(time_avg.shape, dtype=ant2.dtype)
+
+    ant1_avg[row_map] = ant1
+    ant2_avg[row_map] = ant2
+
+    print(ant1_avg)
+    print(ant2_avg)
 
     assert_array_equal(time_avg, time_avg_2)
 

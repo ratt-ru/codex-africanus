@@ -269,25 +269,22 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
 
         # Recompute time average using row map
         new_time_avg = np.zeros_like(time_avg)
-        ant1_avg = np.zeros(time_avg.shape, dtype=np.int32)
-        ant2_avg = np.zeros(time_avg.shape, dtype=np.int32)
+        ant1_avg = np.empty(time_avg.shape, ant1.dtype)
+        ant2_avg = np.empty(time_avg.shape, ant2.dtype)
         counts = np.empty(time_avg.shape, np.uint32)
 
-        for r in range(time.shape[0]):
-            out_row = row_map[r]              # Lookup output row
-            count[out_row] += 1               # Advance output row sample
-
-            new_time_avg[out_row] += time[r]  # Sum time values
-
-            # We assign baselines because each input baseline
-            # is mapped to the same output baseline
-            ant1_avg[out_row] = ant1[r]
-            ant2_avg[out_row] = ant2[r]
-
+        # Add time and 1 at row_map indices to new_time_avg and counts
+        np.add.at(new_time_avg, row_map, time)
+        np.add.at(counts, row_map, 1)
         # Normalise
         new_time_avg /= count
 
         np.testing.assert_array_equal(time_avg, new_time_avg)
+
+        # We assign baselines because each input baseline
+        # is mapped to the same output baseline
+        ant1_avg[row_map] = ant1
+        ant2_avg[row_map] = ant2
 
     Parameters
     ----------
