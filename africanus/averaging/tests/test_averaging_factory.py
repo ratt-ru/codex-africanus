@@ -62,8 +62,6 @@ def test_averaging_factory():
     corr = 4
 
     time = np.arange(row, dtype=np.float64)
-    vis = (np.random.random((row, chan, corr)) +
-           np.random.random((row, chan, corr))*1j)
 
     TimeAverager = time_averager_factory(time.dtype)
     time_avg = TimeAverager(time.shape[0], 5, time.dtype)
