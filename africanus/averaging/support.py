@@ -318,7 +318,7 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
     row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
     bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
     inv_argsort = scratch[2*nbl*ntime:]
-    time_lookup = np.full((nbl, tbins), sentinel, dtype=time.dtype)
+    time_lookup = np.zeros((nbl, tbins), dtype=time.dtype)
 
     # Construct the row_lookup matrix
     row_lookup[:, :] = -1
@@ -332,32 +332,39 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
     # bin_lookup and time_lookup arrays
     for bl in range(ubl.shape[0]):
         tbin = 0
-        bin_contents = 0
+        bin_count = 0
 
         for t in range(utime.shape[0]):
+            # Lookup input row and ignore if it's not present
             r = row_lookup[bl, t]
 
             if r == -1:
                 continue
 
-            if time_lookup[bl, tbin] == sentinel:
-                time_lookup[bl, tbin] = time[r]
-            else:
-                time_lookup[bl, tbin] += time[r]
-
+            # Map to the relevant bin
             bin_lookup[bl, t] = tbin
-            bin_contents += 1
 
-            if bin_contents == time_bin_size:
-                time_lookup[bl, tbin] /= bin_contents
-                bin_contents = 0
+            # Add sample to the bin and increment the count
+            time_lookup[bl, tbin] += time[r]
+            bin_count += 1
+
+            # Normalise if we've filled a bin
+            if bin_count == time_bin_size:
+                time_lookup[bl, tbin] /= bin_count
+                bin_count = 0
                 tbin += 1
 
-        if bin_contents > 0:
-            time_lookup[bl, tbin] /= bin_contents
+        # Normalise the last bin if necessary
+        if bin_count > 0:
+            time_lookup[bl, tbin] /= bin_count
             tbin += 1
 
+        # Add this baselines number of bins to the output rows
         out_rows += tbin
+
+        # Set any remaining bins to sentinel value
+        for b in range(tbin, tbins):
+            time_lookup[bl, b] = sentinel
 
     # Flatten the time lookup and argsort it
     flat_time = time_lookup.ravel()
@@ -368,7 +375,7 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
         inv_argsort[a] = i
 
     # Construct the final row map
-    row_map = np.empty(time.shape[0], dtype=np.intp)
+    row_map = np.empty(time.shape[0], dtype=np.uint32)
 
     # Foreach input row
     for in_row in range(time.shape[0]):
