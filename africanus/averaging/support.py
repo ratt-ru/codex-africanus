@@ -227,8 +227,87 @@ def generate_metadata(time, ant1, ant2, time_bin_size=1,
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def better_lookup(time, ant1, ant2, time_bin_size=1, chan_bin_size=1):
-    ubl, bl_inv, bl_counts = unique_baselines(ant1, ant2)
+def better_lookup(time, antenna1, antenna2, time_bin_size=1):
+    """
+    Generates a mapping from a high resolution row index to
+    a low resolution row index in support of time and channel
+    averaging code. The `time` column is also averaged during this
+    process in order to produce the mapping.
+
+    In order to average a chunk of row data, it is necessary to
+    group each row (or sample) by baseline and then average
+    the time samples present in each baseline in bins of
+    `time_bin_size`. The algorithm is robust in the presence
+    of missing time and baseline data.
+
+    The algorithm works as follows:
+
+    1. `antenna1`, `antenna2` and `time`are used to construct a
+    `row_lookup` array of shape `(ubl, utime)` mapping a baseline and time
+    to a row of input data.
+
+    2. For each baseline, `time_bin_size` times are averaged together
+    into a `time_lookup` array of shape `(ubl, tbins)`.
+    Not all bins may be filled for a baseline if data is flagged or missing --
+    these bins are assigned a sentinel value set to the
+    maximum floating point value.
+    A secondary `bin_lookup` array of shape `(ubl, utime)` is constructed
+    mapping a time in the `row_lookup` array to a time bin in `time_lookup`.
+
+    3. The `time_lookup` array is flattened and argsorted with a stable
+    merge sort. As missing values are set to the maximum floating point
+    value, this moves valid data to the front and missing data to the back.
+    This has the effect of lexicographically sorts the data
+    in an ascending `(time, bl)` order
+
+    4. Input rows are then mapped via the `row_lookup`, `bin_lookup`
+    and argsorted `time_lookup` arrays to an output row.
+
+    .. code-block:: python
+
+        row_map, time_avg = better_lookup(time, ant1, ant2, time_bin_size=3)
+
+        # Recompute time average using row map
+        new_time_avg = np.zeros_like(time_avg)
+        ant1_avg = np.zeros(time_avg.shape, dtype=np.int32)
+        ant2_avg = np.zeros(time_avg.shape, dtype=np.int32)
+        counts = np.empty(time_avg.shape, np.uint32)
+
+        for r in range(time.shape[0]):
+            out_row = row_map[r]              # Lookup output row
+            count[out_row] += 1               # Advance output row sample
+
+            new_time_avg[out_row] += time[r]  # Sum time values
+
+            # We assign baselines because each input baseline
+            # is mapped to the same output baseline
+            ant1_avg[out_row] = ant1[r]
+            ant2_avg[out_row] = ant2[r]
+
+        # Normalise
+        new_time_avg /= count
+
+        np.testing.assert_array_equal(time_avg, new_time_avg)
+
+    Parameters
+    ----------
+    time : :class:`numpy.ndarray`
+        Time values of shape :code:`(row,)`
+    antenna1 : :class:`numpy.ndarray`
+        Antenna 1 values of shape :code:`(row,)`
+    antenna2 : :class:`numpy.ndarray`
+        Antenna 2 values of shape :code:`(row,)`
+    time_bin_size : int, optional
+        Number of timesteps to average into each bin
+
+    Returns
+    -------
+    row_lookup : :class:`numpy.ndarray`
+        Mapping from `np.arange(row)` to output row indices
+    time_avg : :class:`numpy.ndarray`
+        Averaged time values of shape :code:`(out_row,)`
+    """
+    ubl, bl_inv, bl_counts = unique_baselines(antenna1, antenna2)
     utime, time_inv, time_counts = unique_time(time)
 
     nbl = ubl.shape[0]
@@ -239,25 +318,26 @@ def better_lookup(time, ant1, ant2, time_bin_size=1, chan_bin_size=1):
     out_rows = 0
 
     scratch = np.empty(2*nbl*ntime + nbl*tbins, dtype=np.intp)
-    in_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
+    row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
     bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
     inv_argsort = scratch[2*nbl*ntime:]
     time_lookup = np.full((nbl, tbins), sentinel, dtype=time.dtype)
 
-    in_lookup[:, :] = -1
+    # Construct the row_lookup matrix
+    row_lookup[:, :] = -1
 
     for r in range(time.shape[0]):
         bl = bl_inv[r]
         t = time_inv[r]
-        in_lookup[bl, t] = r
+        row_lookup[bl, t] = r
 
-    # Average time over each baseline
+    # Average times over each baseline and construct the bin_lookup matrix
     for bl in range(ubl.shape[0]):
         tbin = 0
         bin_contents = 0
 
         for t in range(utime.shape[0]):
-            r = in_lookup[bl, t]
+            r = row_lookup[bl, t]
 
             if r == -1:
                 continue
@@ -281,8 +361,8 @@ def better_lookup(time, ant1, ant2, time_bin_size=1, chan_bin_size=1):
 
         out_rows += tbin
 
+    # Flatten the time lookup and argsort it
     flat_time = time_lookup.ravel()
-
     argsort = np.argsort(flat_time, kind='mergesort')
 
     for i, a in enumerate(argsort):
