@@ -10,8 +10,6 @@ import numba
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def channel_mapper(nchan, chan_bin_size=1):
-    chan_bins = (nchan + chan_bin_size - 1) // chan_bin_size
-
     chan_map = np.empty(nchan, dtype=np.uint32)
 
     chan_bin = 0

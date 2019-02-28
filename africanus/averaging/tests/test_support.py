@@ -25,7 +25,7 @@ def ant1():
 
 @pytest.fixture
 def ant2():
-    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2], # noqa
+    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2],  # noqa
                       dtype=np.int32)
 
 
