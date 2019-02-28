@@ -58,8 +58,6 @@ def test_row_iterator():
 
 def test_averaging_factory():
     row = 40
-    chan = 16
-    corr = 4
 
     time = np.arange(row, dtype=np.float64)
 
