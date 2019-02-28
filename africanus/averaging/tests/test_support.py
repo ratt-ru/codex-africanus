@@ -66,9 +66,6 @@ def test_simplified_lookup(time, ant1, ant2):
     ant1_avg[row_map] = ant1
     ant2_avg[row_map] = ant2
 
-    print(ant1_avg)
-    print(ant2_avg)
-
     assert_array_equal(time_avg, time_avg_2)
 
 
