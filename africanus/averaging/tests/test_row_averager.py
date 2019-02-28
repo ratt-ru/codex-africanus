@@ -132,8 +132,3 @@ def test_row_averager(time, ant1, ant2, uvw, interval, weight, sigma,
     assert_array_equal(exposure_avg, expected_exposure)
     assert_array_equal(weight_avg, expected_weight)
     assert_array_equal(sigma_avg, expected_sigma)
-
-    row_chan_average(metadata,
-                     vis(10, 64, 4).reshape(10, 64, 4),
-                     flag(10, 64, 4).reshape(10, 64, 4),
-                     chan_bin_size=16)
