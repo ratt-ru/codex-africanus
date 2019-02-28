@@ -328,7 +328,8 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
         t = time_inv[r]
         row_lookup[bl, t] = r
 
-    # Average times over each baseline and construct the bin_lookup matrix
+    # Average times over each baseline and construct the
+    # bin_lookup and time_lookup arrays
     for bl in range(ubl.shape[0]):
         tbin = 0
         bin_contents = 0
@@ -362,16 +363,22 @@ def better_lookup(time, antenna1, antenna2, time_bin_size=1):
     flat_time = time_lookup.ravel()
     argsort = np.argsort(flat_time, kind='mergesort')
 
+    # Generate lookup from flattened (bl, tbin) to output row
     for i, a in enumerate(argsort):
         inv_argsort[a] = i
 
+    # Construct the final row map
     row_map = np.empty(time.shape[0], dtype=np.intp)
 
+    # Foreach input row
     for in_row in range(time.shape[0]):
+        # Lookup baseline and time
         bl = bl_inv[in_row]
         t = time_inv[in_row]
 
+        # lookup time bin
         tbin = bin_lookup[bl, t]
+        # lookup output row in inv_argsort
         row_map[in_row] = inv_argsort[bl*tbins + tbin]
 
     return row_map, flat_time[argsort[:out_rows]]
