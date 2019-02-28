@@ -224,3 +224,77 @@ def generate_metadata(time, ant1, ant2, time_bin_size=1,
                 out_rows, time_bin_size, sentinel)
 
     return impl
+
+
+@numba.jit(nopython=True, nogil=True, cache=True)
+def better_lookup(time, ant1, ant2, time_bin_size=1, chan_bin_size=1):
+    ubl, bl_inv, bl_counts = unique_baselines(ant1, ant2)
+    utime, time_inv, time_counts = unique_time(time)
+
+    nbl = ubl.shape[0]
+    ntime = utime.shape[0]
+    tbins = (ntime + time_bin_size - 1) // time_bin_size
+
+    sentinel = np.finfo(time.dtype).max
+    out_rows = 0
+
+    scratch = np.empty(2*nbl*ntime + nbl*tbins, dtype=np.intp)
+    in_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
+    bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
+    inv_argsort = scratch[2*nbl*ntime:]
+    time_lookup = np.full((nbl, tbins), sentinel, dtype=time.dtype)
+
+    in_lookup[:, :] = -1
+
+    for r in range(time.shape[0]):
+        bl = bl_inv[r]
+        t = time_inv[r]
+        in_lookup[bl, t] = r
+
+    # Average time over each baseline
+    for bl in range(ubl.shape[0]):
+        tbin = 0
+        bin_contents = 0
+
+        for t in range(utime.shape[0]):
+            r = in_lookup[bl, t]
+
+            if r == -1:
+                continue
+
+            if time_lookup[bl, tbin] == sentinel:
+                time_lookup[bl, tbin] = time[r]
+            else:
+                time_lookup[bl, tbin] += time[r]
+
+            bin_lookup[bl, t] = tbin
+            bin_contents += 1
+
+            if bin_contents == time_bin_size:
+                time_lookup[bl, tbin] /= bin_contents
+                bin_contents = 0
+                tbin += 1
+
+        if bin_contents > 0:
+            time_lookup[bl, tbin] /= bin_contents
+            tbin += 1
+
+        out_rows += tbin
+
+    flat_time = time_lookup.ravel()
+
+    argsort = np.argsort(flat_time, kind='mergesort')
+
+    for i, a in enumerate(argsort):
+        inv_argsort[a] = i
+
+    row_map = np.empty(time.shape[0], dtype=np.intp)
+
+    for in_row in range(time.shape[0]):
+        bl = bl_inv[in_row]
+        t = time_inv[in_row]
+
+        tbin = bin_lookup[bl, t]
+        row_map[in_row] = inv_argsort[bl*tbins + tbin]
+
+    return row_map, flat_time[argsort[:out_rows]]
