@@ -6,8 +6,10 @@ from __future__ import print_function
 
 from os.path import join as pjoin
 
+import numpy as np
 
-from africanus.model.apps.wsclean_file_model import wsclean
+
+from africanus.model.apps.wsclean_file_model import wsclean, spectral_model
 
 _WSCLEAN_MODEL_FILE = ("""
 Format = Name, Type, Ra, Dec, I, SpectralIndex, LogarithmicSI, ReferenceFrequency='125584411.621094', MajorAxis, MinorAxis, Orientation
@@ -27,5 +29,18 @@ def test_wsclean_model_file(tmpdir):
         f.write(_WSCLEAN_MODEL_FILE)
 
     point, gaussian = wsclean(filename)
-    print(point)
-    print(gaussian)
+
+    _, _, _, _, I, spi, log_si, ref_freq = point
+    freq = np.linspace(.856e9, .856e9*2, 16)
+
+    I = np.asarray(I)
+    spi = np.asarray(spi)
+    log_si = np.asarray(log_si)
+    ref_freq = np.asarray(ref_freq)
+
+    # log_si array of bools
+    model = spectral_model(I, spi, log_si, ref_freq, freq)
+
+    # True or False log_si
+    model = spectral_model(I, spi, True, ref_freq, freq)
+    model = spectral_model(I, spi, False, ref_freq, freq)
