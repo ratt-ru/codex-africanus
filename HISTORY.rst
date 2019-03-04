@@ -4,6 +4,7 @@ History
 
 0.1.3 (2018-03-28)
 ------------------
+* wsclean spectral model (:pr:`81`)
 * Compare predict versus MeqTrees (:pr:`79`)
 * Time and channel averaging (:pr:`75`)
 * cupy implementation of `predict_vis` (:pr:`73`)
