@@ -11,19 +11,18 @@ import re
 from africanus.compatibility import string_types
 
 import numba
-from numba import from_dtype
 import numpy as np
 
 
 hour_re = re.compile(r"(?P<sign>[-]*)"
-                     "(?P<hours>\d+):"
-                     "(?P<mins>\d+):"
-                     "(?P<secs>\d+\.\d+)")
+                     r"(?P<hours>\d+):"
+                     r"(?P<mins>\d+):"
+                     r"(?P<secs>\d+\.\d+)")
 
 deg_re = re.compile(r"(?P<sign>[-])*"
-                    "(?P<degs>\d+)\."
-                    "(?P<mins>\d+)\."
-                    "(?P<secs>\d+\.\d+)")
+                    r"(?P<degs>\d+)\."
+                    r"(?P<mins>\d+)\."
+                    r"(?P<secs>\d+\.\d+)")
 
 
 def _hour_converter(hour_str):

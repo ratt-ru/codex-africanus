@@ -33,7 +33,7 @@ def test_wsclean_model_file(tmpdir):
     _, _, _, _, I, spi, log_si, ref_freq = point
     freq = np.linspace(.856e9, .856e9*2, 16)
 
-    I = np.asarray(I)
+    I = np.asarray(I)  # noqa
     spi = np.asarray(spi)
     log_si = np.asarray(log_si)
     ref_freq = np.asarray(ref_freq)
@@ -43,4 +43,4 @@ def test_wsclean_model_file(tmpdir):
 
     # True or False log_si
     model = spectral_model(I, spi, True, ref_freq, freq)
-    model = spectral_model(I, spi, False, ref_freq, freq)
+    model = spectral_model(I, spi, False, ref_freq, freq)  # noqa
