@@ -19,6 +19,7 @@ s0c2,POINT,08:18:44.309,39.38.37.773,0.000233552686127518,[-0.000869089801859608
 s0c3,POINT,08:03:07.538,39.37.02.717,0.000919058240247659,[0.001264109956439,0.0201438425344451],false,125584411.621094,,,
 s1c0,GAUSSIAN,08:31:10.37,41.47.17.131,0.000723326710524984,[0.00344317919656096,-0.115990377833407],false,125584411.621094,83.6144111272856,83.6144111272856,0
 s1c1,GAUSSIAN,07:51:09.24,42.32.46.177,0.000660490865128381,[0.00404869217508666,-0.011844732049232],false,125584411.621094,83.6144111272856,83.6144111272856,0
+s1c2,GAUSSIAN,07:51:09.24,42.32.46.177,0.000660490865128381,[0.00404869217508666,-0.011844732049232],false,,83.6144111272856,83.6144111272856,0
 """)  # noqa
 
 
@@ -28,9 +29,9 @@ def test_wsclean_model_file(tmpdir):
     with open(filename, "w") as f:
         f.write(_WSCLEAN_MODEL_FILE)
 
-    point, gaussian = wsclean(filename)
+    sources = wsclean(filename)
 
-    _, _, _, _, I, spi, log_si, ref_freq = point
+    name, stype, _, _, I, spi, log_si, ref_freq, _, _, _ = sources
     freq = np.linspace(.856e9, .856e9*2, 16)
 
     I = np.asarray(I)  # noqa
@@ -44,3 +45,11 @@ def test_wsclean_model_file(tmpdir):
     # True or False log_si
     model = spectral_model(I, spi, True, ref_freq, freq)
     model = spectral_model(I, spi, False, ref_freq, freq)  # noqa
+
+    # Seven sources
+    assert (I.shape[0] == spi.shape[0] ==
+            log_si.shape[0] == ref_freq.shape[0] == 7)
+    # Missing reference frequency set in the last
+    assert (ref_freq[-1] == ref_freq[0] and
+            name[-1] == "s1c2" and
+            stype[-1] == "GAUSSIAN")

@@ -76,37 +76,45 @@ _COLUMN_CONVERTERS = [
 ]
 
 
-# Split on commas, ignoring within []
+# Split on commas, ignoring within [] brackets
 _COMMA_SPLIT_RE = re.compile(r',\s*(?=[^\]]*(?:\[|$))')
+
+# Parse columm headers, handling possible defaults
+_COL_HEADER_RE = re.compile(r"^\s*?(?P<name>.*?)"
+                            r"(\s*?=\s*?'(?P<default>.*?)'\s*?){0,1}$")
 
 
 def _parse_col_descriptor(column_descriptor):
     components = [c.strip() for c in column_descriptor.split(",")]
 
-    ref_freq = None
     columns = []
+    defaults = []
 
     for column in components:
-        if column.startswith('ReferenceFrequency'):
-            columns.append("ReferenceFrequency")
-            str_value = column.split("=")[-1]
-            str_value = str_value[1:-1]
+        m = _COL_HEADER_RE.search(column)
 
-            try:
-                ref_freq = float(str_value)
-            except ValueError as e:
-                raise ValueError("Unable to extract reference frequency "
-                                 "'%s' from '%s': %s\n",
-                                 str_value, column, e)
-        else:
-            columns.append(column)
+        if m is None:
+            raise ValueError("'%s' is not a valid column header" % column)
 
-    return columns, ref_freq
+        name, default = m.group('name', 'default')
+
+        columns.append(name)
+        defaults.append(default)
+
+    return columns, defaults
 
 
-def _parse_lines(fh, line_nr, column_names, converters):
-    point_data = [[] for _ in range(len(column_names) - 3)]
-    gauss_data = [[] for _ in range(len(column_names))]
+def _parse_header(header):
+    format_str, col_desc = (c.strip() for c in header.split("=", 1))
+
+    if format_str != "Format":
+        raise ValueError("'%s' does not appear to be a wsclean header")
+
+    return _parse_col_descriptor(col_desc)
+
+
+def _parse_lines(fh, line_nr, column_names, defaults, converters):
+    source_data = [[] for _ in range(len(column_names))]
 
     for line_nr, line in enumerate(fh, line_nr):
         components = [c.strip() for c in re.split(_COMMA_SPLIT_RE, line)]
@@ -115,21 +123,29 @@ def _parse_lines(fh, line_nr, column_names, converters):
             raise ValueError("line %d '%s' should have %d components" %
                              (line_nr, line, len(column_names)))
 
-        source_type = components[1].upper()
+        # Iterate through each column's data
+        it = zip(column_names, components, converters, source_data, defaults)
 
-        if source_type == "POINT":
-            it = zip(components[:-3], converters[:-3], point_data)
-            for comp, conv, data_list in it:
-                data_list.append(conv(comp))
-        elif source_type == "GAUSSIAN":
-            it = zip(components, converters, gauss_data)
-            for comp, conv, data_list in it:
-                data_list.append(conv(comp))
-        else:
-            raise ValueError("type '%s' not in (POINT, GAUSSIAN)"
-                             % source_type)
+        for name, comp, conv, data_list, default in it:
+            if not comp:
+                if default is None:
+                    try:
+                        default = conv()
+                    except Exception as e:
+                        raise ValueError("No value supplied for column '%s' "
+                                         "on line %d and no default was "
+                                         "supplied either. Attempting to "
+                                         "generate a default produced the "
+                                         "following exception %s"
+                                         % (name, line_nr, str(e)))
 
-    return point_data, gauss_data
+                value = default
+            else:
+                value = comp
+
+            data_list.append(conv(value))
+
+    return source_data
 
 
 def wsclean(filename):
@@ -166,19 +182,14 @@ def wsclean(filename):
             raise ValueError("'%s' does not contain a valid wsclean header"
                              % filename)
 
-        format_str, col_desc = (c.strip() for c in header.split("=", 1))
-
-        if format_str != "Format":
-            raise ValueError("'%s' does not appear to be a wsclean header")
-
-        column_names, ref_freq = _parse_col_descriptor(col_desc)
+        column_names, defaults = _parse_header(header)
         conv_names, converters = zip(*_COLUMN_CONVERTERS)
 
         if not conv_names == tuple(column_names):
             raise ValueError("header columns '%s' do not match expected '%s'"
                              % (conv_names, column_names))
 
-        return _parse_lines(fh, line_nr, column_names, converters)
+        return _parse_lines(fh, line_nr, column_names, defaults, converters)
     finally:
         if close_filename:
             fh.close()
