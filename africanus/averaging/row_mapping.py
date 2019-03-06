@@ -8,10 +8,33 @@ import numpy as np
 import numba
 
 from africanus.averaging.support import unique_time, unique_baselines
+from africanus.util.numba import is_numba_type_none
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def row_mapper(time, antenna1, antenna2, time_bin_size=1):
+def _is_flagged_factory(have_flag_row):
+    if have_flag_row:
+        def impl(flag_row, r):
+            return flag_row[r] != 0
+    else:
+        def impl(flag_row, r):
+            return False
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
+def _row_or_minus_one_factory(have_flag_row):
+    if have_flag_row:
+        def impl(flag_row, r):
+            return r if flag_row[r] == 0 else -1
+    else:
+        def impl(flag_row, r):
+            return r
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
+def row_mapper(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
     """
     Generates a mapping from a high resolution row index to
     a low resolution row index in support of time and channel
@@ -78,6 +101,9 @@ def row_mapper(time, antenna1, antenna2, time_bin_size=1):
         Antenna 1 values of shape :code:`(row,)`
     antenna2 : :class:`numpy.ndarray`
         Antenna 2 values of shape :code:`(row,)`
+    flag_row : :class:`numpy.ndarray`, optional
+        Positive values indicate that a row is flagged, while
+        zero implies unflagged. Has shape :code:`(row,)`.
     time_bin_size : int, optional
         Number of timesteps to average into each bin
 
@@ -88,88 +114,116 @@ def row_mapper(time, antenna1, antenna2, time_bin_size=1):
     time_avg : :class:`numpy.ndarray`
         Averaged time values of shape :code:`(out_row,)`
     """
-    ubl, bl_inv, bl_counts = unique_baselines(antenna1, antenna2)
-    utime, time_inv, time_counts = unique_time(time)
+    have_flag_row = not is_numba_type_none(flag_row)
+    row_or_minus_one_fn = _row_or_minus_one_factory(have_flag_row)
+    is_flagged_fn = _is_flagged_factory(have_flag_row)
 
-    nbl = ubl.shape[0]
-    ntime = utime.shape[0]
-    tbins = (ntime + time_bin_size - 1) // time_bin_size
+    def impl(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
+        ubl, bl_inv, bl_counts = unique_baselines(antenna1, antenna2)
+        utime, time_inv, time_counts = unique_time(time)
 
-    sentinel = np.finfo(time.dtype).max
-    out_rows = 0
+        nbl = ubl.shape[0]
+        ntime = utime.shape[0]
+        tbins = (ntime + time_bin_size - 1) // time_bin_size
 
-    scratch = np.empty(2*nbl*ntime + nbl*tbins, dtype=np.intp)
-    row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
-    bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
-    inv_argsort = scratch[2*nbl*ntime:]
-    time_lookup = np.zeros((nbl, tbins), dtype=time.dtype)
+        sentinel = np.finfo(time.dtype).max
+        out_rows = 0
 
-    # Construct the row_lookup matrix
-    row_lookup[:, :] = -1
+        scratch = np.empty(2*nbl*ntime + nbl*tbins, dtype=np.intp)
+        row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
+        bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
+        inv_argsort = scratch[2*nbl*ntime:]
+        time_lookup = np.zeros((nbl, tbins), dtype=time.dtype)
 
-    for r in range(time.shape[0]):
-        bl = bl_inv[r]
-        t = time_inv[r]
-        row_lookup[bl, t] = r
+        # Construct the row_lookup matrix
+        row_lookup[:, :] = -1
+        bin_lookup[:, :] = -1
 
-    # Average times over each baseline and construct the
-    # bin_lookup and time_lookup arrays
-    for bl in range(ubl.shape[0]):
-        tbin = 0
-        bin_count = 0
+        flagged_rows = 0
 
-        for t in range(utime.shape[0]):
-            # Lookup input row and ignore if it's not present
-            r = row_lookup[bl, t]
+        for r in range(time.shape[0]):
+            bl = bl_inv[r]
+            t = time_inv[r]
 
-            if r == -1:
-                continue
+            if is_flagged_fn(flag_row, r):
+                r = -1
+                flagged_rows += 1
 
-            # Map to the relevant bin
-            bin_lookup[bl, t] = tbin
+            row_lookup[bl, t] = r
 
-            # Add sample to the bin and increment the count
-            time_lookup[bl, tbin] += time[r]
-            bin_count += 1
+        # Average times over each baseline and construct the
+        # bin_lookup and time_lookup arrays
+        for bl in range(ubl.shape[0]):
+            tbin = 0
+            bin_count = 0
 
-            # Normalise if we've filled a bin
-            if bin_count == time_bin_size:
+            for t in range(utime.shape[0]):
+                # Lookup input row and ignore if it's not present
+                r = row_lookup[bl, t]
+
+                if r == -1:
+                    continue
+
+                # Map to the relevant bin
+                bin_lookup[bl, t] = tbin
+
+                # Add sample to the bin and increment the count
+                time_lookup[bl, tbin] += time[r]
+                bin_count += 1
+
+                # Normalise if we've filled a bin
+                if bin_count == time_bin_size:
+                    time_lookup[bl, tbin] /= bin_count
+                    bin_count = 0
+                    tbin += 1
+
+            # Normalise the last bin if necessary
+            if bin_count > 0:
                 time_lookup[bl, tbin] /= bin_count
-                bin_count = 0
                 tbin += 1
 
-        # Normalise the last bin if necessary
-        if bin_count > 0:
-            time_lookup[bl, tbin] /= bin_count
-            tbin += 1
+            # Add this baselines number of bins to the output rows
+            out_rows += tbin
 
-        # Add this baselines number of bins to the output rows
-        out_rows += tbin
+            # Set any remaining bins to sentinel value
+            for b in range(tbin, tbins):
+                time_lookup[bl, b] = sentinel
 
-        # Set any remaining bins to sentinel value
-        for b in range(tbin, tbins):
-            time_lookup[bl, b] = sentinel
+        # Flatten the time lookup and argsort it
+        flat_time = time_lookup.ravel()
+        argsort = np.argsort(flat_time, kind='mergesort')
 
-    # Flatten the time lookup and argsort it
-    flat_time = time_lookup.ravel()
-    argsort = np.argsort(flat_time, kind='mergesort')
+        # Generate lookup from flattened (bl, tbin) to output row
+        for i, a in enumerate(argsort):
+            inv_argsort[a] = i
 
-    # Generate lookup from flattened (bl, tbin) to output row
-    for i, a in enumerate(argsort):
-        inv_argsort[a] = i
+        # Construct the final row map
+        row_map = np.empty((time.shape[0] - flagged_rows, 2), dtype=np.uint32)
 
-    # Construct the final row map
-    row_map = np.empty(time.shape[0], dtype=np.uint32)
+        flags_found = 0
 
-    # Foreach input row
-    for in_row in range(time.shape[0]):
-        # Lookup baseline and time
-        bl = bl_inv[in_row]
-        t = time_inv[in_row]
+        # Foreach input row
+        for in_row in range(time.shape[0]):
+            # Lookup baseline and time
+            bl = bl_inv[in_row]
+            t = time_inv[in_row]
 
-        # lookup time bin
-        tbin = bin_lookup[bl, t]
-        # lookup output row in inv_argsort
-        row_map[in_row] = inv_argsort[bl*tbins + tbin]
+            # flagged, ignore input row
+            if is_flagged_fn(flag_row, in_row):
+                flags_found += 1
+                continue
 
-    return row_map, flat_time[argsort[:out_rows]]
+            # Adjust map row for flagged rows
+            map_row = in_row - flags_found
+
+            # lookup time bin and output row
+            tbin = bin_lookup[bl, t]
+            out_row = inv_argsort[bl*tbins + tbin]
+
+            # lookup output row in inv_argsort
+            row_map[map_row, 0] = in_row
+            row_map[map_row, 1] = out_row
+
+        return row_map, flat_time[argsort[:out_rows]]
+
+    return impl

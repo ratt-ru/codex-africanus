@@ -8,6 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
+from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.row_mapping import row_mapper
 from africanus.averaging.new_averager import row_average
 
@@ -77,10 +78,70 @@ def flag():
     return _flag
 
 
-def test_row_averager(time, ant1, ant2, uvw, interval, weight, sigma,
-                      vis, flag):
-    metadata = row_mapper(time, ant1, ant2, 2)
+def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
+    """
+    Generates the same lookup as row_mapper, but different.
+
+    Returns
+    -------
+    list of (float, (int, int), list of lists)
+        Each tuple in the list corresponds to an output row, and
+        is composed of `(avg_time, (ant1, ant2), binned_input_rows)`
+
+    """
+    utime, time_inv, _ = unique_time(time)
+    ubl, bl_inv, _ = unique_baselines(ant1, ant2)
+    bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1,
+                             dtype=np.int32)
+
+    # Create the row index
+    row_idx = np.arange(time.size)
+
+    # Set flagged rows to -1 to indicate missing data
+    row_idx[flag_row > 0] = -1
+
+    # Assign the row indices
+    bl_time_lookup[bl_inv, time_inv] = row_idx
+
+    # Create the time, baseline, row map
+    time_bl_row_map = []
+
+    for bl, (a1, a2) in enumerate(ubl):
+        bl_row_idx = tmp = bl_time_lookup[bl, :]
+        # Removing missing rows
+        bl_row_idx = bl_row_idx[bl_row_idx != -1]
+        # Split the row indices on the size of the time bin
+        split_idx = np.arange(time_bin_size, bl_row_idx.size, time_bin_size)
+        bin_map = [bm for bm in np.split(bl_row_idx, split_idx)
+                   if bm.size != 0]
+
+        # Produce a (avg_time, bl, rows) tuple
+        time_bl_row_map.extend((time[rows].mean(), (a1, a2), rows.tolist())
+                               for rows in bin_map)
+
+    # Sort lookup sorted on averaged times
+    return sorted(time_bl_row_map, key=lambda tup: tup[0])
+
+
+@pytest.mark.parametrize("flagged_rows", [
+    [], [8, 9], [4], [0, 1],
+])
+@pytest.mark.parametrize("time_bin_size", [1, 2, 3, 4])
+def test_row_averager(time, ant1, ant2, flagged_rows,
+                      uvw, interval, weight, sigma,
+                      vis, flag, time_bin_size):
+
+    flag_row = np.zeros(time.shape, dtype=np.uint8)
+    flag_row[flagged_rows] = 1
+
+    time_bl_row_map = _gen_testing_lookup(time, ant1, ant2,
+                                          flag_row, time_bin_size)
+
+    metadata = row_mapper(time, ant1, ant2, flag_row, time_bin_size)
     row_lookup, time_avg = metadata
+
+    # Check that the averaged times from the test and accelerated lookup match
+    assert_array_equal([t for t, _, _ in time_bl_row_map], time_avg)
 
     exposure = interval
 
@@ -92,42 +153,26 @@ def test_row_averager(time, ant1, ant2, uvw, interval, weight, sigma,
      interval_avg, exposure_avg,
      weight_avg, sigma_avg) = tup
 
-    # Write out expected times, ant1 and ant2
-    # Baseline 0 [0-2]: 1.0   -- from baselines [1]
-    # Baseline 1 [0-1]: 1.5   -- from baselines [0, 4]
-    # Baseline 2 [1-2]: 1.5   -- from baselines [2, 5]
-    # Baseline 3 [2-3]: 2.0   -- from baselines [6]
-    # Baseline 4 [0-0]: 2.5   -- from baselines [3, 7]
-    # Baseline 5 [0-1]: 3.0   -- from baselines [8]
-    # Baseline 6 [1-2]: 3.0   -- from baselines [9]
-    written_ant1 = np.array([0, 0, 1, 2, 0, 0, 1])
-    written_ant2 = np.array([2, 1, 2, 3, 0, 1, 2])
-    written_times = np.array([1.0,  1.5,  1.5,  2.0,  2.5, 3.0,  3.0])
-
-    idx = [[1], [0, 4], [2, 5], [6], [3, 7], [8], [9]]
-    bin_size = np.array([len(i) for i in idx])
+    # Input rows associated with each output row
+    row_idx = [row for _, _, row in time_bl_row_map]
 
     # Take mean time, but first ant1 and ant2
-    expected_times = [time[i].sum() for i in idx] / bin_size
-    expected_ant1 = [ant1[i[0]] for i in idx]
-    expected_ant2 = [ant2[i[0]] for i in idx]
-
-    assert_array_equal(written_times, expected_times)
-    assert_array_equal(written_ant1, expected_ant1)
-    assert_array_equal(written_ant2, expected_ant2)
+    expected_times = [time[i].mean(axis=0) for i in row_idx]
+    expected_ant1 = [ant1[i[0]] for i in row_idx]
+    expected_ant2 = [ant2[i[0]] for i in row_idx]
 
     # Take mean average, but sum of interval and exposure
-    expected_uvw = [uvw[i].sum(axis=0) for i in idx] / bin_size[:, None]
-    expected_interval = [interval[i].sum() for i in idx]
-    expected_exposure = [exposure[i].sum() for i in idx]
-    expected_weight = [weight[i].sum(axis=0) for i in idx] / bin_size[:, None]
-    expected_sigma = [sigma[i].sum(axis=0) for i in idx] / bin_size[:, None]
+    expected_uvw = [uvw[i].mean(axis=0) for i in row_idx]
+    expected_interval = [interval[i].sum(axis=0) for i in row_idx]
+    expected_exposure = [exposure[i].sum(axis=0) for i in row_idx]
+    expected_weight = [weight[i].mean(axis=0) for i in row_idx]
+    expected_sigma = [sigma[i].mean(axis=0) for i in row_idx]
 
     assert_array_equal(time_avg, expected_times)
     assert_array_equal(ant1_avg, expected_ant1)
     assert_array_equal(ant2_avg, expected_ant2)
-    assert_array_equal(uvw_avg, expected_uvw)
     assert_array_equal(time_centroid_avg, time_avg)
+    assert_array_equal(uvw_avg, expected_uvw)
     assert_array_equal(interval_avg, expected_interval)
     assert_array_equal(exposure_avg, expected_exposure)
     assert_array_equal(weight_avg, expected_weight)

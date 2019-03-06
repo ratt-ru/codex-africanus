@@ -53,8 +53,6 @@ def row_average(metadata, ant1, ant2,
                 interval=None, exposure=None,
                 weight=None, sigma=None):
 
-    row_lookup, time = metadata
-
     have_uvw = not is_numba_type_none(uvw)
     have_time_centroid = not is_numba_type_none(time_centroid)
     have_interval = not is_numba_type_none(interval)
@@ -104,8 +102,9 @@ def row_average(metadata, ant1, ant2,
         sigma_avg = sigma_factory(out_rows, sigma)
 
         # Iterate over input rows, accumulating into output rows
-        for in_row in range(ant1.shape[0]):
-            out_row = row_lookup[in_row]
+        for i in range(row_lookup.shape[0]):
+            in_row = row_lookup[i, 0]
+            out_row = row_lookup[i, 1]
             counts[out_row] += 1
 
             # Here we can simply assign because input_row baselines
@@ -124,6 +123,7 @@ def row_average(metadata, ant1, ant2,
         # Normalise
         for out_row in range(out_rows):
             count = counts[out_row]
+
             uvw_normaliser(uvw_avg, out_row, count)
             centroid_normaliser(centroid_avg, out_row, count)
             weight_normaliser(weight_avg, out_row, count)
