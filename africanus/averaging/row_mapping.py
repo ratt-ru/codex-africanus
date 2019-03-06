@@ -107,8 +107,8 @@ def row_mapper(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
     is_flagged_fn = _is_flagged_factory(have_flag_row)
 
     def impl(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
-        ubl, bl_inv, bl_counts = unique_baselines(antenna1, antenna2)
-        utime, time_inv, time_counts = unique_time(time)
+        ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
+        utime, _, time_inv, _ = unique_time(time)
 
         nbl = ubl.shape[0]
         ntime = utime.shape[0]

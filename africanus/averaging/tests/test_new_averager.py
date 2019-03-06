@@ -89,8 +89,8 @@ def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
         is composed of `(avg_time, (ant1, ant2), binned_input_rows)`
 
     """
-    utime, time_inv, _ = unique_time(time)
-    ubl, bl_inv, _ = unique_baselines(ant1, ant2)
+    utime, _, time_inv, _ = unique_time(time)
+    ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1,
                              dtype=np.int32)
 

@@ -39,38 +39,25 @@ def vis():
 
 
 def test_unique_time(time):
+    # Reverse time to test that sort works
     time = np.flipud(time)
 
-    utime, inv, counts = unique_time(time)
+    utime, idx, inv, counts = unique_time(time)
     assert_array_equal(utime, [1.0, 2.0, 3.0])
     assert_array_equal(utime[inv], time)
+    assert_array_equal(time[idx], utime)
     assert_array_equal(counts, [3, 4, 3])
 
 
 def test_unique_baselines(ant1, ant2):
+    # Reverse ant1, ant2 to test that sort works
     ant1 = np.flipud(ant1)
     ant2 = np.flipud(ant2)
 
-    bl, inv, counts = unique_baselines(ant1, ant2)
+    test_bl = np.stack([ant1, ant2], axis=1)
+
+    bl, idx, inv, counts = unique_baselines(ant1, ant2)
     assert_array_equal(bl, [[0, 0], [0, 1], [0, 2], [1, 2], [2, 3]])
-    assert_array_equal(bl[inv], np.stack([ant1, ant2], axis=1))
+    assert_array_equal(bl[inv], test_bl)
+    assert_array_equal(test_bl[idx], bl)
     assert_array_equal(counts, [2, 3, 1, 3, 1])
-
-
-def test_lookups(time, ant1, ant2, vis):
-    tup = generate_metadata(time, ant1, ant2)
-    row_lookup, time_lookup, out_lookup, out_rows, tbins, sentinel = tup
-
-    # Another way of generating the row_lookup
-    utime, time_inv, _ = unique_time(time)
-    ubl, bl_inv, _ = unique_baselines(ant1, ant2)
-    expected_row_lookup = np.full((ubl.shape[0], utime.shape[0]), -1,
-                                  dtype=np.int32)
-    expected_row_lookup[bl_inv, time_inv] = np.arange(time.size)
-
-    expected_out_lookup = [3, 7, 10,  0,  4,  8,  1, 11, 12,
-                           2,  5,  9,  6, 13, 14]
-
-    assert_array_equal(expected_row_lookup, row_lookup)
-    assert_array_equal(expected_out_lookup, out_lookup)
-    assert_array_equal(out_rows, np.count_nonzero(row_lookup != -1))

@@ -45,7 +45,7 @@ def _unique_internal_inverse(data):
 
     counts.append(aux.shape[0])
 
-    return aux[mask], inv_idx, np.diff(np.array(counts))
+    return aux[mask], perm[mask], inv_idx, np.diff(np.array(counts))
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
@@ -82,12 +82,12 @@ def unique_baselines(ant1, ant2):
         # Cast to int64 for the unique operation
         bl = bl_32bit.view(np.int64).reshape(ant1.shape[0])
 
-        ret, inv, counts = _unique_internal_inverse(bl)
+        ret, idx, inv, counts = _unique_internal_inverse(bl)
 
         # Recast to int32 and reshape
         ubl = ret.view(np.int32).reshape(ret.shape[0], 2)
 
-        return ubl, inv, counts
+        return ubl, idx, inv, counts
 
     return impl
 
