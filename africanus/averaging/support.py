@@ -11,9 +11,9 @@ from africanus.util.numba import is_numba_type_none
 
 
 @numba.njit(nogil=True, cache=True)
-def _unique_internal_inverse(data):
+def _unique_internal(data):
     if len(data.shape) != 1:
-        raise ValueError("_unique_internal_inverse currently "
+        raise ValueError("_unique_internal currently "
                          "only supports 1D arrays")
 
     # See numpy's unique1d
@@ -55,7 +55,7 @@ def unique_time(time):
         raise ValueError("time must be floating point but is %s" % time.dtype)
 
     def impl(time):
-        return _unique_internal_inverse(time)
+        return _unique_internal(time)
 
     return impl
 
@@ -82,7 +82,7 @@ def unique_baselines(ant1, ant2):
         # Cast to int64 for the unique operation
         bl = bl_32bit.view(np.int64).reshape(ant1.shape[0])
 
-        ret, idx, inv, counts = _unique_internal_inverse(bl)
+        ret, idx, inv, counts = _unique_internal(bl)
 
         # Recast to int32 and reshape
         ubl = ret.view(np.int32).reshape(ret.shape[0], 2)
