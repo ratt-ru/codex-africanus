@@ -22,17 +22,6 @@ def _is_flagged_factory(have_flag_row):
     return numba.njit(nogil=True, cache=True)(impl)
 
 
-def _row_or_minus_one_factory(have_flag_row):
-    if have_flag_row:
-        def impl(flag_row, r):
-            return r if flag_row[r] == 0 else -1
-    else:
-        def impl(flag_row, r):
-            return r
-
-    return numba.njit(nogil=True, cache=True)(impl)
-
-
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_mapper(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
     """
@@ -115,7 +104,6 @@ def row_mapper(time, antenna1, antenna2, flag_row=None, time_bin_size=1):
         Averaged time values of shape :code:`(out_row,)`
     """
     have_flag_row = not is_numba_type_none(flag_row)
-    row_or_minus_one_fn = _row_or_minus_one_factory(have_flag_row)
     is_flagged_fn = _is_flagged_factory(have_flag_row)
 
     def impl(time, antenna1, antenna2, flag_row=None, time_bin_size=1):

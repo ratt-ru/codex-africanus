@@ -107,7 +107,7 @@ def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
     time_bl_row_map = []
 
     for bl, (a1, a2) in enumerate(ubl):
-        bl_row_idx = tmp = bl_time_lookup[bl, :]
+        bl_row_idx = bl_time_lookup[bl, :]
         # Removing missing rows
         bl_row_idx = bl_row_idx[bl_row_idx != -1]
         # Split the row indices on the size of the time bin
