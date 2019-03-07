@@ -11,7 +11,7 @@ from africanus.util.docs import on_rtd
 
 if on_rtd():
     # Fake decorators when on readthedocs
-    def generated_jit(*args, **kwargs):
+    def _fake_decorator(*args, **kwargs):
         def decorator(fn):
             def wrapper(*args, **kwargs):
                 return fn(*args, **kwargs)
@@ -20,18 +20,14 @@ if on_rtd():
 
         return decorator
 
-    def jit(*args, **kwargs):
-        def decorator(fn):
-            def wrapper(*args, **kwargs):
-                return fn(*args, **kwargs)
+    cfunc = _fake_decorator
+    jit = _fake_decorator
+    generated_jit = _fake_decorator
+    njit = _fake_decorator
+    stencil = _fake_decorator
 
-            return decorate(fn, wrapper)
-
-        return decorator
-
-    njit = jit
 else:
-    from numba import jit, njit, generated_jit  # noqa
+    from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
 
 
 def is_numba_type_none(arg):
