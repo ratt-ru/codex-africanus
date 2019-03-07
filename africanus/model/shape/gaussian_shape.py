@@ -25,6 +25,10 @@ def gaussian(uvw, frequency, shape_params):
         nchan = frequency.shape[0]
 
         shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
+        scaled_freq = np.empty_like(frequency)
+
+        for f in range(frequency.shape[0]):
+            scaled_freq[f] = frequency[f] * gauss_scale
 
         for s in range(shape_params.shape[0]):
             emaj, emin, angle = shape_params[s]
@@ -39,10 +43,9 @@ def gaussian(uvw, frequency, shape_params):
                 u1 = (u*em - v*el)*er
                 v1 = u*el + v*em
 
-                for f in range(frequency.shape[0]):
-                    scaled_freq = frequency[f]*gauss_scale
-                    fu1 = u1*scaled_freq
-                    fv1 = v1*scaled_freq
+                for f in range(scaled_freq.shape[0]):
+                    fu1 = u1*scaled_freq[f]
+                    fv1 = v1*scaled_freq[f]
 
                     shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
 
