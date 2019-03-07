@@ -8,10 +8,11 @@ import numpy as np
 import numba
 
 from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import generated_jit
 from africanus.constants import c as lightspeed
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def gaussian(uvw, frequency, shape_params):
     fwhmint = 1.0 / np.sqrt(np.log(256))
     gauss_scale = fwhmint*np.sqrt(2.0)*np.pi/lightspeed
@@ -27,10 +28,10 @@ def gaussian(uvw, frequency, shape_params):
         shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
 
         for s in range(shape_params.shape[0]):
-            emaj, emin, orientation = shape_params[s]
+            emaj, emin, angle = shape_params[s]
 
-            el = emaj * np.sin(orientation)
-            em = emaj * np.cos(orientation)
+            el = emaj * np.sin(angle)
+            em = emaj * np.cos(angle)
             er = emaj / (1.0 if emin == 0.0 else emin)
 
             for r in range(uvw.shape[0]):
@@ -51,8 +52,25 @@ def gaussian(uvw, frequency, shape_params):
     return impl
 
 
-GAUSSIAN_DOCS = DocstringTemplate("""
+GAUSSIAN_DOCS = DocstringTemplate(r"""
 Computes the Gaussian Shape Function.
+
+.. math::
+
+    & \lambda^\prime = 2 \lambda \pi \\
+    & r = \frac{e_{maj}}{e_{min}} \\
+    & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
+      r \lambda^\prime \\
+    & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))
+      \lambda^\prime \\
+    & \textrm{shape} = e^{(-u_{1}^2 - v_{1}^2)}
+
+where:
+
+- :math:`u` and :math:`v` are the UV coordinates and
+  :math:`\lambda` the frequency.
+- :math:`e_{maj}` and :math:`e_{min}` are the major and minor axes
+  and :math:`\alpha` the position angle.
 
 Parameters
 ----------
@@ -63,7 +81,7 @@ frequency : $(array_type)
 shape_param : $(array_type)
     Gaussian Shape Parameters of shape :code:`(source, 3)`
     where the second dimension contains the
-    `(emajor, eminor, orientation)` parameters describing
+    `(emajor, eminor, angle)` parameters describing
     the shape of the Gaussian
 
 Returns

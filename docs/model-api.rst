@@ -106,3 +106,14 @@ Numpy
     gaussian
 
 .. autofunction:: gaussian
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.model.shape.dask
+
+.. autosummary::
+    gaussian
+
+.. autofunction:: gaussian
+
