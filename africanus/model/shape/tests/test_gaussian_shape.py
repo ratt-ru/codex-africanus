@@ -45,4 +45,3 @@ def test_dask_gauss_shape():
                                  shape_params.compute())
 
     assert_array_almost_equal(da_gauss_shape, np_gauss_shape)
-

@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import numba
 
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit

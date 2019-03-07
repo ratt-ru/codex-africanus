@@ -29,7 +29,7 @@ if on_rtd():
 
         return decorator
 else:
-    from numba import jit, generated_jit
+    from numba import jit, generated_jit  # noqa
 
 
 def is_numba_type_none(arg):
