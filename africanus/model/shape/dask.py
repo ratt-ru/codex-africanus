@@ -36,6 +36,6 @@ def gaussian(uvw, frequency, shape_params):
 
 try:
     gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
-                            array_type="`dask.array.Array`")
+                            array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass
