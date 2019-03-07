@@ -7,14 +7,15 @@ from __future__ import print_function
 from functools import wraps
 import math
 
-import numba
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
-from africanus.util.docs import DocstringTemplate, on_rtd
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import generated_jit
 from africanus.util.type_inference import infer_complex_dtype
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def phase_delay(lm, uvw, frequency):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
@@ -51,11 +52,6 @@ def phase_delay(lm, uvw, frequency):
         return complex_phase
 
     return _phase_delay_impl
-
-
-if not on_rtd():
-    jitter = numba.generated_jit(nopython=True, nogil=True, cache=True)
-    phase_delay = jitter(phase_delay)
 
 
 PHASE_DELAY_DOCS = DocstringTemplate(
