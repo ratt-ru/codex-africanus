@@ -91,3 +91,18 @@ Dask
 
 .. autofunction:: fit_spi_components
 
+
+Source Morphology
+-----------------
+
+Shape functions for different Source Morphologies
+
+Numpy
+~~~~~
+
+.. currentmodule:: africanus.model.shape
+
+.. autosummary::
+    gaussian
+
+.. autofunction:: gaussian
