@@ -9,8 +9,8 @@ from functools import wraps
 from numba import generated_jit, njit
 import numpy as np
 
-from africanus.util.docs import DocstringTemplate, on_rtd
-from africanus.util.numba import is_numba_type_none
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
 JONES_NOT_PRESENT = 0
@@ -367,6 +367,7 @@ def predict_checks(time_index, antenna1, antenna2,
             have_dies1, have_bvis, have_dies2)
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
@@ -440,13 +441,6 @@ def predict_vis(time_index, antenna1, antenna2,
         return out
 
     return _predict_vis_fn
-
-
-# inspect.getargspec doesn't work on a numba dispatcher object
-# so rtd fails.
-if not on_rtd():
-    predict_vis = generated_jit(nopython=True, nogil=True, cache=True)(
-                                predict_vis)
 
 
 PREDICT_DOCS = DocstringTemplate(r"""

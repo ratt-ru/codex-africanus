@@ -2,13 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import reduce
+
 from operator import mul
 
 import numba
 import numpy as np
 
-from africanus.util.docs import on_rtd
+from africanus.compatibility import reduce
+from africanus.util.numba import jit
 from africanus.gridding.simple.gridding import (
                 numba_grid as simple_numba_grid,
                 numba_degrid as simple_numba_degrid)
@@ -78,7 +79,8 @@ def w_stacking_bins(w_min, w_max, w_layers):
     return np.linspace(w_min, w_max + 1e-12, w_layers + 1)
 
 
-def _w_stacking_centroids(w_bins):
+@jit(nopython=True, nogil=True, cache=True)
+def w_stacking_centroids(w_bins):
     return 0.5*(w_bins[:-1] + w_bins[1:])
 
 
@@ -100,23 +102,19 @@ Returns
 """
 
 
-if on_rtd():
-    def w_stacking_centroids(w_bins):
-        pass
-else:
-    w_stacking_centroids = numba.njit(
-        nogil=True, cache=True)(_w_stacking_centroids)
-
-w_stacking_centroids.__doc__ = WSTACK_DOCS
+try:
+    w_stacking_centroids.__doc__ = WSTACK_DOCS
+except AttributeError:
+    pass
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def w_bin_masks(uvw, w_bins):
     indices = np.digitize(uvw[:, 2], w_bins) - 1
     return [i == indices for i in range(w_bins.shape[0])]
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
                convolution_filter, w_bins, cell_size, grids):
 
@@ -228,7 +226,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
                       convolution_filter, w_bins, cell_size, grids)
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def numba_degrid(grids, uvw, weights, ref_wave, convolution_filter,
                  w_bins, cell_size, vis):
 

@@ -6,12 +6,8 @@ from __future__ import print_function
 
 from operator import mul
 
-try:
-    # in python3, reduce is in functools
-    from functools import reduce
-except ImportError:
-    # I guess this is python2
-    pass
+from africanus.compatibility import reduce
+from africanus.util.numba import jit
 
 import numba
 import numpy as np
@@ -19,7 +15,7 @@ import numpy as np
 _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def numba_grid(vis, uvw, flags, weights, ref_wave,
                convolution_filter, cell_size, grid):
     """
@@ -183,7 +179,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
                       convolution_filter, cell_size, grid)
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def numba_degrid(grid, uvw, weights, ref_wave,
                  convolution_filter, cell_size, vis):
     """

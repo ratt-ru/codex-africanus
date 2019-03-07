@@ -28,8 +28,10 @@ if on_rtd():
             return decorate(fn, wrapper)
 
         return decorator
+
+    njit = jit
 else:
-    from numba import jit, generated_jit  # noqa
+    from numba import jit, njit, generated_jit  # noqa
 
 
 def is_numba_type_none(arg):

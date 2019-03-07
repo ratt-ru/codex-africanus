@@ -1,8 +1,10 @@
-import numba
 import numpy as np
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+from africanus.util.numba import jit
+
+
+@jit(nogil=True, nopython=True, cache=True)
 def fac(x):
     if x < 0:
         raise ValueError("Factorial input is negative.")
@@ -14,14 +16,14 @@ def fac(x):
     return factorial
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@jit(nogil=True, nopython=True, cache=True)
 def pre_fac(k, n, m):
     numerator = (-1.0)**k * fac(n-k)
     denominator = (fac(k) * fac((n+m)/2.0 - k) * fac((n-m)/2.0 - k))
     return numerator / denominator
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@jit(nogil=True, nopython=True, cache=True)
 def zernike_rad(m, n, rho):
     if (n < 0 or m < 0 or abs(m) > n):
         raise ValueError("m and n values are incorrect.")
@@ -31,7 +33,7 @@ def zernike_rad(m, n, rho):
     return radial_component
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@jit(nogil=True, nopython=True, cache=True)
 def zernike(j, rho, phi):
     if rho > 1:
         return 0 + 0j
@@ -49,13 +51,13 @@ def zernike(j, rho, phi):
     return zernike_rad(0, n, rho)
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l, m):
     rho, phi = (l**2 + m ** 2) ** 0.5, np.arctan2(l, m)
     return rho, phi
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@jit(nogil=True, nopython=True, cache=True)
 def nb_zernike_dde(coords, coeffs, noll_index, out):
     sources, times, ants, chans, corrs = out.shape
     npoly = coeffs.shape[-1]
