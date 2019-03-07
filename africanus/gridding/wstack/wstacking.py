@@ -5,7 +5,6 @@ from __future__ import print_function
 
 from operator import mul
 
-import numba
 import numpy as np
 
 from africanus.compatibility import reduce

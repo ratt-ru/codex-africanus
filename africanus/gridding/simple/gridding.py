@@ -9,7 +9,6 @@ from operator import mul
 from africanus.compatibility import reduce
 from africanus.util.numba import jit
 
-import numba
 import numpy as np
 
 _ARCSEC2RAD = np.deg2rad(1.0/(60*60))

@@ -8,7 +8,7 @@ from functools import wraps
 
 import numpy as np
 
-from africanus.util.docs import on_rtd, DocstringTemplate
+from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, jit
 from africanus.util.requirements import requires_optional
 
@@ -106,6 +106,7 @@ def radec_to_lm(radec, phase_centre=None):
         return lm
 
     return _radec_to_lm_impl
+
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def lmn_to_radec(lmn, phase_centre=None):

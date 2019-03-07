@@ -6,7 +6,6 @@ from __future__ import print_function
 
 from functools import wraps
 
-from numba import generated_jit, njit
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
