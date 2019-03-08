@@ -130,15 +130,38 @@ def spectra(stokes, spi, log_si, ref_freq, frequency):
     return impl
 
 
-SPECTRA_DOCS = DocstringTemplate("""
-Produces a spectral model from a polynomial expansion.
+    # & \lambda^\prime = 2 \lambda \pi \\
+    # & r = \frac{e_{maj}}{e_{min}} \\
+    # & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
+    #   r \lambda^\prime \\
+    # & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))
+    #   \lambda^\prime \\
+    # & \textrm{shape} = e^{(-u_{1}^2 - v_{1}^2)}
+
+SPECTRA_DOCS = DocstringTemplate(r"""
+Produces a spectral model from a polynomial expansion as follows
+for ordinary and logarithmic polynomials respectively:
+
+.. math::
+
+    & spectra(\lambda) =
+      \textrm{stokes} +
+              \sum\limits_{si=0} \textrm{spi}(si)
+              ({\lambda/\lambda_{ref}})^{si+1}
+              \\
+    & spectra(\lambda) =
+      \exp \left( \log \textrm{stokes} +
+              \sum\limits_{si=0} \textrm{spi}(si)
+              \log({\lambda/\lambda_{ref}})^{si+1}
+            \right) \\
+
 
 Parameters
 ----------
 stokes : :class:`numpy.ndarray`
     stokes parameters of shape :code:`(source, corr_1, corr_2)`
 spi : :class:`numpy.ndarray`
-    spectral index of shape :code:`(source, spi_comps, corr_1, corr_2)`
+    spectral index of shape :code:`(source, spi-comps, corr_1, corr_2)`
 log_si : :class:`numpy.ndarray` or bool
     boolean array of shape :code:`(source, corr_1, corr_2)`
     indicating whether logarithmic (True) or ordinary (False)

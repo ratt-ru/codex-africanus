@@ -41,6 +41,32 @@ Dask
 .. autofunction:: convert
 
 
+Spectral Model
+--------------
+
+Utilities for creating a spectral model
+
+Numpy
+~~~~~
+
+.. currentmodule:: africanus.model
+
+.. autosummary::
+    spectra
+
+.. autofunction:: spectra
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.model.dask
+
+.. autosummary::
+    spectra
+
+.. autofunction:: spectra
+
+
 Spectral Index
 --------------
 
