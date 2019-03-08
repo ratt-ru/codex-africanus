@@ -7,8 +7,6 @@ from __future__ import print_function
 from africanus.model.spec_model import spectra as np_spectra, SPECTRA_DOCS
 from africanus.util.requirements import requires_optional
 
-import numpy as np
-
 try:
     import dask.array as da
 except ImportError as e:

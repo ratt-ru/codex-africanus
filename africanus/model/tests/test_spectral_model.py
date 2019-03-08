@@ -148,7 +148,7 @@ def test_dask_spectral_model(spectral_model_inputs, freq, corrs):
     src_chunks = (4, 3)
     spi_chunks = (2,)
 
-    I = da.from_array(I, chunks=(src_chunks,) + corrs)
+    I = da.from_array(I, chunks=(src_chunks,) + corrs)  # noqa
     spi = da.from_array(spi, chunks=(src_chunks, spi_chunks) + corrs)
     log_si = da.from_array(log_si, chunks=(src_chunks,) + corrs)
     ref_freq = da.from_array(ref_freq, chunks=(src_chunks,))
