@@ -150,17 +150,17 @@ for ordinary and logarithmic polynomials respectively:
 
 Parameters
 ----------
-stokes : :class:`numpy.ndarray`
+stokes : $(array_type)
     stokes parameters of shape :code:`(source, corr_1, corr_2)`
-spi : :class:`numpy.ndarray`
+spi : $(array_type)
     spectral index of shape :code:`(source, spi-comps, corr_1, corr_2)`
-log_si : :class:`numpy.ndarray` or bool
+log_si : $(array_type) or bool
     boolean array of shape :code:`(source, corr_1, corr_2)`
     indicating whether logarithmic (True) or ordinary (False)
     polynomials should be used.
-ref_freq : :class:`numpy.ndarray`
+ref_freq : $(array_type)
     Source reference frequencies of shape :code:`(source,)`
-frequency : :class:`numpy.ndarray`
+frequency : $(array_type)
     frequencies of shape :code:`(chan,)`
 
 Notes
@@ -171,12 +171,12 @@ must agree.
 
 Returns
 -------
-spectral_model : :class:`numpy.ndarray`
+spectral_model : $(array_type)
     Spectral Model of shape :code:`(source, chan, corr_1, corr_2)`
 """)
 
 try:
     spectra.__doc__ = SPECTRA_DOCS.substitute(
-                            array_type=":class:`numpy.ndarray")
+                            array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

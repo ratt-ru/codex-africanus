@@ -23,10 +23,12 @@ def _wrapper(stokes, spi, log_si, ref_freq, frequency):
 def spectra(stokes, spi, log_si, ref_freq, frequency):
     corrs = tuple("corr-%d" % i for i in range(len(stokes.shape[1:])))
 
+    log_si_schema = None if isinstance(log_si, bool) else ("source",) + corrs
+
     return da.blockwise(_wrapper, ("source", "chan") + corrs,
                         stokes, ("source",) + corrs,
                         spi, ("source", "spi") + corrs,
-                        log_si, ("source",) + corrs,
+                        log_si, log_si_schema,
                         ref_freq, ("source",),
                         frequency, ("chan",),
                         dtype=stokes.dtype)
