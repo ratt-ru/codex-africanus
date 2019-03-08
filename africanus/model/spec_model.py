@@ -139,7 +139,7 @@ for ordinary and logarithmic polynomials respectively:
     & spectra(\lambda) =
       \textrm{stokes} +
               \sum\limits_{si=0} \textrm{spi}(si)
-              ({\lambda/\lambda_{ref}})^{si+1}
+              ({\lambda/\lambda_{ref}} - 1)^{si+1}
               \\
     & spectra(\lambda) =
       \exp \left( \log \textrm{stokes} +
