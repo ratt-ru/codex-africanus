@@ -4,12 +4,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from operator import mul
-
 from numba import types
 import numpy as np
 
-from africanus.compatibility import reduce
 from africanus.util.numba import generated_jit, njit
 
 

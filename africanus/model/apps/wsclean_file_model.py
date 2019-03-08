@@ -10,9 +10,6 @@ import re
 
 from africanus.compatibility import string_types
 
-import numba
-import numpy as np
-
 
 hour_re = re.compile(r"(?P<sign>[-]*)"
                      r"(?P<hours>\d+):"

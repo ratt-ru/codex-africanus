@@ -110,12 +110,10 @@ def test_spectral_model_corrs(spectral_model_inputs, freq, corrs):
                           ordinary_spec_model)
 
     # Just broadcast everything up to test
-    I = _broadcast_corrs(I, corrs)
+    I = _broadcast_corrs(I, corrs)  # noqa
     spi = _broadcast_corrs(spi, corrs)
     log_si = _broadcast_corrs(log_si, corrs)
     spec_model = _broadcast_corrs(spec_model, corrs)
 
     model = spectra(I, spi, log_si, ref_freq, freq)
     assert_array_almost_equal(model, spec_model)
-
-

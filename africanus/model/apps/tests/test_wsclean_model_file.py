@@ -4,10 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-from numpy.testing import assert_array_almost_equal
-
-
 from africanus.model.apps.wsclean_file_model import wsclean
 
 
