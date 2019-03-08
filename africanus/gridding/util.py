@@ -77,10 +77,9 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
         raise TypeError("Invalid v type %s" % type(v))
 
     if isinstance(wavelength, np.ndarray):
-        wave_max = wavelength.max()
         wave_min = wavelength.min()
     elif isinstance(wavelength, float):
-        wave_max = wave_min = wavelength
+        wave_min = wavelength
     else:
         raise TypeError("Invalid wavelength type %s" % type(v))
 

@@ -11,27 +11,22 @@ from africanus.rime.phase import phase_delay as np_phase_delay
 from africanus.rime.jax.phase import phase_delay
 
 
-@pytest.mark.xfail
-def test_jax_phase_delay():
+@pytest.mark.parametrize("dtype", [onp.float32, onp.float64])
+def test_jax_phase_delay(dtype):
     jax = pytest.importorskip('jax')
     np = pytest.importorskip('jax.numpy')
 
-    uvw = onp.random.random(size=(100, 3))
-    lm = onp.random.random(size=(10, 2))*0.001
-    frequency = np.linspace(.856e9, .856e9*2, 64, endpoint=True)
+    onp.random.seed(0)
 
-    # Inputs should all be doubles
-    assert uvw.dtype == lm.dtype == frequency.dtype == np.float64
+    uvw = onp.random.random(size=(100, 3)).astype(dtype)
+    lm = onp.random.random(size=(10, 2)).astype(dtype)*0.001
+    frequency = onp.linspace(.856e9, .856e9*2, 64).astype(dtype)
 
     # Compute complex phase
-    complex_phase = jax.jit(phase_delay)(lm, uvw, frequency)
     np_complex_phase = np_phase_delay(lm, uvw, frequency)
+    complex_phase = jax.jit(phase_delay)(lm, uvw, frequency)
 
-    onp.testing.assert_array_almost_equal(complex_phase, np_complex_phase,
-                                          decimal=5)
-
-    # numpy gets it right
-    assert np_complex_phase.dtype == np.complex128
-
-    # jax gets it wrong when jitting. expected failure here.
-    assert complex_phase.dtype == np.complex128
+    onp.testing.assert_array_almost_equal(complex_phase, np_complex_phase)
+    expected_ctype = np.result_type(dtype, np.complex64)
+    assert np_complex_phase.dtype == expected_ctype
+    assert complex_phase.dtype == expected_ctype

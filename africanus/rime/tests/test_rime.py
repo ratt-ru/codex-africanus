@@ -7,8 +7,6 @@ import numpy as np
 
 import pytest
 
-from africanus.rime.parangles import _discovered_backends
-
 
 def rf(*a, **kw):
     return np.random.random(*a, **kw)

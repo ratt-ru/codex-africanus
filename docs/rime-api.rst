@@ -66,9 +66,11 @@ Cuda
 .. currentmodule:: africanus.rime.cuda
 
 .. autosummary::
+    predict_vis
     phase_delay
     feed_rotation
 
+.. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: feed_rotation
 

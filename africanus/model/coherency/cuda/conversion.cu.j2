@@ -26,7 +26,7 @@ extern "C" __global__ void {{kernel_name}}(
         int idx = source;
         int upper = {{elements}}*nsrc;
         {%- for elem in range(elements) %}
-        if(idx < {{elements}}*nsrc)
+        if(idx < upper)
         {
             in[{{elem}}] = inputs[idx];
             idx += nsrcmulup;

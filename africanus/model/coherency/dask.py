@@ -8,16 +8,17 @@ from functools import wraps
 
 from africanus.compatibility import range
 
-from .conversion import (convert_setup, convert_impl,
-                         convert as np_stokes_convert,
-                         CONVERT_DOCS)
+from africanus.model.coherency.conversion import (convert_setup,
+                                                  convert_impl,
+                                                  convert as np_stokes_convert,
+                                                  CONVERT_DOCS)
 
 from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da
-except ImportError as da_import_error:
-    pass
+except ImportError as e:
+    da_import_error = e
 else:
     da_import_error = None
 
@@ -50,14 +51,14 @@ def convert(input, input_schema, output_schema):
     # Note the dummy in_corr_dims introduced at the end of our output,
     # We do this to prevent a contraction over the input dimensions
     # (which can be arbitrary) within the wrapper class
-    res = da.core.atop(_wrapper, free_dims + out_corr_dims + in_corr_dims,
-                       input, free_dims + in_corr_dims,
-                       mapping=mapping,
-                       in_shape=in_shape,
-                       out_shape=out_shape,
-                       new_axes=new_axes,
-                       dtype_=dtype,
-                       dtype=dtype)
+    res = da.core.blockwise(_wrapper, free_dims + out_corr_dims + in_corr_dims,
+                            input, free_dims + in_corr_dims,
+                            mapping=mapping,
+                            in_shape=in_shape,
+                            out_shape=out_shape,
+                            new_axes=new_axes,
+                            dtype_=dtype,
+                            dtype=dtype)
 
     # Now contract over the dummy dimensions
     start = len(free_dims) + len(out_corr_dims)

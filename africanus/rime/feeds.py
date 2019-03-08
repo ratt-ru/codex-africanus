@@ -6,14 +6,14 @@ from __future__ import print_function
 
 from operator import mul
 
-import numba
 import numpy as np
 
 from africanus.compatibility import reduce
 from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import jit
 
 
-@numba.njit(nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _nb_feed_rotation(parallactic_angles, feed_type, feed_rotation):
     shape = parallactic_angles.shape
     parangles = parallactic_angles.flat
