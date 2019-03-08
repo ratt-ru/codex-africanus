@@ -7,10 +7,9 @@ from __future__ import print_function
 from functools import wraps
 
 import numpy as np
-import numba
 
-from africanus.util.docs import on_rtd, DocstringTemplate
-from africanus.util.numba import is_numba_type_none
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import is_numba_type_none, generated_jit, jit
 from africanus.util.requirements import requires_optional
 
 try:
@@ -21,16 +20,17 @@ else:
     opt_import_error = None
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _create_phase_centre(phase_centre, dtype):
     return np.zeros((2,), dtype=dtype)
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _return_phase_centre(phase_centre, dtype):
     return phase_centre
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def radec_to_lmn(radec, phase_centre=None):
     dtype = radec.dtype
 
@@ -70,6 +70,7 @@ def radec_to_lmn(radec, phase_centre=None):
     return _radec_to_lmn_impl
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def radec_to_lm(radec, phase_centre=None):
     dtype = radec.dtype
 
@@ -107,6 +108,7 @@ def radec_to_lm(radec, phase_centre=None):
     return _radec_to_lm_impl
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def lmn_to_radec(lmn, phase_centre=None):
     dtype = lmn.dtype
 
@@ -137,6 +139,7 @@ def lmn_to_radec(lmn, phase_centre=None):
     return _lmn_to_radec_impl
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
 def lm_to_radec(lm, phase_centre=None):
     dtype = lm.dtype
 
@@ -166,16 +169,6 @@ def lm_to_radec(lm, phase_centre=None):
         return radec
 
     return _lm_to_radec_impl
-
-
-# inspect.getargspec doesn't work on a numba dispatcher object
-# so rtd fails.
-if not on_rtd():
-    jitter = numba.generated_jit(nopython=True, nogil=True, cache=True)
-    lmn_to_radec = jitter(lmn_to_radec)
-    lm_to_radec = jitter(lm_to_radec)
-    radec_to_lmn = jitter(radec_to_lmn)
-    radec_to_lm = jitter(radec_to_lm)
 
 
 @requires_optional("astropy", opt_import_error)

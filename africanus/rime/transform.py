@@ -7,11 +7,12 @@ from __future__ import print_function
 
 import math
 
-import numba
 import numpy as np
 
+from africanus.util.numba import jit
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+
+@jit(nopython=True, nogil=True, cache=True)
 def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
                           antenna_scaling, frequency, coords):
     """
