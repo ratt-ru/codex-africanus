@@ -8,6 +8,7 @@ from numba import types
 import numpy as np
 
 from africanus.util.numba import generated_jit, njit
+from africanus.util.docs import DocstringTemplate
 
 
 def log_si_factory(log_si_type):
@@ -51,36 +52,6 @@ def corr_getter_factory(ncorrs):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def spectra(stokes, spi, log_si, ref_freq, frequency):
-    """
-    Produces a spectral model from a polynomial expansion.
-
-
-    Parameters
-    ----------
-    stokes : :class:`numpy.ndarray`
-        stokes parameters of shape :code:`(source, corr_1, corr_2)`
-    spi : :class:`numpy.ndarray`
-        spectral index of shape :code:`(source, spi_comps, corr_1, corr_2)`
-    log_si : :class:`numpy.ndarray` or bool
-        boolean array of shape :code:`(source, corr_1, corr_2)`
-        indicating whether logarithmic (True) or ordinary (False)
-        polynomials should be used.
-    ref_freq : :class:`numpy.ndarray`
-        Source reference frequencies of shape :code:`(source,)`
-    frequency : :class:`numpy.ndarray`
-        frequencies of shape :code:`(chan,)`
-
-    Notes
-    -----
-    Between zero and two correlation dimensions are supported,
-    but the number of correlations in `stokes`, `spi` and `log_si`
-    must agree.
-
-    Returns
-    -------
-    spectral_model : :class:`numpy.ndarray`
-        Spectral Model of shape :code:`(source, chan, corr_1, corr_2)`
-    """
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
@@ -157,3 +128,40 @@ def spectra(stokes, spi, log_si, ref_freq, frequency):
         return spectral_model.reshape((nsrc, nchan) + stokes.shape[1:])
 
     return impl
+
+
+SPECTRA_DOCS = DocstringTemplate("""
+Produces a spectral model from a polynomial expansion.
+
+Parameters
+----------
+stokes : :class:`numpy.ndarray`
+    stokes parameters of shape :code:`(source, corr_1, corr_2)`
+spi : :class:`numpy.ndarray`
+    spectral index of shape :code:`(source, spi_comps, corr_1, corr_2)`
+log_si : :class:`numpy.ndarray` or bool
+    boolean array of shape :code:`(source, corr_1, corr_2)`
+    indicating whether logarithmic (True) or ordinary (False)
+    polynomials should be used.
+ref_freq : :class:`numpy.ndarray`
+    Source reference frequencies of shape :code:`(source,)`
+frequency : :class:`numpy.ndarray`
+    frequencies of shape :code:`(chan,)`
+
+Notes
+-----
+Between zero and two correlation dimensions are supported,
+but the number of correlations in `stokes`, `spi` and `log_si`
+must agree.
+
+Returns
+-------
+spectral_model : :class:`numpy.ndarray`
+    Spectral Model of shape :code:`(source, chan, corr_1, corr_2)`
+""")
+
+try:
+    spectra.__doc__ = SPECTRA_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray")
+except AttributeError:
+    pass

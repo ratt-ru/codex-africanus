@@ -9,6 +9,7 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.model import spectra
+from africanus.model.dask import spectra as dask_spectra
 from africanus.model.apps.wsclean_file_model import wsclean
 
 
@@ -116,4 +117,43 @@ def test_spectral_model_corrs(spectral_model_inputs, freq, corrs):
     spec_model = _broadcast_corrs(spec_model, corrs)
 
     model = spectra(I, spi, log_si, ref_freq, freq)
+    assert_array_almost_equal(model, spec_model)
+
+
+@pytest.mark.parametrize("corrs", [(), (1,), (2,), (2, 2)])
+def test_dask_spectral_model(spectral_model_inputs, freq, corrs):
+    da = pytest.importorskip("dask.array")
+
+    I, spi, log_si, ref_freq = spectral_model_inputs
+
+    # Compute spectral model with numpy implementations
+    ordinary_spec_model = ordinary_spectral_model(I, spi, log_si,
+                                                  freq, ref_freq)
+    log_spec_model = log_spectral_model(I, spi, log_si,
+                                        freq, ref_freq)
+
+    # Choose between ordinary and log spectral index
+    # based on log_si array
+    spec_model = np.where(log_si[:, None] == True,  # noqa
+                          log_spec_model,
+                          ordinary_spec_model)
+
+    # Just broadcast everything up to test
+    I = _broadcast_corrs(I, corrs)  # noqa
+    spi = _broadcast_corrs(spi, corrs)
+    log_si = _broadcast_corrs(log_si, corrs)
+    spec_model = _broadcast_corrs(spec_model, corrs)
+
+    # Create dask arrays
+    src_chunks = (4, 3)
+    spi_chunks = (2,)
+
+    I = da.from_array(I, chunks=(src_chunks,) + corrs)
+    spi = da.from_array(spi, chunks=(src_chunks, spi_chunks) + corrs)
+    log_si = da.from_array(log_si, chunks=(src_chunks,) + corrs)
+    ref_freq = da.from_array(ref_freq, chunks=(src_chunks,))
+    freq = da.from_array(freq, chunks=4)
+
+    # Compute spectra and compare
+    model = dask_spectra(I, spi, log_si, ref_freq, freq)
     assert_array_almost_equal(model, spec_model)
