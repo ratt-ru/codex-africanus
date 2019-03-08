@@ -4,15 +4,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import namedtuple
 from functools import wraps
 
-import numba
-from numba import types, generated_jit, njit
 import numpy as np
 
-from ..util.docs import DocstringTemplate, on_rtd
-from ..util.numba import is_numba_type_none
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
 JONES_NOT_PRESENT = 0
@@ -62,16 +59,16 @@ def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
                          (name, corr_1_dims, corr_2_dims))
 
 
-def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
+def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
     """
     Outputs a function that multiplies some combination of
     (dde1_jones, baseline_jones, dde2_jones) together.
 
     Parameters
     ----------
-    have_ants : boolean
+    have_ddes : boolean
         If True, indicates that antenna jones terms are present
-    have_bl : boolean
+    have_coh : boolean
         If True, indicates that baseline jones terms are present
     jones_type : int
         Type of Jones matrix
@@ -96,7 +93,7 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
     """
     ex = ValueError("Invalid Jones Type %s" % jones_type)
 
-    if have_bl and have_ants:
+    if have_coh and have_ddes:
         if jones_type == JONES_1_OR_2:
             def jones_mul(a1j, blj, a2j, out):
                 for c in range(out.shape[0]):
@@ -112,10 +109,10 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
                 a2_yx_H = np.conj(a2j[1, 0])
                 a2_yy_H = np.conj(a2j[1, 1])
 
-                xx = blj[0, 0] * a2_xx_H + blj[0, 1] * a2_yx_H
-                xy = blj[0, 0] * a2_xy_H + blj[0, 1] * a2_yy_H
-                yx = blj[1, 0] * a2_xx_H + blj[1, 1] * a2_yx_H
-                yy = blj[1, 0] * a2_xy_H + blj[1, 1] * a2_yy_H
+                xx = blj[0, 0] * a2_xx_H + blj[0, 1] * a2_xy_H
+                xy = blj[0, 0] * a2_yx_H + blj[0, 1] * a2_yy_H
+                yx = blj[1, 0] * a2_xx_H + blj[1, 1] * a2_xy_H
+                yy = blj[1, 0] * a2_yx_H + blj[1, 1] * a2_yy_H
 
                 if accumulate:
                     out[0, 0] += a1j[0, 0] * xx + a1j[0, 1] * yx
@@ -130,7 +127,7 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
 
         else:
             raise ex
-    elif have_ants and not have_bl:
+    elif have_ddes and not have_coh:
         if jones_type == JONES_1_OR_2:
             def jones_mul(a1j, a2j, out):
                 for c in range(out.shape[0]):
@@ -147,18 +144,18 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
                 a2_yy_H = np.conj(a2j[1, 1])
 
                 if accumulate:
-                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_yx_H
-                    out[0, 1] += a1j[0, 0] * a2_xy_H + a1j[0, 1] * a2_yy_H
-                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_yx_H
-                    out[1, 1] += a1j[1, 0] * a2_xy_H + a1j[1, 1] * a2_yy_H
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
                 else:
-                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_yx_H
-                    out[0, 1] += a1j[0, 0] * a2_xy_H + a1j[0, 1] * a2_yy_H
-                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_yx_H
-                    out[1, 1] += a1j[1, 0] * a2_xy_H + a1j[1, 1] * a2_yy_H
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
         else:
             raise ex
-    elif not have_ants and have_bl:
+    elif not have_ddes and have_coh:
         if jones_type == JONES_1_OR_2:
             def jones_mul(blj, out):
                 for c in range(out.shape[0]):
@@ -193,11 +190,11 @@ def jones_mul_factory(have_ants, have_bl, jones_type, accumulate):
     return njit(nogil=True)(jones_mul)
 
 
-def sum_coherencies_factory(have_ants, have_bl, jones_type):
+def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     """ Factory function generating a function that sums coherencies """
-    jones_mul = jones_mul_factory(have_ants, have_bl, jones_type, True)
+    jones_mul = jones_mul_factory(have_ddes, have_coh, jones_type, True)
 
-    if have_ants and have_bl:
+    if have_ddes and have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             for s in range(a1j.shape[0]):
                 for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
@@ -208,7 +205,7 @@ def sum_coherencies_factory(have_ants, have_bl, jones_type):
                                   a2j[s, ti, a2, f],
                                   out[r, f])
 
-    elif have_ants and not have_bl:
+    elif have_ddes and not have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             for s in range(a1j.shape[0]):
                 for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
@@ -218,7 +215,7 @@ def sum_coherencies_factory(have_ants, have_bl, jones_type):
                                   a2j[s, ti, a2, f],
                                   out[r, f])
 
-    elif not have_ants and have_bl:
+    elif not have_ddes and have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             for s in range(blj.shape[0]):
                 for r in range(blj.shape[1]):
@@ -232,16 +229,16 @@ def sum_coherencies_factory(have_ants, have_bl, jones_type):
     return njit(nogil=True)(sum_coh_fn)
 
 
-def output_factory(have_ants, have_bl, have_dies, out_dtype):
+def output_factory(have_ddes, have_coh, have_dies, out_dtype):
     """ Factory function generating a function that creates function output """
-    if have_ants:
+    if have_ddes:
         def output(time_index, dde1_jones, source_coh, dde2_jones,
                    die1_jones, die2_jones):
             row = time_index.shape[0]
             chan = dde1_jones.shape[3]
             corrs = dde1_jones.shape[4:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
-    elif have_bl:
+    elif have_coh:
         def output(time_index, dde1_jones, source_coh, dde2_jones,
                    die1_jones, die2_jones):
             row = time_index.shape[0]
@@ -262,8 +259,8 @@ def output_factory(have_ants, have_bl, have_dies, out_dtype):
     return njit(nogil=True)(output)
 
 
-def add_coh_factory(have_coh):
-    if have_coh:
+def add_coh_factory(have_bvis):
+    if have_bvis:
         def add_coh(base_vis, out):
             out += base_vis
     else:
@@ -274,7 +271,7 @@ def add_coh_factory(have_coh):
     return njit(nogil=True)(add_coh)
 
 
-def apply_dies_factory(have_dies, have_coh, jones_type):
+def apply_dies_factory(have_dies, have_bvis, jones_type):
     """
     Factory function returning a function that applies
     Direction Independent Effects
@@ -283,7 +280,7 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
     # We always "have visibilities", (the output array)
     jones_mul = jones_mul_factory(have_dies, True, jones_type, False)
 
-    if have_dies and have_coh:
+    if have_dies and have_bvis:
         def apply_dies(time, ant1, ant2,
                        die1_jones, die2_jones,
                        tmin, out):
@@ -296,7 +293,7 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
                     jones_mul(die1_jones[ti, a1, c], out[r, c],
                               die2_jones[ti, a2, c], out[r, c])
 
-    elif have_dies and not have_coh:
+    elif have_dies and not have_bvis:
         def apply_dies(time, ant1, ant2,
                        die1_jones, die2_jones,
                        tmin, out):
@@ -319,28 +316,67 @@ def apply_dies_factory(have_dies, have_coh, jones_type):
     return njit(nogil=True)(apply_dies)
 
 
-def predict_vis(time_index, antenna1, antenna2,
-                dde1_jones=None, source_coh=None, dde2_jones=None,
-                die1_jones=None, base_vis=None, die2_jones=None):
+def _default_none_check(arg):
+    return arg is not None
 
-    have_a1 = not is_numba_type_none(dde1_jones)
-    have_bl = not is_numba_type_none(source_coh)
-    have_a2 = not is_numba_type_none(dde2_jones)
-    have_g1 = not is_numba_type_none(die1_jones)
-    have_coh = not is_numba_type_none(base_vis)
-    have_g2 = not is_numba_type_none(die2_jones)
+
+def predict_checks(time_index, antenna1, antenna2,
+                   dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones,
+                   none_check=_default_none_check):
+
+    have_ddes1 = none_check(dde1_jones)
+    have_coh = none_check(source_coh)
+    have_ddes2 = none_check(dde2_jones)
+    have_dies1 = none_check(die1_jones)
+    have_bvis = none_check(base_vis)
+    have_dies2 = none_check(die2_jones)
 
     assert time_index.ndim == 1
     assert antenna1.ndim == 1
     assert antenna2.ndim == 1
 
-    if have_a1 ^ have_a2:
+    if have_ddes1 ^ have_ddes2:
         raise ValueError("Both dde1_jones and dde2_jones "
                          "must be present or absent")
 
-    if have_g1 ^ have_g2:
+    if have_dies1 ^ have_dies2:
         raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
+
+    if have_ddes1 and dde1_jones.ndim not in (5, 6):
+        raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
+
+    if have_ddes2 and dde2_jones.ndim not in (5, 6):
+        raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
+
+    if have_coh and source_coh.ndim not in (4, 5):
+        raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
+
+    if have_dies1 and die1_jones.ndim not in (4, 5):
+        raise ValueError("die1_jones.ndim %d not in (4, 5)" % die1_jones.ndim)
+
+    if have_bvis and base_vis.ndim not in (3, 4):
+        raise ValueError("base_vis.ndim %d not in (3, 4)" % base_vis.ndim)
+
+    if have_dies2 and die2_jones.ndim not in (4, 5):
+        raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
+
+    return (have_ddes1, have_coh, have_ddes2,
+            have_dies1, have_bvis, have_dies2)
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def predict_vis(time_index, antenna1, antenna2,
+                dde1_jones=None, source_coh=None, dde2_jones=None,
+                die1_jones=None, base_vis=None, die2_jones=None):
+
+    tup = predict_checks(time_index, antenna1, antenna2,
+                         dde1_jones, source_coh, dde2_jones,
+                         die1_jones, base_vis, die2_jones,
+                         lambda x: not is_numba_type_none(x))
+
+    (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
 
     # Infer the output dtype
     dtype_arrays = (dde1_jones, source_coh, dde2_jones,
@@ -349,30 +385,6 @@ def predict_vis(time_index, antenna1, antenna2,
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
                                  if not is_numba_type_none(a)))
-
-    have_ants = have_a1 and have_a2
-    have_dies = have_g1 and have_g2
-
-    # if not (have_ants or have_bl):
-    #     raise ValueError("No Jones Terms were supplied")
-
-    if have_a1 and dde1_jones.ndim not in (5, 6):
-        raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
-
-    if have_a2 and dde2_jones.ndim not in (5, 6):
-        raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
-
-    if have_bl and source_coh.ndim not in (4, 5):
-        raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
-
-    if have_g1 and die1_jones.ndim not in (4, 5):
-        raise ValueError("die1_jones.ndim %d not in (4, 5)" % die1_jones.ndim)
-
-    # if have_coh and have_coh.ndim not in (3, 4):
-    #     raise ValueError("have_coh.ndim %d not in (3, 4)" % have_coh.ndim)
-
-    if have_g2 and die2_jones.ndim not in (4, 5):
-        raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
 
     jones_types = [
         _get_jones_types("dde1_jones", dde1_jones, 5, 6),
@@ -391,11 +403,14 @@ def predict_vis(time_index, antenna1, antenna2,
     except IndexError:
         raise ValueError("No Jones Matrices were supplied")
 
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
+
     # Create functions that we will use inside our predict function
-    out_fn = output_factory(have_ants, have_bl, have_dies, out_dtype)
-    sum_coh_fn = sum_coherencies_factory(have_ants, have_bl, jones_type)
-    apply_dies_fn = apply_dies_factory(have_dies, have_coh, jones_type)
-    add_coh_fn = add_coh_factory(have_coh)
+    out_fn = output_factory(have_ddes, have_coh, have_dies, out_dtype)
+    sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
+    apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
+    add_coh_fn = add_coh_factory(have_bvis)
 
     @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
@@ -425,13 +440,6 @@ def predict_vis(time_index, antenna1, antenna2,
         return out
 
     return _predict_vis_fn
-
-
-# inspect.getargspec doesn't work on a numba dispatcher object
-# so rtd fails.
-if not on_rtd():
-    predict_vis = generated_jit(nopython=True, nogil=True, cache=True)(
-                                predict_vis)
 
 
 PREDICT_DOCS = DocstringTemplate(r"""

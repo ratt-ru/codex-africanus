@@ -30,7 +30,7 @@ def test_requires_optional_pass_import_error():
     assert 'clearly_missing_and_nonexistent_package' not in sys.modules
 
     try:
-        import clearly_missing_and_nonexistent_package
+        import clearly_missing_and_nonexistent_package  # noqa
     except ImportError as e:
         me = e
     else:

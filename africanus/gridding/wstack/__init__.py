@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# flake8: noqa
 
 from .wstacking import (w_bin_masks,
                         w_stacking_layers,

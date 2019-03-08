@@ -9,7 +9,8 @@ import string
 import re
 
 import numpy as np
-from six.moves import range
+
+from africanus.compatibility import range
 
 
 class FitsAxes(object):
@@ -156,12 +157,12 @@ def beam_grids(header):
     """
     beam_axes = BeamAxes(header)
 
-    l = m = freq = None
+    l = m = freq = None  # noqa
 
     # Find the relevant axes
     for i in range(beam_axes.ndims):
         if beam_axes.ctype[i] in ('L', 'X'):
-            l = i
+            l = i  # noqa
         elif beam_axes.ctype[i] in ('M', 'Y'):
             m = i
         elif beam_axes.ctype[i] == "FREQ":
