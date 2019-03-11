@@ -81,23 +81,27 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):
 
             if _log_polynomial(log_poly, s):
                 for f in range(frequency.shape[0]):
+                    nu = frequency[f]
+
                     # Initialise with base polynomial value
                     spectral_model[s, f] = np.log(I[s])
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c]
-                        term *= np.log(frequency[f]/rf)**(c + 1)
+                        term *= np.log(nu/rf)**(c + 1)
                         spectral_model[s, f] += term
 
                     spectral_model[s, f] = np.exp(spectral_model[s, f])
             else:
                 for f in range(frequency.shape[0]):
+                    nu = frequency[f]
+
                     # Initialise with base polynomial value
                     spectral_model[s, f] = I[s]
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c]
-                        term *= ((frequency[f]/rf) - 1.0)**(c + 1)
+                        term *= ((nu/rf) - 1.0)**(c + 1)
                         spectral_model[s, f] += term
 
         return spectral_model
