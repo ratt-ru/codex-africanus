@@ -6,36 +6,36 @@ from africanus.util.numba import generated_jit
 from africanus.util.docs import DocstringTemplate
 
 
-def ordinary_spectral_model(I, spi, log_si, freq, ref_freq):
+def ordinary_spectral_model(I, coeffs, log_si, freq, ref_freq):
     """ Numpy ordinary polynomial implementation """
-    spi_idx = np.arange(1, spi.shape[1] + 1)
-    # (source, chan, spi-comp)
+    coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
+    # (source, chan, coeffs-comp)
     term = (freq[None, :, None] / ref_freq[:, None, None]) - 1.0
-    term = term**spi_idx[None, None, :]
-    term = spi[:, None, :]*term
+    term = term**coeffs_idx[None, None, :]
+    term = coeffs[:, None, :]*term
     return I[:, None] + term.sum(axis=2)
 
 
-def log_spectral_model(I, spi, log_si, freq, ref_freq):
+def log_spectral_model(I, coeffs, log_si, freq, ref_freq):
     """ Numpy logarithmic polynomial implementation """
     # No negative flux
     I = np.where(log_si == False, 1.0, I)  # noqa
-    spi_idx = np.arange(1, spi.shape[1] + 1)
-    # (source, chan, spi-comp)
+    coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
+    # (source, chan, coeffs-comp)
     term = np.log(freq[None, :, None] / ref_freq[:, None, None])
-    term = term**spi_idx[None, None, :]
-    term = spi[:, None, :]*term
+    term = term**coeffs_idx[None, None, :]
+    term = coeffs[:, None, :]*term
     return np.exp(np.log(I)[:, None] + term.sum(axis=2))
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def _check_log_si_shape(spi, log_si):
+def _check_log_si_shape(coeffs, log_si):
     if isinstance(log_si, types.npytypes.Array):
-        def impl(spi, log_si):
-            if spi.shape[0] != log_si.shape[0]:
-                raise ValueError("spi.shape[0] != log_si.shape[0]")
+        def impl(coeffs, log_si):
+            if coeffs.shape[0] != log_si.shape[0]:
+                raise ValueError("coeffs.shape[0] != log_si.shape[0]")
     elif isinstance(log_si, types.scalars.Boolean):
-        def impl(spi, log_si):
+        def impl(coeffs, log_si):
             pass
     else:
         raise ValueError("log_si must be ndarray or bool")
@@ -58,21 +58,21 @@ def _log_polynomial(log_si, s):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def spectra(I, spi, log_si, ref_freq, frequency):
+def spectra(I, coeffs, log_si, ref_freq, frequency):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
-                       in (I, spi, ref_freq, frequency))
+                       in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
 
-    def impl(I, spi, log_si, ref_freq, frequency):
-        if not (I.shape[0] == spi.shape[0] == ref_freq.shape[0]):
-            raise ValueError("first dimensions of I, spi "
+    def impl(I, coeffs, log_si, ref_freq, frequency):
+        if not (I.shape[0] == coeffs.shape[0] == ref_freq.shape[0]):
+            raise ValueError("first dimensions of I, coeffs "
                              "and ref_freq don't match.")
 
-        _check_log_si_shape(spi, log_si)
+        _check_log_si_shape(coeffs, log_si)
 
         nsrc = I.shape[0]
         nchan = frequency.shape[0]
-        nspi = spi.shape[1]
+        ncoeffs = coeffs.shape[1]
 
         spectral_model = np.empty((nsrc, nchan), dtype=dtype)
 
@@ -84,9 +84,9 @@ def spectra(I, spi, log_si, ref_freq, frequency):
                     # Initialise with base polynomial value
                     spectral_model[s, f] = np.log(I[s])
 
-                    for si in range(nspi):
-                        term = spi[s, si]
-                        term *= np.log(frequency[f]/rf)**(si + 1)
+                    for c in range(ncoeffs):
+                        term = coeffs[s, c]
+                        term *= np.log(frequency[f]/rf)**(c + 1)
                         spectral_model[s, f] += term
 
                     spectral_model[s, f] = np.exp(spectral_model[s, f])
@@ -95,9 +95,9 @@ def spectra(I, spi, log_si, ref_freq, frequency):
                     # Initialise with base polynomial value
                     spectral_model[s, f] = I[s]
 
-                    for si in range(nspi):
-                        term = spi[s, si]
-                        term *= ((frequency[f]/rf) - 1.0)**(si + 1)
+                    for c in range(ncoeffs):
+                        term = coeffs[s, c]
+                        term *= ((frequency[f]/rf) - 1.0)**(c + 1)
                         spectral_model[s, f] += term
 
         return spectral_model
@@ -114,23 +114,24 @@ the expansion:
 .. math::
 
     & flux(\lambda) =
-      \textrm{stokes} +
-              \sum\limits_{si=0} \textrm{spi}(si)
-              ({\lambda/\lambda_{ref}} - 1)^{si+1}
+      I_{0} + \sum\limits_{c=0} \textrm{coeffs}(c)
+              ({\lambda/\lambda_{ref}} - 1)^{c+1}
               \\
     & flux(\lambda) =
-      \exp \left( \log \textrm{stokes} +
-              \sum\limits_{si=0} \textrm{spi}(si)
-              \log({\lambda/\lambda_{ref}})^{si+1}
+      \exp \left( \log I_{0} +
+              \sum\limits_{c=0} \textrm{coeffs}(c)
+              \log({\lambda/\lambda_{ref}})^{c+1}
             \right) \\
 
 
 Parameters
 ----------
 I : $(array_type)
-    I of shape :code:`(source,)`
-spi : $(array_type)
-    spectral index for each source of shape :code:`(source, spi)`
+    flux density in Janskys at the reference frequency
+    of shape :code:`(source,)`
+coeffs : $(array_type)
+    Polynomial coefficients for each source of
+    shape :code:`(source, comp)`
 log_si : $(array_type) or bool
     boolean array of shape :code:`(source, )`
     indicating whether logarithmic (True) or ordinary (False)

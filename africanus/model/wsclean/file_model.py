@@ -142,12 +142,20 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
 
             data_list.append(conv(value))
 
-    return source_data
+    return zip(*(column_names, source_data))
 
 
 def load(filename):
     """
-    Loads wsclean component model
+    Loads wsclean component model.
+
+    .. code-block:: python
+
+        sources = load("components.txt")
+        sources = dict(sources)  # Convert to dictionary
+
+        I = sources["I"]
+        ref_freq = sources["ReferenceFrequency"]
 
     Parameters
     ----------
@@ -157,8 +165,8 @@ def load(filename):
 
     Returns
     -------
-    list of lists
-        list of column values
+    list of (name, list of values) tuples
+        list of column (name, value) tuples
     """
 
     if isinstance(filename, string_types):

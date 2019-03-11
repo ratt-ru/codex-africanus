@@ -21,9 +21,11 @@ def freq():
 
 @pytest.fixture
 def spectral_model_inputs(wsclean_model_file):
-    sources = load(wsclean_model_file)
+    sources = dict(load(wsclean_model_file))
 
-    _, _, _, _, I, spi, log_si, ref_freq, _, _, _ = sources
+    I, spi, log_si, ref_freq = (sources[n] for n in ("I", "SpectralIndex",
+                                                     "LogarithmicSI",
+                                                     "ReferenceFrequency"))
 
     I = np.asarray(I)  # noqa
     spi = np.asarray(spi)

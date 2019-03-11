@@ -8,9 +8,12 @@ from africanus.model.wsclean.file_model import load
 
 
 def test_wsclean_model_file(wsclean_model_file):
-    sources = load(wsclean_model_file)
+    sources = dict(load(wsclean_model_file))
 
-    name, stype, _, _, I, spi, log_si, ref_freq, _, _, _ = sources
+    name, stype, I, spi, log_si, ref_freq = (sources[n] for n in (
+                                            "Name", "Type", "I",
+                                            "SpectralIndex", "LogarithmicSI",
+                                            "ReferenceFrequency"))
 
     # Seven sources
     assert (len(I) == len(spi) == len(log_si) == len(ref_freq) == 7)
