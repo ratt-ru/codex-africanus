@@ -2,7 +2,7 @@
 History
 =======
 
-0.1.3 (2018-03-28)
+0.1.4 (2019-03-11)
 ------------------
 * Support `complete` and `complete-cuda` to support non-GPU installs (:pr:`87`)
 * Gaussian Shape Parameter Implementation (:pr:`82`, :pr:`83`)
