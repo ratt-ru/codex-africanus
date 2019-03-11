@@ -41,32 +41,6 @@ Dask
 .. autofunction:: convert
 
 
-Spectral Model
---------------
-
-Utilities for creating a spectral model
-
-Numpy
-~~~~~
-
-.. currentmodule:: africanus.model
-
-.. autosummary::
-    spectra
-
-.. autofunction:: spectra
-
-Dask
-~~~~
-
-.. currentmodule:: africanus.model.dask
-
-.. autosummary::
-    spectra
-
-.. autofunction:: spectra
-
-
 Spectral Index
 --------------
 
@@ -143,3 +117,30 @@ Dask
 
 .. autofunction:: gaussian
 
+
+WSClean Spectral Model
+----------------------
+
+Utilities for creating a spectral model from a wsclean component file.
+
+Numpy
+~~~~~
+
+.. currentmodule:: africanus.model.wsclean
+
+.. autosummary::
+    load
+    spectra
+
+.. autofunction:: load
+.. autofunction:: spectra
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.model.wsclean.dask
+
+.. autosummary::
+    spectra
+
+.. autofunction:: spectra
