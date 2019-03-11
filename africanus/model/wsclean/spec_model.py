@@ -2,8 +2,7 @@
 from numba import types
 import numpy as np
 
-from africanus.compatibility import string_types
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import generated_jit
 from africanus.util.docs import DocstringTemplate
 
 
@@ -93,8 +92,6 @@ def spectra(I, spi, log_si, ref_freq, frequency):
                     spectral_model[s, f] = np.exp(spectral_model[s, f])
             else:
                 for f in range(frequency.shape[0]):
-                    nu = frequency[f]
-
                     # Initialise with base polynomial value
                     spectral_model[s, f] = I[s]
 
@@ -154,4 +151,3 @@ try:
                             array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
-

@@ -197,4 +197,3 @@ def load(filename):
     finally:
         if close_filename:
             fh.close()
-
