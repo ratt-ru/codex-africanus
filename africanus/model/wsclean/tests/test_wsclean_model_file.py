@@ -4,11 +4,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.model.apps.wsclean_file_model import wsclean
+from africanus.model.wsclean.file_model import load
 
 
 def test_wsclean_model_file(wsclean_model_file):
-    sources = wsclean(wsclean_model_file)
+    sources = load(wsclean_model_file)
 
     name, stype, _, _, I, spi, log_si, ref_freq, _, _, _ = sources
 

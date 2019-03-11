@@ -4,8 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.model.apps.wsclean_spectral_model import (spectra as np_spectra,
-                                                         SPECTRA_DOCS)
+from africanus.model.wsclean.spec_model import (spectra as np_spectra,
+                                                SPECTRA_DOCS)
 from africanus.util.requirements import requires_optional
 
 try:

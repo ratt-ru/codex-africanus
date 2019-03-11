@@ -145,13 +145,20 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
     return source_data
 
 
-def wsclean(filename):
+def load(filename):
     """
+    Loads wsclean component model
+
     Parameters
     ----------
     filename : str or iterable
         Filename of wsclean model file or iterable
         producing the lines of the file.
+
+    Returns
+    -------
+    list of lists
+        list of column values
     """
 
     if isinstance(filename, string_types):

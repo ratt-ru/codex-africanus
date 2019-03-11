@@ -8,9 +8,9 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.apps.wsclean_spectral_model import spectra
-from africanus.model.apps.dask import spectra as dask_spectra
-from africanus.model.apps.wsclean_file_model import wsclean
+from africanus.model.wsclean import spectra
+from africanus.model.wsclean.dask import spectra as dask_spectra
+from africanus.model.wsclean.file_model import load
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def freq():
 
 @pytest.fixture
 def spectral_model_inputs(wsclean_model_file):
-    sources = wsclean(wsclean_model_file)
+    sources = load(wsclean_model_file)
 
     _, _, _, _, I, spi, log_si, ref_freq, _, _, _ = sources
 
