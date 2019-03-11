@@ -34,11 +34,18 @@ as follows:
     $ pip install codex-africanus[python-casacore]
 
 
-To install the complete set of dependencies:
+To install the complete set of dependencies for the CPU:
 
 .. code-block:: console
 
     $ pip install codex-africanus[complete]
+
+To install the complete set of dependencies including CUDA:
+
+.. code-block:: console
+
+    $ pip install codex-africanus[complete-cuda]
+
 
 .. _pip: https://pip.pypa.io
 .. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
