@@ -8,9 +8,10 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.wsclean import spectra
-from africanus.model.wsclean.dask import spectra as dask_spectra
 from africanus.model.wsclean.file_model import load
+from africanus.model.wsclean.spec_model import (ordinary_spectral_model,
+                                                log_spectral_model, spectra)
+from africanus.model.wsclean.dask import spectra as dask_spectra
 
 
 @pytest.fixture
@@ -30,26 +31,6 @@ def spectral_model_inputs(wsclean_model_file):
     ref_freq = np.asarray(ref_freq)
 
     return I, spi, log_si, ref_freq
-
-
-def ordinary_spectral_model(I, spi, log_si, freq, ref_freq):
-    spi_idx = np.arange(1, spi.shape[1] + 1)
-    # (source, chan, spi-comp)
-    term = (freq[None, :, None] / ref_freq[:, None, None]) - 1.0
-    term = term**spi_idx[None, None, :]
-    term = spi[:, None, :]*term
-    return I[:, None] + term.sum(axis=2)
-
-
-def log_spectral_model(I, spi, log_si, freq, ref_freq):
-    # No negative flux
-    I = np.where(log_si == False, 1.0, I)  # noqa
-    spi_idx = np.arange(1, spi.shape[1] + 1)
-    # (source, chan, spi-comp)
-    term = np.log(freq[None, :, None] / ref_freq[:, None, None])
-    term = term**spi_idx[None, None, :]
-    term = spi[:, None, :]*term
-    return np.exp(np.log(I)[:, None] + term.sum(axis=2))
 
 
 def test_spectral_model(spectral_model_inputs, freq):

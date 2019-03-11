@@ -7,6 +7,28 @@ from africanus.util.numba import generated_jit, njit
 from africanus.util.docs import DocstringTemplate
 
 
+def ordinary_spectral_model(I, spi, log_si, freq, ref_freq):
+    """ Numpy ordinary polynomial implementation """
+    spi_idx = np.arange(1, spi.shape[1] + 1)
+    # (source, chan, spi-comp)
+    term = (freq[None, :, None] / ref_freq[:, None, None]) - 1.0
+    term = term**spi_idx[None, None, :]
+    term = spi[:, None, :]*term
+    return I[:, None] + term.sum(axis=2)
+
+
+def log_spectral_model(I, spi, log_si, freq, ref_freq):
+    """ Numpy logarithmic polynomial implementation """
+    # No negative flux
+    I = np.where(log_si == False, 1.0, I)  # noqa
+    spi_idx = np.arange(1, spi.shape[1] + 1)
+    # (source, chan, spi-comp)
+    term = np.log(freq[None, :, None] / ref_freq[:, None, None])
+    term = term**spi_idx[None, None, :]
+    term = spi[:, None, :]*term
+    return np.exp(np.log(I)[:, None] + term.sum(axis=2))
+
+
 @generated_jit(nopython=True, nogil=True, cache=True)
 def _check_log_si_shape(spi, log_si):
     if isinstance(log_si, types.npytypes.Array):
