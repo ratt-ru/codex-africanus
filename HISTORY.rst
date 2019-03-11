@@ -4,7 +4,7 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
-* Fix ratio computation in Gaussian Shape (:pr:`89`)
+* Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
 
 0.1.4 (2019-03-11)
 ------------------
