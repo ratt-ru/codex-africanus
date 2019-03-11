@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from numba import types
 import numpy as np
 
+from africanus.compatibility import string_types
 from africanus.util.numba import generated_jit, njit
 from africanus.util.docs import DocstringTemplate
 
@@ -136,3 +132,4 @@ try:
                             array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
+

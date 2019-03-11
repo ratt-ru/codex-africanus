@@ -190,3 +190,4 @@ def wsclean(filename):
     finally:
         if close_filename:
             fh.close()
+

@@ -8,8 +8,8 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model import spectra
-from africanus.model.dask import spectra as dask_spectra
+from africanus.model.apps.wsclean_spectral_model import spectra
+from africanus.model.apps.dask import spectra as dask_spectra
 from africanus.model.apps.wsclean_file_model import wsclean
 
 
