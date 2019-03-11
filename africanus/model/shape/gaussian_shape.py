@@ -60,7 +60,7 @@ Computes the Gaussian Shape Function.
 .. math::
 
     & \lambda^\prime = 2 \lambda \pi \\
-    & r = \frac{e_{maj}}{e_{min}} \\
+    & r = \frac{e_{min}}{e_{maj}} \\
     & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
       r \lambda^\prime \\
     & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))
