@@ -124,6 +124,10 @@ the expansion:
             \right) \\
 
 
+See the `WSClean Component List
+<https://sourceforge.net/p/wsclean/wiki/ComponentList/>`_
+for further details.
+
 Parameters
 ----------
 I : $(array_type)
@@ -140,6 +144,10 @@ ref_freq : $(array_type)
     Source reference frequencies of shape :code:`(source,)`
 frequency : $(array_type)
     frequencies of shape :code:`(chan,)`
+
+See Also
+--------
+africanus.model.wsclean.load
 
 Returns
 -------

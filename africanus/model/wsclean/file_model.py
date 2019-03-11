@@ -157,11 +157,19 @@ def load(filename):
         I = sources["I"]
         ref_freq = sources["ReferenceFrequency"]
 
+    See the `WSClean Component List
+    <https://sourceforge.net/p/wsclean/wiki/ComponentList/>`_
+    for further details.
+
     Parameters
     ----------
     filename : str or iterable
         Filename of wsclean model file or iterable
         producing the lines of the file.
+
+    See Also
+    --------
+    africanus.model.wsclean.spectra
 
     Returns
     -------
