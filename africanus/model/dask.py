@@ -22,8 +22,7 @@ def _wrapper(stokes, spi, log_si, ref_freq, frequency):
 @requires_optional('dask.array', opt_import_error)
 def spectra(stokes, spi, log_si, ref_freq, frequency):
     corrs = tuple("corr-%d" % i for i in range(len(stokes.shape[1:])))
-
-    log_si_schema = None if isinstance(log_si, bool) else ("source",) + corrs
+    log_si_schema = None if isinstance(log_si, bool) else ("source",)
 
     return da.blockwise(_wrapper, ("source", "chan") + corrs,
                         stokes, ("source",) + corrs,

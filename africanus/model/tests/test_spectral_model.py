@@ -84,44 +84,7 @@ def test_spectral_model(spectral_model_inputs, freq):
     assert_array_almost_equal(model, ordinary_spec_model)
 
 
-def _broadcast_corrs(array, corrs):
-    idx = (tuple(slice(None) for _ in array.shape) +
-           tuple(None for _ in corrs))
-
-    shape = array.shape + corrs
-    broadcast_array = np.broadcast_to(array[idx], shape)
-
-    return np.require(broadcast_array, requirements=["C"])
-
-
-@pytest.mark.parametrize("corrs", [(), (1,), (2,), (2, 2)])
-def test_spectral_model_corrs(spectral_model_inputs, freq, corrs):
-    I, spi, log_si, ref_freq = spectral_model_inputs
-
-    # Compute spectral model with numpy implementations
-    ordinary_spec_model = ordinary_spectral_model(I, spi, log_si,
-                                                  freq, ref_freq)
-    log_spec_model = log_spectral_model(I, spi, log_si,
-                                        freq, ref_freq)
-
-    # Choose between ordinary and log spectral index
-    # based on log_si array
-    spec_model = np.where(log_si[:, None] == True,  # noqa
-                          log_spec_model,
-                          ordinary_spec_model)
-
-    # Just broadcast everything up to test
-    I = _broadcast_corrs(I, corrs)  # noqa
-    spi = _broadcast_corrs(spi, corrs)
-    log_si = _broadcast_corrs(log_si, corrs)
-    spec_model = _broadcast_corrs(spec_model, corrs)
-
-    model = spectra(I, spi, log_si, ref_freq, freq)
-    assert_array_almost_equal(model, spec_model)
-
-
-@pytest.mark.parametrize("corrs", [(), (1,), (2,), (2, 2)])
-def test_dask_spectral_model(spectral_model_inputs, freq, corrs):
+def test_dask_spectral_model(spectral_model_inputs, freq):
     da = pytest.importorskip("dask.array")
 
     I, spi, log_si, ref_freq = spectral_model_inputs
@@ -138,21 +101,16 @@ def test_dask_spectral_model(spectral_model_inputs, freq, corrs):
                           log_spec_model,
                           ordinary_spec_model)
 
-    # Just broadcast everything up to test
-    I = _broadcast_corrs(I, corrs)  # noqa
-    spi = _broadcast_corrs(spi, corrs)
-    log_si = _broadcast_corrs(log_si, corrs)
-    spec_model = _broadcast_corrs(spec_model, corrs)
-
     # Create dask arrays
     src_chunks = (4, 3)
     spi_chunks = (2,)
+    freq_chunks = (4, 4, 4, 4)
 
-    I = da.from_array(I, chunks=(src_chunks,) + corrs)  # noqa
-    spi = da.from_array(spi, chunks=(src_chunks, spi_chunks) + corrs)
-    log_si = da.from_array(log_si, chunks=(src_chunks,) + corrs)
+    I = da.from_array(I, chunks=(src_chunks,))  # noqa
+    spi = da.from_array(spi, chunks=(src_chunks, spi_chunks))
+    log_si = da.from_array(log_si, chunks=(src_chunks,))
     ref_freq = da.from_array(ref_freq, chunks=(src_chunks,))
-    freq = da.from_array(freq, chunks=4)
+    freq = da.from_array(freq, chunks=(freq_chunks,))
 
     # Compute spectra and compare
     model = dask_spectra(I, spi, log_si, ref_freq, freq)
