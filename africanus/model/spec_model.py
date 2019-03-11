@@ -16,7 +16,7 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency):
         return stokes[:, None] * freq_ratio**spi[:, None]
     elif spi.ndim == 2:
         spi_exps = np.arange(spi.shape[1])[None, :, None]
-        term = np.log10(frequency)[None, None, :] ** spi_exps
+        term = np.log10(frequency / 1e9)[None, None, :] ** spi_exps
         term = spi[:, :, None] * term
         return stokes[:, None] * 10**term.sum(axis=1)
     else:
@@ -44,6 +44,8 @@ def spectral_model(stokes, spi, ref_freq, frequency):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
+
+    ONE_GHZ = arg_dtypes[-1].type(1e9)
 
     ncorrdims = stokes.ndim - 1
     corr_get_fn = corr_getter_factory(ncorrdims)  # noqa
@@ -78,7 +80,7 @@ def spectral_model(stokes, spi, ref_freq, frequency):
 
                 for f in range(nchan):
                     spectral_model[s, f] = spi[s, 0]
-                    log_freq = np.log10(frequency[f])
+                    log_freq = np.log10(frequency[f] / ONE_GHZ)
 
                     for si in range(1, nspi):
                         spectral_model[s, f] += spi[s, si] * log_freq**si

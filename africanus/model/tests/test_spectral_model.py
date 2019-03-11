@@ -65,8 +65,8 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency):
 
     I = flux(nsrc)  # noqa
     spi = 0.7 + np.random.random((nsrc, nspi)) * 0.2
-    ref_freq = ref_freq(nsrc)/1e9
-    freq = frequency(nchan)/1e9
+    ref_freq = ref_freq(nsrc)
+    freq = frequency(nchan)
 
     model = spectral_model(I, spi, ref_freq, freq)
     np_model = numpy_spectral_model(I, spi, ref_freq, freq)
