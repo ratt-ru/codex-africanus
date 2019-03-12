@@ -2,8 +2,15 @@
 History
 =======
 
-0.1.3 (2018-03-28)
+0.1.5 (YYYY-MM-DD)
 ------------------
+* Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
+
+0.1.4 (2019-03-11)
+------------------
+* Support `complete` and `complete-cuda` to support non-GPU installs (:pr:`87`)
+* Gaussian Shape Parameter Implementation (:pr:`82`, :pr:`83`)
+* WSClean Spectral Model (:pr:`81`)
 * Compare predict versus MeqTrees (:pr:`79`)
 * Time and channel averaging (:pr:`75`)
 * cupy implementation of `predict_vis` (:pr:`73`)

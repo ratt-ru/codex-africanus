@@ -5,13 +5,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ...util.docs import DocstringTemplate
-
-import numba
 import numpy as np
 
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import jit
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+
+@jit(nopython=True, nogil=True, cache=True)
 def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                              jac, ncomps, nfreqs, tol, maxiter):
     w = freqs/freq0

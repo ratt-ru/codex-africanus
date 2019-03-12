@@ -8,8 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from africanus.averaging.support import (unique_baselines, unique_time,
-                                         generate_metadata)
+from africanus.averaging.support import (unique_baselines, unique_time)
 
 
 @pytest.fixture

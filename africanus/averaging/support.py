@@ -45,6 +45,7 @@ def _unique_internal(data):
 
     counts.append(aux.shape[0])
 
+    # (unique_times, indices, inverse index, counts)
     return aux[mask], perm[mask], inv_idx, np.diff(np.array(counts))
 
 
@@ -156,8 +157,8 @@ def generate_metadata(time, ant1, ant2, time_bin_size=1,
     def impl(time, ant1, ant2, time_bin_size=1,
              flag_row=None, flag=None):
 
-        ubl, bl_inv, bl_counts = unique_baselines(ant1, ant2)
-        utime, time_inv, time_counts = unique_time(time)
+        ubl, bl_idx, bl_inv, bl_counts = unique_baselines(ant1, ant2)
+        utime, time_idx, time_inv, time_counts = unique_time(time)
 
         nbl = ubl.shape[0]
         ntime = utime.shape[0]

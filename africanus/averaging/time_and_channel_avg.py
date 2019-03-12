@@ -6,14 +6,15 @@ from __future__ import print_function
 
 from operator import mul
 
-import numpy as np
 import numba
+import numpy as np
 
 from africanus.compatibility import reduce
 from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import jit
 
 
-@numba.njit(nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _generate_time_lookup(mask, time, time_bins, time_bin_size):
     # Create a lookup table of averaged times for each baseline,
     # used to order visibilities in the output data.
@@ -74,7 +75,7 @@ def _generate_time_lookup(mask, time, time_bins, time_bin_size):
     return lookup, inv_argsort, time_sentinel, out_rows
 
 
-@numba.njit(nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _minus_one_if_all_flagged(flags, r):
     for f in range(flags.shape[1]):
         for c in range(flags.shape[2]):
@@ -84,7 +85,7 @@ def _minus_one_if_all_flagged(flags, r):
     return -1
 
 
-@numba.njit(nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _time_and_chan_avg(time, ant1, ant2, vis, flags,
                        utime, time_inv, ubl, bl_inv,
                        avg_time, avg_chan,

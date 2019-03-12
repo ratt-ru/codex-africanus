@@ -40,7 +40,11 @@ extras_require = {
     'testing': ['pytest', 'pytest-runner']
 }
 
-extras_require['complete'] = sorted(set(sum(extras_require.values(), [])))
+_non_cuda_extras = [er for n, er in extras_require.items() if n != "cuda"]
+_all_extras = extras_require.values()
+
+extras_require['complete'] = sorted(set(sum(_non_cuda_extras, [])))
+extras_require['complete-cuda'] = sorted(set(sum(_all_extras, [])))
 
 setup_requirements = ['pytest-runner', ]
 test_requirements = (['pytest'] +
@@ -81,6 +85,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.1.2',
+    version='0.1.4',
     zip_safe=False,
 )
