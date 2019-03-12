@@ -8,7 +8,7 @@ import numpy as np
 import numba
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.util.numba import is_numba_type_none
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
 def _is_flagged_factory(have_flag_row):
@@ -19,10 +19,10 @@ def _is_flagged_factory(have_flag_row):
         def impl(flag_row, r):
             return False
 
-    return numba.njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True)(impl)
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def row_mapper(time_centroid, exposure, antenna1, antenna2,
                flag_row=None, time_bin_secs=1):
     """
@@ -225,7 +225,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         flag_count = numba.int32(0)
 
         # foreach input row
-        for in_row in range(time_centroid.shape[0]):
+        for in_row in range(total_input_rows):
             # Lookup baseline and time
             bl = bl_inv[in_row]
             t = time_inv[in_row]

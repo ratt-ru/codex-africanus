@@ -7,10 +7,10 @@ from __future__ import print_function
 import numpy as np
 import numba
 
-from africanus.util.numba import is_numba_type_none
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
-@numba.njit(nogil=True, cache=True)
+@njit(nogil=True, cache=True)
 def _unique_internal(data):
     if len(data.shape) != 1:
         raise ValueError("_unique_internal currently "
@@ -49,7 +49,7 @@ def _unique_internal(data):
     return aux[mask], perm[mask], inv_idx, np.diff(np.array(counts))
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def unique_time(time):
     """ Return unique time, inverse index and counts """
     if time.dtype not in (numba.float32, numba.float64):
@@ -61,7 +61,7 @@ def unique_time(time):
     return impl
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def unique_baselines(ant1, ant2):
     """ Return unique baselines, inverse index and counts """
     if not ant1.dtype == numba.int32 or not ant2.dtype == numba.int32:
@@ -145,10 +145,10 @@ def row_or_minus_one_factory(flag_row, flag):
         def impl(flag_row, flag, r):
             return r
 
-    return numba.njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True)(impl)
 
 
-@numba.generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def generate_metadata(time, ant1, ant2, time_bin_size=1,
                       flag_row=None, flag=None):
 
