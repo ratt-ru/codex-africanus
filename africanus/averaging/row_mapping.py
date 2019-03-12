@@ -208,8 +208,21 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
 
+        # Number of flagged rows
+        total_input_rows = time_centroid.shape[0]
+        flagged_rows = 0
+
+        for r in range(total_input_rows):
+            if is_flagged_fn(flag_row, r):
+                flagged_rows += 1
+
+        map_rows = total_input_rows - flagged_rows
+
         # Construct the final row map
-        row_map = np.empty((time_centroid.shape[0], 2), dtype=np.uint32)
+        row_map = np.empty((2, map_rows), dtype=np.uint32)
+
+        # Running count of encountered flags
+        flag_count = numba.int32(0)
 
         # foreach input row
         for in_row in range(time_centroid.shape[0]):
@@ -217,13 +230,18 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
             bl = bl_inv[in_row]
             t = time_inv[in_row]
 
+            # Ignore if flagged and increase flag_count
+            if is_flagged_fn(flag_row, in_row):
+                flag_count += 1
+                continue
+
             # lookup time bin and output row
             tbin = bin_lookup[bl, t]
             out_row = inv_argsort[bl*ntime + tbin]
 
             # lookup output row in inv_argsort
-            row_map[in_row, 0] = in_row
-            row_map[in_row, 1] = out_row
+            row_map[0, in_row - flag_count] = in_row
+            row_map[1, in_row - flag_count] = out_row
 
         return row_map, flat_time[argsort[:out_rows]]
 
