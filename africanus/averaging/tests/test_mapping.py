@@ -36,14 +36,26 @@ def ant2():
                       dtype=np.int32)
 
 
+def flag_row_factory(nrows, flagged_rows):
+    flag_row = np.zeros(nrows, dtype=np.uint8)
+
+    if flagged_rows is not None:
+        flag_row[flagged_rows] = 1
+
+    return flag_row
+
+
 @pytest.mark.parametrize("time_bin_secs", [0.1, 0.2, 1, 2, 4])
-@pytest.mark.parametrize("flag_row", [None])
-def test_row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs):
+@pytest.mark.parametrize("flagged_rows", [None, [0, 1], [2, 4], range(10)])
+def test_row_mapper(time, interval, ant1, ant2,
+                    flagged_rows, time_bin_secs):
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     mask = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
 
     mask[bl_inv, time_inv] = np.arange(time.size)
+
+    flag_row = flag_row_factory(time.size, flagged_rows)
 
     row_map, time_avg = row_mapper(time, interval, ant1, ant2,
                                    flag_row=flag_row,
@@ -56,18 +68,20 @@ def test_row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs):
     time_avg_2 = np.zeros_like(time_avg)
     counts = np.zeros(time_avg.shape, dtype=np.uint32)
 
+    mask = flag_row == 0
+
     # Add times at row_map indices to time_avg_2
-    np.add.at(time_avg_2, out_rows, time)
+    np.add.at(time_avg_2, out_rows[mask], time[mask])
     # Add 1 at row_map indices to counts
-    np.add.at(counts, out_rows, 1)
+    np.add.at(counts, out_rows[mask], 1)
     # Normalise
     time_avg_2 /= counts
 
     ant1_avg = np.empty(time_avg.shape, dtype=ant1.dtype)
     ant2_avg = np.empty(time_avg.shape, dtype=ant2.dtype)
 
-    ant1_avg[out_rows] = ant1
-    ant2_avg[out_rows] = ant2
+    ant1_avg[out_rows[mask]] = ant1[mask]
+    ant2_avg[out_rows[mask]] = ant2[mask]
 
     assert_array_equal(time_avg, time_avg_2)
 

@@ -164,11 +164,16 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
                 half_exp = exposure[r] * 0.5
 
-                # We're starting a new bin, set the lower bin value
+                # At this point, we decide whether to contribute to
+                # the current bin, or create a new one. We don't add
+                # the current sample to the current bin if
+                # high - low >= time_bin_secs
+
+                # We're starting a new bin anyway,
+                # just set the lower bin value
                 # and ignore normalisation
                 if bin_count == 0:
                     bin_low = time_centroid[r] - half_exp
-
                 # If we exceed the seconds in the bin,
                 # normalise the centroid and start a new bin
                 elif time_centroid[r] + half_exp - bin_low > time_bin_secs:
