@@ -19,6 +19,12 @@ def time():
 
 
 @pytest.fixture
+def interval():
+    data = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
+    return data*0.1
+
+
+@pytest.fixture
 def ant1():
     return np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1],  # noqa
                       dtype=np.int32)
@@ -30,14 +36,20 @@ def ant2():
                       dtype=np.int32)
 
 
-def test_row_mapper(time, ant1, ant2):
+@pytest.mark.parametrize("time_bin_secs", [0.1, 0.2, 1, 2, 4])
+@pytest.mark.parametrize("flag_row", [None])
+def test_row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs):
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     mask = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
 
     mask[bl_inv, time_inv] = np.arange(time.size)
 
-    row_map, time_avg = row_mapper(time, ant1, ant2, time_bin_size=2)
+    row_map, time_avg = row_mapper(time, interval, ant1, ant2,
+                                   flag_row=flag_row,
+                                   time_bin_secs=time_bin_secs)
+
+    in_rows = row_map[:, 0]
     out_rows = row_map[:, 1]
 
     # Now recalculate time_avg using the row_map
