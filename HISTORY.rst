@@ -4,6 +4,7 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
+* Support integer seconds in wsclean ra and dec columns (:pr:`91`, :pr:`93`)
 * Spectral Models (:pr:`86`)
 * Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
 
