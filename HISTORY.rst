@@ -4,7 +4,7 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
-* Support integer seconds in wsclean ra and dec columns
+* Support integer seconds in wsclean ra and dec columns (:pr:`91`, :pr:`93`)
 * Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
 
 0.1.4 (2019-03-11)
