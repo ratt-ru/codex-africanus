@@ -14,12 +14,12 @@ from africanus.compatibility import string_types
 hour_re = re.compile(r"(?P<sign>[-]*)"
                      r"(?P<hours>\d+):"
                      r"(?P<mins>\d+):"
-                     r"(?P<secs>\d+\.\d+)")
+                     r"(?P<secs>\d+\.?\d*)")
 
 deg_re = re.compile(r"(?P<sign>[-])*"
                     r"(?P<degs>\d+)\."
                     r"(?P<mins>\d+)\."
-                    r"(?P<secs>\d+\.\d+)")
+                    r"(?P<secs>\d+\.?\d*)")
 
 
 def _hour_converter(hour_str):
