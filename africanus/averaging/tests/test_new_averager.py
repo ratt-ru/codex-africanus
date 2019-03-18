@@ -225,9 +225,11 @@ def test_averager(time, ant1, ant2, flagged_rows,
     metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     row_lookup, centroid_avg, exposure_sum = metadata
 
-    time_and_channel_average(time, interval, ant1, ant2,
-                             flag_row=flag_row, vis=vis,
-                             time_bin_secs=time_bin_secs,
-                             chan_bin_size=chan_bin_size)
+    result = time_and_channel_average(time, interval, ant1, ant2,
+                                      flag_row=flag_row, vis=vis,
+                                      time_bin_secs=time_bin_secs,
+                                      chan_bin_size=chan_bin_size)
+
+    row_result, chan_result = result
 
     delete_me = time_bl_row_map  # noqa

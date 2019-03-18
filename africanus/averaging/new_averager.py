@@ -133,6 +133,17 @@ def row_average(metadata, ant1, ant2,
     return impl
 
 
+def chan_output_factory(present):
+    if present:
+        def impl(shape, array):
+            return np.zeros(shape, dtype=array.dtype)
+    else:
+        def impl(shape, array):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
 def chan_add_factory(present):
     """ Returns function for adding data to a bin """
     if present:
@@ -188,10 +199,10 @@ def chan_average(row_meta, chan_meta, vis=None, flag=None,
     have_weight = not is_numba_type_none(weight_spectrum)
     have_sigma = not is_numba_type_none(sigma_spectrum)
 
-    vis_factory = output_factory(have_vis)
-    flag_factory = output_factory(have_flag)
-    weight_factory = output_factory(have_weight)
-    sigma_factory = output_factory(have_sigma)
+    vis_factory = chan_output_factory(have_vis)
+    flag_factory = chan_output_factory(have_flag)
+    weight_factory = chan_output_factory(have_weight)
+    sigma_factory = chan_output_factory(have_sigma)
 
     vis_adder = chan_add_factory(have_vis)
     flag_adder = chan_add_factory(have_flag)
@@ -213,14 +224,15 @@ def chan_average(row_meta, chan_meta, vis=None, flag=None,
         row_lookup, centroid_avg, _ = row_meta
         out_rows = centroid_avg.shape[0]
         chan_map, out_chans = chan_meta
-        _, ncorr = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
+        _, ncorrs = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
 
-        counts = np.zeros((out_rows, out_chans, ncorr), dtype=np.uint32)
+        out_shape = (out_rows, out_chans, ncorrs)
+        vis_avg = vis_factory(out_shape, vis)
+        flag_avg = flag_factory(out_shape, flag)
+        weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
+        sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
 
-        vis_avg = vis_factory(out_rows, vis)
-        flag_avg = flag_factory(out_rows, flag)
-        weight_spectrum_avg = weight_factory(out_rows, weight_spectrum)
-        sigma_spectrum_avg = sigma_factory(out_rows, sigma_spectrum)
+        counts = np.zeros(out_shape, dtype=np.uint32)
 
         # Iterate over input rows, accumulating into output rows
         for i in range(row_lookup.shape[1]):
@@ -228,7 +240,7 @@ def chan_average(row_meta, chan_meta, vis=None, flag=None,
             out_row = row_lookup[1, i]
 
             for in_chan, out_chan in enumerate(chan_map):
-                for c in range(ncorr):
+                for c in range(ncorrs):
                     counts[out_row, out_chan, c] += 1
 
                     vis_adder(vis_avg, out_row, out_chan,
@@ -242,7 +254,7 @@ def chan_average(row_meta, chan_meta, vis=None, flag=None,
 
         for r in range(out_rows):
             for f in range(out_chans):
-                for c in range(ncorr):
+                for c in range(ncorrs):
                     count = counts[r, f, c]
 
                     vis_normaliser(vis_avg, r, f, c, count)
