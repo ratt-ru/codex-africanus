@@ -102,9 +102,9 @@ def row_average(metadata, ant1, ant2,
         sigma_avg = sigma_factory(out_rows, sigma)
 
         # Iterate over input rows, accumulating into output rows
-        for i in range(row_lookup.shape[0]):
-            in_row = row_lookup[i, 0]
-            out_row = row_lookup[i, 1]
+        for i in range(row_lookup.shape[1]):
+            in_row = row_lookup[0, i]
+            out_row = row_lookup[1, i]
             counts[out_row] += 1
 
             # Here we can simply assign because input_row baselines
