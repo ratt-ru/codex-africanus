@@ -4,10 +4,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import numba
+from numba import types
+import numpy as np
 
 from africanus.averaging.row_mapping import row_mapper
+from africanus.averaging.channel_mapping import channel_mapper
 from africanus.util.numba import is_numba_type_none
 
 
@@ -134,10 +136,10 @@ def row_average(metadata, ant1, ant2,
 def chan_add_factory(present):
     """ Returns function for adding data to a bin """
     if present:
-        def impl(output, orow, input, irow):
-            pass
+        def impl(output, orow, ochan, input, irow, ichan, corr):
+            output[orow, ochan, corr] += input[irow, ichan, corr]
     else:
-        def impl(input, irow, output, orow):
+        def impl(output, orow, ochan, input, irow, ichan, corr):
             pass
 
     return numba.njit(nogil=True, cache=True)(impl)
@@ -146,18 +148,40 @@ def chan_add_factory(present):
 def chan_normalizer_factory(present):
     """ Returns function normalising channel data in a bin """
     if present:
-        def impl(data, idx, bin_size):
-            pass
+        def impl(data, row, chan, corr, bin_size):
+            data[row, chan, corr] /= bin_size
     else:
-        def impl(data, idx, bin_size):
+        def impl(data, row, chan, corr, bin_size):
             pass
 
     return numba.njit(nogil=True, cache=True)(impl)
 
 
+def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
+    """ Returns function returning number of channels and correlations """
+    if have_vis:
+        def impl(vis, flag, weight_spectrum, sigma_spectrum):
+            return vis.shape[1:]
+    elif have_flag:
+        def impl(vis, flag, weight_spectrum, sigma_spectrum):
+            return flag.shape[1:]
+    elif have_weight:
+        def impl(vis, flag, weight_spectrum, sigma_spectrum):
+            return weight_spectrum.shape[1:]
+    elif have_sigma:
+        def impl(vis, flag, weight_spectrum, sigma_spectrum):
+            return sigma_spectrum.shape[1:]
+    else:
+        def impl(vis, flag, weight_spectrum, sigma_spectrum):
+            return (1, 1)
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
-def chan_average(metadata, vis=None, flag=None,
-                 weight_spectrum=None, sigma_spectrum=None):
+def chan_average(row_meta, chan_meta, vis=None, flag=None,
+                 weight_spectrum=None, sigma_spectrum=None,
+                 chan_bin_size=1):
 
     have_vis = not is_numba_type_none(vis)
     have_flag = not is_numba_type_none(flag)
@@ -179,13 +203,19 @@ def chan_average(metadata, vis=None, flag=None,
     weight_normaliser = chan_normalizer_factory(have_weight)
     sigma_normaliser = chan_normalizer_factory(have_sigma)
 
-    def impl(metadata, vis=None, flag=None,
-             weight_spectrum=None, sigma_spectrum=None):
+    chan_corrs = chan_corr_factory(have_vis, have_flag,
+                                   have_weight, have_sigma)
 
-        row_lookup, centroid_avg, _ = metadata
+    def impl(row_meta, chan_meta, vis=None, flag=None,
+             weight_spectrum=None, sigma_spectrum=None,
+             chan_bin_size=1):
+
+        row_lookup, centroid_avg, _ = row_meta
         out_rows = centroid_avg.shape[0]
+        chan_map, out_chans = chan_meta
+        _, ncorr = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
 
-        counts = np.zeros(out_rows, dtype=np.uint32)
+        counts = np.zeros((out_rows, out_chans, ncorr), dtype=np.uint32)
 
         vis_avg = vis_factory(out_rows, vis)
         flag_avg = flag_factory(out_rows, flag)
@@ -196,48 +226,85 @@ def chan_average(metadata, vis=None, flag=None,
         for i in range(row_lookup.shape[1]):
             in_row = row_lookup[0, i]
             out_row = row_lookup[1, i]
-            counts[out_row] += 1
 
-            vis_adder(vis_avg, in_row, vis, out_row)
-            flag_adder(flag_avg, in_row, flag, out_row)
-            weight_adder(weight_spectrum_avg, in_row, weight_spectrum, out_row)
-            sigma_adder(sigma_spectrum_avg, in_row, sigma_spectrum, out_row)
+            for in_chan, out_chan in enumerate(chan_map):
+                for c in range(ncorr):
+                    counts[out_row, out_chan, c] += 1
 
-        for out_row in range(out_rows):
-            count = counts[out_row]
+                    vis_adder(vis_avg, out_row, out_chan,
+                              vis, in_row, in_chan, c)
+                    flag_adder(flag_avg, out_row, out_chan,
+                               flag, in_row, in_chan, c)
+                    weight_adder(weight_spectrum_avg, out_row, out_chan,
+                                 weight_spectrum, in_row, in_chan, c)
+                    sigma_adder(sigma_spectrum_avg, out_row, out_chan,
+                                sigma_spectrum, in_row, in_chan, c)
 
-            vis_normaliser(vis, out_row, count)
-            flag_normaliser(flag, out_row, count)
-            weight_normaliser(weight_spectrum, out_row, count)
-            sigma_normaliser(sigma_spectrum, out_row, count)
+        for r in range(out_rows):
+            for f in range(out_chans):
+                for c in range(ncorr):
+                    count = counts[r, f, c]
+
+                    vis_normaliser(vis_avg, r, f, c, count)
+                    flag_normaliser(flag_avg, r, f, c, count)
+                    weight_normaliser(weight_spectrum_avg, r, f, c, count)
+                    sigma_normaliser(sigma_spectrum_avg, r, f, c, count)
+
+        return vis_avg, flag_avg, weight_spectrum_avg, sigma_spectrum_avg
 
     return impl
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def time_and_channel_average(time_centroid, exposure, ant1, ant2,
-                             flag_row=None, uvw=None,
-                             time=None, interval=None,
+                             flag_row=None, uvw=None, time=None, interval=None,
                              weight=None, sigma=None,
-                             vis=None,
-                             time_bin_secs=1.0):
+                             vis=None, flag=None,
+                             weight_spectrum=None, sigma_spectrum=None,
+                             time_bin_secs=1.0, chan_bin_size=1):
+
+    valid_types = (types.misc.Omitted, types.scalars.Float,
+                   types.scalars.Integer)
+
+    if not isinstance(time_bin_secs, valid_types):
+        raise TypeError("time_bin_secs must be a scalar float")
+
+    valid_types = (types.misc.Omitted, types.scalars.Integer)
+
+    if not isinstance(chan_bin_size, valid_types):
+        raise TypeError("chan_bin_size must be a scalar integer")
+
+    have_vis = not is_numba_type_none(vis)
+    have_flag = not is_numba_type_none(flag)
+    have_weight = not is_numba_type_none(weight_spectrum)
+    have_sigma = not is_numba_type_none(sigma_spectrum)
+
+    chan_corrs = chan_corr_factory(have_vis, have_flag,
+                                   have_weight, have_sigma)
 
     def impl(time_centroid, exposure, ant1, ant2,
-             flag_row=None, uvw=None,
-             time=None, interval=None,
+             flag_row=None, uvw=None, time=None, interval=None,
              weight=None, sigma=None,
-             vis=None,
-             time_bin_secs=1.0):
+             vis=None, flag=None,
+             weight_spectrum=None, sigma_spectrum=None,
+             time_bin_secs=1.0, chan_bin_size=1):
 
-        metadata = row_mapper(time_centroid, exposure,
+        row_meta = row_mapper(time_centroid, exposure,
                               ant1, ant2, flag_row,
                               time_bin_secs)
 
-        res = row_average(metadata, ant1, ant2, uvw,
-                          time, interval, weight, sigma)
+        nchan, ncorr = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
+        chan_meta = channel_mapper(nchan, chan_bin_size)
 
-        chan_average(metadata, vis=vis)
+        row_data = row_average(row_meta, ant1, ant2, uvw,
+                               time, interval, weight, sigma)
 
-        return res
+        chan_data = chan_average(row_meta, chan_meta,
+                                 vis=vis, flag=flag,
+                                 weight_spectrum=weight_spectrum,
+                                 sigma_spectrum=sigma_spectrum,
+                                 chan_bin_size=chan_bin_size)
+
+        return row_data, chan_data
 
     return impl

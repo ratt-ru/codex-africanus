@@ -85,7 +85,7 @@ def test_row_mapper(time, interval, ant1, ant2,
 
 
 def test_channel_mapper():
-    chan_map = channel_mapper(64, 17)
+    chan_map, out_chans = channel_mapper(64, 17)
 
     uchan, counts = np.unique(chan_map, return_counts=True)
 
@@ -96,3 +96,5 @@ def test_channel_mapper():
 
     assert_array_equal(uchan, [0, 1, 2, 3])
     assert_array_equal(counts, [17, 17, 17, 13])
+
+    assert out_chans == 4

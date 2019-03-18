@@ -66,8 +66,10 @@ def sigma():
 @pytest.fixture
 def vis():
     def _vis(row, chan, fcorrs):
-        return (np.arange(row*chan*fcorrs, dtype=np.float32) +
-                np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+        flat_vis = (np.arange(row*chan*fcorrs, dtype=np.float32) +
+                    np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+
+        return flat_vis.reshape(row, chan, fcorrs)
 
     return _vis
 
@@ -169,7 +171,7 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
                       weight, sigma)
     (centroid_avg, exposure_sum,
      ant1_avg, ant2_avg,
-     uvw_avg, time_avg, interval_avg,
+     uvw_avg, time_avg, interval_sum,
      weight_avg, sigma_avg) = tup
 
     # Input rows associated with each output row
@@ -192,7 +194,7 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(ant2_avg, expected_ant2)
     assert_array_equal(time_avg, time_avg)
     assert_array_equal(uvw_avg, expected_uvw)
-    assert_array_equal(interval_avg, expected_interval)
+    assert_array_equal(interval_sum, expected_interval)
     assert_array_equal(exposure_sum, expected_exposure)
     assert_array_equal(exposure_sum, expected_interval)
     assert_array_equal(weight_avg, expected_weight)
@@ -203,9 +205,16 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
     [], [8, 9], [4], [0, 1],
 ])
 @pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
+@pytest.mark.parametrize("chan_bin_size", [1, 2, 4])
 def test_averager(time, ant1, ant2, flagged_rows,
                   uvw, interval, weight, sigma,
-                  vis, flag, time_bin_secs):
+                  vis, flag,
+                  time_bin_secs, chan_bin_size):
+
+    nchan = 16
+    ncorr = 4
+
+    vis = vis(time.shape[0], nchan, ncorr)
 
     flag_row = np.zeros(time.shape, dtype=np.uint8)
     flag_row[flagged_rows] = 1
@@ -216,6 +225,9 @@ def test_averager(time, ant1, ant2, flagged_rows,
     metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     row_lookup, centroid_avg, exposure_sum = metadata
 
-    time_and_channel_average(time, interval, ant1, ant2, flag_row=flag_row)
+    time_and_channel_average(time, interval, ant1, ant2,
+                             flag_row=flag_row, vis=vis,
+                             time_bin_secs=time_bin_secs,
+                             chan_bin_size=chan_bin_size)
 
     delete_me = time_bl_row_map  # noqa

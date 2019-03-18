@@ -23,4 +23,7 @@ def channel_mapper(nchan, chan_bin_size=1):
             chan_bin += 1
             bin_count = 0
 
-    return chan_map
+    if bin_count > 0:
+        chan_bin += 1
+
+    return chan_map, chan_bin
