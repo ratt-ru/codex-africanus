@@ -217,3 +217,5 @@ def test_averager(time, ant1, ant2, flagged_rows,
     row_lookup, centroid_avg, exposure_sum = metadata
 
     time_and_channel_average(time, interval, ant1, ant2, flag_row=flag_row)
+
+    delete_me = time_bl_row_map  # noqa

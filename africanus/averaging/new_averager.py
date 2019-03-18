@@ -131,24 +131,113 @@ def row_average(metadata, ant1, ant2,
     return impl
 
 
+def chan_add_factory(present):
+    """ Returns function for adding data to a bin """
+    if present:
+        def impl(output, orow, input, irow):
+            pass
+    else:
+        def impl(input, irow, output, orow):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
+def chan_normalizer_factory(present):
+    """ Returns function normalising channel data in a bin """
+    if present:
+        def impl(data, idx, bin_size):
+            pass
+    else:
+        def impl(data, idx, bin_size):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
+def chan_average(metadata, vis=None, flag=None,
+                 weight_spectrum=None, sigma_spectrum=None):
+
+    have_vis = not is_numba_type_none(vis)
+    have_flag = not is_numba_type_none(flag)
+    have_weight = not is_numba_type_none(weight_spectrum)
+    have_sigma = not is_numba_type_none(sigma_spectrum)
+
+    vis_factory = output_factory(have_vis)
+    flag_factory = output_factory(have_flag)
+    weight_factory = output_factory(have_weight)
+    sigma_factory = output_factory(have_sigma)
+
+    vis_adder = chan_add_factory(have_vis)
+    flag_adder = chan_add_factory(have_flag)
+    weight_adder = chan_add_factory(have_weight)
+    sigma_adder = chan_add_factory(have_sigma)
+
+    vis_normaliser = chan_normalizer_factory(have_vis)
+    flag_normaliser = chan_normalizer_factory(have_flag)
+    weight_normaliser = chan_normalizer_factory(have_weight)
+    sigma_normaliser = chan_normalizer_factory(have_sigma)
+
+    def impl(metadata, vis=None, flag=None,
+             weight_spectrum=None, sigma_spectrum=None):
+
+        row_lookup, centroid_avg, _ = metadata
+        out_rows = centroid_avg.shape[0]
+
+        counts = np.zeros(out_rows, dtype=np.uint32)
+
+        vis_avg = vis_factory(out_rows, vis)
+        flag_avg = flag_factory(out_rows, flag)
+        weight_spectrum_avg = weight_factory(out_rows, weight_spectrum)
+        sigma_spectrum_avg = sigma_factory(out_rows, sigma_spectrum)
+
+        # Iterate over input rows, accumulating into output rows
+        for i in range(row_lookup.shape[1]):
+            in_row = row_lookup[0, i]
+            out_row = row_lookup[1, i]
+            counts[out_row] += 1
+
+            vis_adder(vis_avg, in_row, vis, out_row)
+            flag_adder(flag_avg, in_row, flag, out_row)
+            weight_adder(weight_spectrum_avg, in_row, weight_spectrum, out_row)
+            sigma_adder(sigma_spectrum_avg, in_row, sigma_spectrum, out_row)
+
+        for out_row in range(out_rows):
+            count = counts[out_row]
+
+            vis_normaliser(vis, out_row, count)
+            flag_normaliser(flag, out_row, count)
+            weight_normaliser(weight_spectrum, out_row, count)
+            sigma_normaliser(sigma_spectrum, out_row, count)
+
+    return impl
+
+
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                              flag_row=None, uvw=None,
                              time=None, interval=None,
                              weight=None, sigma=None,
+                             vis=None,
                              time_bin_secs=1.0):
 
     def impl(time_centroid, exposure, ant1, ant2,
              flag_row=None, uvw=None,
              time=None, interval=None,
              weight=None, sigma=None,
+             vis=None,
              time_bin_secs=1.0):
 
         metadata = row_mapper(time_centroid, exposure,
                               ant1, ant2, flag_row,
                               time_bin_secs)
 
-        res = row_average(metadata, ant1, ant2, uvw)
+        res = row_average(metadata, ant1, ant2, uvw,
+                          time, interval, weight, sigma)
+
+        chan_average(metadata, vis=vis)
+
+        return res
 
     return impl
-
