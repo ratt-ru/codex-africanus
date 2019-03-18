@@ -46,7 +46,8 @@ def uvw():
 
 @pytest.fixture
 def interval():
-    return np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
+    data = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
+    return 0.1 * data
 
 
 @pytest.fixture
@@ -78,7 +79,7 @@ def flag():
     return _flag
 
 
-def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
+def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs):
     """
     Generates the same lookup as row_mapper, but different.
 
@@ -110,13 +111,30 @@ def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
         bl_row_idx = bl_time_lookup[bl, :]
         # Removing missing rows
         bl_row_idx = bl_row_idx[bl_row_idx != -1]
-        # Split the row indices on the size of the time bin
-        split_idx = np.arange(time_bin_size, bl_row_idx.size, time_bin_size)
-        bin_map = [bm for bm in np.split(bl_row_idx, split_idx)
-                   if bm.size != 0]
+
+        bin_map = []
+        current_map = []
+
+        for ri in bl_row_idx:
+            half_exp = 0.5 * interval[ri]
+
+            # We're starting a new bin
+            if len(current_map) == 0:
+                bin_low = time[ri] - half_exp
+            # Reached passed the endpoint of the bin, start a new one
+            elif time[ri] + half_exp - bin_low > time_bin_secs:
+                bin_map.append(current_map)
+                current_map = []
+
+            # add current row to the bin
+            current_map.append(ri)
+
+        # Add any remaining maps
+        if len(current_map) > 0:
+            bin_map.append(current_map)
 
         # Produce a (avg_time, bl, rows) tuple
-        time_bl_row_map.extend((time[rows].mean(), (a1, a2), rows.tolist())
+        time_bl_row_map.extend((time[rows].mean(), (a1, a2), rows)
                                for rows in bin_map)
 
     # Sort lookup sorted on averaged times
@@ -126,18 +144,18 @@ def _gen_testing_lookup(time, ant1, ant2, flag_row, time_bin_size):
 @pytest.mark.parametrize("flagged_rows", [
     [], [8, 9], [4], [0, 1],
 ])
-@pytest.mark.parametrize("time_bin_size", [1, 2, 3, 4])
+@pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
 def test_row_averager(time, ant1, ant2, flagged_rows,
                       uvw, interval, weight, sigma,
-                      vis, flag, time_bin_size):
+                      vis, flag, time_bin_secs):
 
     flag_row = np.zeros(time.shape, dtype=np.uint8)
     flag_row[flagged_rows] = 1
 
-    time_bl_row_map = _gen_testing_lookup(time, ant1, ant2,
-                                          flag_row, time_bin_size)
+    time_bl_row_map = _gen_testing_lookup(time, interval, ant1, ant2,
+                                          flag_row, time_bin_secs)
 
-    metadata = row_mapper(time, ant1, ant2, flag_row, time_bin_size)
+    metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     row_lookup, time_avg = metadata
 
     # Check that the averaged times from the test and accelerated lookup match
