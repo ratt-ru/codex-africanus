@@ -202,6 +202,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
+        flat_exp = exposure_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
 
         # Generate lookup from flattened (bl, time) to output row
@@ -243,6 +244,9 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
             row_map[0, in_row - flag_count] = in_row
             row_map[1, in_row - flag_count] = out_row
 
-        return row_map, flat_time[argsort[:out_rows]]
+        time_ret = flat_time[argsort[:out_rows]]
+        exp_ret = flat_exp[argsort[:out_rows]]
+
+        return row_map, time_ret, exp_ret
 
     return impl

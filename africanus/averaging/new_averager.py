@@ -7,6 +7,7 @@ from __future__ import print_function
 import numpy as np
 import numba
 
+from africanus.averaging.row_mapping import row_mapper
 from africanus.util.numba import is_numba_type_none
 
 
@@ -49,43 +50,38 @@ def normaliser_factory(present):
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_average(metadata, ant1, ant2,
-                uvw=None, time_centroid=None,
-                interval=None, exposure=None,
+                uvw=None, time=None, interval=None,
                 weight=None, sigma=None):
 
     have_uvw = not is_numba_type_none(uvw)
-    have_time_centroid = not is_numba_type_none(time_centroid)
+    have_time = not is_numba_type_none(time)
     have_interval = not is_numba_type_none(interval)
-    have_exposure = not is_numba_type_none(exposure)
     have_weight = not is_numba_type_none(weight)
     have_sigma = not is_numba_type_none(sigma)
 
     uvw_factory = output_factory(have_uvw)
-    centroid_factory = output_factory(have_time_centroid)
+    time_factory = output_factory(have_time)
     interval_factory = output_factory(have_interval)
-    exposure_factory = output_factory(have_exposure)
     weight_factory = output_factory(have_weight)
     sigma_factory = output_factory(have_sigma)
 
     uvw_adder = add_factory(have_uvw)
-    centroid_adder = add_factory(have_time_centroid)
+    centroid_adder = add_factory(have_time)
     interval_adder = add_factory(have_interval)
-    exposure_adder = add_factory(have_exposure)
     weight_adder = add_factory(have_weight)
     sigma_adder = add_factory(have_sigma)
 
     uvw_normaliser = normaliser_factory(have_uvw)
-    centroid_normaliser = normaliser_factory(have_time_centroid)
+    centroid_normaliser = normaliser_factory(have_time)
     weight_normaliser = normaliser_factory(have_weight)
     sigma_normaliser = normaliser_factory(have_sigma)
 
     def impl(metadata, ant1, ant2,
-             uvw=None, time_centroid=None,
-             interval=None, exposure=None,
+             uvw=None, time=None, interval=None,
              weight=None, sigma=None):
 
-        row_lookup, time_avg = metadata
-        out_rows = time_avg.shape[0]
+        row_lookup, centroid_avg, exposure_sum = metadata
+        out_rows = centroid_avg.shape[0]
 
         counts = np.zeros(out_rows, dtype=np.uint32)
 
@@ -95,9 +91,8 @@ def row_average(metadata, ant1, ant2,
 
         # Possibly present outputs for possibly present inputs
         uvw_avg = uvw_factory(out_rows, uvw)
-        centroid_avg = centroid_factory(out_rows, time_centroid)
+        time_avg = time_factory(out_rows, time)
         interval_avg = interval_factory(out_rows, interval)
-        exposure_avg = exposure_factory(out_rows, exposure)
         weight_avg = weight_factory(out_rows, weight)
         sigma_avg = sigma_factory(out_rows, sigma)
 
@@ -114,9 +109,8 @@ def row_average(metadata, ant1, ant2,
 
             # Defer to functions for possibly missing input
             uvw_adder(uvw_avg, out_row, uvw, in_row)
-            centroid_adder(centroid_avg, out_row, time_centroid, in_row)
+            centroid_adder(time_avg, out_row, time, in_row)
             interval_adder(interval_avg, out_row, interval, in_row)
-            exposure_adder(exposure_avg, out_row, exposure, in_row)
             weight_adder(weight_avg, out_row, weight, in_row)
             sigma_adder(sigma_avg, out_row, sigma, in_row)
 
@@ -125,13 +119,36 @@ def row_average(metadata, ant1, ant2,
             count = counts[out_row]
 
             uvw_normaliser(uvw_avg, out_row, count)
-            centroid_normaliser(centroid_avg, out_row, count)
+            centroid_normaliser(time_avg, out_row, count)
             weight_normaliser(weight_avg, out_row, count)
             sigma_normaliser(sigma_avg, out_row, count)
 
-        return (time_avg, ant1_avg, ant2_avg,
-                uvw_avg, centroid_avg,
-                interval_avg, exposure_avg,
+        return (centroid_avg, exposure_sum,
+                ant1_avg, ant2_avg,
+                uvw_avg, time_avg, interval_avg,
                 weight_avg, sigma_avg)
 
     return impl
+
+
+@numba.generated_jit(nopython=True, nogil=True, cache=True)
+def time_and_channel_average(time_centroid, exposure, ant1, ant2,
+                             flag_row=None, uvw=None,
+                             time=None, interval=None,
+                             weight=None, sigma=None,
+                             time_bin_secs=1.0):
+
+    def impl(time_centroid, exposure, ant1, ant2,
+             flag_row=None, uvw=None,
+             time=None, interval=None,
+             weight=None, sigma=None,
+             time_bin_secs=1.0):
+
+        metadata = row_mapper(time_centroid, exposure,
+                              ant1, ant2, flag_row,
+                              time_bin_secs)
+
+        res = row_average(metadata, ant1, ant2, uvw)
+
+    return impl
+

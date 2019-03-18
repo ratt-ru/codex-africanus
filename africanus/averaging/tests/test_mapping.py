@@ -57,9 +57,9 @@ def test_row_mapper(time, interval, ant1, ant2,
 
     flag_row = flag_row_factory(time.size, flagged_rows)
 
-    row_map, time_avg = row_mapper(time, interval, ant1, ant2,
-                                   flag_row=flag_row,
-                                   time_bin_secs=time_bin_secs)
+    row_map, time_avg, exp_sum = row_mapper(time, interval, ant1, ant2,
+                                            flag_row=flag_row,
+                                            time_bin_secs=time_bin_secs)
 
     in_rows = row_map[0, :]
     out_rows = row_map[1, :]

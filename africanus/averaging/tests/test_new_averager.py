@@ -10,7 +10,8 @@ import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.row_mapping import row_mapper
-from africanus.averaging.new_averager import row_average
+from africanus.averaging.new_averager import (row_average,
+                                              time_and_channel_average)
 
 
 @pytest.fixture
@@ -156,19 +157,19 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
                                           flag_row, time_bin_secs)
 
     metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
-    row_lookup, time_avg = metadata
+    row_lookup, centroid_avg, exposure_sum = metadata
 
     # Check that the averaged times from the test and accelerated lookup match
-    assert_array_equal([t for t, _, _ in time_bl_row_map], time_avg)
+    assert_array_equal([t for t, _, _ in time_bl_row_map], centroid_avg)
 
     exposure = interval
 
     tup = row_average(metadata, ant1, ant2,
-                      uvw, time, interval, interval,
+                      uvw, time, interval,
                       weight, sigma)
-    (time_avg, ant1_avg, ant2_avg,
-     uvw_avg, time_centroid_avg,
-     interval_avg, exposure_avg,
+    (centroid_avg, exposure_sum,
+     ant1_avg, ant2_avg,
+     uvw_avg, time_avg, interval_avg,
      weight_avg, sigma_avg) = tup
 
     # Input rows associated with each output row
@@ -189,9 +190,30 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(time_avg, expected_times)
     assert_array_equal(ant1_avg, expected_ant1)
     assert_array_equal(ant2_avg, expected_ant2)
-    assert_array_equal(time_centroid_avg, time_avg)
+    assert_array_equal(time_avg, time_avg)
     assert_array_equal(uvw_avg, expected_uvw)
     assert_array_equal(interval_avg, expected_interval)
-    assert_array_equal(exposure_avg, expected_exposure)
+    assert_array_equal(exposure_sum, expected_exposure)
+    assert_array_equal(exposure_sum, expected_interval)
     assert_array_equal(weight_avg, expected_weight)
     assert_array_equal(sigma_avg, expected_sigma)
+
+
+@pytest.mark.parametrize("flagged_rows", [
+    [], [8, 9], [4], [0, 1],
+])
+@pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
+def test_averager(time, ant1, ant2, flagged_rows,
+                  uvw, interval, weight, sigma,
+                  vis, flag, time_bin_secs):
+
+    flag_row = np.zeros(time.shape, dtype=np.uint8)
+    flag_row[flagged_rows] = 1
+
+    time_bl_row_map = _gen_testing_lookup(time, interval, ant1, ant2,
+                                          flag_row, time_bin_secs)
+
+    metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
+    row_lookup, centroid_avg, exposure_sum = metadata
+
+    time_and_channel_average(time, interval, ant1, ant2, flag_row=flag_row)
