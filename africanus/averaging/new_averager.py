@@ -356,23 +356,23 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
              weight_spectrum=None, sigma_spectrum=None,
              time_bin_secs=1.0, chan_bin_size=1):
 
-        row_meta = row_mapper(time_centroid, exposure,
-                              ant1, ant2, flag_row,
-                              time_bin_secs)
-
-        _, time_centroid, exposure = row_meta
-
         nchan, ncorr = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
+
+        row_meta = row_mapper(time_centroid, exposure, ant1, ant2,
+                              flag_row=flag_row, time_bin_secs=time_bin_secs)
         chan_meta = channel_mapper(nchan, chan_bin_size)
 
-        row_data = row_average(row_meta, ant1, ant2, uvw,
-                               time, interval, weight, sigma)
+        row_data = row_average(row_meta, ant1, ant2,
+                               time=time, interval=interval, uvw=uvw,
+                               weight=weight, sigma=sigma)
 
         chan_data = row_chan_average(row_meta, chan_meta,
                                      vis=vis, flag=flag,
                                      weight_spectrum=weight_spectrum,
                                      sigma_spectrum=sigma_spectrum,
                                      chan_bin_size=chan_bin_size)
+
+        _, time_centroid, exposure = row_meta
 
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
