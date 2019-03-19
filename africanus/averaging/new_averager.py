@@ -15,7 +15,6 @@ from africanus.averaging.channel_mapping import channel_mapper
 from africanus.util.numba import is_numba_type_none
 
 
-
 def output_factory(present):
     """ Returns function creating an output if present """
 
@@ -53,9 +52,9 @@ def normaliser_factory(present):
     return numba.njit(nogil=True, cache=True)(impl)
 
 
-RowAverageOutput = namedtuple("RowAverageOutput", ["antenna1", "antenna2",
-                                                   "time", "interval",
-                                                   "uvw", "weight", "sigma"])
+_row_output_fields = ["antenna1", "antenna2", "time", "interval",
+                      "uvw", "weight", "sigma"]
+RowAverageOutput = namedtuple("RowAverageOutput", _row_output_fields)
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
@@ -222,9 +221,9 @@ def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
     return numba.njit(nogil=True, cache=True)(impl)
 
 
-RowChanAverageOutput = namedtuple("RowChanAverageOutput", ["vis", "flag",
-                                                           "weight_spectrum",
-                                                           "sigma_spectrum"])
+_rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
+RowChanAverageOutput = namedtuple("RowChanAverageOutput",
+                                  _rowchan_output_fields)
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
@@ -307,6 +306,12 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
     return impl
 
 
+AverageOutput = namedtuple("AverageOutput",
+                           _row_output_fields + _rowchan_output_fields)
+
+_fake_output_fields = (None,) * len(AverageOutput._fields)
+
+
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                              time=None, interval=None, flag_row=None,
@@ -357,6 +362,18 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                                      sigma_spectrum=sigma_spectrum,
                                      chan_bin_size=chan_bin_size)
 
-        return row_data, chan_data
+        # Have to explicitly write it out because numba tuples
+        # are highly constrained types
+        return AverageOutput(row_data.antenna1,
+                             row_data.antenna2,
+                             row_data.time,
+                             row_data.interval,
+                             row_data.uvw,
+                             row_data.weight,
+                             row_data.sigma,
+                             chan_data.vis,
+                             chan_data.flag,
+                             chan_data.weight_spectrum,
+                             chan_data.sigma_spectrum)
 
     return impl

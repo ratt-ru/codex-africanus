@@ -226,6 +226,4 @@ def test_averager(time, ant1, ant2, flagged_rows,
                                       time_bin_secs=time_bin_secs,
                                       chan_bin_size=chan_bin_size)
 
-    row_result, chan_result = result
-
     delete_me = time_bl_row_map  # noqa
