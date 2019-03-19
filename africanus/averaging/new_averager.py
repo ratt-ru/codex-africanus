@@ -222,6 +222,11 @@ def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
     return numba.njit(nogil=True, cache=True)(impl)
 
 
+RowChanAverageOutput = namedtuple("RowChanAverageOutput", ["vis", "flag",
+                                                           "weight_spectrum",
+                                                           "sigma_spectrum"])
+
+
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
@@ -296,7 +301,8 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
                     weight_normaliser(weight_spectrum_avg, r, f, c, count)
                     sigma_normaliser(sigma_spectrum_avg, r, f, c, count)
 
-        return vis_avg, flag_avg, weight_spectrum_avg, sigma_spectrum_avg
+        return RowChanAverageOutput(vis_avg, flag_avg, weight_spectrum_avg,
+                                    sigma_spectrum_avg)
 
     return impl
 
