@@ -372,12 +372,12 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                                      sigma_spectrum=sigma_spectrum,
                                      chan_bin_size=chan_bin_size)
 
-        _, time_centroid, exposure = row_meta
+        _, centroid_avg, exposure_sum = row_meta
 
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
-        return AverageOutput(time_centroid,
-                             exposure,
+        return AverageOutput(centroid_avg,
+                             exposure_sum,
                              row_data.antenna1,
                              row_data.antenna2,
                              row_data.time,
