@@ -167,8 +167,8 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
     exposure = interval
 
     tup = row_average(metadata, ant1, ant2,
-                      uvw, time, interval,
-                      weight, sigma)
+                      time=time, interval=interval, uvw=uvw,
+                      weight=weight, sigma=sigma)
     (centroid_avg, exposure_sum,
      ant1_avg, ant2_avg,
      uvw_avg, time_avg, interval_sum,

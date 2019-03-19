@@ -52,7 +52,7 @@ def normaliser_factory(present):
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def row_average(metadata, ant1, ant2,
-                uvw=None, time=None, interval=None,
+                time=None, interval=None, uvw=None,
                 weight=None, sigma=None):
 
     have_uvw = not is_numba_type_none(uvw)
@@ -79,7 +79,7 @@ def row_average(metadata, ant1, ant2,
     sigma_normaliser = normaliser_factory(have_sigma)
 
     def impl(metadata, ant1, ant2,
-             uvw=None, time=None, interval=None,
+             time=None, interval=None, uvw=None,
              weight=None, sigma=None):
 
         row_lookup, centroid_avg, exposure_sum = metadata
@@ -269,7 +269,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def time_and_channel_average(time_centroid, exposure, ant1, ant2,
-                             flag_row=None, uvw=None, time=None, interval=None,
+                             time=None, interval=None, flag_row=None, uvw=None,
                              weight=None, sigma=None,
                              vis=None, flag=None,
                              weight_spectrum=None, sigma_spectrum=None,
@@ -295,7 +295,7 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                                    have_weight, have_sigma)
 
     def impl(time_centroid, exposure, ant1, ant2,
-             flag_row=None, uvw=None, time=None, interval=None,
+             time=None, interval=None, flag_row=None, uvw=None,
              weight=None, sigma=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
