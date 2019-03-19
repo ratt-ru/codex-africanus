@@ -5,10 +5,11 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import numba
+
+from africanus.util.numba import jit
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def channel_mapper(nchan, chan_bin_size=1):
     chan_map = np.empty(nchan, dtype=np.uint32)
 
