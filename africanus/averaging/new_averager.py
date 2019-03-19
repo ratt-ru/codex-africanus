@@ -139,6 +139,17 @@ def row_average(metadata, ant1, ant2,
     return impl
 
 
+def vis_ampl_output_factory(present):
+    if present:
+        def impl(shape, array):
+            return np.zeros(shape, dtype=array.real.dtype)
+    else:
+        def impl(shape, array):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
 def chan_output_factory(present):
     if present:
         def impl(shape, array):
@@ -237,6 +248,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
     have_sigma = not is_numba_type_none(sigma_spectrum)
 
     vis_factory = chan_output_factory(have_vis)
+    vis_ampl_factory = vis_ampl_output_factory(have_vis)
     flag_factory = chan_output_factory(have_flag)
     weight_factory = chan_output_factory(have_weight)
     sigma_factory = chan_output_factory(have_sigma)
@@ -265,7 +277,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
 
         out_shape = (out_rows, out_chans, ncorrs)
         vis_avg = vis_factory(out_shape, vis)
-        vis_ampl_avg = vis_factory(out_shape, vis.real)
+        vis_ampl_avg = vis_ampl_factory(out_shape, vis)
         flag_avg = flag_factory(out_shape, flag)
         weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
         sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
@@ -306,10 +318,8 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
     return impl
 
 
-AverageOutput = namedtuple("AverageOutput",
+AverageOutput = namedtuple("AverageOutput", ["time_centroid", "exposure"] +
                            _row_output_fields + _rowchan_output_fields)
-
-_fake_output_fields = (None,) * len(AverageOutput._fields)
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
@@ -350,6 +360,8 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                               ant1, ant2, flag_row,
                               time_bin_secs)
 
+        _, time_centroid, exposure = row_meta
+
         nchan, ncorr = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
         chan_meta = channel_mapper(nchan, chan_bin_size)
 
@@ -364,7 +376,9 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
 
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
-        return AverageOutput(row_data.antenna1,
+        return AverageOutput(time_centroid,
+                             exposure,
+                             row_data.antenna1,
                              row_data.antenna2,
                              row_data.time,
                              row_data.interval,
