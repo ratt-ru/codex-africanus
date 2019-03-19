@@ -144,6 +144,18 @@ def chan_output_factory(present):
     return numba.njit(nogil=True, cache=True)(impl)
 
 
+def vis_add_factory(present):
+    if present:
+        def impl(output, output_ampl, orow, ochan, input, irow, ichan, corr):
+            output[orow, ochan, corr] += input[irow, ichan, corr]
+            output_ampl[orow, ochan, corr] += np.abs(input[irow, ichan, corr])
+    else:
+        def impl(output, output_ampl, orow, ochan, input, irow, ichan, corr):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
 def chan_add_factory(present):
     """ Returns function for adding data to a bin """
     if present:
@@ -151,6 +163,20 @@ def chan_add_factory(present):
             output[orow, ochan, corr] += input[irow, ichan, corr]
     else:
         def impl(output, orow, ochan, input, irow, ichan, corr):
+            pass
+
+    return numba.njit(nogil=True, cache=True)(impl)
+
+
+def vis_normalizer_factory(present):
+    if present:
+        def impl(vis, vis_ampl, row, chan, corr):
+            ampl = vis_ampl[row, chan, corr]
+
+            if ampl != 0.0:
+                vis[row, chan, corr] /= ampl
+    else:
+        def impl(vis, vis_ampl, row, chan, corr):
             pass
 
     return numba.njit(nogil=True, cache=True)(impl)
@@ -204,12 +230,12 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
     weight_factory = chan_output_factory(have_weight)
     sigma_factory = chan_output_factory(have_sigma)
 
-    vis_adder = chan_add_factory(have_vis)
+    vis_adder = vis_add_factory(have_vis)
     flag_adder = chan_add_factory(have_flag)
     weight_adder = chan_add_factory(have_weight)
     sigma_adder = chan_add_factory(have_sigma)
 
-    vis_normaliser = chan_normalizer_factory(have_vis)
+    vis_normaliser = vis_normalizer_factory(have_vis)
     flag_normaliser = chan_normalizer_factory(have_flag)
     weight_normaliser = chan_normalizer_factory(have_weight)
     sigma_normaliser = chan_normalizer_factory(have_sigma)
@@ -228,6 +254,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
 
         out_shape = (out_rows, out_chans, ncorrs)
         vis_avg = vis_factory(out_shape, vis)
+        vis_ampl_avg = vis_factory(out_shape, vis.real)
         flag_avg = flag_factory(out_shape, flag)
         weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
         sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
@@ -243,7 +270,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
                 for c in range(ncorrs):
                     counts[out_row, out_chan, c] += 1
 
-                    vis_adder(vis_avg, out_row, out_chan,
+                    vis_adder(vis_avg, vis_ampl_avg, out_row, out_chan,
                               vis, in_row, in_chan, c)
                     flag_adder(flag_avg, out_row, out_chan,
                                flag, in_row, in_chan, c)
@@ -257,7 +284,7 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
                 for c in range(ncorrs):
                     count = counts[r, f, c]
 
-                    vis_normaliser(vis_avg, r, f, c, count)
+                    vis_normaliser(vis_avg, vis_ampl_avg, r, f, c)
                     flag_normaliser(flag_avg, r, f, c, count)
                     weight_normaliser(weight_spectrum_avg, r, f, c, count)
                     sigma_normaliser(sigma_spectrum_avg, r, f, c, count)
@@ -269,8 +296,8 @@ def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
 def time_and_channel_average(time_centroid, exposure, ant1, ant2,
-                             time=None, interval=None, flag_row=None, uvw=None,
-                             weight=None, sigma=None,
+                             time=None, interval=None, flag_row=None,
+                             uvw=None, weight=None, sigma=None,
                              vis=None, flag=None,
                              weight_spectrum=None, sigma_spectrum=None,
                              time_bin_secs=1.0, chan_bin_size=1):
@@ -295,8 +322,8 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                                    have_weight, have_sigma)
 
     def impl(time_centroid, exposure, ant1, ant2,
-             time=None, interval=None, flag_row=None, uvw=None,
-             weight=None, sigma=None,
+             time=None, interval=None, flag_row=None,
+             uvw=None, weight=None, sigma=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
              time_bin_secs=1.0, chan_bin_size=1):
