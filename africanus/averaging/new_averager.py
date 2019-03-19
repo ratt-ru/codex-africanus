@@ -190,9 +190,9 @@ def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
-def chan_average(row_meta, chan_meta, vis=None, flag=None,
-                 weight_spectrum=None, sigma_spectrum=None,
-                 chan_bin_size=1):
+def row_chan_average(row_meta, chan_meta, vis=None, flag=None,
+                     weight_spectrum=None, sigma_spectrum=None,
+                     chan_bin_size=1):
 
     have_vis = not is_numba_type_none(vis)
     have_flag = not is_numba_type_none(flag)
@@ -311,11 +311,11 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
         row_data = row_average(row_meta, ant1, ant2, uvw,
                                time, interval, weight, sigma)
 
-        chan_data = chan_average(row_meta, chan_meta,
-                                 vis=vis, flag=flag,
-                                 weight_spectrum=weight_spectrum,
-                                 sigma_spectrum=sigma_spectrum,
-                                 chan_bin_size=chan_bin_size)
+        chan_data = row_chan_average(row_meta, chan_meta,
+                                     vis=vis, flag=flag,
+                                     weight_spectrum=weight_spectrum,
+                                     sigma_spectrum=sigma_spectrum,
+                                     chan_bin_size=chan_bin_size)
 
         return row_data, chan_data
 
