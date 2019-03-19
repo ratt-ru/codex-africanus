@@ -10,6 +10,7 @@ import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.row_mapping import row_mapper
+from africanus.averaging.channel_mapping import channel_mapper
 from africanus.averaging.new_averager import (row_average,
                                               time_and_channel_average)
 
@@ -149,7 +150,7 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs):
     [], [8, 9], [4], [0, 1],
 ])
 @pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
-@pytest.mark.parametrize("chan_bin_size", [1, 2, 4])
+@pytest.mark.parametrize("chan_bin_size", [1, 3, 5])
 def test_averager(time, ant1, ant2, flagged_rows,
                   uvw, interval, weight, sigma,
                   vis, flag,
@@ -162,12 +163,15 @@ def test_averager(time, ant1, ant2, flagged_rows,
     exposure = interval
 
     vis = vis(time.shape[0], nchan, ncorr)
+    flag = flag(time.shape[0], nchan, ncorr)
 
     flag_row = np.zeros(time.shape, dtype=np.uint8)
     flag_row[flagged_rows] = 1
 
     time_bl_row_map = _gen_testing_lookup(time_centroid, exposure, ant1, ant2,
                                           flag_row, time_bin_secs)
+
+    chan_map, chan_bins = channel_mapper(nchan, chan_bin_size)
 
     metadata = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     row_lookup, centroid_avg, exposure_sum = metadata
@@ -179,7 +183,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
                                   flag_row=flag_row,
                                   time=time, interval=interval, uvw=uvw,
                                   weight=weight, sigma=sigma,
-                                  vis=vis,
+                                  vis=vis, flag=flag,
                                   time_bin_secs=time_bin_secs,
                                   chan_bin_size=chan_bin_size)
 
@@ -208,3 +212,5 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(exposure_sum, expected_interval)
     assert_array_equal(ra.weight, expected_weight)
     assert_array_equal(ra.sigma, expected_sigma)
+
+    assert ra.flag.shape[1] == chan_bins
