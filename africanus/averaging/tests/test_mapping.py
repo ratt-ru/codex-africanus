@@ -61,25 +61,25 @@ def test_row_mapper(time, interval, ant1, ant2,
                                             flag_row=flag_row,
                                             time_bin_secs=time_bin_secs)
 
-    in_rows = row_map[0, :]
-    out_rows = row_map[1, :]
+    unflagged = flag_row == 0
+    row_map = row_map[unflagged]
 
     # Now recalculate time_avg using the row_map
     time_avg_2 = np.zeros_like(time_avg)
     counts = np.zeros(time_avg.shape, dtype=np.uint32)
 
     # Add times at row_map indices to time_avg_2
-    np.add.at(time_avg_2, out_rows, time[in_rows])
+    np.add.at(time_avg_2, row_map, time[unflagged])
     # Add 1 at row_map indices to counts
-    np.add.at(counts, out_rows, 1)
+    np.add.at(counts, row_map, 1)
     # Normalise
     time_avg_2 /= counts
 
     ant1_avg = np.empty(time_avg.shape, dtype=ant1.dtype)
     ant2_avg = np.empty(time_avg.shape, dtype=ant2.dtype)
 
-    ant1_avg[out_rows] = ant1[in_rows]
-    ant2_avg[out_rows] = ant2[in_rows]
+    ant1_avg[row_map] = ant1[unflagged]
+    ant2_avg[row_map] = ant2[unflagged]
 
     assert_array_equal(time_avg, time_avg_2)
 

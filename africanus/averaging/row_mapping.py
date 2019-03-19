@@ -11,7 +11,7 @@ from africanus.averaging.support import unique_time, unique_baselines
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
-def _is_flagged_factory(have_flag_row):
+def is_flagged_factory(have_flag_row):
     if have_flag_row:
         def impl(flag_row, r):
             return flag_row[r] != 0
@@ -114,7 +114,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
     """
     have_flag_row = not is_numba_type_none(flag_row)
-    is_flagged_fn = _is_flagged_factory(have_flag_row)
+    is_flagged_fn = is_flagged_factory(have_flag_row)
 
     def impl(time_centroid, exposure, antenna1, antenna2,
              flag_row=None, time_bin_secs=1):
@@ -211,40 +211,21 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
 
-        # Number of flagged rows
-        total_input_rows = time_centroid.shape[0]
-        flagged_rows = 0
-
-        for r in range(total_input_rows):
-            if is_flagged_fn(flag_row, r):
-                flagged_rows += 1
-
-        map_rows = total_input_rows - flagged_rows
-
         # Construct the final row map
-        row_map = np.empty((2, map_rows), dtype=np.uint32)
-
-        # Running count of encountered flags
-        flag_count = numba.int32(0)
+        row_map = np.empty((time_centroid.shape[0]), dtype=np.uint32)
 
         # foreach input row
-        for in_row in range(total_input_rows):
+        for in_row in range(time_centroid.shape[0]):
             # Lookup baseline and time
             bl = bl_inv[in_row]
             t = time_inv[in_row]
 
-            # Ignore if flagged and increase flag_count
-            if is_flagged_fn(flag_row, in_row):
-                flag_count += 1
-                continue
-
             # lookup time bin and output row
             tbin = bin_lookup[bl, t]
+            # lookup output row in inv_argsort
             out_row = inv_argsort[bl*ntime + tbin]
 
-            # lookup output row in inv_argsort
-            row_map[0, in_row - flag_count] = in_row
-            row_map[1, in_row - flag_count] = out_row
+            row_map[in_row] = out_row
 
         time_ret = flat_time[argsort[:out_rows]]
         exp_ret = flat_exp[argsort[:out_rows]]
