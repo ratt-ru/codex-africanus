@@ -166,13 +166,9 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
 
     exposure = interval
 
-    tup = row_average(metadata, ant1, ant2,
-                      time=time, interval=interval, uvw=uvw,
-                      weight=weight, sigma=sigma)
-    (centroid_avg, exposure_sum,
-     ant1_avg, ant2_avg,
-     uvw_avg, time_avg, interval_sum,
-     weight_avg, sigma_avg) = tup
+    ra = row_average(metadata, ant1, ant2,
+                     time=time, interval=interval, uvw=uvw,
+                     weight=weight, sigma=sigma)
 
     # Input rows associated with each output row
     row_idx = [row for _, _, row in time_bl_row_map]
@@ -189,16 +185,16 @@ def test_row_averager(time, ant1, ant2, flagged_rows,
     expected_weight = [weight[i].mean(axis=0) for i in row_idx]
     expected_sigma = [sigma[i].mean(axis=0) for i in row_idx]
 
-    assert_array_equal(time_avg, expected_times)
-    assert_array_equal(ant1_avg, expected_ant1)
-    assert_array_equal(ant2_avg, expected_ant2)
-    assert_array_equal(time_avg, time_avg)
-    assert_array_equal(uvw_avg, expected_uvw)
-    assert_array_equal(interval_sum, expected_interval)
+    assert_array_equal(centroid_avg, expected_times)
     assert_array_equal(exposure_sum, expected_exposure)
+    assert_array_equal(ra.antenna1, expected_ant1)
+    assert_array_equal(ra.antenna2, expected_ant2)
+    assert_array_equal(ra.time, expected_times)
+    assert_array_equal(ra.uvw, expected_uvw)
+    assert_array_equal(ra.interval, expected_interval)
     assert_array_equal(exposure_sum, expected_interval)
-    assert_array_equal(weight_avg, expected_weight)
-    assert_array_equal(sigma_avg, expected_sigma)
+    assert_array_equal(ra.weight, expected_weight)
+    assert_array_equal(ra.sigma, expected_sigma)
 
 
 @pytest.mark.parametrize("flagged_rows", [

@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import namedtuple
+
 import numba
 from numba import types
 import numpy as np
@@ -11,6 +13,7 @@ import numpy as np
 from africanus.averaging.row_mapping import row_mapper
 from africanus.averaging.channel_mapping import channel_mapper
 from africanus.util.numba import is_numba_type_none
+
 
 
 def output_factory(present):
@@ -48,6 +51,11 @@ def normaliser_factory(present):
             pass
 
     return numba.njit(nogil=True, cache=True)(impl)
+
+
+RowAverageOutput = namedtuple("RowAverageOutput", ["antenna1", "antenna2",
+                                                   "time", "interval",
+                                                   "uvw", "weight", "sigma"])
 
 
 @numba.generated_jit(nopython=True, nogil=True, cache=True)
@@ -125,10 +133,9 @@ def row_average(metadata, ant1, ant2,
             weight_normaliser(weight_avg, out_row, count)
             sigma_normaliser(sigma_avg, out_row, count)
 
-        return (centroid_avg, exposure_sum,
-                ant1_avg, ant2_avg,
-                uvw_avg, time_avg, interval_avg,
-                weight_avg, sigma_avg)
+        return RowAverageOutput(ant1_avg, ant2_avg,
+                                time_avg, interval_avg, uvw_avg,
+                                weight_avg, sigma_avg)
 
     return impl
 
