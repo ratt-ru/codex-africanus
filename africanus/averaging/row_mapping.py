@@ -134,6 +134,8 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         time_lookup = np.zeros((nbl, ntime), dtype=time_centroid.dtype)
         exposure_lookup = np.zeros((nbl, ntime), dtype=exposure.dtype)
 
+        # Create a mapping from the full bl x time resolution back
+        # to the original input rows
         for r in range(time_centroid.shape[0]):
             bl = bl_inv[r]
             t = time_inv[r]
