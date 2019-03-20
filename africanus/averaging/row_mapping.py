@@ -45,21 +45,22 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
     mapping a baseline and time_centroid to a row of input data.
 
     2. For each baseline, `time_bin_secs` times are averaged together
-    into a `time_lookup` array of shape `(ubl, utime)`.
+    into a `centroid_lookup` array of shape `(ubl, utime)`.
     Not all bins may be filled for a baseline if data is flagged or missing --
     these bins are assigned a sentinel value set to the
     maximum floating point value.
     A secondary `bin_lookup` array of shape `(ubl, utime)` is constructed
-    mapping a time in the `row_lookup` array to a time bin in `time_lookup`.
+    mapping a time in the `row_lookup` array to a
+    time bin in `centroid_lookup`.
 
-    3. The `time_lookup` array is flattened and argsorted with a stable
+    3. The `centroid_lookup` array is flattened and argsorted with a stable
     merge sort. As missing values are set to the maximum floating point
     value, this moves valid data to the front and missing data to the back.
     This has the effect of lexicographically sorts the data
     in an ascending `(time, bl)` order
 
     4. Input rows are then mapped via the `row_lookup`, `bin_lookup`
-    and argsorted `time_lookup` arrays to an output row.
+    and argsorted `centroid_lookup` arrays to an output row.
 
     .. code-block:: python
 
@@ -131,7 +132,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
         bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
         inv_argsort = scratch[2*nbl*ntime:]
-        time_lookup = np.zeros((nbl, ntime), dtype=time_centroid.dtype)
+        centroid_lookup = np.zeros((nbl, ntime), dtype=time_centroid.dtype)
         exposure_lookup = np.zeros((nbl, ntime), dtype=exposure.dtype)
 
         # Create a mapping from the full bl x time resolution back
@@ -142,7 +143,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
             row_lookup[bl, t] = r
 
         # Average times over each baseline and construct the
-        # bin_lookup and time_lookup arrays
+        # bin_lookup and centroid_lookup arrays
         for bl in range(ubl.shape[0]):
             tbin = numba.int32(0)
             bin_count = numba.int32(0)
@@ -173,26 +174,25 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
                 # We're starting a new bin anyway,
                 # just set the lower bin value
-                # and ignore normalisation
                 if bin_count == 0:
                     bin_low = time_centroid[r] - half_exp
                 # If we exceed the seconds in the bin,
                 # normalise the centroid and start a new bin
                 elif time_centroid[r] + half_exp - bin_low > time_bin_secs:
-                    time_lookup[bl, tbin] /= bin_count
+                    centroid_lookup[bl, tbin] /= bin_count
                     tbin += 1
                     bin_count = 0
                     # The current sample now contributes to the next bin
                     bin_lookup[bl, t] = tbin
 
                 # Add sample to the bin and increment the count
-                time_lookup[bl, tbin] += time_centroid[r]
+                centroid_lookup[bl, tbin] += time_centroid[r]
                 exposure_lookup[bl, tbin] += exposure[r]
                 bin_count += 1
 
             # Normalise centroid in the last bin if necessary
             if bin_count > 0:
-                time_lookup[bl, tbin] /= bin_count
+                centroid_lookup[bl, tbin] /= bin_count
                 tbin += 1
 
             # Add this baseline's number of bins to the output rows
@@ -200,10 +200,10 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
             # Set any remaining bins to sentinel value
             for b in range(tbin, ntime):
-                time_lookup[bl, b] = sentinel
+                centroid_lookup[bl, b] = sentinel
 
         # Flatten the time lookup and argsort it
-        flat_time = time_lookup.ravel()
+        flat_time = centroid_lookup.ravel()
         flat_exp = exposure_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
 
