@@ -10,7 +10,7 @@ import numpy as np
 import numba
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.util.numba import is_numba_type_none, generated_jit, njit
+from africanus.util.numba import is_numba_type_none, generated_jit, njit, jit
 
 
 class RowMapperError(Exception):
@@ -342,3 +342,24 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         return RowMapOutput(row_map, time_ret, exp_ret, out_flag_row)
 
     return impl
+
+
+@jit(nopython=True, nogil=True, cache=True)
+def channel_mapper(nchan, chan_bin_size=1):
+    chan_map = np.empty(nchan, dtype=np.uint32)
+
+    chan_bin = 0
+    bin_count = 0
+
+    for c in range(nchan):
+        chan_map[c] = chan_bin
+        bin_count += 1
+
+        if bin_count == chan_bin_size:
+            chan_bin += 1
+            bin_count = 0
+
+    if bin_count > 0:
+        chan_bin += 1
+
+    return chan_map, chan_bin
