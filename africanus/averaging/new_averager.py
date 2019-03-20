@@ -6,11 +6,10 @@ from __future__ import print_function
 
 from collections import namedtuple
 
-import numba
 from numba import types
 import numpy as np
 
-from africanus.averaging.row_mapping import row_mapper, is_flagged_factory
+from africanus.averaging.row_mapping import row_mapper
 from africanus.averaging.channel_mapping import channel_mapper
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
@@ -52,13 +51,24 @@ def normaliser_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
+def matching_flag_factory(present):
+    if present:
+        def impl(flag_row, ri, out_flag_row, ro):
+            return flag_row[ri] == out_flag_row[ro]
+    else:
+        def impl(flag_row, ri, out_flag_row, ro):
+            return True
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 _row_output_fields = ["antenna1", "antenna2", "time", "interval",
                       "uvw", "weight", "sigma"]
 RowAverageOutput = namedtuple("RowAverageOutput", _row_output_fields)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_average(metadata, ant1, ant2, flag_row=None,
+def row_average(meta, ant1, ant2, flag_row=None,
                 time=None, interval=None, uvw=None,
                 weight=None, sigma=None):
 
@@ -69,7 +79,7 @@ def row_average(metadata, ant1, ant2, flag_row=None,
     have_weight = not is_numba_type_none(weight)
     have_sigma = not is_numba_type_none(sigma)
 
-    is_flagged = is_flagged_factory(have_flag_row)
+    flags_match = matching_flag_factory(have_flag_row)
 
     uvw_factory = output_factory(have_uvw)
     time_factory = output_factory(have_time)
@@ -88,14 +98,14 @@ def row_average(metadata, ant1, ant2, flag_row=None,
     weight_normaliser = normaliser_factory(have_weight)
     sigma_normaliser = normaliser_factory(have_sigma)
 
-    def impl(metadata, ant1, ant2, flag_row=None,
+    def impl(meta, ant1, ant2, flag_row=None,
              time=None, interval=None, uvw=None,
              weight=None, sigma=None):
 
-        row_lookup, centroid_avg, exposure_sum = metadata
-        out_rows = centroid_avg.shape[0]
+        out_rows = meta.time_centroid.shape[0]
 
         counts = np.zeros(out_rows, dtype=np.uint32)
+        flag_counts = np.zeros(out_rows, dtype=np.uint32)
 
         # These outputs are always present
         ant1_avg = np.empty(out_rows, ant1.dtype)
@@ -109,33 +119,37 @@ def row_average(metadata, ant1, ant2, flag_row=None,
         sigma_avg = sigma_factory(out_rows, sigma)
 
         # Iterate over input rows, accumulating into output rows
-        for in_row, out_row in enumerate(row_lookup):
-            # Flagged row data should not contribute to any average
-            if is_flagged(flag_row, in_row):
-                continue
+        for in_row, out_row in enumerate(meta.map):
+            # Input and output flags must match in order for the
+            # current row to contribute to these columns
+            if flags_match(flag_row, in_row, meta.flag_row, out_row):
+                uvw_adder(uvw_avg, out_row, uvw, in_row)
+                weight_adder(weight_avg, out_row, weight, in_row)
+                sigma_adder(sigma_avg, out_row, sigma, in_row)
+                counts[out_row] += 1
 
-            counts[out_row] += 1
+            # But these columns always included flagged data
+            time_adder(time_avg, out_row, time, in_row)
+            interval_adder(interval_avg, out_row, interval, in_row)
+            flag_counts[out_row] += 1
 
             # Here we can simply assign because input_row baselines
             # should always match output row baselines
             ant1_avg[out_row] = ant1[in_row]
             ant2_avg[out_row] = ant2[in_row]
 
-            time_adder(time_avg, out_row, time, in_row)
-            interval_adder(interval_avg, out_row, interval, in_row)
-
-            uvw_adder(uvw_avg, out_row, uvw, in_row)
-            weight_adder(weight_avg, out_row, weight, in_row)
-            sigma_adder(sigma_avg, out_row, sigma, in_row)
-
         # Normalise
         for out_row in range(out_rows):
             count = counts[out_row]
+            flag_count = flag_counts[out_row]
 
-            uvw_normaliser(uvw_avg, out_row, count)
-            time_normaliser(time_avg, out_row, count)
-            weight_normaliser(weight_avg, out_row, count)
-            sigma_normaliser(sigma_avg, out_row, count)
+            if count > 0:
+                uvw_normaliser(uvw_avg, out_row, count)
+                weight_normaliser(weight_avg, out_row, count)
+                sigma_normaliser(sigma_avg, out_row, count)
+
+            if flag_count > 0:
+                time_normaliser(time_avg, out_row, flag_count)
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_avg, interval_avg, uvw_avg,
@@ -254,7 +268,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
     have_weight = not is_numba_type_none(weight_spectrum)
     have_sigma = not is_numba_type_none(sigma_spectrum)
 
-    is_flagged = is_flagged_factory(have_flag_row)
+    flags_match = matching_flag_factory(have_flag_row)
 
     vis_factory = chan_output_factory(have_vis)
     vis_ampl_factory = vis_ampl_output_factory(have_vis)
@@ -280,8 +294,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
              weight_spectrum=None, sigma_spectrum=None,
              chan_bin_size=1):
 
-        row_lookup, centroid_avg, _ = row_meta
-        out_rows = centroid_avg.shape[0]
+        out_rows = row_meta.time_centroid.shape[0]
         chan_map, out_chans = chan_meta
         _, ncorrs = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
 
@@ -295,9 +308,8 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
         counts = np.zeros(out_shape, dtype=np.uint32)
 
         # Iterate over input rows, accumulating into output rows
-        for in_row, out_row in enumerate(row_lookup):
-            # Flagged rows should never contribute to any sum
-            if is_flagged(flag_row, in_row):
+        for in_row, out_row in enumerate(row_meta.map):
+            if not flags_match(flag_row, in_row, row_meta.flag_row, out_row):
                 continue
 
             for in_chan, out_chan in enumerate(chan_map):
@@ -387,12 +399,10 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
                                      sigma_spectrum=sigma_spectrum,
                                      chan_bin_size=chan_bin_size)
 
-        _, centroid_avg, exposure_sum = row_meta
-
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
-        return AverageOutput(centroid_avg,
-                             exposure_sum,
+        return AverageOutput(row_meta.time_centroid,
+                             row_meta.exposure,
                              row_data.antenna1,
                              row_data.antenna2,
                              row_data.time,

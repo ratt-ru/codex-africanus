@@ -68,7 +68,7 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
     averaging code. The `time_centroid` and `exposure` columns
     are also respectively averaged and summed
     in the process of creating the mapping and a
-    `flag_row` column is also returned if one is provided.
+    `flag_row` column is returned if one is provided.
 
     In order to average a chunk of row data, it is necessary to
     group each row (or sample) by baseline and then average
