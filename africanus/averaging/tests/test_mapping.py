@@ -57,31 +57,38 @@ def test_row_mapper(time, interval, ant1, ant2,
 
     flag_row = flag_row_factory(time.size, flagged_rows)
 
-    row_map, time_avg, exp_sum = row_mapper(time, interval, ant1, ant2,
-                                            flag_row=flag_row,
-                                            time_bin_secs=time_bin_secs)
-
-    unflagged = flag_row == 0
-    row_map = row_map[unflagged]
+    ret = row_mapper(time, interval, ant1, ant2,
+                     flag_row=flag_row,
+                     time_bin_secs=time_bin_secs)
 
     # Now recalculate time_avg using the row_map
-    time_avg_2 = np.zeros_like(time_avg)
-    counts = np.zeros(time_avg.shape, dtype=np.uint32)
+    time_centroid = np.zeros_like(ret.time_centroid)
+    counts = np.zeros(ret.time_centroid.shape, dtype=np.uint32)
 
-    # Add times at row_map indices to time_avg_2
-    np.add.at(time_avg_2, row_map, time[unflagged])
-    # Add 1 at row_map indices to counts
-    np.add.at(counts, row_map, 1)
-    # Normalise
-    time_avg_2 /= counts
+    sel = flag_row == ret.flag_row[ret.map]
+    np.add.at(time_centroid, ret.map[sel], time[sel])
+    np.add.at(counts, ret.map[sel], 1)
 
-    ant1_avg = np.empty(time_avg.shape, dtype=ant1.dtype)
-    ant2_avg = np.empty(time_avg.shape, dtype=ant2.dtype)
+    assert_array_equal(ret.time_centroid, time_centroid / counts)
 
-    ant1_avg[row_map] = ant1[unflagged]
-    ant2_avg[row_map] = ant2[unflagged]
+    ant1_avg = np.empty(ret.time_centroid.shape, dtype=ant1.dtype)
+    ant2_avg = np.empty(ret.time_centroid.shape, dtype=ant2.dtype)
+    ant1_avg[ret.map[sel]] = ant1[sel]
+    ant2_avg[ret.map[sel]] = ant2[sel]
 
-    assert_array_equal(time_avg, time_avg_2)
+    # Do it a different way
+    time_centroid = np.zeros_like(ret.time_centroid)
+    counts = np.zeros(ret.time_centroid.shape, dtype=np.uint32)
+
+    for ri, ro in enumerate(ret.map):
+        if flag_row[ri] == 1 and ret.flag_row[ro] == 1:
+            time_centroid[ro] += time[ri]
+            counts[ro] += 1
+        elif flag_row[ri] == 0 and ret.flag_row[ro] == 0:
+            time_centroid[ro] += time[ri]
+            counts[ro] += 1
+
+    assert_array_equal(ret.time_centroid, time_centroid / counts)
 
 
 def test_channel_mapper():
