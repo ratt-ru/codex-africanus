@@ -196,13 +196,13 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal([t for t, _, _, _ in time_bl_row_map],
                        row_meta.time_centroid)
 
-    ra = time_and_channel_average(time_centroid, exposure, ant1, ant2,
-                                  flag_row=flag_row,
-                                  time=time, interval=interval, uvw=uvw,
-                                  weight=weight, sigma=sigma,
-                                  vis=vis, flag=flag,
-                                  time_bin_secs=time_bin_secs,
-                                  chan_bin_size=chan_bin_size)
+    avg = time_and_channel_average(time_centroid, exposure, ant1, ant2,
+                                   flag_row=flag_row,
+                                   time=time, interval=interval, uvw=uvw,
+                                   weight=weight, sigma=sigma,
+                                   vis=vis, flag=flag,
+                                   time_bin_secs=time_bin_secs,
+                                   chan_bin_size=chan_bin_size)
 
     # Take mean time, but first ant1 and ant2
     expected_time_centroids = [time[i].mean(axis=0) for i in row_idx]
@@ -219,13 +219,13 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     assert_array_equal(row_meta.time_centroid, expected_time_centroids)
     assert_array_equal(row_meta.exposure, expected_exposure)
-    assert_array_equal(ra.antenna1, expected_ant1)
-    assert_array_equal(ra.antenna2, expected_ant2)
-    assert_array_equal(ra.time, expected_times)
-    assert_array_equal(ra.uvw, expected_uvw)
-    assert_array_equal(ra.interval, expected_interval)
+    assert_array_equal(avg.antenna1, expected_ant1)
+    assert_array_equal(avg.antenna2, expected_ant2)
+    assert_array_equal(avg.time, expected_times)
+    assert_array_equal(avg.uvw, expected_uvw)
+    assert_array_equal(avg.interval, expected_interval)
     assert_array_equal(row_meta.exposure, expected_exposure)
-    assert_array_equal(ra.weight, expected_weight)
-    assert_array_equal(ra.sigma, expected_sigma)
+    assert_array_equal(avg.weight, expected_weight)
+    assert_array_equal(avg.sigma, expected_sigma)
 
-    assert ra.flag.shape[1] == chan_bins
+    assert avg.flag.shape[1] == chan_bins
