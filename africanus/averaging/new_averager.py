@@ -302,7 +302,6 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
     have_sigma = not is_numba_type_none(sigma_spectrum)
 
     flags_match = matching_flag_factory(have_flag_row)
-    is_flagged = is_flagged_factory(have_flag_row)
     is_chan_flagged = is_chan_flagged_factory(have_flag)
 
     vis_factory = chan_output_factory(have_vis)

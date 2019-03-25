@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 import numba
 
-from africanus.util.numba import is_numba_type_none, generated_jit, njit
+from africanus.util.numba import generated_jit, njit
 
 
 @njit(nogil=True, cache=True)
@@ -45,7 +45,7 @@ def _unique_internal(data):
 
     counts.append(aux.shape[0])
 
-    # (unique_times, indices, inverse index, counts)
+    # (uniques, indices, inverse index, counts)
     return aux[mask], perm[mask], inv_idx, np.diff(np.array(counts))
 
 
@@ -91,4 +91,3 @@ def unique_baselines(ant1, ant2):
         return ubl, idx, inv, counts
 
     return impl
-
