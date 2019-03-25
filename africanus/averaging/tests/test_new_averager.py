@@ -12,6 +12,9 @@ from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.new_averager import time_and_channel_average
 from africanus.averaging.new_averager_mapping import row_mapper, channel_mapper
 
+nchan = 16
+ncorr = 4
+
 
 @pytest.fixture
 def time():
@@ -51,14 +54,26 @@ def interval():
 
 
 @pytest.fixture
-def weight():
-    shape = (10, 4)
+def weight(time):
+    shape = (time.shape[0], ncorr)
     return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
-def sigma():
-    shape = (10, 4)
+def sigma(time):
+    shape = (time.shape[0], ncorr)
+    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+
+
+@pytest.fixture
+def weight_spectrum(time):
+    shape = (time.shape[0], nchan, ncorr)
+    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+
+
+@pytest.fixture
+def sigma_spectrum(time):
+    shape = (time.shape[0], nchan, ncorr)
     return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 
 
@@ -148,7 +163,6 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
         if len(current_map) > 0:
             bin_map.append(current_map)
             flagged_bin_map.append(current_flagged_map)
-            # bin_map.append(_filter_partial_flags(current_map, flagged))
 
         # Produce a (avg_time, bl, rows, rows_including_flag_rows) tuple
         time_bl_row_map.extend((time[rows].mean(), (a1, a2), rows, frows)
@@ -167,10 +181,8 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
 def test_averager(time, ant1, ant2, flagged_rows,
                   uvw, interval, weight, sigma,
                   vis, flag,
+                  weight_spectrum, sigma_spectrum,
                   time_bin_secs, chan_bin_size):
-
-    nchan = 16
-    ncorr = 4
 
     time_centroid = time
     exposure = interval
@@ -201,6 +213,8 @@ def test_averager(time, ant1, ant2, flagged_rows,
                                    time=time, interval=interval, uvw=uvw,
                                    weight=weight, sigma=sigma,
                                    vis=vis, flag=flag,
+                                   weight_spectrum=weight_spectrum,
+                                   sigma_spectrum=sigma_spectrum,
                                    time_bin_secs=time_bin_secs,
                                    chan_bin_size=chan_bin_size)
 
