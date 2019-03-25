@@ -160,6 +160,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
 
 
 def vis_ampl_output_factory(present):
+    """ Returns function producing output vis amplitudes if present """
     if present:
         def impl(shape, array):
             return np.zeros(shape, dtype=array.real.dtype)
@@ -171,6 +172,7 @@ def vis_ampl_output_factory(present):
 
 
 def chan_output_factory(present):
+    """ Returns function producing outputs if the array is present """
     if present:
         def impl(shape, array):
             return np.zeros(shape, dtype=array.dtype)
@@ -182,6 +184,7 @@ def chan_output_factory(present):
 
 
 def vis_add_factory(present):
+    """ Returns function adding visibilities and their amplitudes to a bin """
     if present:
         def impl(out_vis, out_vis_ampl, in_vis,
                  orow, ochan, irow, ichan, corr):
@@ -364,16 +367,14 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
 
                         vis_adder(flagged_vis_avg,
                                   flagged_vis_ampl_avg,
-                                  vis, out_row, out_chan,
-                                  in_row, in_chan, corr)
+                                  vis,
+                                  out_row, out_chan, in_row, in_chan, corr)
                         weight_adder(flagged_weight_spectrum_avg,
                                      weight_spectrum,
-                                     out_row, out_chan,
-                                     in_row, in_chan, corr)
+                                     out_row, out_chan, in_row, in_chan, corr)
                         sigma_adder(flagged_sigma_spectrum_avg,
                                     sigma_spectrum,
-                                    out_row, out_chan,
-                                    in_row, in_chan, corr)
+                                    out_row, out_chan, in_row, in_chan, corr)
                     else:
                         # Increment unflagged averages and counts
                         counts[out_row, out_chan, corr] += 1
@@ -393,7 +394,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
 
                     if count > 0:
                         # We have some unflagged samples and
-                        # only these are used as output
+                        # only these are used as averaged output
                         vis_normaliser(vis_avg, vis_avg,
                                        r, f, c, vis_ampl_avg)
                         weight_normaliser(weight_spectrum_avg,
@@ -404,7 +405,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
                                          r, f, c, count)
                     elif flag_count > 0:
                         # We only have flagged samples and
-                        # these are used as output
+                        # these are used as averaged output
                         vis_normaliser(vis_avg, flagged_vis_avg,
                                        r, f, c,
                                        flagged_vis_ampl_avg)
