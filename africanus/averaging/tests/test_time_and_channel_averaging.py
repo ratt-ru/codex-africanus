@@ -307,8 +307,17 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
 
-    assert_array_equal(np_avg.time_centroid, avg.time_centroid)
-    assert_array_equal(np_avg.vis, avg.vis)
+    # Compute all the averages in one go
+    avg_time_centroid, avg_exposure, avg_flag_row, avg_vis, avg_flag = (
+        da.compute(avg.time_centroid, avg.exposure, avg.flag_row,
+                   avg.vis, avg.flag))
+
+    # Should match
+    assert_array_equal(np_avg.time_centroid, avg_time_centroid)
+    assert_array_equal(np_avg.exposure, avg_exposure)
+    assert_array_equal(np_avg.flag_row, avg_flag_row)
+    assert_array_equal(np_avg.vis, avg_vis)
+    assert_array_equal(np_avg.flag, avg_flag)
 
     # We can average chunked arrays too, but these will not necessarily
     # match the numpy version
@@ -326,4 +335,4 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
 
-    avg.vis.compute()
+    assert avg.vis.compute()
