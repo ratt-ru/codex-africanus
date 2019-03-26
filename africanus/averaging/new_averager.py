@@ -10,6 +10,7 @@ from numba import types
 import numpy as np
 
 from africanus.averaging.new_averager_mapping import row_mapper, channel_mapper
+from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
@@ -559,9 +560,61 @@ def time_and_channel_average(time_centroid, exposure, antenna1, antenna2,
                              row_data.uvw,
                              row_data.weight,
                              row_data.sigma,
-                             chan_data.vis,
+                             chan_data.data,
                              chan_data.flag,
                              chan_data.weight_spectrum,
                              chan_data.sigma_spectrum)
 
     return impl
+
+
+AVERAGING_DOCS = DocstringTemplate("""
+Averages in time and channel.
+
+Parameters
+----------
+time_centroid : $(array_type)
+    Time centroid values of shape :code:`(row,)`
+exposure : $(array_type)
+    Exposure values of shape :code:`(row,)`
+antenna1 : $(array_type)
+    First antenna indices of shape :code:`(row,)`
+antenna2 : $(array_type)
+    Second antenna indices of shape :code:`(row,)`
+time : $(array_type), optional
+    Time values of shape :code:`(row,)`.
+flag_row : $(array_type), optional
+    Flagged rows of shape :code:`(row,)`.
+uvw : $(array_type), optional
+    UVW coordinates of shape :code:`(row, 3)`.
+weight : $(array_type), optional
+    Weight values of shape :code:`(row, corr)`.
+sigma : $(array_type), optional
+    Sigma values of shape :code:`(row, corr)`.
+vis : $(array_type), optional
+    Visibility data of shape :code:`(row, chan, corr)`.
+flag : $(array_type), optional
+    Flag data of shape :code:`(row, chan, corr)`.
+weight_spectrum : $(array_type), optional
+    Weight spectrum of shape :code:`(row, chan, corr)`.
+sigma_spectrum : $(array_type), optional
+    Sigma spectrum of shape :code:`(row, chan, corr)`.
+time_bin_secs : float, optional
+    Number of seconds of exposure to include in a bin.
+    Defaults to 1.0.
+chan_bin_size : int, optional
+    Number of bins to average together.
+    Defaults to 1.
+
+Returns
+-------
+tuple
+    Returns a namedtuple whose entries correspond to the input arrays.
+""")
+
+
+try:
+    time_and_channel_average.__doc__ = AVERAGING_DOCS.subsititute(
+                                        array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
