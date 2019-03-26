@@ -560,7 +560,7 @@ def time_and_channel_average(time_centroid, exposure, antenna1, antenna2,
                              row_data.uvw,
                              row_data.weight,
                              row_data.sigma,
-                             chan_data.data,
+                             chan_data.vis,
                              chan_data.flag,
                              chan_data.weight_spectrum,
                              chan_data.sigma_spectrum)

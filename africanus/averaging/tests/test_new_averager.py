@@ -243,8 +243,9 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(avg.sigma, expected_sigma)
 
     out_rows = row_meta.time_centroid.shape[0]
+    chan_avg_shape = (row_meta.exposure.shape[0], chan_bins, flag.shape[2])
 
-    assert avg.vis.shape == (out_rows, chan_bins, flag.shape[2])
-    assert avg.flag.shape == (out_rows, chan_bins, flag.shape[2])
-    assert avg.weight_spectrum.shape == (out_rows, chan_bins, flag.shape[2])
-    assert avg.sigma_spectrum.shape == (out_rows, chan_bins, flag.shape[2])
+    assert avg.vis.shape == chan_avg_shape
+    assert avg.flag.shape == chan_avg_shape
+    assert avg.weight_spectrum.shape == chan_avg_shape
+    assert avg.sigma_spectrum.shape == chan_avg_shape
