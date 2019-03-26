@@ -30,23 +30,11 @@ else:
     dask_import_error = None
 
 
-def _getitem_tup(array, d, n):
-    """ Recursively index a sequence d times and return element n"""
-    for i in range(d):
-        array = array[0]
-
-    return array[n]
-
-
 def _row_chan_metadata(arrays, chan_bin_size):
+    """ Create dask array with channel metadata for each chunk channel """
     for array in arrays:
         if array is None:
             continue
-
-        chan_chunks = tuple((c + chan_bin_size - 1) // chan_bin_size
-                            for c in array.chunks[1])
-        corr_chunks = array.chunks[2]
-        corr_dims = tuple("corr-%d" % i for i in range(len(array.shape[2:])))
 
         # Create a dask channel mapping structure
         name = "channel-mapper-" + tokenize(array.chunks[1], chan_bin_size)
@@ -56,14 +44,14 @@ def _row_chan_metadata(arrays, chan_bin_size):
         chunks = (array.chunks[1],)
         chan_mapper = da.Array(graph, name, chunks, dtype=np.object)
 
-        return chan_chunks, corr_chunks, corr_dims, chan_mapper
+        return chan_mapper
 
-    return None, None, None, None
+    return None
 
 
 def _dask_row_mapper(time_centroid, exposure, antenna1, antenna2,
                      flag_row=None, time_bin_secs=1.0):
-    """ Create a dask row mapping structure """
+    """ Create a dask row mapping structure for each row chunk """
     return da.blockwise(row_mapper, ("row",),
                         time_centroid, ("row",),
                         exposure, ("row",),
@@ -75,6 +63,7 @@ def _dask_row_mapper(time_centroid, exposure, antenna1, antenna2,
 
 
 def _getitem_row(avg, idx, dtype):
+    """ Extract row-like arrays from a dask array of tuples """
     name = ("row-average-getitem-%d-" % idx) + tokenize(avg, idx)
     layers = db.blockwise(getitem, name, ("row",),
                           avg.name, ("row",),
@@ -87,6 +76,7 @@ def _getitem_row(avg, idx, dtype):
 def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
                       time=None, interval=None, uvw=None,
                       weight=None, sigma=None):
+    """ Average row-based dask arrays """
 
     rd = ("row",)
     rcd = ("row", "corr")
@@ -112,6 +102,7 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
 
 
 def _getitem_row_chan(avg, idx, dtype):
+    """ Extract (row,chan,corr) arrays from dask array of tuples """
     name = ("row-chan-average-getitem-%d-" % idx) + tokenize(avg, idx)
     dim = ("row", "chan", "corr")
 
@@ -131,6 +122,7 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
                            vis=None, flag=None,
                            weight_spectrum=None, sigma_spectrum=None,
                            chan_bin_size=1):
+    """ Average (row,chan,corr)-based dask arrays """
 
     # We don't know how many rows are in each row chunk,
     # but we can simply divide each channel chunk size by the bin size
@@ -170,6 +162,7 @@ def _merge_flags_wrapper(flag_row, flag):
 
 
 def _dask_merge_flags(flag_row, flag):
+    """ Perform flag merging on dask arrays """
     if flag_row is None and flag is not None:
         return da.blockwise(_merge_flags_wrapper, "r",
                             flag_row, None,
@@ -199,8 +192,10 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
 
     row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
 
-    (chan_chunks, corr_chunks,
-     corr_dims, chan_meta) = _row_chan_metadata(row_chan_arrays, chan_bin_size)
+    # The flow of this function should match that of the numba
+    # time_and_channel implementation
+
+    chan_meta = _row_chan_metadata(row_chan_arrays, chan_bin_size)
 
     flag_row = _dask_merge_flags(flag_row, flag)
 
