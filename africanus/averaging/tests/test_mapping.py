@@ -9,7 +9,8 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.averaging.new_averager_mapping import row_mapper, channel_mapper
+from africanus.averaging.time_and_channel_mapping import (row_mapper,
+                                                          channel_mapper)
 
 
 @pytest.fixture
