@@ -612,11 +612,12 @@ Returns
 -------
 tuple
     Returns a namedtuple whose entries correspond to the input arrays.
+    Output arrays will generally be None if the input's were None.
 """)
 
 
 try:
-    time_and_channel.__doc__ = AVERAGING_DOCS.subsititute(
+    time_and_channel.__doc__ = AVERAGING_DOCS.substitute(
                                     array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
