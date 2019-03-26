@@ -243,7 +243,6 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(avg.weight, expected_weight)
     assert_array_equal(avg.sigma, expected_sigma)
 
-    out_rows = row_meta.time_centroid.shape[0]
     chan_avg_shape = (row_meta.exposure.shape[0], chan_bins, flag.shape[2])
 
     assert avg.vis.shape == chan_avg_shape
@@ -271,9 +270,49 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     fc = (4, 4, 4, 4)
     cc = (4,)
 
-    time = da.from_array(time, chunks=(rc,))
-    interval = da.from_array(interval, chunks=(rc,))
-    ant1 = da.from_array(ant1, chunks=(rc,))
-    ant2 = da.from_array(ant2, chunks=(rc,))
-    vis = da.from_array(vis(sum(rc), sum(fc), sum(cc)), chunks=(rc, fc, cc))
+    rows = sum(rc)
+    chans = sum(fc)
+    corrs = sum(cc)
 
+    time_centroid = time
+    exposure = interval
+
+    vis = vis(rows, chans, corrs)
+    flag = flag(rows, chans, corrs)
+
+    np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
+                              vis=vis, flag=flag,
+                              time_bin_secs=time_bin_secs,
+                              chan_bin_size=chan_bin_size)
+
+    # Using chunks == shape, the dask version should match the numpy version
+    da_time_centroid = da.from_array(time_centroid, chunks=rows)
+    da_exposure = da.from_array(exposure, chunks=rows)
+    da_ant1 = da.from_array(ant1, chunks=rows)
+    da_ant2 = da.from_array(ant2, chunks=rows)
+    da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
+    da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
+
+    avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
+                   vis=da_vis, flag=da_flag,
+                   time_bin_secs=time_bin_secs,
+                   chan_bin_size=chan_bin_size)
+
+    assert_array_equal(np_avg.time_centroid, avg.time_centroid)
+    assert_array_equal(np_avg.vis, avg.vis)
+
+    # We can average chunked arrays too, but these will not necessarily
+    # match the numpy version
+    da_time_centroid = da.from_array(time_centroid, chunks=(rc,))
+    da_exposure = da.from_array(exposure, chunks=(rc,))
+    da_ant1 = da.from_array(ant1, chunks=(rc,))
+    da_ant2 = da.from_array(ant2, chunks=(rc,))
+    da_vis = da.from_array(vis, chunks=(rc, fc, cc))
+    da_flag = da.from_array(flag, chunks=(rc, fc, cc))
+
+    avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
+                   vis=da_vis, flag=da_flag,
+                   time_bin_secs=time_bin_secs,
+                   chan_bin_size=chan_bin_size)
+
+    avg.vis.compute()

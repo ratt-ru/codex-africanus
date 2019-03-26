@@ -433,15 +433,14 @@ AverageOutput = namedtuple("AverageOutput",
                            _row_output_fields + _rowchan_output_fields)
 
 
-def merge_flags_factory(have_flag_row, have_flag):
-    """
-    Returns a function merging flag_row and flag arrays,
-    and returning a unified flag_row, depending on their presence
-    """
+@generated_jit(nopython=True, nogil=True, cache=True)
+def merge_flags(flag_row, flag):
+    have_flag_row = not is_numba_type_none(flag_row)
+    have_flag = not is_numba_type_none(flag)
+
     if have_flag_row and have_flag:
         def impl(flag_row, flag):
-            new_flag_row = flag_row.copy()
-
+            """ Check flag_row and flag agree """
             for r in range(flag.shape[0]):
                 all_flagged = True
 
@@ -454,16 +453,19 @@ def merge_flags_factory(have_flag_row, have_flag):
                     if not all_flagged:
                         break
 
-                if all_flagged:
-                    new_flag_row[r] |= (1 if all_flagged else 0)
+                if (flag_row[r] != 0) != all_flagged:
+                    raise ValueError("flag_row and flag arrays mismatch")
 
-            return new_flag_row
+            return flag_row
 
     elif have_flag_row and not have_flag:
         def impl(flag_row, flag):
+            """ Return flag_row """
             return flag_row
+
     elif not have_flag_row and have_flag:
         def impl(flag_row, flag):
+            """ Construct flag_row from flag """
             new_flag_row = np.empty(flag.shape[0], dtype=flag.dtype)
 
             for r in range(flag.shape[0]):
@@ -478,15 +480,15 @@ def merge_flags_factory(have_flag_row, have_flag):
                     if not all_flagged:
                         break
 
-                if all_flagged:
-                    new_flag_row[r] = (1 if all_flagged else 0)
+                new_flag_row[r] = (1 if all_flagged else 0)
 
             return new_flag_row
+
     else:
         def impl(flag_row, flag):
             return None
 
-    return njit(nogil=True, cache=True)(impl)
+    return impl
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -513,8 +515,6 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
     have_flag = not is_numba_type_none(flag)
     have_weight = not is_numba_type_none(weight_spectrum)
     have_sigma = not is_numba_type_none(sigma_spectrum)
-
-    merge_flags = merge_flags_factory(have_flag_row, have_flag)
 
     chan_corrs = chan_corr_factory(have_vis, have_flag,
                                    have_weight, have_sigma)
@@ -617,7 +617,7 @@ tuple
 
 
 try:
-    time_and_channel_average.__doc__ = AVERAGING_DOCS.subsititute(
-                                        array_type=":class:`numpy.ndarray`")
+    time_and_channel.__doc__ = AVERAGING_DOCS.subsititute(
+                                    array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

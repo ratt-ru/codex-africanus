@@ -8,12 +8,13 @@ from operator import getitem
 
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
-from africanus.averaging.time_and_channel_avg import (
-                        row_average, row_chan_average,
-                        AVERAGING_DOCS,
-                        AverageOutput,
-                        RowAverageOutput,
-                        RowChanAverageOutput)
+from africanus.averaging.time_and_channel_avg import (row_average,
+                                                      row_chan_average,
+                                                      merge_flags,
+                                                      AVERAGING_DOCS,
+                                                      AverageOutput,
+                                                      RowAverageOutput,
+                                                      RowChanAverageOutput)
 from africanus.util.requirements import requires_optional
 
 import numpy as np
@@ -39,6 +40,9 @@ def _getitem_tup(array, d, n):
 
 def _row_chan_metadata(arrays, chan_bin_size):
     for array in arrays:
+        if array is None:
+            continue
+
         chan_chunks = tuple((c + chan_bin_size - 1) // chan_bin_size
                             for c in array.chunks[1])
         corr_chunks = array.chunks[2]
@@ -120,25 +124,37 @@ def _getitem_row_chan(avg, idx, dtype):
     return da.Array(graph, name, avg.chunks, dtype=dtype)
 
 
+_row_chan_avg_dims = ("row", "chan", "corr")
+
+
 def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
                            vis=None, flag=None,
                            weight_spectrum=None, sigma_spectrum=None,
                            chan_bin_size=1):
 
-    dims = ("row", "chan", "corr")
+    # We don't know how many rows are in each row chunk,
+    # but we can simply divide each channel chunk size by the bin size
+    adjust_chunks = {
+        "row": lambda r: np.nan,
+        "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
+    }
 
-    avg = da.blockwise(row_chan_average, dims,
+    flag_row_dims = None if flag_row is None else ("row",)
+    vis_dims = None if vis is None else _row_chan_avg_dims
+    flag_dims = None if flag is None else _row_chan_avg_dims
+    ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
+    ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
+
+    avg = da.blockwise(row_chan_average, _row_chan_avg_dims,
                        row_meta, ("row",),
                        chan_meta, ("chan",),
-                       flag_row, None if flag_row is None else ("row",),
-                       vis, None if vis is None else dims,
-                       flag, None if flag is None else dims,
-                       weight_spectrum,
-                       None if weight_spectrum is None else dims,
-                       sigma_spectrum,
-                       None if sigma_spectrum is None else dims,
-                       adjust_chunks={"row": lambda x: np.nan},
+                       flag_row, flag_row_dims,
+                       vis, vis_dims,
+                       flag, flag_dims,
+                       weight_spectrum, ws_dims,
+                       sigma_spectrum, ss_dims,
                        chan_bin_size=chan_bin_size,
+                       adjust_chunks=adjust_chunks,
                        dtype=np.object)
 
     tuple_gets = (None if a is None else _getitem_row_chan(avg, i, a.dtype)
@@ -149,13 +165,26 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
     return RowChanAverageOutput(*tuple_gets)
 
 
-def _dask_merge_flags(flag_row, flags):
-    if flag_row is not None and flag is not None:
-        return np.logical_or(flag_row, flag.all(axis=(1, 2)))
-    elif flag_row is None and flag is None:
-        return flag.all(axis=(1, 2))
+def _merge_flags_wrapper(flag_row, flag):
+    return merge_flags(flag_row, flag[0][0])
+
+
+def _dask_merge_flags(flag_row, flag):
+    if flag_row is None and flag is not None:
+        return da.blockwise(_merge_flags_wrapper, "r",
+                            flag_row, None,
+                            flag, "rfc",
+                            dtype=flag.dtype)
     elif flag_row is not None and flag is None:
-        return flag_row
+        return da.blockwise(merge_flags, "r",
+                            flag_row, "r",
+                            None, None,
+                            dtype=flag_row.dtype)
+    elif flag_row is not None and flag is not None:
+        return da.blockwise(merge_flags, "r",
+                            flag_row, "r",
+                            flag, "rfc",
+                            dtype=flag_row.dtype)
     else:
         return None
 
@@ -173,7 +202,7 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
     (chan_chunks, corr_chunks,
      corr_dims, chan_meta) = _row_chan_metadata(row_chan_arrays, chan_bin_size)
 
-    flag_row = _dask_merge_flags(flag_row, flags)
+    flag_row = _dask_merge_flags(flag_row, flag)
 
     row_meta = _dask_row_mapper(time_centroid, exposure,
                                 antenna1, antenna2,
