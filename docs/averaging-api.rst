@@ -49,23 +49,16 @@ Flagged Data Handling
 ~~~~~~~~~~~~~~~~~~~~~
 
 The averager will output averages for bins that are completely flagged.
-The reasons for this are twofold.
+The reasons for this are twofold is that the `Measurement Set v2.0 Specification
+<https://casa.nrao.edu/Memos/229.html>`_ specifies
+that the **TIME_CENTROID** and **EXPOSURE** columns
+are the centroid and sum of unflagged samples, respectively.
 
-1. Many Radio Astronomy applications expect all baselines data
-   to be present for a particular time. Excising flagged data
-   often breaks this.
-
-
-2. The `Measurement Set v2.0 Specification
-   <https://casa.nrao.edu/Memos/229.html>`_ specifies
-   that the **TIME_CENTROID** and **EXPOSURE** columns
-   are the centroid and sum of unflagged samples, respectively.
-
-   By contrast, the **TIME** and **INTERVAL** columns are the midpoint
-   of the data interval, and the data interval including bad data
-   or partial integration. This suggests that averaged values for
-   these columns should be created, even if all samples in the bin
-   are flagged.
+By contrast, the **TIME** and **INTERVAL** columns are the midpoint
+of the data interval, and the data interval including bad data
+or partial integration. This suggests that averaged values for
+these columns should be created, even if all samples in the bin
+are flagged.
 
 To support this:
 
