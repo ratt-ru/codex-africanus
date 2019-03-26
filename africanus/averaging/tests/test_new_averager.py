@@ -242,4 +242,9 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert_array_equal(avg.weight, expected_weight)
     assert_array_equal(avg.sigma, expected_sigma)
 
-    assert avg.flag.shape[1] == chan_bins
+    out_rows = row_meta.time_centroid.shape[0]
+
+    assert avg.vis.shape == (out_rows, chan_bins, flag.shape[2])
+    assert avg.flag.shape == (out_rows, chan_bins, flag.shape[2])
+    assert avg.weight_spectrum.shape == (out_rows, chan_bins, flag.shape[2])
+    assert avg.sigma_spectrum.shape == (out_rows, chan_bins, flag.shape[2])
