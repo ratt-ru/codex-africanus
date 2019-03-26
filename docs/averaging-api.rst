@@ -66,12 +66,15 @@ To support this:
    unflagged samples.
 2. Other columns, such as **TIME_CENTROID** are handled as follows:
 
-   1. If the bin contains some unflagged data, the average of
-      only the unflagged data will be used.
+   1. If the bin contains some unflagged data, only this data
+      is used to calculate average.
    2. If the bin is completely flagged, the average of all samples
-      will be used.
+      (which are all flagged) will be used.
 
 3. In both cases, a completely flagged bin will have it's flag set.
+4. To support the two cases, twice the memory of the output array
+   is required to track both averages, but only one array of merged
+   values is returned.
 
 Guarantees
 ~~~~~~~~~~
