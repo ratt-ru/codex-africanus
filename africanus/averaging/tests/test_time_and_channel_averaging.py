@@ -192,7 +192,10 @@ def test_averager(time, ant1, ant2, flagged_rows,
     flag = flag(time.shape[0], nchan, ncorr)
 
     flag_row = np.zeros(time.shape, dtype=np.uint8)
+
+    # flagged_row and flag should agree
     flag_row[flagged_rows] = 1
+    flag[flagged_rows, :, :] = 1
 
     row_meta = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     chan_map, chan_bins = channel_mapper(nchan, chan_bin_size)
