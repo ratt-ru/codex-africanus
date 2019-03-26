@@ -174,7 +174,7 @@ def _dask_merge_flags(flag_row, flag):
                             None, None,
                             dtype=flag_row.dtype)
     elif flag_row is not None and flag is not None:
-        return da.blockwise(merge_flags, "r",
+        return da.blockwise(_merge_flags_wrapper, "r",
                             flag_row, "r",
                             flag, "rfc",
                             dtype=flag_row.dtype)
