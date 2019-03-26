@@ -104,7 +104,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
         out_rows = meta.time_centroid.shape[0]
 
         counts = np.zeros(out_rows, dtype=np.uint32)
-        flag_counts = np.zeros(out_rows, dtype=np.uint32)
+        combined_counts = np.zeros(out_rows, dtype=np.uint32)
 
         # These outputs are always present
         ant1_avg = np.empty(out_rows, ant1.dtype)
@@ -127,10 +127,11 @@ def row_average(meta, ant1, ant2, flag_row=None,
                 sigma_adder(sigma_avg, out_row, sigma, in_row)
                 counts[out_row] += 1
 
-            # But these columns always included flagged data
+            # But these columns always included both
+            # flagged and unflagged data
             time_adder(time_avg, out_row, time, in_row)
             interval_adder(interval_avg, out_row, interval, in_row)
-            flag_counts[out_row] += 1
+            combined_counts[out_row] += 1
 
             # Here we can simply assign because input_row baselines
             # should always match output row baselines
@@ -140,15 +141,15 @@ def row_average(meta, ant1, ant2, flag_row=None,
         # Normalise
         for out_row in range(out_rows):
             count = counts[out_row]
-            flag_count = flag_counts[out_row]
+            combined_count = combined_counts[out_row]
 
             if count > 0:
                 uvw_normaliser(uvw_avg, out_row, count)
                 weight_normaliser(weight_avg, out_row, count)
                 sigma_normaliser(sigma_avg, out_row, count)
 
-            if flag_count > 0:
-                time_normaliser(time_avg, out_row, flag_count)
+            if combined_count > 0:
+                time_normaliser(time_avg, out_row, combined_count)
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_avg, interval_avg, uvw_avg,
@@ -486,7 +487,7 @@ def merge_flags_factory(have_flag_row, have_flag):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def time_and_channel_average(time_centroid, exposure, ant1, ant2,
+def time_and_channel_average(time_centroid, exposure, antenna1, antenna2,
                              time=None, interval=None, flag_row=None,
                              uvw=None, weight=None, sigma=None,
                              vis=None, flag=None,
@@ -515,7 +516,7 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
     chan_corrs = chan_corr_factory(have_vis, have_flag,
                                    have_weight, have_sigma)
 
-    def impl(time_centroid, exposure, ant1, ant2,
+    def impl(time_centroid, exposure, antenna1, antenna2,
              time=None, interval=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
              vis=None, flag=None,
@@ -529,14 +530,14 @@ def time_and_channel_average(time_centroid, exposure, ant1, ant2,
         flag_row = merge_flags(flag_row, flag)
 
         # Generate row mapping metadata
-        row_meta = row_mapper(time_centroid, exposure, ant1, ant2,
+        row_meta = row_mapper(time_centroid, exposure, antenna1, antenna2,
                               flag_row=flag_row, time_bin_secs=time_bin_secs)
 
         # Generate channel mapping metadata
         chan_meta = channel_mapper(nchan, chan_bin_size)
 
         # Average row data
-        row_data = row_average(row_meta, ant1, ant2, flag_row=flag_row,
+        row_data = row_average(row_meta, antenna1, antenna2, flag_row=flag_row,
                                time=time, interval=interval, uvw=uvw,
                                weight=weight, sigma=sigma)
 
