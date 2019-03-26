@@ -195,26 +195,32 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
     # The flow of this function should match that of the numba
     # time_and_channel implementation
 
-    chan_meta = _row_chan_metadata(row_chan_arrays, chan_bin_size)
-
+    # Merge flag_row and flag arrays
     flag_row = _dask_merge_flags(flag_row, flag)
 
+    # Generate row mapping metadata
     row_meta = _dask_row_mapper(time_centroid, exposure,
                                 antenna1, antenna2,
                                 flag_row=flag_row,
                                 time_bin_secs=time_bin_secs)
 
+    # Generate channel mapping metadata
+    chan_meta = _row_chan_metadata(row_chan_arrays, chan_bin_size)
+
+    # Average row data
     row_data = _dask_row_average(row_meta, antenna1, antenna2,
                                  flag_row=flag_row, time=time,
                                  interval=interval, uvw=uvw,
                                  weight=weight, sigma=sigma)
 
+    # Average channel data
     chan_data = _dask_row_chan_average(row_meta, chan_meta, flag_row=flag_row,
                                        vis=vis, flag=flag,
                                        weight_spectrum=weight_spectrum,
                                        sigma_spectrum=sigma_spectrum,
                                        chan_bin_size=chan_bin_size)
 
+    # Merge output tuples
     return AverageOutput(_getitem_row(row_meta, 1, time_centroid.dtype),
                          _getitem_row(row_meta, 2, exposure.dtype),
                          (_getitem_row(row_meta, 3, flag_row.dtype)
