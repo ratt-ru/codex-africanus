@@ -612,7 +612,7 @@ Returns
 -------
 tuple
     Returns a namedtuple whose entries correspond to the input arrays.
-    Output arrays will generally be None if the input's were None.
+    Output arrays will generally be ``None`` if the input's were ``None``.
 """)
 
 

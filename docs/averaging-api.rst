@@ -4,6 +4,135 @@ Averaging
 
 Routines for averaging visibility data.
 
+Time and Channel Averaging
+--------------------------
+
+The routines in this section average row-based samples by:
+
+1. by grouping samples of consecutive time data into bins defined
+   by an **exposure** period in seconds: :code:`time_bin_secs`.
+2. averaging channel data into equally sized bins of :code:`chan_bin_size`.
+
+In order to achieve this, a **baseline x time** ordering is established
+over the input data where **baseline** corresponds to the
+unique **(antenna1, antenna2)** pairs and **time** corresponds
+to the unique, monotonically increasing **time centroids**.
+
+======== === === === === ===
+Baseline T0  T1  T2  T3  T4
+======== === === === === ===
+(0, 0)   0.1 0.2 0.3 0.4 0.5
+(0, 1)   0.1 0.2 0.3 0.4 0.5
+(0, 2)   0.1 0.2  X  0.4 0.5
+(1, 1)   0.1 0.2 0.3 0.4 0.5
+(1, 2)   0.1 0.2 0.3 0.4 0.5
+(2, 2)   0.1 0.2 0.3 0.4 0.5
+======== === === === === ===
+
+It is possible for times or baselines to be missing. In the above
+example, T2 is missing for baseline (0, 2).
+
+For each baseline, adjacent time centroid's are assigned to a bin
+if :math:`h_c - h_e/2 - (l_c - l_e/2) <` :code:`time_bin_secs`, where
+:math:`h_c` and :math:`l_c` are the upper and lower time centroids and
+:math:`h_e` and :math:`l_e` are the upper and lower exposure periods.
+Note that no distinction is made between flagged and unflagged data
+when establishing the endpoints in the bin.
+
+The averaged centroids in each bin establish a map:
+
+- from possibly unordered input rows.
+- to a reduced set of output rows ordered by
+  averaged :code:`(time_centroid, antenna1, antenna2)`.
+
+Flagged Data Handling
+~~~~~~~~~~~~~~~~~~~~~
+
+The averager will output averages for bins that are completely flagged.
+The reasons for this are twofold.
+
+1. Many Radio Astronomy applications expect all baselines data
+   to be present for a particular time. Excising flagged data
+   often breaks this.
+
+
+2. The `Measurement Set v2.0 Specification
+   <https://casa.nrao.edu/Memos/229.html>`_ specifies
+   that the **TIME_CENTROID** and **EXPOSURE** columns
+   are the centroid and sum of unflagged samples, respectively.
+
+   By contrast, the **TIME** and **INTERVAL** columns are the midpoint
+   of the data interval, and the data interval including bad data
+   or partial integration. This suggests that averaged values for
+   these columns should be created, even if all samples in the bin
+   are flagged.
+
+To support this:
+
+1. **TIME** and **INTERVAL** are averaged using both flagged and
+   unflagged samples.
+2. Other columns, such as **TIME_CENTROID** are handled as follows:
+
+   1. If the bin contains some unflagged data, the average of
+      only the unflagged data will be used.
+   2. If the bin is completely flagged, the average of all samples
+      will be used.
+
+3. In both cases, a completely flagged bin will have it's flag set.
+
+Guarantees
+~~~~~~~~~~
+
+1. Averaged output data will be lexicographically ordered by
+   :code:`(time_centroid, antenna1, antenna2)`
+2. **TIME** and **INTERVAL** columns always contain the average of **Both**
+   flagged and unflagged data.
+3. In the case of other columns, if a bin contains unflagged data,
+   the bin will be set to the average of this data. However, if the bin
+   is completely flagged, it will contain the average of all data.
+   In other words the bin is **Exclusively** unflagged or flagged.
+4. Completely flagged bins will be set as flagged in either case.
+5. Certain columns are averaged, while others are summed,
+   or simply assigned to the last value in the bin in the case
+   of antenna indices.
+6. In particular, **visibility data** is averaged by a
+   `Mean of Circular Quantities
+   <https://en.wikipedia.org/wiki/Mean_of_circular_quantities>`_
+   and this means that visibility amplitudes are normalised.
+
+=============== ================= ============================ ===========
+Column          Unflagged/Flagged Aggregation Method           Required
+                sample handling
+=============== ================= ============================ ===========
+TIME_CENTROID   Exclusive         Mean                         Yes
+EXPOSURE        Exclusive         Sum                          Yes
+ANTENNA1        Both              Assigned to Last Input       Yes
+ANTENNA2        Both              Assigned to Last Input       Yes
+TIME            Both              Mean                         No
+INTERVAL        Both              Sum                          No
+FLAG_ROW        Exclusive         Set if All Inputs Flagged    No
+UVW             Exclusive         Mean                         No
+WEIGHT          Exclusive         Mean                         No
+SIGMA           Exclusive         Mean                         No
+DATA (vis)      Exclusive         Mean of Circular Quantities  No
+FLAG            Exclusive         Set if All Inputs Flagged    No
+WEIGHT_SPECTRUM Exclusive         Mean                         No
+SIGMA_SPECTRUM  Exclusive         Mean                         No
+=============== ================= ============================ ===========
+
+Dask Implementation
+~~~~~~~~~~~~~~~~~~~
+
+The dask implementation chunks data up by row and channel and
+averages each chunk independently of values in other chunks. This should
+be kept in mind if one wishes to maintain a particular ordering
+in the output dask arrays.
+
+Typically, Measurement Set data is monotonically ordered in time. To
+maintain this guarantee in output dask arrays,
+the chunks will need to be separated by distinct time values.
+Practically speaking this means that the first and second chunk
+should not both contain value time 0.1, for example.
 
 Numpy
 ~~~~~
