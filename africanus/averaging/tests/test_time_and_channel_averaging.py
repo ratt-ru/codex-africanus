@@ -282,8 +282,12 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
 
     vis = vis(rows, chans, corrs)
     flag = flag(rows, chans, corrs)
+    flag_row = np.zeros(time_centroid.shape[0], dtype=np.uint8)
+    flag_row[flagged_rows] = 1
+    flag[flagged_rows, :, :] = 1
 
     np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
+                              flag_row=flag_row,
                               vis=vis, flag=flag,
                               time_bin_secs=time_bin_secs,
                               chan_bin_size=chan_bin_size)
@@ -291,12 +295,14 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     # Using chunks == shape, the dask version should match the numpy version
     da_time_centroid = da.from_array(time_centroid, chunks=rows)
     da_exposure = da.from_array(exposure, chunks=rows)
+    da_flag_row = da.from_array(flag_row, chunks=rows)
     da_ant1 = da.from_array(ant1, chunks=rows)
     da_ant2 = da.from_array(ant2, chunks=rows)
     da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
     da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
 
     avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
+                   flag_row=da_flag_row,
                    vis=da_vis, flag=da_flag,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
@@ -308,12 +314,14 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     # match the numpy version
     da_time_centroid = da.from_array(time_centroid, chunks=(rc,))
     da_exposure = da.from_array(exposure, chunks=(rc,))
+    da_flag_row = da.from_array(flag_row, chunks=(rc,))
     da_ant1 = da.from_array(ant1, chunks=(rc,))
     da_ant2 = da.from_array(ant2, chunks=(rc,))
     da_vis = da.from_array(vis, chunks=(rc, fc, cc))
     da_flag = da.from_array(flag, chunks=(rc, fc, cc))
 
     avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
+                   flag_row=da_flag_row,
                    vis=da_vis, flag=da_flag,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
