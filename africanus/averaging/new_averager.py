@@ -9,9 +9,7 @@ from collections import namedtuple
 from numba import types
 import numpy as np
 
-from africanus.averaging.new_averager_mapping import (is_flagged_factory,
-                                                      row_mapper,
-                                                      channel_mapper)
+from africanus.averaging.new_averager_mapping import row_mapper, channel_mapper
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
