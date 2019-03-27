@@ -585,6 +585,8 @@ antenna2 : $(array_type)
     Second antenna indices of shape :code:`(row,)`
 time : $(array_type), optional
     Time values of shape :code:`(row,)`.
+interval : $(array_type)
+    Interval values of shape :code:`(row,)`.
 flag_row : $(array_type), optional
     Flagged rows of shape :code:`(row,)`.
 uvw : $(array_type), optional
