@@ -101,11 +101,11 @@ def test_row_mapper(time, interval, ant1, ant2,
         if flag_row[ri] == 1 and ret.flag_row[ro] == 1:
             new_tc2[ro] += time[ri]
             new_exp2[ro] += interval[ri]
-            counts[ro] += 1
+            counts2[ro] += 1
         elif flag_row[ri] == 0 and ret.flag_row[ro] == 0:
             new_tc2[ro] += time[ri]
             new_exp2[ro] += interval[ri]
-            counts[ro] += 1
+            counts2[ro] += 1
 
     assert_array_almost_equal(new_tc / counts, new_tc2 / counts2)
     assert_array_almost_equal(new_exp, new_exp2)
