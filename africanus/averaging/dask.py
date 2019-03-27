@@ -49,12 +49,12 @@ def _row_chan_metadata(arrays, chan_bin_size):
     return None
 
 
-def _dask_row_mapper(time_centroid, exposure, antenna1, antenna2,
+def _dask_row_mapper(time, interval, antenna1, antenna2,
                      flag_row=None, time_bin_secs=1.0):
     """ Create a dask row mapping structure for each row chunk """
     return da.blockwise(row_mapper, ("row",),
-                        time_centroid, ("row",),
-                        exposure, ("row",),
+                        time, ("row",),
+                        interval, ("row",),
                         antenna1, ("row",),
                         antenna2, ("row",),
                         flag_row, None if flag_row is None else ("row",),
@@ -74,7 +74,7 @@ def _getitem_row(avg, idx, dtype):
 
 
 def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
-                      time=None, interval=None, uvw=None,
+                      time_centroid=None, exposure=None, uvw=None,
                       weight=None, sigma=None):
     """ Average row-based dask arrays """
 
@@ -86,8 +86,8 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
                        ant1, rd,
                        ant2, rd,
                        flag_row, None if flag_row is None else rd,
-                       time, None if time is None else rd,
-                       interval, None if interval is None else rd,
+                       time_centroid, None if time_centroid is None else rd,
+                       exposure, None if exposure is None else rd,
                        uvw, None if uvw is None else ("row", "3"),
                        weight, None if weight is None else rcd,
                        sigma, None if sigma is None else rcd,
@@ -95,7 +95,7 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
                        dtype=np.object)
 
     tuple_gets = (None if a is None else _getitem_row(avg, i, a.dtype)
-                  for i, a in enumerate([ant1, ant2, time, interval,
+                  for i, a in enumerate([ant1, ant2, time_centroid, exposure,
                                          uvw, weight, sigma]))
 
     return RowAverageOutput(*tuple_gets)
@@ -183,8 +183,8 @@ def _dask_merge_flags(flag_row, flag):
 
 
 @requires_optional("dask.array", dask_import_error)
-def time_and_channel(time_centroid, exposure, antenna1, antenna2,
-                     time=None, interval=None, flag_row=None,
+def time_and_channel(time, interval, antenna1, antenna2,
+                     time_centroid=None, exposure=None, flag_row=None,
                      uvw=None, weight=None, sigma=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
@@ -199,7 +199,7 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
     flag_row = _dask_merge_flags(flag_row, flag)
 
     # Generate row mapping metadata
-    row_meta = _dask_row_mapper(time_centroid, exposure,
+    row_meta = _dask_row_mapper(time, interval,
                                 antenna1, antenna2,
                                 flag_row=flag_row,
                                 time_bin_secs=time_bin_secs)
@@ -209,8 +209,9 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
 
     # Average row data
     row_data = _dask_row_average(row_meta, antenna1, antenna2,
-                                 flag_row=flag_row, time=time,
-                                 interval=interval, uvw=uvw,
+                                 flag_row=flag_row,
+                                 time_centroid=time_centroid,
+                                 exposure=exposure, uvw=uvw,
                                  weight=weight, sigma=sigma)
 
     # Average channel data
@@ -221,14 +222,14 @@ def time_and_channel(time_centroid, exposure, antenna1, antenna2,
                                        chan_bin_size=chan_bin_size)
 
     # Merge output tuples
-    return AverageOutput(_getitem_row(row_meta, 1, time_centroid.dtype),
-                         _getitem_row(row_meta, 2, exposure.dtype),
+    return AverageOutput(_getitem_row(row_meta, 1, time.dtype),
+                         _getitem_row(row_meta, 2, interval.dtype),
                          (_getitem_row(row_meta, 3, flag_row.dtype)
                           if flag_row is not None else None),
                          row_data.antenna1,
                          row_data.antenna2,
-                         row_data.time,
-                         row_data.interval,
+                         row_data.time_centroid,
+                         row_data.exposure,
                          row_data.uvw,
                          row_data.weight,
                          row_data.sigma,

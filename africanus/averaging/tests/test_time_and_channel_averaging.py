@@ -106,19 +106,13 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
     -------
     list of (float, (int, int), list of lists)
         Each tuple in the list corresponds to an output row, and
-        is composed of `(avg_time, (ant1, ant2), binned_input_rows)`
+        is composed of `(avg_time, (ant1, ant2), effective_rows, nominal_rows)`
 
     """
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1,
                              dtype=np.int32)
-
-    # See :func:`row_mapper` docs for a discussion of this
-    # but we use it to produce different bins for the
-    # TIME_CENTROID/EXPOSURE and TIME/INTERVAL cases
-    sel = flag_row == row_meta.flag_row[row_meta.map]
-    invalid_rows = set(np.where(~sel)[0])
 
     # Create the row index
     row_idx = np.arange(time.size)
@@ -129,46 +123,72 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
     # Create the time, baseline, row map
     time_bl_row_map = []
 
+    # For each baseline, bin data that such that it fits within time_bin_secs
+    # t1 - i1/2 + time_bin_secs < t2 - i2/2
+    # where (t1, t2) and (i1, i2) are the times and intervals associated
+    # with two different samples in the baseline.
+    # Compute two different bins
+    # 1. Effective row bin, which only includes unflagged rows
+    #    unless the entire bin is flagged, in which case it includes flagged
+    #    data
+    # 2. Nominal row bin, which includes both flagged and unflagged rows
+
     for bl, (a1, a2) in enumerate(ubl):
         bl_row_idx = bl_time_lookup[bl, :]
 
-        bin_map = []
-        current_map = []
+        effective_bin_map = []
+        effective_map = []
 
-        flagged_bin_map = []
-        current_flagged_map = []
+        nominal_bin_map = []
+        nominal_map = []
+
+        out_bin_flagged = []
 
         for ri in bl_row_idx:
             if ri == -1:
                 continue
 
-            half_exp = 0.5 * interval[ri]
+            half_int = 0.5 * interval[ri]
 
             # We're starting a new bin
-            if len(current_map) == 0:
-                bin_low = time[ri] - half_exp
+            if len(nominal_map) == 0:
+                bin_low = time[ri] - half_int
             # Reached passed the endpoint of the bin, start a new one
-            elif time[ri] + half_exp - bin_low > time_bin_secs:
-                bin_map.append(current_map)
-                flagged_bin_map.append(current_flagged_map)
-                current_map = []
-                current_flagged_map = []
+            elif time[ri] + half_int - bin_low > time_bin_secs:
+                if len(effective_map) > 0:
+                    effective_bin_map.append(effective_map)
+                    nominal_bin_map.append(nominal_map)
+                # No effective samples, the entire bin must be flagged
+                elif len(nominal_map) > 0:
+                    effective_bin_map.append(nominal_map)
+                    nominal_bin_map.append(nominal_map)
+                else:
+                    raise ValueError("Zero-filled bin")
 
-            # add current row to the bin
-            if ri not in invalid_rows:
-                current_map.append(ri)
+                effective_map = []
+                nominal_map = []
 
-            current_flagged_map.append(ri)
+            # Effective only includes unflagged samples
+            if flag_row[ri] == 0:
+                effective_map.append(ri)
 
-        # Add any remaining maps
-        if len(current_map) > 0:
-            bin_map.append(current_map)
-            flagged_bin_map.append(current_flagged_map)
+            # Nominal includes all samples
+            nominal_map.append(ri)
 
-        # Produce a (avg_time, bl, rows, rows_including_flag_rows) tuple
-        time_bl_row_map.extend((time[rows].mean(), (a1, a2), rows, frows)
-                               for rows, frows
-                               in zip(bin_map, flagged_bin_map))
+        # Add any remaining values
+        if len(effective_map) > 0:
+            effective_bin_map.append(effective_map)
+            nominal_bin_map.append(nominal_map)
+        # No effective samples, the entire bin must be flagged
+        # so we add nominal samples
+        elif len(nominal_map) > 0:
+            effective_bin_map.append(nominal_map)
+            nominal_bin_map.append(nominal_map)
+
+        # Produce a (avg_time, bl, effective_rows, nominal_rows) tuple
+        time_bl_row_map.extend((time[nrows].mean(), (a1, a2), erows, nrows)
+                               for erows, nrows
+                               in zip(effective_bin_map, nominal_bin_map))
 
     # Sort lookup sorted on averaged times
     return sorted(time_bl_row_map, key=lambda tup: tup[0])
@@ -204,17 +224,19 @@ def test_averager(time, ant1, ant2, flagged_rows,
                                           flag_row, time_bin_secs,
                                           row_meta)
 
-    # Input rows associated with each output row
-    row_idx, flag_row_idx = zip(*[(row, flag_rows) for _, _, row, flag_rows
-                                  in time_bl_row_map])
+    # Effective and Nominal rows associated with each output row
+    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, nrows, erows
+                             in time_bl_row_map])
+
+    eff_idx = [ei for ei in eff_idx if len(ei) > 0]
 
     # Check that the averaged times from the test and accelerated lookup match
     assert_array_equal([t for t, _, _, _ in time_bl_row_map],
-                       row_meta.time_centroid)
+                       row_meta.time)
 
-    avg = time_and_channel(time_centroid, exposure, ant1, ant2,
+    avg = time_and_channel(time, interval, ant1, ant2,
                            flag_row=flag_row,
-                           time=time, interval=interval, uvw=uvw,
+                           time_centroid=time, exposure=exposure, uvw=uvw,
                            weight=weight, sigma=sigma,
                            vis=vis, flag=flag,
                            weight_spectrum=weight_spectrum,
@@ -223,30 +245,29 @@ def test_averager(time, ant1, ant2, flagged_rows,
                            chan_bin_size=chan_bin_size)
 
     # Take mean time, but first ant1 and ant2
-    expected_time_centroids = [time[i].mean(axis=0) for i in row_idx]
-    expected_times = [time[i].mean(axis=0) for i in flag_row_idx]
-    expected_ant1 = [ant1[i[0]] for i in row_idx]
-    expected_ant2 = [ant2[i[0]] for i in row_idx]
+    expected_time_centroids = [time_centroid[i].mean(axis=0) for i in eff_idx]
+    expected_times = [time[i].mean(axis=0) for i in nom_idx]
+    expected_ant1 = [ant1[i[0]] for i in nom_idx]
+    expected_ant2 = [ant2[i[0]] for i in nom_idx]
 
     # Take mean average, but sum of interval and exposure
-    expected_uvw = [uvw[i].mean(axis=0) for i in row_idx]
-    expected_interval = [interval[i].sum(axis=0) for i in flag_row_idx]
-    expected_exposure = [exposure[i].sum(axis=0) for i in row_idx]
-    expected_weight = [weight[i].mean(axis=0) for i in row_idx]
-    expected_sigma = [sigma[i].mean(axis=0) for i in row_idx]
+    expected_uvw = [uvw[i].mean(axis=0) for i in eff_idx]
+    expected_interval = [interval[i].sum(axis=0) for i in nom_idx]
+    expected_exposure = [exposure[i].sum(axis=0) for i in eff_idx]
+    expected_weight = [weight[i].mean(axis=0) for i in eff_idx]
+    expected_sigma = [sigma[i].mean(axis=0) for i in eff_idx]
 
-    assert_array_equal(row_meta.time_centroid, expected_time_centroids)
-    assert_array_equal(row_meta.exposure, expected_exposure)
+    assert_array_equal(row_meta.time, expected_times)
+    assert_array_equal(row_meta.interval, expected_interval)
     assert_array_equal(avg.antenna1, expected_ant1)
     assert_array_equal(avg.antenna2, expected_ant2)
-    assert_array_equal(avg.time, expected_times)
+    assert_array_equal(avg.time_centroid, expected_time_centroids)
+    assert_array_equal(avg.exposure, expected_exposure)
     assert_array_equal(avg.uvw, expected_uvw)
-    assert_array_equal(avg.interval, expected_interval)
-    assert_array_equal(row_meta.exposure, expected_exposure)
     assert_array_equal(avg.weight, expected_weight)
     assert_array_equal(avg.sigma, expected_sigma)
 
-    chan_avg_shape = (row_meta.exposure.shape[0], chan_bins, flag.shape[2])
+    chan_avg_shape = (row_meta.interval.shape[0], chan_bins, flag.shape[2])
 
     assert avg.vis.shape == chan_avg_shape
     assert avg.flag.shape == chan_avg_shape

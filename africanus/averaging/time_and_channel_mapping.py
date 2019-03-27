@@ -47,7 +47,7 @@ def set_flag_row_factory(have_flag_row):
                                      "to flagged output row. "
                                      "This should never happen!")
 
-            out_flag_row[out_row] = flagged
+            out_flag_row[out_row] = (1 if flagged else 0)
     else:
         def impl(flag_row, in_row, out_flag_row, out_row, flagged):
             pass
@@ -56,23 +56,23 @@ def set_flag_row_factory(have_flag_row):
 
 
 RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "time_centroid", "exposure", "flag_row"])
+                          ["map", "time", "interval", "flag_row"])
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_mapper(time_centroid, exposure, antenna1, antenna2,
+def row_mapper(time, interval, antenna1, antenna2,
                flag_row=None, time_bin_secs=1):
     """
     Generates a mapping from a high resolution row index to
     a low resolution row index in support of time and channel
-    averaging code. The `time_centroid` and `exposure` columns
+    averaging code. The `time` and `interval` columns
     are also respectively averaged and summed
     in the process of creating the mapping and a
     `flag_row` column is returned if one is provided.
 
     In order to average a chunk of row data, it is necessary to
     group each row (or sample) by baseline and then average
-    the time centroid samples present in each baseline in bins of
+    the time samples present in each baseline in bins of
     `time_bin_secs`.
 
     Flagged data is handled as follows:
@@ -86,12 +86,12 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
     The algorithm works as follows:
 
-    1. `time_centroid`, `exposure`, `antenna1` and `antenna2`
+    1. `time`, `interval`, `antenna1` and `antenna2`
     are used to construct a `row_lookup` array of shape `(ubl, utime)`
-    mapping a baseline and time_centroid to a row of input data.
+    mapping a baseline and time to a row of input data.
 
     2. For each baseline, `time_bin_secs` times are averaged together
-    into two separate `centroid_lookup` arrays of shape `(ubl, utime)`.
+    into two separate `time_lookup` arrays of shape `(ubl, utime)`.
     The first contains the average of unflagged samples, while the
     second contains the average of flagged samples.
 
@@ -105,20 +105,20 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
     A secondary `bin_lookup` array of shape `(ubl, utime)` is constructed
     mapping a time in the `row_lookup` array to a
-    time bin in `centroid_lookup`.
+    time bin in `time_lookup`.
 
-    3. The `centroid_lookup` array is flattened and argsorted with a stable
+    3. The `time_lookup` array is flattened and argsorted with a stable
     merge sort. As missing values are set to the maximum floating point
     value, this moves valid data to the front and missing data to the back.
     This has the effect of lexicographically sorts the data
     in an ascending `(time, bl)` order
 
     4. Input rows are then mapped via the `row_lookup`, `bin_lookup`
-    and argsorted `centroid_lookup` arrays to an output row.
+    and argsorted `time_lookup` arrays to an output row.
 
     .. code-block:: python
 
-        ret = row_mapper(time_centroid, exposure,
+        ret = row_mapper(time, interval,
                          ant1, ant2, flag_row,
                          time_bin_secs=3)
 
@@ -128,18 +128,18 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
         sel_map = ret.map[sel]
 
         # Recompute time average using row map
-        time_centroid = np.zeros_like(ret.time_centroid)
-        ant1_avg = np.empty(time_centroid.shape, ant1.dtype)
-        ant2_avg = np.empty(time_centroid.shape, ant2.dtype)
-        counts = np.empty(time_centroid.shape, np.uint32)
+        time = np.zeros_like(ret.time)
+        ant1_avg = np.empty(time.shape, ant1.dtype)
+        ant2_avg = np.empty(time.shape, ant2.dtype)
+        counts = np.empty(time.shape, np.uint32)
 
-        # Add time and 1 at map indices to time_centroid and counts
-        np.add.at(time_centroid, sel_map, time_centroid[sel])
+        # Add time and 1 at map indices to time and counts
+        np.add.at(time, sel_map, time[sel])
         np.add.at(counts, sel_map, 1)
         # Normalise
-        time_centroid /= count
+        time /= count
 
-        np.testing.assert_array_equal(time_centroid, ret.time_centroid)
+        np.testing.assert_array_equal(time, ret.time)
 
         # We assign baselines because each input baseline
         # is mapped to the same output baseline
@@ -148,9 +148,9 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
     Parameters
     ----------
-    time_centroid : :class:`numpy.ndarray`
-        Time Centroid values of shape :code:`(row,)`.
-    exposure : :class:`numpy.ndarray`
+    time : :class:`numpy.ndarray`
+        Time values of shape :code:`(row,)`.
+    interval : :class:`numpy.ndarray`
         Exposure times of shape :code:`(row,)`.
     antenna1 : :class:`numpy.ndarray`
         Antenna 1 values of shape :code:`(row,)`.
@@ -167,10 +167,10 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
     map : :class:`numpy.ndarray`
         Mapping from `np.arange(row)` to output row indices
         of shape :code:`(row,)`
-    time_centroid : :class:`numpy.ndarray`
+    time : :class:`numpy.ndarray`
         Averaged time values of shape :code:`(out_row,)`
-    exposure_sum : :class:`numpy.ndarray`
-        Summed exposure values of shape :code:`(out_row,)`
+    interval : :class:`numpy.ndarray`
+        Summed interval values of shape :code:`(out_row,)`
     flag_row : :class:`numpy.ndarray` or None
         Output flag rows of shape :code:`(out_row,)`.
         None if no input flag_row was supplied.
@@ -187,40 +187,40 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
     output_flag_row = output_factory(have_flag_row)
     set_flag_row = set_flag_row_factory(have_flag_row)
 
-    def impl(time_centroid, exposure, antenna1, antenna2,
+    def impl(time, interval, antenna1, antenna2,
              flag_row=None, time_bin_secs=1):
         ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
-        utime, _, time_inv, _ = unique_time(time_centroid)
+        utime, _, time_inv, _ = unique_time(time)
 
         nbl = ubl.shape[0]
         ntime = utime.shape[0]
 
-        sentinel = np.finfo(time_centroid.dtype).max
+        sentinel = np.finfo(time.dtype).max
         out_rows = numba.uint32(0)
 
         scratch = np.full(3*nbl*ntime, -1, dtype=np.int32)
         row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
         bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
         inv_argsort = scratch[2*nbl*ntime:]
-        centroid_lookup = np.zeros((2, nbl, ntime), dtype=time_centroid.dtype)
-        exposure_lookup = np.zeros((2, nbl, ntime), dtype=exposure.dtype)
+        time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
+        interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
 
         bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
 
         # Create a mapping from the full bl x time resolution back
         # to the original input rows
-        for r in range(time_centroid.shape[0]):
+        for r in range(time.shape[0]):
             bl = bl_inv[r]
             t = time_inv[r]
             row_lookup[bl, t] = r
 
         # Average times over each baseline and construct the
-        # bin_lookup and centroid_lookup arrays
+        # bin_lookup and time_lookup arrays
         for bl in range(ubl.shape[0]):
             tbin = numba.int32(0)
             bin_count = numba.int32(0)
             bin_flag_count = numba.int32(0)
-            bin_low = time_centroid.dtype.type(0)
+            bin_low = time.dtype.type(0)
 
             for t in range(utime.shape[0]):
                 # Lookup input row
@@ -234,62 +234,46 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
                 # the current bin, or create a new one. We don't add
                 # the current sample to the current bin if
                 # high - low >= time_bin_secs
-                half_exp = exposure[r] * 0.5
+                half_int = interval[r] * 0.5
 
                 # We're starting a new bin anyway,
                 # just set the lower bin value
                 if bin_count == 0:
-                    bin_low = time_centroid[r] - half_exp
+                    bin_low = time[r] - half_int
                 # If we exceed the seconds in the bin,
-                # normalise the centroid and start a new bin
-                elif time_centroid[r] + half_exp - bin_low > time_bin_secs:
-                    # Try normalise using unflagged entries first
+                # normalise the time and start a new bin
+                elif time[r] + half_int - bin_low > time_bin_secs:
+                    # Normalise and flag the bin
+                    # if total counts match flagged counts
                     if bin_count > 0:
-                        centroid_lookup[0, bl, tbin] /= bin_count
-                        bin_flagged[bl, tbin] = False
-                    # else normalise completely flagged bin
-                    elif bin_flag_count > 0:
-                        centroid_lookup[1, bl, tbin] /= bin_flag_count
-                        flagged_centroid = centroid_lookup[1, bl, tbin]
-                        flagged_exposure = exposure_lookup[1, bl, tbin]
-                        centroid_lookup[0, bl, tbin] = flagged_centroid
-                        exposure_lookup[0, bl, tbin] = flagged_exposure
-                        bin_flagged[bl, tbin] = True
+                        time_lookup[bl, tbin] /= bin_count
+                        bin_flagged[bl, tbin] = bin_count == bin_flag_count
                     # There was nothing in the bin
                     else:
-                        centroid_lookup[0, bl, tbin] = sentinel
+                        time_lookup[bl, tbin] = sentinel
                         bin_flagged[bl, tbin] = False
 
                     tbin += 1
                     bin_count = 0
                     bin_flag_count = 0
 
-                # Record the bin associated with the row
+                # Record the output bin associated with the row
                 bin_lookup[bl, t] = tbin
 
-                # Add sample to the appropriate bin and increment the count
-                if not is_flagged_fn(flag_row, r):
-                    centroid_lookup[0, bl, tbin] += time_centroid[r]
-                    exposure_lookup[0, bl, tbin] += exposure[r]
-                    bin_count += 1
-                else:
-                    centroid_lookup[1, bl, tbin] += time_centroid[r]
-                    exposure_lookup[1, bl, tbin] += exposure[r]
+                # Time + Interval take unflagged + unflagged
+                # samples into account (nominal value)
+                time_lookup[bl, tbin] += time[r]
+                interval_lookup[bl, tbin] += interval[r]
+                bin_count += 1
+
+                # Record flags
+                if is_flagged_fn(flag_row, r):
                     bin_flag_count += 1
 
-            # Normalise if we have unflagged entries
+            # Normalise the last bin if it has entries in it
             if bin_count > 0:
-                centroid_lookup[0, bl, tbin] /= bin_count
-                bin_flagged[bl, tbin] = False
-                tbin += 1
-            # Normalise if we're completely flagged
-            elif bin_flag_count > 0:
-                centroid_lookup[1, bl, tbin] /= bin_flag_count
-                flagged_centroid = centroid_lookup[1, bl, tbin]
-                flagged_exposure = exposure_lookup[1, bl, tbin]
-                centroid_lookup[0, bl, tbin] = flagged_centroid
-                exposure_lookup[0, bl, tbin] = flagged_exposure
-                bin_flagged[bl, tbin] = True
+                time_lookup[bl, tbin] /= bin_count
+                bin_flagged[bl, tbin] = bin_count == bin_flag_count
                 tbin += 1
 
             # Add this baseline's number of bins to the output rows
@@ -297,12 +281,12 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
 
             # Set any remaining bins to sentinel value and unflagged
             for b in range(tbin, ntime):
-                centroid_lookup[0, bl, b] = sentinel
+                time_lookup[bl, b] = sentinel
                 bin_flagged[bl, b] = False
 
         # Flatten the time lookup and argsort it
-        flat_time = centroid_lookup[0, :, :].ravel()
-        flat_exp = exposure_lookup[0, :, :].ravel()
+        flat_time = time_lookup.ravel()
+        flat_int = interval_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
 
         # Generate lookup from flattened (bl, time) to output row
@@ -310,13 +294,13 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
             inv_argsort[a] = i
 
         # Construct the final row map
-        row_map = np.empty((time_centroid.shape[0]), dtype=np.uint32)
+        row_map = np.empty((time.shape[0]), dtype=np.uint32)
 
         # Construct output flag row, if necessary
         out_flag_row = output_flag_row(out_rows, flag_row)
 
         # foreach input row
-        for in_row in range(time_centroid.shape[0]):
+        for in_row in range(time.shape[0]):
             # Lookup baseline and time
             bl = bl_inv[in_row]
             t = time_inv[in_row]
@@ -337,9 +321,9 @@ def row_mapper(time_centroid, exposure, antenna1, antenna2,
             row_map[in_row] = out_row
 
         time_ret = flat_time[argsort[:out_rows]]
-        exp_ret = flat_exp[argsort[:out_rows]]
+        int_ret = flat_int[argsort[:out_rows]]
 
-        return RowMapOutput(row_map, time_ret, exp_ret, out_flag_row)
+        return RowMapOutput(row_map, time_ret, int_ret, out_flag_row)
 
     return impl
 
