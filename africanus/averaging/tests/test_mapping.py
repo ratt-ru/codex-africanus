@@ -107,7 +107,7 @@ def test_row_mapper(time, interval, ant1, ant2,
             new_exp2[ro] += interval[ri]
             counts[ro] += 1
 
-    assert_array_almost_equal(new_tc / counts, new_tc2 / counts)
+    assert_array_almost_equal(new_tc / counts, new_tc2 / counts2)
     assert_array_almost_equal(new_exp, new_exp2)
 
 

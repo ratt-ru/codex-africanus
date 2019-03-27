@@ -142,8 +142,6 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
         nominal_bin_map = []
         nominal_map = []
 
-        out_bin_flagged = []
-
         for ri in bl_row_idx:
             if ri == -1:
                 continue
