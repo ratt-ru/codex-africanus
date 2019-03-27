@@ -9,14 +9,15 @@ Time and Channel Averaging
 
 The routines in this section average row-based samples by:
 
-1. by grouping samples of consecutive time data into bins defined
-   by an **exposure** period in seconds: :code:`time_bin_secs`.
-2. averaging channel data into equally sized bins of :code:`chan_bin_size`.
+1. Averaging samples of consecutive **time** values into bins defined
+   by an period of :code:`time_bin_secs` seconds.
+2. Averaging channel data into equally sized bins of :code:`chan_bin_size`.
 
 In order to achieve this, a **baseline x time** ordering is established
 over the input data where **baseline** corresponds to the
-unique **(antenna1, antenna2)** pairs and **time** corresponds
-to the unique, monotonically increasing **time centroids**.
+unique **(ANTENNA1, ANTENNA2)** pairs and **time** corresponds
+to the unique, monotonically increasing **TIME** values
+associated with the rows of a Measurement Set.
 
 ======== === === === === ===
 Baseline T0  T1  T2  T3  T4
@@ -32,33 +33,48 @@ Baseline T0  T1  T2  T3  T4
 It is possible for times or baselines to be missing. In the above
 example, T2 is missing for baseline (0, 2).
 
-For each baseline, adjacent time centroid's are assigned to a bin
+For each baseline, adjacent time's are assigned to a bin
 if :math:`h_c - h_e/2 - (l_c - l_e/2) <` :code:`time_bin_secs`, where
-:math:`h_c` and :math:`l_c` are the upper and lower time centroids and
-:math:`h_e` and :math:`l_e` are the upper and lower exposure periods.
+:math:`h_c` and :math:`l_c` are the upper and lower time and
+:math:`h_e` and :math:`l_e` are the upper and lower intervals.
 Note that no distinction is made between flagged and unflagged data
 when establishing the endpoints in the bin.
 
-The averaged centroids in each bin establish a map:
+To achieve the above, the Measurement Set **TIME** and **INTERVAL**
+columns are used to sort and average input rows into output rows,
+because they establish a time-based grid
+on Measurement Set data. Additionally, the
+`Measurement Set v2.0 Specification
+<https://casa.nrao.edu/Memos/229.html>`_ specifies that both
+flagged and unflagged data should be included in the computation
+of **TIME** and **INTERVAL** values.
+This means that averaging a regular high-resolution
+**baseline x htime** grid should exactly produce a regular
+low-resolution  **baseline x ltime** grid (**htime > ltime**)
+even if some values are flagged. For this reason, flagged values
+are retained during the averaging process instead of being
+discarded from the output.
+
+To summarise, the averaged times in each bin establish a map:
 
 - from possibly unordered input rows.
 - to a reduced set of output rows ordered by
-  averaged :code:`(time_centroid, antenna1, antenna2)`.
+  averaged :code:`(TIME, ANTENNA1, ANTENNA2)`.
 
 Flagged Data Handling
 ~~~~~~~~~~~~~~~~~~~~~
 
 The averager will output averages for bins that are completely flagged.
-The reasons for this are twofold is that the `Measurement Set v2.0 Specification
-<https://casa.nrao.edu/Memos/229.html>`_ specifies
-that the **TIME_CENTROID** and **EXPOSURE** columns
-are the centroid and sum of unflagged samples, respectively.
 
-By contrast, the **TIME** and **INTERVAL** columns are the midpoint
-of the data interval, and the data interval including bad data
-or partial integration. This suggests that averaged values for
-these columns should be created, even if all samples in the bin
-are flagged.
+The `Measurement Set v2.0 Specification
+<https://casa.nrao.edu/Memos/229.html>`_ specifies that both
+flagged and unflagged data should be included in the computation
+of **TIME** and **INTERVAL** values.
+
+By contrast, most other columns
+such as **TIME_CENTROID** and **EXPOSURE**,
+should only include unflagged data or valid data.
+
 
 To support this:
 
@@ -80,7 +96,7 @@ Guarantees
 ~~~~~~~~~~
 
 1. Averaged output data will be lexicographically ordered by
-   :code:`(time_centroid, antenna1, antenna2)`
+   :code:`(TIME, ANTENNA1, ANTENNA2)`
 2. **TIME** and **INTERVAL** columns always contain the average of **Both**
    flagged and unflagged data.
 3. In the case of other columns, if a bin contains unflagged data,
@@ -100,12 +116,12 @@ Guarantees
 Column          Unflagged/Flagged Aggregation Method           Required
                 sample handling
 =============== ================= ============================ ===========
-TIME_CENTROID   Exclusive         Mean                         Yes
-EXPOSURE        Exclusive         Sum                          Yes
-ANTENNA1        Both              Assigned to Last Input       Yes
-ANTENNA2        Both              Assigned to Last Input       Yes
 TIME            Both              Mean                         No
 INTERVAL        Both              Sum                          No
+ANTENNA1        Both              Assigned to Last Input       Yes
+ANTENNA2        Both              Assigned to Last Input       Yes
+TIME_CENTROID   Exclusive         Mean                         Yes
+EXPOSURE        Exclusive         Sum                          Yes
 FLAG_ROW        Exclusive         Set if All Inputs Flagged    No
 UVW             Exclusive         Mean                         No
 WEIGHT          Exclusive         Mean                         No
