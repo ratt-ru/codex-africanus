@@ -586,7 +586,7 @@ Averages in time and channel.
 
 Parameters
 ----------
-time : $(array_type), optional
+time : $(array_type)
     Time values of shape :code:`(row,)`.
 interval : $(array_type)
     Interval values of shape :code:`(row,)`.
@@ -594,9 +594,9 @@ antenna1 : $(array_type)
     First antenna indices of shape :code:`(row,)`
 antenna2 : $(array_type)
     Second antenna indices of shape :code:`(row,)`
-time_centroid : $(array_type)
+time_centroid : $(array_type), optional
     Time centroid values of shape :code:`(row,)`
-exposure : $(array_type)
+exposure : $(array_type), optional
     Exposure values of shape :code:`(row,)`
 flag_row : $(array_type), optional
     Flagged rows of shape :code:`(row,)`.
@@ -615,7 +615,7 @@ weight_spectrum : $(array_type), optional
 sigma_spectrum : $(array_type), optional
     Sigma spectrum of shape :code:`(row, chan, corr)`.
 time_bin_secs : float, optional
-    Number of seconds of exposure to include in a bin.
+    Maximum summed interval in seconds to include within a bin.
     Defaults to 1.0.
 chan_bin_size : int, optional
     Number of bins to average together.
@@ -623,9 +623,9 @@ chan_bin_size : int, optional
 
 Returns
 -------
-tuple
-    Returns a namedtuple whose entries correspond to the input arrays.
-    Output arrays will generally be ``None`` if the input's were ``None``.
+namedtuple
+    A namedtuple whose entries correspond to the input arrays.
+    Output arrays will generally be ``None`` if the inputs were ``None``.
 """)
 
 
