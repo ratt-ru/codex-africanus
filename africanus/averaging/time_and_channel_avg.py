@@ -40,13 +40,30 @@ def add_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
+def comp_add_factory(present):
+    """
+    Returns function for adding data with components to a bin.
+    Rows are assumed to be in the first dimension and
+    components are assumed to be in the second
+    """
+    if present:
+        def impl(output, orow, input, irow):
+            for c in range(output.shape[1]):
+                output[orow, c] += input[irow, c]
+    else:
+        def impl(input, irow, output, orow):
+            pass
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 def normaliser_factory(present):
     """ Returns function for normalising data in a bin """
     if present:
-        def impl(data, idx, bin_size):
-            data[idx] /= bin_size
+        def impl(data, row, bin_size):
+            data[row] /= bin_size
     else:
-        def impl(data, idx, bin_size):
+        def impl(data, row, bin_size):
             pass
 
     return njit(nogil=True, cache=True)(impl)
@@ -88,11 +105,11 @@ def row_average(meta, ant1, ant2, flag_row=None,
     weight_factory = output_factory(have_weight)
     sigma_factory = output_factory(have_sigma)
 
-    uvw_adder = add_factory(have_uvw)
     time_centroid_adder = add_factory(have_time_centroid)
     exposure_adder = add_factory(have_exposure)
-    weight_adder = add_factory(have_weight)
-    sigma_adder = add_factory(have_sigma)
+    uvw_adder = comp_add_factory(have_uvw)
+    weight_adder = comp_add_factory(have_weight)
+    sigma_adder = comp_add_factory(have_sigma)
 
     uvw_normaliser = normaliser_factory(have_uvw)
     time_centroid_normaliser = normaliser_factory(have_time_centroid)
