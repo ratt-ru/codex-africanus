@@ -36,24 +36,27 @@ example, T2 is missing for baseline (0, 2).
 For each baseline, adjacent time's are assigned to a bin
 if :math:`h_c - h_e/2 - (l_c - l_e/2) <` :code:`time_bin_secs`, where
 :math:`h_c` and :math:`l_c` are the upper and lower time and
-:math:`h_e` and :math:`l_e` are the upper and lower intervals.
+:math:`h_e` and :math:`l_e` are the upper and lower intervals,
+taken from the **INTERVAL** column.
 Note that no distinction is made between flagged and unflagged data
 when establishing the endpoints in the bin.
 
-To achieve the above, the Measurement Set **TIME** and **INTERVAL**
-columns are used to sort and average input rows into output rows,
-because they establish a time-based grid
-on Measurement Set data. Additionally, the
-`Measurement Set v2.0 Specification
-<https://casa.nrao.edu/Memos/229.html>`_ specifies that both
-flagged and unflagged data should be included in the computation
-of **TIME** and **INTERVAL** values.
-This means that averaging a regular high-resolution
-**baseline x htime** grid should exactly produce a regular
-low-resolution  **baseline x ltime** grid (**htime > ltime**)
-even if some values are flagged. For this reason, flagged values
-are retained during the averaging process instead of being
-discarded from the output.
+The reason for this is that the `Measurement Set v2.0 Specification
+<https://casa.nrao.edu/Memos/229.html>`_ specifies that
+ **TIME** and **INTERVAL** columns
+are defined as containing the *nominal*
+time and period at which the visibility was sampled.
+This means that their values includie valid, flagged and missing data.
+Thus, averaging a
+regular high-resolution **baseline x htime** grid should produce
+a regular low-resolution  **baseline x ltime** grid (**htime > ltime**)
+in the presence of bad data
+
+By contrast, other columns such as **TIME_CENTROID**
+and **EXPOSURE** contain the **effective** time and period as
+they exclude missing and bad data. Their increased accuracy
+and therefore variability means that they are unsuitable for
+establishing a grid over the data.
 
 To summarise, the averaged times in each bin establish a map:
 
@@ -64,17 +67,22 @@ To summarise, the averaged times in each bin establish a map:
 Flagged Data Handling
 ~~~~~~~~~~~~~~~~~~~~~
 
-The averager will output averages for bins that are completely flagged.
+Both **FLAG_ROW** and **FLAG** columns may be supplied to the averager,
+but they should be consistent with each other. The averager will throw
+an exception if this is not the case, rather than making an assumption as
+to which is correct.
 
-The `Measurement Set v2.0 Specification
-<https://casa.nrao.edu/Memos/229.html>`_ specifies that both
-flagged and unflagged data should be included in the computation
-of **TIME** and **INTERVAL** values.
+When provided with flags, the averager will output averages
+for bins that are completely flagged.
 
-By contrast, most other columns
-such as **TIME_CENTROID** and **EXPOSURE**,
-should only include unflagged data or valid data.
+Part of the reason for this is that the  specifies that
+the **TIME** and **INTERVAL** columns represent the *nominal* time and interval
+values.
+This means that they should represent valid as well as flagged or missing data
+in their computation.
 
+By contrast, most other columns such as **TIME_CENTROID** and **EXPOSURE**,
+contain the *effective* values and should only include valid, unflagged data.
 
 To support this:
 
@@ -97,13 +105,14 @@ Guarantees
 
 1. Averaged output data will be lexicographically ordered by
    :code:`(TIME, ANTENNA1, ANTENNA2)`
-2. **TIME** and **INTERVAL** columns always contain the average of **Both**
-   flagged and unflagged data.
-3. In the case of other columns, if a bin contains unflagged data,
-   the bin will be set to the average of this data. However, if the bin
-   is completely flagged, it will contain the average of all data.
-   In other words the bin is **Exclusively** unflagged or flagged.
-4. Completely flagged bins will be set as flagged in either case.
+2. **TIME** and **INTERVAL** columns always contain the
+   *nominal* average and sum and therefore contain both and missing
+   or unflagged data.
+3. Other columns will contain the *effective*
+   average and will contain only valid data *except* when
+   all data in the bin is flagged.
+4. Completely flagged bins will be set as flagged in
+   both the *nominal* and *effective* case.
 5. Certain columns are averaged, while others are summed,
    or simply assigned to the last value in the bin in the case
    of antenna indices.
@@ -116,20 +125,20 @@ Guarantees
 Column          Unflagged/Flagged Aggregation Method           Required
                 sample handling
 =============== ================= ============================ ===========
-TIME            Both              Mean                         No
-INTERVAL        Both              Sum                          No
-ANTENNA1        Both              Assigned to Last Input       Yes
-ANTENNA2        Both              Assigned to Last Input       Yes
-TIME_CENTROID   Exclusive         Mean                         Yes
-EXPOSURE        Exclusive         Sum                          Yes
-FLAG_ROW        Exclusive         Set if All Inputs Flagged    No
-UVW             Exclusive         Mean                         No
-WEIGHT          Exclusive         Mean                         No
-SIGMA           Exclusive         Mean                         No
-DATA (vis)      Exclusive         Mean of Circular Quantities  No
-FLAG            Exclusive         Set if All Inputs Flagged    No
-WEIGHT_SPECTRUM Exclusive         Mean                         No
-SIGMA_SPECTRUM  Exclusive         Mean                         No
+TIME            Nominal           Mean                         Yes
+INTERVAL        Nominal           Sum                          Yes
+ANTENNA1        Nominal           Assigned to Last Input       Yes
+ANTENNA2        Nominal           Assigned to Last Input       Yes
+TIME_CENTROID   Effective         Mean                         No
+EXPOSURE        Effective         Sum                          No
+FLAG_ROW        Effective         Set if All Inputs Flagged    No
+UVW             Effective         Mean                         No
+WEIGHT          Effective         Mean                         No
+SIGMA           Effective         Mean                         No
+DATA (vis)      Effective         Mean of Circular Quantities  No
+FLAG            Effective         Set if All Inputs Flagged    No
+WEIGHT_SPECTRUM Effective         Mean                         No
+SIGMA_SPECTRUM  Effective         Mean                         No
 =============== ================= ============================ ===========
 
 Dask Implementation
