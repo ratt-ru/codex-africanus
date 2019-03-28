@@ -4,9 +4,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.averaging.time_and_channel_avg import (
-                        time_and_channel as np_time_and_channel,
-                        TIME_AND_CHANNEL_DOCS)
+from operator import getitem
+
+from africanus.averaging.time_and_channel_mapping import (row_mapper,
+                                                          channel_mapper)
+from africanus.averaging.time_and_channel_avg import (row_average,
+                                                      row_chan_average,
+                                                      merge_flags,
+                                                      AVERAGING_DOCS,
+                                                      AverageOutput,
+                                                      RowAverageOutput,
+                                                      RowChanAverageOutput)
 from africanus.util.requirements import requires_optional
 
 import numpy as np
@@ -22,186 +30,217 @@ else:
     dask_import_error = None
 
 
-def _getitem_tup(array, d, n):
-    """ Recursively index a sequence d times and return element n"""
-    for i in range(d):
-        array = array[0]
+def _row_chan_metadata(arrays, chan_bin_size):
+    """ Create dask array with channel metadata for each chunk channel """
+    for array in arrays:
+        if array is None:
+            continue
 
-    return array[n]
+        # Create a dask channel mapping structure
+        name = "channel-mapper-" + tokenize(array.chunks[1], chan_bin_size)
+        layers = {(name, i): (channel_mapper, c, chan_bin_size)
+                  for i, c in enumerate(array.chunks[1])}
+        graph = HighLevelGraph.from_collections(name, layers, ())
+        chunks = (array.chunks[1],)
+        chan_mapper = da.Array(graph, name, chunks, dtype=np.object)
+
+        return chan_mapper
+
+    return None
+
+
+def _dask_row_mapper(time, interval, antenna1, antenna2,
+                     flag_row=None, time_bin_secs=1.0):
+    """ Create a dask row mapping structure for each row chunk """
+    return da.blockwise(row_mapper, ("row",),
+                        time, ("row",),
+                        interval, ("row",),
+                        antenna1, ("row",),
+                        antenna2, ("row",),
+                        flag_row, None if flag_row is None else ("row",),
+                        time_bin_secs=time_bin_secs,
+                        dtype=np.object)
+
+
+def _getitem_row(avg, idx, dtype):
+    """ Extract row-like arrays from a dask array of tuples """
+    name = ("row-average-getitem-%d-" % idx) + tokenize(avg, idx)
+    layers = db.blockwise(getitem, name, ("row",),
+                          avg.name, ("row",),
+                          idx, None,
+                          numblocks={avg.name: avg.numblocks})
+    graph = HighLevelGraph.from_collections(name, layers, (avg,))
+    return da.Array(graph, name, avg.chunks, dtype=dtype)
+
+
+def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
+                      time_centroid=None, exposure=None, uvw=None,
+                      weight=None, sigma=None):
+    """ Average row-based dask arrays """
+
+    rd = ("row",)
+    rcd = ("row", "corr")
+
+    avg = da.blockwise(row_average, rd,
+                       row_meta, rd,
+                       ant1, rd,
+                       ant2, rd,
+                       flag_row, None if flag_row is None else rd,
+                       time_centroid, None if time_centroid is None else rd,
+                       exposure, None if exposure is None else rd,
+                       uvw, None if uvw is None else ("row", "3"),
+                       weight, None if weight is None else rcd,
+                       sigma, None if sigma is None else rcd,
+                       adjust_chunks={"row": lambda x: np.nan},
+                       dtype=np.object)
+
+    tuple_gets = (None if a is None else _getitem_row(avg, i, a.dtype)
+                  for i, a in enumerate([ant1, ant2, time_centroid, exposure,
+                                         uvw, weight, sigma]))
+
+    return RowAverageOutput(*tuple_gets)
+
+
+def _getitem_row_chan(avg, idx, dtype):
+    """ Extract (row,chan,corr) arrays from dask array of tuples """
+    name = ("row-chan-average-getitem-%d-" % idx) + tokenize(avg, idx)
+    dim = ("row", "chan", "corr")
+
+    layers = db.blockwise(getitem, name, dim,
+                          avg.name, dim,
+                          idx, None,
+                          numblocks={avg.name: avg.numblocks})
+
+    graph = HighLevelGraph.from_collections(name, layers, (avg,))
+    return da.Array(graph, name, avg.chunks, dtype=dtype)
+
+
+_row_chan_avg_dims = ("row", "chan", "corr")
+
+
+def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
+                           vis=None, flag=None,
+                           weight_spectrum=None, sigma_spectrum=None,
+                           chan_bin_size=1):
+    """ Average (row,chan,corr)-based dask arrays """
+
+    # We don't know how many rows are in each row chunk,
+    # but we can simply divide each channel chunk size by the bin size
+    adjust_chunks = {
+        "row": lambda r: np.nan,
+        "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
+    }
+
+    flag_row_dims = None if flag_row is None else ("row",)
+    vis_dims = None if vis is None else _row_chan_avg_dims
+    flag_dims = None if flag is None else _row_chan_avg_dims
+    ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
+    ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
+
+    avg = da.blockwise(row_chan_average, _row_chan_avg_dims,
+                       row_meta, ("row",),
+                       chan_meta, ("chan",),
+                       flag_row, flag_row_dims,
+                       vis, vis_dims,
+                       flag, flag_dims,
+                       weight_spectrum, ws_dims,
+                       sigma_spectrum, ss_dims,
+                       chan_bin_size=chan_bin_size,
+                       adjust_chunks=adjust_chunks,
+                       dtype=np.object)
+
+    tuple_gets = (None if a is None else _getitem_row_chan(avg, i, a.dtype)
+                  for i, a in enumerate([vis, flag,
+                                         weight_spectrum,
+                                         sigma_spectrum]))
+
+    return RowChanAverageOutput(*tuple_gets)
+
+
+def _merge_flags_wrapper(flag_row, flag):
+    return merge_flags(flag_row, flag[0][0])
+
+
+def _dask_merge_flags(flag_row, flag):
+    """ Perform flag merging on dask arrays """
+    if flag_row is None and flag is not None:
+        return da.blockwise(_merge_flags_wrapper, "r",
+                            flag_row, None,
+                            flag, "rfc",
+                            dtype=flag.dtype)
+    elif flag_row is not None and flag is None:
+        return da.blockwise(merge_flags, "r",
+                            flag_row, "r",
+                            None, None,
+                            dtype=flag_row.dtype)
+    elif flag_row is not None and flag is not None:
+        return da.blockwise(_merge_flags_wrapper, "r",
+                            flag_row, "r",
+                            flag, "rfc",
+                            dtype=flag_row.dtype)
+    else:
+        return None
 
 
 @requires_optional("dask.array", dask_import_error)
-def time_and_channel(time, ant1, ant2, vis, flags,
-                     avg_time=None, avg_chan=None,
-                     return_time=False,
-                     return_antenna=False):
+def time_and_channel(time, interval, antenna1, antenna2,
+                     time_centroid=None, exposure=None, flag_row=None,
+                     uvw=None, weight=None, sigma=None,
+                     vis=None, flag=None,
+                     weight_spectrum=None, sigma_spectrum=None,
+                     time_bin_secs=1.0, chan_bin_size=1):
 
-    # We're not really sure how many rows we'll end up with in each chunk
-    row_chunks = tuple(np.nan for c in vis.chunks[0])
-    # Channel averaging is more predictable
-    chan_chunks = tuple((c + avg_chan - 1) // avg_chan for c in vis.chunks[1])
+    row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
 
-    corr_dims = tuple("corr-%d" % i for i in range(len(vis.shape[2:])))
-    vis_dims = ("row", "chan") + corr_dims
+    # The flow of this function should match that of the numba
+    # time_and_channel implementation
 
-    token = tokenize(time, ant1, ant2, vis, flags, avg_time, avg_chan)
-    tc_name = "time-and-channel-" + token
+    # Merge flag_row and flag arrays
+    flag_row = _dask_merge_flags(flag_row, flag)
 
-    layers = db.blockwise(np_time_and_channel, tc_name, vis_dims,
-                          time.name, ("row",),
-                          ant1.name, ("row",),
-                          ant2.name, ("row",),
-                          vis.name, vis_dims,
-                          flags.name, vis_dims,
-                          avg_time=avg_time,
-                          avg_chan=avg_chan,
-                          return_time=return_time,
-                          return_antenna=return_antenna,
-                          numblocks={
-                            time.name: time.numblocks,
-                            ant1.name: ant1.numblocks,
-                            ant2.name: ant2.numblocks,
-                            vis.name: vis.numblocks,
-                            flags.name: flags.numblocks,
-                          })
+    # Generate row mapping metadata
+    row_meta = _dask_row_mapper(time, interval,
+                                antenna1, antenna2,
+                                flag_row=flag_row,
+                                time_bin_secs=time_bin_secs)
 
-    deps = (time, ant1, ant2, vis, flags)
-    graph = HighLevelGraph.from_collections(tc_name, layers, deps)
+    # Generate channel mapping metadata
+    chan_meta = _row_chan_metadata(row_chan_arrays, chan_bin_size)
 
-    # The numpy function we're wrapping may return a tuple
-    # depending on whether we're asking it to return
-    # averaged times and antennas. In this cases we need to
-    # create dask arrays that encapsulate operations which
-    # called getitem on these tuples.
+    # Average row data
+    row_data = _dask_row_average(row_meta, antenna1, antenna2,
+                                 flag_row=flag_row,
+                                 time_centroid=time_centroid,
+                                 exposure=exposure, uvw=uvw,
+                                 weight=weight, sigma=sigma)
 
-    if not return_time and not return_antenna:
-        vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
-        return da.Array(graph, tc_name, vis_chunks, dtype=vis.dtype)
-    elif return_time and not return_antenna:
-        # Create an array extracting visibilities out of the tuple
-        name0 = "time-and-channel-getitem0-" + tokenize(token, 0)
-        layers0 = db.blockwise(_getitem_tup, name0, vis_dims,
-                               tc_name, vis_dims,
-                               0, None,
-                               0, None,
-                               numblocks={
-                                tc_name: vis.numblocks
-                               })
-        graph0 = HighLevelGraph.from_collections(name0, layers0, ())
-        graph0 = HighLevelGraph.merge(graph, graph0)
-        vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
-        vis = da.Array(graph0, name0, vis_chunks, dtype=vis.dtype)
+    # Average channel data
+    chan_data = _dask_row_chan_average(row_meta, chan_meta, flag_row=flag_row,
+                                       vis=vis, flag=flag,
+                                       weight_spectrum=weight_spectrum,
+                                       sigma_spectrum=sigma_spectrum,
+                                       chan_bin_size=chan_bin_size)
 
-        # The averaged times, ant1 and ant2 are computed multiple times
-        # if there are multiple channel or correlation blocks.
-        # This is wasted computation and we simply take the
-        # time/ant1/ant2 from that of the first channel/correlation blocks
-        nextra_blocks = len(vis.numblocks[1:])
-        extra_blocks = (1,)*nextra_blocks
-        numblocks = {tc_name: (vis.numblocks[0],) + extra_blocks}
-
-        name1 = "time-and-channel-getitem1-" + tokenize(token, 1)
-        layers1 = db.blockwise(_getitem_tup, name1, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               1, None,
-                               numblocks=numblocks)
-        graph1 = HighLevelGraph.from_collections(name1, layers1, ())
-        graph1 = HighLevelGraph.merge(graph, graph1)
-        time = da.Array(graph1, name1, (vis.chunks[0],), dtype=time.dtype)
-
-        return vis, time
-    elif not return_time and return_antenna:
-        # Create an array extracting visibilities out of the tuple
-        name0 = "time-and-channel-getitem0-" + tokenize(token, 0)
-        layers0 = db.blockwise(_getitem_tup, name0, vis_dims,
-                               tc_name, vis_dims,
-                               0, None,
-                               0, None,
-                               numblocks={
-                                tc_name: vis.numblocks
-                               })
-        graph0 = HighLevelGraph.from_collections(name0, layers0, ())
-        graph0 = HighLevelGraph.merge(graph, graph0)
-        vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
-        vis = da.Array(graph0, name0, vis_chunks, dtype=vis.dtype)
-
-        name1 = "time-and-channel-getitem1-" + tokenize(token, 1)
-        layers1 = db.blockwise(_getitem_tup, name1, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               1, None,
-                               numblocks=numblocks)
-        graph1 = HighLevelGraph.from_collections(name1, layers1, ())
-        graph1 = HighLevelGraph.merge(graph, graph1)
-        ant1 = da.Array(graph1, name1, (vis.chunks[0],), dtype=ant1.dtype)
-
-        name2 = "time-and-channel-getitem2-" + tokenize(token, 2)
-        layers2 = db.blockwise(_getitem_tup, name2, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               2, None,
-                               numblocks=numblocks)
-        graph2 = HighLevelGraph.from_collections(name1, layers2, ())
-        graph2 = HighLevelGraph.merge(graph, graph2)
-        ant2 = da.Array(graph2, name2, (vis.chunks[0],), dtype=ant1.dtype)
-
-        return vis, ant1, ant2
-
-    elif return_time and return_antenna:
-        # Create an array extracting visibilities out of the tuple
-        name0 = "time-and-channel-getitem0-" + tokenize(token, 0)
-        layers0 = db.blockwise(_getitem_tup, name0, vis_dims,
-                               tc_name, vis_dims,
-                               0, None,
-                               0, None,
-                               numblocks={
-                                tc_name: vis.numblocks
-                               })
-        graph0 = HighLevelGraph.from_collections(name0, layers0, ())
-        graph0 = HighLevelGraph.merge(graph, graph0)
-        vis_chunks = (row_chunks, chan_chunks) + vis.chunks[2:]
-        vis = da.Array(graph0, name0, vis_chunks, dtype=vis.dtype)
-
-        nextra_blocks = len(vis.numblocks[1:])
-        extra_blocks = (1,)*nextra_blocks
-        numblocks = {tc_name: (vis.numblocks[0],) + extra_blocks}
-
-        name1 = "time-and-channel-getitem1-" + tokenize(token, 1)
-        layers1 = db.blockwise(_getitem_tup, name1, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               1, None,
-                               numblocks=numblocks)
-        graph1 = HighLevelGraph.from_collections(name1, layers1, ())
-        graph1 = HighLevelGraph.merge(graph, graph1)
-        time = da.Array(graph1, name1, (vis.chunks[0],), dtype=time.dtype)
-
-        name2 = "time-and-channel-getitem2-" + tokenize(token, 2)
-        layers2 = db.blockwise(_getitem_tup, name2, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               2, None,
-                               numblocks=numblocks)
-        graph2 = HighLevelGraph.from_collections(name1, layers2, ())
-        graph2 = HighLevelGraph.merge(graph, graph2)
-        ant1 = da.Array(graph2, name2, (vis.chunks[0],), dtype=ant1.dtype)
-
-        name3 = "time-and-channel-getitem3-" + tokenize(token, 3)
-        layers3 = db.blockwise(_getitem_tup, name3, ("row",),
-                               tc_name, vis_dims,
-                               nextra_blocks, None,
-                               3, None,
-                               numblocks=numblocks)
-        graph3 = HighLevelGraph.from_collections(name1, layers3, ())
-        graph3 = HighLevelGraph.merge(graph, graph3)
-        ant2 = da.Array(graph3, name3, (vis.chunks[0],), dtype=ant2.dtype)
-
-        return vis, time, ant1, ant2
+    # Merge output tuples
+    return AverageOutput(_getitem_row(row_meta, 1, time.dtype),
+                         _getitem_row(row_meta, 2, interval.dtype),
+                         (_getitem_row(row_meta, 3, flag_row.dtype)
+                          if flag_row is not None else None),
+                         row_data.antenna1,
+                         row_data.antenna2,
+                         row_data.time_centroid,
+                         row_data.exposure,
+                         row_data.uvw,
+                         row_data.weight,
+                         row_data.sigma,
+                         chan_data.vis,
+                         chan_data.flag,
+                         chan_data.weight_spectrum,
+                         chan_data.sigma_spectrum)
 
 
 try:
-    time_and_channel.__doc__ = TIME_AND_CHANNEL_DOCS.substitute(
+    time_and_channel.__doc__ = AVERAGING_DOCS.substitute(
                                     array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass
