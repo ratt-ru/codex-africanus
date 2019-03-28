@@ -4,6 +4,7 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
+* Fix radec sign conversion wsclean sky model (:pr:`96`)
 * Support integer seconds in wsclean ra and dec columns (:pr:`91`, :pr:`93`)
 * Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
 
