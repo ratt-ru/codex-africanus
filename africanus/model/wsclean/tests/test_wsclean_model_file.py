@@ -24,9 +24,9 @@ def test_wsclean_model_file(wsclean_model_file):
     # Name and type read correctly
     assert name[0] == "s0c0" and stype[0] == "POINT"
 
-    # Check ra conversion for line 0 file entry
+    # Check ra conversion for line 0 file entry (-float, float, float)
     hours, mins, secs = (-8., 28., 5.152)
-    expected_ra0 = 2.0 * np.pi * (
+    expected_ra0 = -2.0 * np.pi * (
                     (-hours / 24.0) +
                     (mins / (24.0*60.0)) +
                     (secs / (24.0*60.0*60.0)))
@@ -36,8 +36,8 @@ def test_wsclean_model_file(wsclean_model_file):
     # Check dec conversion for line 0 file entry
     degs, mins, secs = (39., 35., 8.511)
     expected_dec0 = 2.0 * np.pi * (
-                     (degs / 360.0) -
-                     (mins / (360.0*60.0)) -
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
                      (secs / (360.0*60.0*60.0)))
 
     assert dec[0] == expected_dec0
@@ -51,17 +51,17 @@ def test_wsclean_model_file(wsclean_model_file):
     # Check ra conversion for line 2 file entry (int, not float, seconds)
     hours, mins, secs = (8, 18, 44)
     expected_ra2 = 2.0 * np.pi * (
-                    (hours / 24.0) -
-                    (mins / (24.0*60.0)) -
+                    (hours / 24.0) +
+                    (mins / (24.0*60.0)) +
                     (secs / (24.0*60.0*60.0)))
 
     assert ra[2] == expected_ra2
 
-    # Check dec conversion for line 0 file entry (int, not float, seconds)
+    # Check dec conversion for line 2 file entry (int, not float, seconds)
     degs, mins, secs = (39, 38, 37)
     expected_dec2 = 2.0 * np.pi * (
-                     (degs / 360.0) -
-                     (mins / (360.0*60.0)) -
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
                      (secs / (360.0*60.0*60.0)))
 
     assert dec[2] == expected_dec2
@@ -69,6 +69,15 @@ def test_wsclean_model_file(wsclean_model_file):
     assert log_si[2] is False
 
     assert I[2] == 0.000233552686127518
+
+    # Check dec conversion for line 4 file entry (+int, not float, seconds)
+    degs, mins, secs = (+41, 47, 17.131)
+    expected_dec4 = 2.0 * np.pi * (
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
+                     (secs / (360.0*60.0*60.0)))
+
+    assert dec[4] == expected_dec4
 
     # Missing reference frequency set in the last
     assert ref_freq[-1] == ref_freq[0]

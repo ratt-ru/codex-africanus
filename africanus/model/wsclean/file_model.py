@@ -11,12 +11,12 @@ import re
 from africanus.compatibility import string_types
 
 
-hour_re = re.compile(r"(?P<sign>[-]*)"
+hour_re = re.compile(r"(?P<sign>[+-]*)"
                      r"(?P<hours>\d+):"
                      r"(?P<mins>\d+):"
                      r"(?P<secs>\d+\.?\d*)")
 
-deg_re = re.compile(r"(?P<sign>[-])*"
+deg_re = re.compile(r"(?P<sign>[+-])*"
                     r"(?P<degs>\d+)\."
                     r"(?P<mins>\d+)\."
                     r"(?P<secs>\d+\.?\d*)")
@@ -28,14 +28,12 @@ def _hour_converter(hour_str):
     if not m:
         raise ValueError("Error parsing '%s'" % hour_str)
 
+    value = float(m.group("hours")) / 24.0
+    value += float(m.group("mins")) / (24.0*60.0)
+    value += float(m.group("secs")) / (24.0*60.0*60.0)
+
     if m.group("sign") == '-':
-        value = float(m.group("hours")) / 24.0
-        value += float(m.group("mins")) / (24.0*60.0)
-        value += float(m.group("secs")) / (24.0*60.0*60.0)
-    else:
-        value = float(m.group("hours")) / 24.0
-        value -= float(m.group("mins")) / (24.0*60.0)
-        value -= float(m.group("secs")) / (24.0*60.0*60.0)
+        value = -value
 
     return 2.0 * math.pi * value
 
@@ -46,14 +44,12 @@ def _deg_converter(deg_str):
     if not m:
         raise ValueError("Error parsing '%s'" % deg_str)
 
+    value = float(m.group("degs")) / 360.0
+    value += float(m.group("mins")) / (360.0*60.0)
+    value += float(m.group("secs")) / (360.0*60.0*60.0)
+
     if m.group("sign") == '-':
-        value = float(m.group("degs")) / 360.0
-        value += float(m.group("mins")) / (360.0*60.0)
-        value += float(m.group("secs")) / (360.0*60.0*60.0)
-    else:
-        value = float(m.group("degs")) / 360.0
-        value -= float(m.group("mins")) / (360.0*60.0)
-        value -= float(m.group("secs")) / (360.0*60.0*60.0)
+        value = -value
 
     return 2.0 * math.pi * value
 
