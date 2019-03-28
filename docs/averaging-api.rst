@@ -43,7 +43,7 @@ when establishing the endpoints in the bin.
 
 The reason for this is that the `Measurement Set v2.0 Specification
 <https://casa.nrao.edu/Memos/229.html>`_ specifies that
- **TIME** and **INTERVAL** columns
+**TIME** and **INTERVAL** columns
 are defined as containing the *nominal*
 time and period at which the visibility was sampled.
 This means that their values includie valid, flagged and missing data.
@@ -53,8 +53,8 @@ a regular low-resolution  **baseline x ltime** grid (**htime > ltime**)
 in the presence of bad data
 
 By contrast, other columns such as **TIME_CENTROID**
-and **EXPOSURE** contain the **effective** time and period as
-they exclude missing and bad data. Their increased accuracy
+and **EXPOSURE** contain the *effective* time and period as
+they exclude missing and bad data. Their increased accuracy,
 and therefore variability means that they are unsuitable for
 establishing a grid over the data.
 
