@@ -44,20 +44,6 @@ def spi():
     return impl
 
 
-def test_spectral_model_one_spi(flux, spi, ref_freq, frequency):
-    nsrc = 10
-    nchan = 16
-
-    I = flux(nsrc)  # noqa
-    freq = frequency(nchan)
-    ref_freq = ref_freq(nsrc)
-    spi = spi(nsrc)
-
-    model = spectral_model(I, spi, ref_freq, freq)
-    np_model = numpy_spectral_model(I, spi, ref_freq, freq)
-    assert_array_almost_equal(model, np_model)
-
-
 def test_spectral_model_multiple_spi(flux, ref_freq, frequency):
     nsrc = 10
     nchan = 16

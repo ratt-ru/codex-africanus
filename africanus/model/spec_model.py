@@ -11,16 +11,10 @@ from africanus.util.docs import DocstringTemplate
 
 
 def numpy_spectral_model(stokes, spi, ref_freq, frequency):
-    if spi.ndim == 1:
-        freq_ratio = frequency[None, :] / ref_freq[:, None]
-        return stokes[:, None] * freq_ratio**spi[:, None]
-    elif spi.ndim == 2:
-        spi_exps = np.arange(spi.shape[1])[None, :, None]
-        term = np.log10(frequency / 1e9)[None, None, :] ** spi_exps
-        term = spi[:, :, None] * term
-        return stokes[:, None] * 10**term.sum(axis=1)
-    else:
-        raise ValueError("spi.ndim not in (1, 2)")
+    spi_exps = np.arange(1, spi.shape[1] + 1)
+    freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
+    term = spi[:, :, None] * freq_ratio[:, None, :]**(spi_exps[None, :, None])
+    return stokes[:, None] + term.sum(axis=1)
 
 
 def corr_getter_factory(ncorrdims):
@@ -40,56 +34,33 @@ def corr_getter_factory(ncorrdims):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def spectral_model(stokes, spi, ref_freq, frequency):
+def spectral_model(stokes, spi, ref_freq, frequency, base=None):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
 
-    ONE_GHZ = arg_dtypes[-1].type(1e9)
-
     ncorrdims = stokes.ndim - 1
     corr_get_fn = corr_getter_factory(ncorrdims)  # noqa
 
-    if spi.ndim == 1:
-        def impl(stokes, spi, ref_freq, frequency):
-            nsrc = stokes.shape[0]
-            nchan = frequency.shape[0]
+    def impl(stokes, spi, ref_freq, frequency, base=None):
+        nsrc = stokes.shape[0]
+        nchan = frequency.shape[0]
+        nspi = spi.shape[1]
 
-            spectral_model = np.empty((nsrc, nchan), dtype=dtype)
+        spectral_model = np.empty((nsrc, nchan), dtype=dtype)
 
-            for s in range(nsrc):
-                rf = ref_freq[s]
-                src_spi = spi[s]
-                flux = stokes[s]
+        for s in range(nsrc):
+            flux = stokes[s]
+            rf = ref_freq[s]
 
-                for f in range(nchan):
-                    spectral_model[s, f] = flux*(frequency[f]/rf)**src_spi
+            for f in range(nchan):
+                spectral_model[s, f] = flux
+                freq_ratio = (frequency[f] / rf) - 1.0
 
-            return spectral_model
+                for si in range(0, nspi):
+                    spectral_model[s, f] += spi[s, si] * freq_ratio**(si + 1)
 
-    elif spi.ndim == 2:
-        def impl(stokes, spi, ref_freq, frequency):
-            nsrc = stokes.shape[0]
-            nchan = frequency.shape[0]
-            nspi = spi.shape[1]
-
-            spectral_model = np.empty((nsrc, nchan), dtype=dtype)
-
-            for s in range(nsrc):
-                flux = stokes[s]
-
-                for f in range(nchan):
-                    spectral_model[s, f] = spi[s, 0]
-                    log_freq = np.log10(frequency[f] / ONE_GHZ)
-
-                    for si in range(1, nspi):
-                        spectral_model[s, f] += spi[s, si] * log_freq**si
-
-                    spectral_model[s, f] = flux * 10**spectral_model[s, f]
-
-            return spectral_model
-    else:
-        raise ValueError("spi.ndim not in (1, 2)")
+        return spectral_model
 
     return impl
 
@@ -102,12 +73,12 @@ Parameters
 stokes : $(array_type)
     Stokes parameters of shape :code:`(source,)`
 spi : $(array_type)
-    Spectral index of shape :code:`(source,)` or
-    :code:`(source, spi-comps)`
+    Spectral index of shape :code:`(source, spi-comps)`
 ref_freq : $(array_type)
     Reference frequencies of shape :code:`(source,)`
 frequencies : $(array_type)
     Frequencies of shape :code:`(chan,)`
+base : {"std", "log"}
 
 Returns
 -------
