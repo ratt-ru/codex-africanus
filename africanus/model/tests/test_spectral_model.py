@@ -9,7 +9,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.compatibility import PY2, PY3, string_types
+from africanus.compatibility import PY2, string_types
 from africanus.model.spec_model import spectral_model, numpy_spectral_model
 
 
