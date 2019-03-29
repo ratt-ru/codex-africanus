@@ -2,8 +2,7 @@ language: python
 matrix:
   include:
   - env: TARGET=python2
-# disable python35 temporarily due to https://github.com/numba/numba/issues/3846
-#  - env: TARGET=python35
+  - env: TARGET=python35
   - env: TARGET=python36
   - env: TARGET=pep8
 sudo: required

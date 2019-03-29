@@ -4,6 +4,8 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
+* Fix radec sign conversion in wsclean sky model (:pr:`96`)
+* Full Time and Channel Averaging Implementation (:pr:`80`)
 * Support integer seconds in wsclean ra and dec columns (:pr:`91`, :pr:`93`)
 * Spectral Models (:pr:`86`)
 * Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
