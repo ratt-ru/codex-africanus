@@ -78,8 +78,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
             return base == "log10"
 
     elif PY2 and isinstance(base, types.common.Opaque) and base.name == "str":
-        # This code path could be merged with the above python 3
-        # case when https://github.com/numba/numba/issues/3323
+        # python 2 string support can be added when
+        # https://github.com/numba/numba/issues/3323
         # is complete
         raise TypeError("String 'base' unsupported in python 2. "
                         "Use integers to specify the type of "
@@ -167,9 +167,11 @@ ref_freq : $(array_type)
 frequencies : $(array_type)
     Frequencies of shape :code:`(chan,)`
 base : {"std", "log", "log10"} or {0, 1, 2}.
-    The polynomial base
+    string or enumeration specifying the polynomial base. Defaults to 0.
+
     string specification of the base is only supported in python 3.
-    Defaults to ("std", 0)
+    while the corresponding integer enumerations are supported
+    on all python versions.
 
 Returns
 -------
