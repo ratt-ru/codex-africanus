@@ -1,7 +1,7 @@
 from .sub_opts import *
 
 
-def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, maxiter=200, tol=1e-5, tau=None,
+def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, maxiter=500, tol=1e-6, tau=None,
                        sigma=None, llambda=None):
 
     M = v_0.shape[0]  # dimension of data
@@ -17,10 +17,10 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
         l1 = lambda x, t: proj_l1_plus_pos(x, t)
 
     if tau is None:
-        tau = 0.95/(2*np.sqrt(L_norm))
+        tau = 1.0/(2*(L_norm))
 
     if sigma is None:
-        sigma = 0.95/(np.sqrt(L_norm))
+        sigma = .95/((L_norm))
 
     if llambda is None:
         llambda = 1
@@ -34,7 +34,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
 
         for n in range(maxiter):
             # Calculate x update step
-            x_i = x - abs(tau*LT(v))
+            x_i = x - tau*LT(v)
             p_n = l1(x_i, tau)
 
             # Calculate v update step
@@ -73,7 +73,7 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             if diff < tol:
                 break
 
-        return x
+        return x_new
 
     def rescaled_pd():
         print("Using Rescaled Primal-Dual")
@@ -117,17 +117,11 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             x = x_new
             v = v_new
 
-            # import matplotlib.pyplot as plt
-            # plt.figure("Primal Dual image")
-            # plt.plot(x)
-            # # plt.imshow(x.reshape([129, 129]))
-            # plt.show()
-
             diff = max(diff1, diff2)
             if diff < tol:
                 break
 
-        return x
+        return x_new
 
     def rescaled_sym_pd():
         print("Using Rescaled Symmetric Primal Dual")
@@ -227,17 +221,11 @@ def primal_dual_solver(x_0, v_0, L, LT, solver='rspd', dask=True, uncert=1.0, ma
             x = x_new
             v = v_new
 
-            # import matplotlib.pyplot as plt
-            # plt.figure("Primal Dual image")
-            # plt.plot(x)
-            # # plt.imshow(x.reshape([129, 129]))
-            # plt.show()
-
             diff = max(diff1, diff2)
             if diff < tol:
                 break
 
-        return x
+        return x_new
 
     return {
         'fbpd': lambda: fbpd(),

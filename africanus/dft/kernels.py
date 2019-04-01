@@ -9,8 +9,9 @@ from collections import namedtuple
 import numba
 import numpy as np
 
-from ..constants import minus_two_pi_over_c, two_pi_over_c
-from ..util.docs import doc_tuple_to_str
+
+from africanus.constants import minus_two_pi_over_c
+from africanus.util.docs import doc_tuple_to_str
 
 
 def im_to_vis(image, uvw, lm, frequency, dtype=None):

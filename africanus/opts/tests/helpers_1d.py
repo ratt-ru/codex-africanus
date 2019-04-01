@@ -15,15 +15,15 @@ def iFFT(x):
     return scifft.fftshift(scifft.ifft(scifft.ifftshift(x)))
 
 
-def im_to_vis(image, u_row, l_row):
+def im_to_vis(image, uvw, lm):
     # For each uvw coordinate
-    vis_of_im = np.zeros(u_row.shape[0], dtype=np.complex128)
-    for row in range(u_row.shape[0]):
-        u = u_row[row]
+    vis_of_im = np.zeros_like(uvw, dtype=np.complex128)
+    for row in range(uvw.shape[0]):
+        u = uvw[row]
 
         # For each source
-        for source in range(l_row.shape[0]):
-            l = l_row[source]
+        for source in range(lm.shape[0]):
+            l = lm[source]
             vis_of_im[row] += sp.exp(-2.0j * np.pi * u * l)*image[source]
 
     return vis_of_im
@@ -31,7 +31,7 @@ def im_to_vis(image, u_row, l_row):
 
 def vis_to_im(vis, u_row, l_row):
     # For each source
-    im_of_vis = np.zeros(l_row.shape[0], dtype=np.complex128)
+    im_of_vis = np.zeros_like(l_row, dtype=np.complex128)
     for source in range(l_row.shape[0]):
         l_point = l_row[source]
 
@@ -56,7 +56,7 @@ def make_fft_matrix(l_sources, npix):
     Ffreq = Ffreq.reshape([npix, 1])
 
     # actually calculate the fft matrix
-    FFT_mat = (da.exp(-2j * np.pi * Ffreq.dot(l_sources.T)) / da.sqrt(F_norm))
+    FFT_mat = np.exp(-2j * np.pi * Ffreq.dot(l_sources.T))/np.sqrt(F_norm)
 
     return FFT_mat
 
@@ -67,6 +67,6 @@ def make_dft_matrix(uvw, lm, weights=None):
     else:
         wsum = np.sum(weights)
 
-    DFT_mat = da.exp(-2.0j * np.pi * (uvw.dot(lm.T)))
+    DFT_mat = np.exp(-2.0j * np.pi * (uvw.dot(lm.T)))
 
     return DFT_mat

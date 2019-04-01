@@ -4,6 +4,7 @@
 """Tests for `codex-africanus` package."""
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
 import pytest
 
@@ -107,7 +108,7 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 
     v = np.einsum(einsum_sig2, g1_jones, v, g2_jones)
 
-    assert np.allclose(v, model_vis)
+    assert_array_almost_equal(v, model_vis)
 
 
 @corr_shape_parametrization
@@ -188,4 +189,4 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
         for p in (tuple(p.tolist()) for p in problems):
             print(p, model_vis[p], np_model_vis[p])
 
-    assert np.allclose(model_vis, np_model_vis)
+    assert_array_almost_equal(model_vis, np_model_vis)
