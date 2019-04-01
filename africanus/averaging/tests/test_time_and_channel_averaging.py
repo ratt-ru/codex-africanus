@@ -367,11 +367,14 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_flag_row = da.from_array(flag_row, chunks=(rc,))
     da_ant1 = da.from_array(ant1, chunks=(rc,))
     da_ant2 = da.from_array(ant2, chunks=(rc,))
+    da_chan_freq = da.from_array(frequency, chunks=(fc,))
+    da_chan_width = da.from_array(chan_width, chunks=(fc,))
     da_vis = da.from_array(vis, chunks=(rc, fc, cc))
     da_flag = da.from_array(flag, chunks=(rc, fc, cc))
 
     avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
                    flag_row=da_flag_row,
+                   chan_freq=da_chan_freq, chan_width=da_chan_width,
                    vis=da_vis, flag=da_flag,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
