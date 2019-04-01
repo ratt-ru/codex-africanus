@@ -135,6 +135,8 @@ FLAG_ROW        Effective         Set if All Inputs Flagged    No
 UVW             Effective         Mean                         No
 WEIGHT          Effective         Mean                         No
 SIGMA           Effective         Mean                         No
+CHAN_FREQ       Nominal           Mean                         No
+CHAN_WIDTH      Nominal           Sum                          No
 DATA (vis)      Effective         Mean of Circular Quantities  No
 FLAG            Effective         Set if All Inputs Flagged    No
 WEIGHT_SPECTRUM Effective         Mean                         No
