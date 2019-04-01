@@ -223,7 +223,7 @@ def chan_add_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
-def vis_normalizer_factory(present):
+def vis_normaliser_factory(present):
     if present:
         def impl(vis_out, vis_in, row, chan, corr, vis_ampl):
             ampl = vis_ampl[row, chan, corr]
@@ -237,7 +237,7 @@ def vis_normalizer_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
-def chan_normalizer_factory(present):
+def chan_normaliser_factory(present):
     """ Returns function normalising channel data in a bin """
     if present:
         def impl(data_out, data_in, row, chan, corr, bin_size):
@@ -304,8 +304,7 @@ class RowChannelAverageException(Exception):
 @generated_jit(nopython=True, nogil=True, cache=True)
 def row_chan_average(row_meta, chan_meta, flag_row=None,
                      vis=None, flag=None,
-                     weight_spectrum=None, sigma_spectrum=None,
-                     chan_bin_size=1):
+                     weight_spectrum=None, sigma_spectrum=None):
 
     have_flag_row = not is_numba_type_none(flag_row)
     have_vis = not is_numba_type_none(vis)
@@ -326,9 +325,9 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
     weight_adder = chan_add_factory(have_weight)
     sigma_adder = chan_add_factory(have_sigma)
 
-    vis_normaliser = vis_normalizer_factory(have_vis)
-    weight_normaliser = chan_normalizer_factory(have_weight)
-    sigma_normaliser = chan_normalizer_factory(have_sigma)
+    vis_normaliser = vis_normaliser_factory(have_vis)
+    weight_normaliser = chan_normaliser_factory(have_weight)
+    sigma_normaliser = chan_normaliser_factory(have_sigma)
 
     set_flagged = set_flagged_factory(have_flag)
 
@@ -337,8 +336,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
 
     def impl(row_meta, chan_meta, flag_row=None,
              vis=None, flag=None,
-             weight_spectrum=None, sigma_spectrum=None,
-             chan_bin_size=1):
+             weight_spectrum=None, sigma_spectrum=None):
 
         out_rows = row_meta.time.shape[0]
         chan_map, out_chans = chan_meta
@@ -439,9 +437,48 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
     return impl
 
 
+_chan_output_fields = ["chan_freq", "chan_width"]
+ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def chan_average(chan_meta, chan_freq=None, chan_width=None):
+    have_chan_freq = not is_numba_type_none(chan_freq)
+    have_chan_width = not is_numba_type_none(chan_width)
+
+    chan_freq_output = chan_output_factory(have_chan_freq)
+    chan_width_output = chan_output_factory(have_chan_width)
+
+    chan_freq_normaliser = normaliser_factory(have_chan_freq)
+
+    chan_freq_adder = add_factory(have_chan_freq)
+    chan_width_adder = add_factory(have_chan_width)
+
+    def impl(chan_meta, chan_freq=None, chan_width=None):
+        chan_map, out_chans = chan_meta
+
+        chan_freq_avg = chan_freq_output(out_chans, chan_freq)
+        chan_width_avg = chan_width_output(out_chans, chan_width)
+        counts = np.zeros(out_chans, dtype=np.uint32)
+
+        for in_chan, out_chan in enumerate(chan_map):
+            counts[out_chan] += 1
+            chan_freq_adder(chan_freq_avg, out_chan, chan_freq, in_chan)
+            chan_width_adder(chan_width_avg, out_chan, chan_width, in_chan)
+
+        for out_chan in range(out_chans):
+            chan_freq_normaliser(chan_freq_avg, out_chan, counts[out_chan])
+
+        return ChannelAverageOutput(chan_freq_avg, chan_width_avg)
+
+    return impl
+
+
 AverageOutput = namedtuple("AverageOutput",
                            ["time", "interval", "flag_row"] +
-                           _row_output_fields + _rowchan_output_fields)
+                           _row_output_fields +
+                           _chan_output_fields +
+                           _rowchan_output_fields)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -506,6 +543,7 @@ def merge_flags(flag_row, flag):
 def time_and_channel(time, interval, antenna1, antenna2,
                      time_centroid=None, exposure=None, flag_row=None,
                      uvw=None, weight=None, sigma=None,
+                     chan_freq=None, chan_width=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
@@ -532,6 +570,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
     def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
+             chan_freq=None, chan_width=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
              time_bin_secs=1.0, chan_bin_size=1):
@@ -555,11 +594,14 @@ def time_and_channel(time, interval, antenna1, antenna2,
                                uvw=uvw, weight=weight, sigma=sigma)
 
         # Average channel data
-        chan_data = row_chan_average(row_meta, chan_meta,
-                                     flag_row=flag_row, vis=vis, flag=flag,
-                                     weight_spectrum=weight_spectrum,
-                                     sigma_spectrum=sigma_spectrum,
-                                     chan_bin_size=chan_bin_size)
+        chan_data = chan_average(chan_meta, chan_freq=chan_freq,
+                                 chan_width=chan_width)
+
+        # Average row and channel data
+        row_chan_data = row_chan_average(row_meta, chan_meta,
+                                         flag_row=flag_row, vis=vis, flag=flag,
+                                         weight_spectrum=weight_spectrum,
+                                         sigma_spectrum=sigma_spectrum)
 
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
@@ -573,10 +615,12 @@ def time_and_channel(time, interval, antenna1, antenna2,
                              row_data.uvw,
                              row_data.weight,
                              row_data.sigma,
-                             chan_data.vis,
-                             chan_data.flag,
-                             chan_data.weight_spectrum,
-                             chan_data.sigma_spectrum)
+                             chan_data.chan_freq,
+                             chan_data.chan_width,
+                             row_chan_data.vis,
+                             row_chan_data.flag,
+                             row_chan_data.weight_spectrum,
+                             row_chan_data.sigma_spectrum)
 
     return impl
 
@@ -606,6 +650,10 @@ weight : $(array_type), optional
     Weight values of shape :code:`(row, corr)`.
 sigma : $(array_type), optional
     Sigma values of shape :code:`(row, corr)`.
+chan_freq : $(array_type), optional
+    Channel frequencies of shape :code:`(chan,)`.
+chan_width : $(array_type), optional
+    Channel widths of shape :code:`(chan,)`.
 vis : $(array_type), optional
     Visibility data of shape :code:`(row, chan, corr)`.
 flag : $(array_type), optional

@@ -10,9 +10,11 @@ from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 from africanus.averaging.time_and_channel_avg import (row_average,
                                                       row_chan_average,
+                                                      chan_average,
                                                       merge_flags,
                                                       AVERAGING_DOCS,
                                                       AverageOutput,
+                                                      ChannelAverageOutput,
                                                       RowAverageOutput,
                                                       RowChanAverageOutput)
 from africanus.util.requirements import requires_optional
@@ -145,7 +147,6 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
                        flag, flag_dims,
                        weight_spectrum, ws_dims,
                        sigma_spectrum, ss_dims,
-                       chan_bin_size=chan_bin_size,
                        adjust_chunks=adjust_chunks,
                        dtype=np.object)
 
@@ -155,6 +156,36 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
                                          sigma_spectrum]))
 
     return RowChanAverageOutput(*tuple_gets)
+
+
+def _getitem_chan(avg, idx, dtype):
+    """ Extract row-like arrays from a dask array of tuples """
+    name = ("chan-average-getitem-%d-" % idx) + tokenize(avg, idx)
+    layers = db.blockwise(getitem, name, ("chan",),
+                          avg.name, ("chan",),
+                          idx, None,
+                          numblocks={avg.name: avg.numblocks})
+    graph = HighLevelGraph.from_collections(name, layers, (avg,))
+    return da.Array(graph, name, avg.chunks, dtype=dtype)
+
+
+def _dask_chan_average(chan_meta, chan_freq=None, chan_width=None,
+                       chan_bin_size=1):
+    adjust_chunks = {
+        "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
+    }
+
+    avg = da.blockwise(chan_average, ("chan",),
+                       chan_meta, ("chan",),
+                       chan_freq, None if chan_freq is None else ("chan",),
+                       chan_width, None if chan_width is None else ("chan",),
+                       adjust_chunks=adjust_chunks,
+                       dtype=np.object)
+
+    tuple_gets = (None if a is None else _getitem_chan(avg, i, a.dtype)
+                  for i, a in enumerate([chan_freq, chan_width]))
+
+    return ChannelAverageOutput(*tuple_gets)
 
 
 def _merge_flags_wrapper(flag_row, flag):
@@ -186,6 +217,7 @@ def _dask_merge_flags(flag_row, flag):
 def time_and_channel(time, interval, antenna1, antenna2,
                      time_centroid=None, exposure=None, flag_row=None,
                      uvw=None, weight=None, sigma=None,
+                     chan_freq=None, chan_width=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
@@ -215,11 +247,15 @@ def time_and_channel(time, interval, antenna1, antenna2,
                                  weight=weight, sigma=sigma)
 
     # Average channel data
-    chan_data = _dask_row_chan_average(row_meta, chan_meta, flag_row=flag_row,
-                                       vis=vis, flag=flag,
-                                       weight_spectrum=weight_spectrum,
-                                       sigma_spectrum=sigma_spectrum,
-                                       chan_bin_size=chan_bin_size)
+    row_chan_data = _dask_row_chan_average(row_meta, chan_meta,
+                                           flag_row=flag_row,
+                                           vis=vis, flag=flag,
+                                           weight_spectrum=weight_spectrum,
+                                           sigma_spectrum=sigma_spectrum,
+                                           chan_bin_size=chan_bin_size)
+
+    chan_data = _dask_chan_average(chan_meta, chan_freq=chan_freq,
+                                   chan_width=chan_width)
 
     # Merge output tuples
     return AverageOutput(_getitem_row(row_meta, 1, time.dtype),
@@ -233,10 +269,12 @@ def time_and_channel(time, interval, antenna1, antenna2,
                          row_data.uvw,
                          row_data.weight,
                          row_data.sigma,
-                         chan_data.vis,
-                         chan_data.flag,
-                         chan_data.weight_spectrum,
-                         chan_data.sigma_spectrum)
+                         chan_data.chan_freq,
+                         chan_data.chan_width,
+                         row_chan_data.vis,
+                         row_chan_data.flag,
+                         row_chan_data.weight_spectrum,
+                         row_chan_data.sigma_spectrum)
 
 
 try:
