@@ -49,11 +49,30 @@ def corr_getter_factory(ncorrdims):
     return njit(nogil=True, cache=True)(impl)
 
 
+def promote_base_factory(is_base_list):
+    if is_base_list:
+        def impl(base, ncorr):
+            return base + [base[-1]] * (len(base) - ncorr)
+    else:
+        def impl(base, ncorr):
+            return [base] * ncorr
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 @generated_jit(nopython=True, nogil=True, cache=True)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
+
+    if isinstance(base, types.containers.List):
+        is_base_list = True
+        base = base.dtype
+    else:
+        is_base_list = False
+
+    promote_base = promote_base_factory(is_base_list)
 
     # numba doesn't support strings yet, support base type
     # through integers
@@ -103,58 +122,59 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         if ncorr != corr_get_fn(spi.shape[2:]):
             raise ValueError("Correlations on stokes + spi do not agree")
 
+        # Promote base argument to a per-correlation list
+        list_base = promote_base(base, ncorr)
+
         spectral_model = np.empty((nsrc, nchan, ncorr), dtype=dtype)
 
-        if is_std(base):
-            for s in range(nsrc):
-                rf = ref_freq[s]
+        # TODO(sjperkins)
+        # Correlation + associated base on the outer loop
+        # The output cache patterns could be improved.
+        for c, base in enumerate(list_base):
+            if is_std(base):
+                for s in range(nsrc):
+                    rf = ref_freq[s]
 
-                for f in range(nchan):
-                    freq_ratio = (frequency[f] / rf) - 1.0
-
-                    for c in range(0, ncorr):
-                        spectral_model[s, f, c] = stokes[s, c]
-
-                        for si in range(0, nspi):
-                            term = spi[s, si, c] * freq_ratio**(si + 1)
-                            spectral_model[s, f, c] += term
-
-        elif is_log(base):
-            for s in range(nsrc):
-                rf = ref_freq[s]
-
-                for f in range(nchan):
-                    freq_ratio = np.log(frequency[f] / rf)
-
-                    for c in range(0, ncorr):
-                        spectral_model[s, f, c] = np.log(stokes[s, c])
+                    for f in range(nchan):
+                        freq_ratio = (frequency[f] / rf) - 1.0
+                        spec_model = stokes[s, c]
 
                         for si in range(0, nspi):
                             term = spi[s, si, c] * freq_ratio**(si + 1)
-                            spectral_model[s, f, c] += term
+                            spec_model += term
 
-                        exp_spectra = np.exp(spectral_model[s, f, c])
-                        spectral_model[s, f, c] = exp_spectra
+                        spectral_model[s, f, c] = spec_model
 
-        elif is_log10(base):
-            for s in range(nsrc):
-                rf = ref_freq[s]
+            elif is_log(base):
+                for s in range(nsrc):
+                    rf = ref_freq[s]
 
-                for f in range(nchan):
-                    freq_ratio = np.log10(frequency[f] / rf)
-
-                    for c in range(0, ncorr):
-                        spectral_model[s, f, c] = np.log10(stokes[s, c])
+                    for f in range(nchan):
+                        freq_ratio = np.log(frequency[f] / rf)
+                        spec_model = np.log(stokes[s, c])
 
                         for si in range(0, nspi):
                             term = spi[s, si, c] * freq_ratio**(si + 1)
-                            spectral_model[s, f, c] += term
+                            spec_model += term
 
-                        exp_spectra = 10**spectral_model[s, f, c]
-                        spectral_model[s, f, c] = exp_spectra
+                        spectral_model[s, f, c] = np.exp(spec_model)
 
-        else:
-            raise ValueError("Invalid base")
+            elif is_log10(base):
+                for s in range(nsrc):
+                    rf = ref_freq[s]
+
+                    for f in range(nchan):
+                        freq_ratio = np.log10(frequency[f] / rf)
+                        spec_model = np.log10(stokes[s, c])
+
+                        for si in range(0, nspi):
+                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            spec_model += term
+
+                        spectral_model[s, f, c] = 10**spec_model
+
+            else:
+                raise ValueError("Invalid base")
 
         return spectral_model
 
