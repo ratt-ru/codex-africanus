@@ -16,18 +16,18 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     spi_exps = np.arange(1, spi.shape[1] + 1)
     if base in ("std", 0):
         freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
-        term = freq_ratio[:, None, :]**(spi_exps[None, :, None])
-        term = spi[:, :, None] * term
-        return stokes[:, None] + term.sum(axis=1)
+        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
+        term = spi[:, :, None, :] * term
+        return stokes[:, None, :] + term.sum(axis=1)
     elif base in ("log", 1):
         freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
-        term = freq_ratio[:, None, :]**(spi_exps[None, :, None])
-        term = spi[:, :, None] * term
-        return np.exp(np.log(stokes[:, None]) + term.sum(axis=1))
+        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
+        term = spi[:, :, None, :] * term
+        return np.exp(np.log(stokes[:, None, :]) + term.sum(axis=1))
     elif base in ("log10", 2):
         freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
-        term = freq_ratio[:, None, :]**(spi_exps[None, :, None])
-        term = spi[:, :, None] * term
+        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
+        term = spi[:, :, None, :] * term
         return 10**(np.log10(stokes[:, None]) + term.sum(axis=1))
     else:
         raise ValueError("Invalid base %s" % base)
@@ -92,58 +92,66 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     is_log10 = njit(nogil=True, cache=True)(is_log10)
 
     ncorrdims = stokes.ndim - 1
-    corr_get_fn = corr_getter_factory(ncorrdims)  # noqa
+    corr_get_fn = corr_getter_factory(ncorrdims)
 
     def impl(stokes, spi, ref_freq, frequency, base=0):
         nsrc = stokes.shape[0]
         nchan = frequency.shape[0]
         nspi = spi.shape[1]
+        ncorr = corr_get_fn(stokes.shape[1:])
 
-        spectral_model = np.empty((nsrc, nchan), dtype=dtype)
+        if ncorr != corr_get_fn(spi.shape[2:]):
+            raise ValueError("Correlations on stokes + spi do not agree")
+
+        spectral_model = np.empty((nsrc, nchan, ncorr), dtype=dtype)
 
         if is_std(base):
             for s in range(nsrc):
-                flux = stokes[s]
                 rf = ref_freq[s]
 
                 for f in range(nchan):
-                    spectral_model[s, f] = flux
                     freq_ratio = (frequency[f] / rf) - 1.0
 
-                    for si in range(0, nspi):
-                        term = spi[s, si] * freq_ratio**(si + 1)
+                    for c in range(0, ncorr):
+                        spectral_model[s, f, c] = stokes[s, c]
 
-                        spectral_model[s, f] += term
+                        for si in range(0, nspi):
+                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            spectral_model[s, f, c] += term
 
         elif is_log(base):
             for s in range(nsrc):
-                flux = stokes[s]
                 rf = ref_freq[s]
 
                 for f in range(nchan):
-                    spectral_model[s, f] = np.log(flux)
                     freq_ratio = np.log(frequency[f] / rf)
 
-                    for si in range(0, nspi):
-                        term = spi[s, si] * freq_ratio**(si + 1)
-                        spectral_model[s, f] += term
+                    for c in range(0, ncorr):
+                        spectral_model[s, f, c] = np.log(stokes[s, c])
 
-                    spectral_model[s, f] = np.exp(spectral_model[s, f])
+                        for si in range(0, nspi):
+                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            spectral_model[s, f, c] += term
+
+                        exp_spectra = np.exp(spectral_model[s, f, c])
+                        spectral_model[s, f, c] = exp_spectra
 
         elif is_log10(base):
             for s in range(nsrc):
-                flux = stokes[s]
                 rf = ref_freq[s]
 
                 for f in range(nchan):
-                    spectral_model[s, f] = np.log10(flux)
                     freq_ratio = np.log10(frequency[f] / rf)
 
-                    for si in range(0, nspi):
-                        term = spi[s, si] * freq_ratio**(si + 1)
-                        spectral_model[s, f] += term
+                    for c in range(0, ncorr):
+                        spectral_model[s, f, c] = np.log10(stokes[s, c])
 
-                    spectral_model[s, f] = 10**spectral_model[s, f]
+                        for si in range(0, nspi):
+                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            spectral_model[s, f, c] += term
+
+                        exp_spectra = 10**spectral_model[s, f, c]
+                        spectral_model[s, f, c] = exp_spectra
 
         else:
             raise ValueError("Invalid base")
@@ -159,9 +167,9 @@ Calculate the spectral model.
 Parameters
 ----------
 stokes : $(array_type)
-    Stokes parameters of shape :code:`(source,)`
+    Stokes parameters of shape :code:`(source, corr)`
 spi : $(array_type)
-    Spectral index of shape :code:`(source, spi-comps)`
+    Spectral index of shape :code:`(source, spi-comps, corr)`
 ref_freq : $(array_type)
     Reference frequencies of shape :code:`(source,)`
 frequencies : $(array_type)
@@ -176,7 +184,7 @@ base : {"std", "log", "log10"} or {0, 1, 2}.
 Returns
 -------
 spectral_model : $(array_type)
-    Spectral Model of shape :code:`(source, chan)`
+    Spectral Model of shape :code:`(source, chan, corr)`
 """)
 
 try:
