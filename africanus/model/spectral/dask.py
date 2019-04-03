@@ -29,9 +29,11 @@ def spectral_model(stokes, spi, ref_freq, frequencies, base):
     if len(spi.chunks[1]) != 1:
         raise ValueError("Chunking along the spi dimension unsupported")
 
-    return da.blockwise(_wrapper, ("source", "chan", "corr"),
-                        stokes, ("source", "corr"),
-                        spi, ("source", "spi", "corr"),
+    pol_dim = () if stokes.ndim == 1 else ("pol",)
+
+    return da.blockwise(_wrapper, ("source", "chan",) + pol_dim,
+                        stokes, ("source",) + pol_dim,
+                        spi, ("source", "spi") + pol_dim,
                         ref_freq, ("source",),
                         frequencies, ("chan",),
                         base=base,

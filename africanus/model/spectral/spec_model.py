@@ -13,24 +13,35 @@ from africanus.util.docs import DocstringTemplate
 
 
 def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
+    out_shape = (stokes.shape[0], frequency.shape[0]) + stokes.shape[1:]
+
+    # Add in missing pol dimensions
+    if stokes.ndim == 1:
+        stokes = stokes[:, None]
+
+    if spi.ndim == 2:
+        spi = spi[:, :, None]
+
     spi_exps = np.arange(1, spi.shape[1] + 1)
     if base in ("std", 0):
         freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
         term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
         term = spi[:, :, None, :] * term
-        return stokes[:, None, :] + term.sum(axis=1)
+        spectral_model = stokes[:, None, :] + term.sum(axis=1)
     elif base in ("log", 1):
         freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
         term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
         term = spi[:, :, None, :] * term
-        return np.exp(np.log(stokes[:, None, :]) + term.sum(axis=1))
+        spectral_model = np.exp(np.log(stokes[:, None, :]) + term.sum(axis=1))
     elif base in ("log10", 2):
         freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
         term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
         term = spi[:, :, None, :] * term
-        return 10**(np.log10(stokes[:, None]) + term.sum(axis=1))
+        spectral_model = 10**(np.log10(stokes[:, None]) + term.sum(axis=1))
     else:
         raise ValueError("Invalid base %s" % base)
+
+    return spectral_model.reshape(out_shape)
 
 
 def pol_getter_factory(npoldims):
@@ -56,6 +67,17 @@ def promote_base_factory(is_base_list):
     else:
         def impl(base, npol):
             return [base] * npol
+
+    return njit(nogil=True, cache=True)(impl)
+
+
+def add_pol_dim_factory(have_pol_dim):
+    if have_pol_dim:
+        def impl(array):
+            return array
+    else:
+        def impl(array):
+            return array.reshape(array.shape + (1,))
 
     return njit(nogil=True, cache=True)(impl)
 
@@ -112,6 +134,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
     npoldims = stokes.ndim - 1
     pol_get_fn = pol_getter_factory(npoldims)
+    add_pol_dim = add_pol_dim_factory(npoldims > 0)
+
+    if spi.ndim - 2 != npoldims:
+        raise ValueError("Dimensions on stokes and spi don't agree")
 
     def impl(stokes, spi, ref_freq, frequency, base=0):
         nsrc = stokes.shape[0]
@@ -120,27 +146,31 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         npol = pol_get_fn(stokes.shape[1:])
 
         if npol != pol_get_fn(spi.shape[2:]):
-            raise ValueError("Correlations on stokes + spi do not agree")
+            raise ValueError("Correlations on stokes and spi don't agree")
 
         # Promote base argument to a per-polarisation list
         list_base = promote_base(base, npol)
+
+        # Reshape adding a polarisation dimension if necessary
+        estokes = add_pol_dim(stokes)
+        espi = add_pol_dim(spi)
 
         spectral_model = np.empty((nsrc, nchan, npol), dtype=dtype)
 
         # TODO(sjperkins)
         # Polarisation + associated base on the outer loop
         # The output cache patterns could be improved.
-        for p, base in enumerate(list_base):
+        for p, base in enumerate(list_base[:npol]):
             if is_std(base):
                 for s in range(nsrc):
                     rf = ref_freq[s]
 
                     for f in range(nchan):
                         freq_ratio = (frequency[f] / rf) - 1.0
-                        spec_model = stokes[s, p]
+                        spec_model = estokes[s, p]
 
                         for si in range(0, nspi):
-                            term = spi[s, si, p] * freq_ratio**(si + 1)
+                            term = espi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
                         spectral_model[s, f, p] = spec_model
@@ -151,10 +181,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
-                        spec_model = np.log(stokes[s, p])
+                        spec_model = np.log(estokes[s, p])
 
                         for si in range(0, nspi):
-                            term = spi[s, si, p] * freq_ratio**(si + 1)
+                            term = espi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
                         spectral_model[s, f, p] = np.exp(spec_model)
@@ -165,10 +195,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
-                        spec_model = np.log10(stokes[s, p])
+                        spec_model = np.log10(estokes[s, p])
 
                         for si in range(0, nspi):
-                            term = spi[s, si, p] * freq_ratio**(si + 1)
+                            term = espi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
                         spectral_model[s, f, p] = 10**spec_model
@@ -176,7 +206,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
             else:
                 raise ValueError("Invalid base")
 
-        return spectral_model
+        out_shape = (stokes.shape[0], frequency.shape[0]) + stokes.shape[1:]
+        return spectral_model.reshape(out_shape)
 
     return impl
 
@@ -187,16 +218,21 @@ Derive a spectral model.
 Parameters
 ----------
 stokes : $(array_type)
-    Stokes parameters of shape :code:`(source, pol)`
+    Stokes parameters of shape :code:`(source,)` or :code:`(source, pol)`.
+    If a ``pol`` dimension is present, then it must also be present on ``spi``.
 spi : $(array_type)
-    Spectral index of shape :code:`(source, spi-comps, pol)`
+    Spectral index of shape :code:(`source, spi-comps`)
+    or :code:`(source, spi-comps, pol)`.
 ref_freq : $(array_type)
     Reference frequencies of shape :code:`(source,)`
 frequencies : $(array_type)
     Frequencies of shape :code:`(chan,)`
-base : {"std", "log", "log10"} or {0, 1, 2}.
-    string or corresponding enumeration
-    specifying the polynomial base. Defaults to 0.
+base : {"std", "log", "log10"} or {0, 1, 2} or list.
+    string or corresponding enumeration specifying the polynomial base.
+    Defaults to 0.
+
+    If a list is provided, a polynomial base can be specified for each
+    stokes parameter or polarisation in the ``pol`` dimension.
 
     string specification of the base is only supported in python 3.
     while the corresponding integer enumerations are supported
