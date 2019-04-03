@@ -227,7 +227,21 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
 
 SPECTRAL_MODEL_DOC = DocstringTemplate(r"""
-Derive a spectral model.
+Compute a spectral model, per polarisation.
+
+.. math::
+    :nowrap:
+
+    \begin{eqnarray}
+    I(\lambda) & = & \sum_{i=0} \alpha_{i} (\lambda / \lambda_0 - 1)^i
+      \, \textrm{where} \, \alpha_0 = I(\lambda_0) \\
+    \ln( I(\lambda) ) & = & \sum_{i=0} \alpha_{i}
+      \ln (\lambda / \lambda_0)^i
+      \, \textrm{where} \, \alpha_0 = \ln I_0 \\
+    \log_{10}( I(\lambda) ) & = & \sum_{i=0} \alpha_{i}
+      \log_{10} (\lambda / \lambda_0)^i
+      \, \textrm{where} \, \alpha_0 = \log_{10} I_0 \\
+    \end{eqnarray}
 
 Parameters
 ----------
@@ -255,7 +269,8 @@ base : {"std", "log", "log10"} or {0, 1, 2} or list.
 Returns
 -------
 spectral_model : $(array_type)
-    Spectral Model of shape :code:`(source, chan, pol)`
+    Spectral Model of shape :code:`(source, chan)` or
+    :code:`(source, chan, pol)`.
 """)
 
 try:
