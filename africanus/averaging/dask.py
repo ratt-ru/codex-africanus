@@ -120,7 +120,7 @@ def _getitem_row_chan(avg, idx, dtype):
 _row_chan_avg_dims = ("row", "chan", "corr")
 
 
-def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
+def _dask_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                            vis=None, flag=None,
                            weight_spectrum=None, sigma_spectrum=None,
                            chan_bin_size=1):
@@ -134,6 +134,7 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
     }
 
     flag_row_dims = None if flag_row is None else ("row",)
+    weight_dims = None if weight is None else ("row",)
     vis_dims = None if vis is None else _row_chan_avg_dims
     flag_dims = None if flag is None else _row_chan_avg_dims
     ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
@@ -143,6 +144,7 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None,
                        row_meta, ("row",),
                        chan_meta, ("chan",),
                        flag_row, flag_row_dims,
+                       weight, weight_dims,
                        vis, vis_dims,
                        flag, flag_dims,
                        weight_spectrum, ws_dims,
@@ -248,7 +250,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
     # Average channel data
     row_chan_data = _dask_row_chan_average(row_meta, chan_meta,
-                                           flag_row=flag_row,
+                                           flag_row=flag_row, weight=weight,
                                            vis=vis, flag=flag,
                                            weight_spectrum=weight_spectrum,
                                            sigma_spectrum=sigma_spectrum,

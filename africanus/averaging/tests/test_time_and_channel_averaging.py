@@ -202,6 +202,17 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
     return sorted(time_bl_row_map, key=lambda tup: tup[0])
 
 
+def _calc_sigma(sigma, weight, idx):
+    sigma = sigma[idx]
+    weight = weight[idx]
+
+    numerator = (sigma**2 * weight**2).sum(axis=0)
+    denominator = weight.sum(axis=0)**2
+    denominator[denominator == 0.0] = 1.0
+
+    return np.sqrt(numerator / denominator)
+
+
 @pytest.mark.parametrize("flagged_rows", [
     [], [8, 9], [4], [0, 1],
 ])
@@ -264,8 +275,8 @@ def test_averager(time, ant1, ant2, flagged_rows,
     expected_uvw = [uvw[i].mean(axis=0) for i in eff_idx]
     expected_interval = [interval[i].sum(axis=0) for i in nom_idx]
     expected_exposure = [exposure[i].sum(axis=0) for i in eff_idx]
-    expected_weight = [weight[i].mean(axis=0) for i in eff_idx]
-    expected_sigma = [sigma[i].mean(axis=0) for i in eff_idx]
+    expected_weight = [weight[i].sum(axis=0) for i in eff_idx]
+    expected_sigma = [_calc_sigma(sigma, weight, i) for i in eff_idx]
 
     assert_array_equal(row_meta.time, expected_times)
     assert_array_equal(row_meta.interval, expected_interval)
@@ -320,8 +331,9 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
 
     np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
                               flag_row=flag_row,
-                              vis=vis, flag=flag,
                               chan_freq=frequency, chan_width=chan_width,
+                              vis=vis, flag=flag,
+                              weight_spectrum=weight_spectrum,
                               time_bin_secs=time_bin_secs,
                               chan_bin_size=chan_bin_size)
 
@@ -333,6 +345,8 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_ant2 = da.from_array(ant2, chunks=rows)
     da_chan_freq = da.from_array(frequency, chunks=chans)
     da_chan_width = da.from_array(chan_width, chunks=chans)
+    da_weight_spectrum = da.from_array(weight_spectrum,
+                                       chunks=(rows, chans, corrs))
     da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
     da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
 
@@ -340,6 +354,7 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                    flag_row=da_flag_row,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
                    vis=da_vis, flag=da_flag,
+                   weight_spectrum=da_weight_spectrum,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
 

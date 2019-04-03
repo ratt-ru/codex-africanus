@@ -57,6 +57,29 @@ def comp_add_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
+def sigma_add_factory(have_sigma, have_weight):
+    """
+    Returns function for adding sigma values to a bin.
+    Uses provided weights, else natural weights
+    """
+    if not have_sigma:
+        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
+            pass
+    elif have_weight:
+        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
+            for c in range(out_sigma.shape[1]):
+                out_sigma[orow, c] += (in_sigma[irow, c]**2 *
+                                       in_weight[irow, c]**2)
+                out_weight_sum[orow, c] += in_weight[irow, c]
+    else:
+        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
+            for c in range(out_sigma.shape[1]):
+                out_sigma[orow, c] += in_sigma[irow, c]**2
+                out_weight_sum[orow, c] += in_weight[irow, c]
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 def normaliser_factory(present):
     """ Returns function for normalising data in a bin """
     if present:
@@ -64,6 +87,24 @@ def normaliser_factory(present):
             data[row] /= bin_size
     else:
         def impl(data, row, bin_size):
+            pass
+
+    return njit(nogil=True, cache=True)(impl)
+
+
+def sigma_normaliser_factory(present):
+    """ Returns function for normalising sigma in a bin """
+    if present:
+        def impl(sigma, row, weight_sum):
+            for c in range(sigma.shape[1]):
+                wt = weight_sum[row, c]
+
+                if wt == 0.0:
+                    continue
+
+                sigma[row, c] = np.sqrt(sigma[row, c] / (wt**2))
+    else:
+        def impl(sigma, row, weight_sum):
             pass
 
     return njit(nogil=True, cache=True)(impl)
@@ -109,12 +150,11 @@ def row_average(meta, ant1, ant2, flag_row=None,
     exposure_adder = add_factory(have_exposure)
     uvw_adder = comp_add_factory(have_uvw)
     weight_adder = comp_add_factory(have_weight)
-    sigma_adder = comp_add_factory(have_sigma)
+    sigma_adder = sigma_add_factory(have_sigma, have_weight)
 
     uvw_normaliser = normaliser_factory(have_uvw)
+    sigma_normaliser = sigma_normaliser_factory(have_sigma)
     time_centroid_normaliser = normaliser_factory(have_time_centroid)
-    weight_normaliser = normaliser_factory(have_weight)
-    sigma_normaliser = normaliser_factory(have_sigma)
 
     def impl(meta, ant1, ant2, flag_row=None,
              time_centroid=None, exposure=None, uvw=None,
@@ -134,6 +174,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
         exposure_avg = exposure_factory(out_rows, exposure)
         weight_avg = weight_factory(out_rows, weight)
         sigma_avg = sigma_factory(out_rows, sigma)
+        sigma_weight_sum = sigma_factory(out_rows, sigma)
 
         # Iterate over input rows, accumulating into output rows
         for in_row, out_row in enumerate(meta.map):
@@ -142,7 +183,8 @@ def row_average(meta, ant1, ant2, flag_row=None,
             if flags_match(flag_row, in_row, meta.flag_row, out_row):
                 uvw_adder(uvw_avg, out_row, uvw, in_row)
                 weight_adder(weight_avg, out_row, weight, in_row)
-                sigma_adder(sigma_avg, out_row, sigma, in_row)
+                sigma_adder(sigma_avg, sigma_weight_sum, out_row,
+                            sigma, weight, in_row)
                 time_centroid_adder(time_centroid_avg, out_row,
                                     time_centroid, in_row)
                 exposure_adder(exposure_avg, out_row, exposure, in_row)
@@ -160,9 +202,8 @@ def row_average(meta, ant1, ant2, flag_row=None,
 
             if count > 0:
                 uvw_normaliser(uvw_avg, out_row, count)
-                weight_normaliser(weight_avg, out_row, count)
-                sigma_normaliser(sigma_avg, out_row, count)
                 time_centroid_normaliser(time_centroid_avg, out_row, count)
+                sigma_normaliser(sigma_avg, out_row, sigma_weight_sum)
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg, exposure_avg, uvw_avg,
@@ -171,8 +212,8 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
-def vis_ampl_output_factory(present):
-    """ Returns function producing output vis amplitudes if present """
+def weight_sum_output_factory(present):
+    """ Returns function producing vis weight sum if vis present """
     if present:
         def impl(shape, array):
             return np.zeros(shape, dtype=array.real.dtype)
@@ -195,18 +236,86 @@ def chan_output_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
-def vis_add_factory(present):
-    """ Returns function adding visibilities and their amplitudes to a bin """
-    if present:
-        def impl(out_vis, out_vis_ampl, in_vis,
-                 orow, ochan, irow, ichan, corr):
-            iv = in_vis[irow, ichan, corr]
-            out_vis[orow, ochan, corr] += iv
-            out_vis_ampl[orow, ochan, corr] += np.abs(iv)
-    else:
-        def impl(out_vis, out_vis_ampl, in_vis,
+def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
+    """ Returns function adding weighted visibilities to a bin """
+    if not have_vis:
+        def impl(out_vis, out_weight_sum, in_vis, weight, weight_spectrum,
                  orow, ochan, irow, ichan, corr):
             pass
+    elif have_weight_spectrum:
+        # Always prefer more accurate weight spectrum if we have it
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            wt = weight_spectrum[irow, ichan, corr]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += wt
+
+    elif have_weight:
+        # Otherwise fall back to row weights
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            wt = weight[irow]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += wt
+    else:
+        # Natural weights
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            iv = in_vis[irow, ichan, corr]
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += 1.0
+
+    return njit(nogil=True, cache=True)(impl)
+
+
+def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
+    """ Returns function adding weighted sigma to a bin """
+    if not have_vis:
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+            pass
+
+    elif have_weight_spectrum:
+        # Always prefer more accurate weight spectrum if we have it
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            # sum(sigma**2 * weight**2)
+            wt = weight_spectrum[irow, ichan, corr]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, ochan, corr] += is_
+            out_weight_sum[orow, ochan, corr] += wt
+
+    elif have_weight:
+        # Otherwise fall back to row weights
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            # sum(sigma**2 * weight**2)
+            wt = weight[irow]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, ochan, corr] += is_
+            out_weight_sum[orow, ochan, corr] += wt
+    else:
+        # Natural weights
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            # sum(sigma**2 * weight**2)
+            out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
+            out_weight_sum[orow, ochan, corr] += 1.0
 
     return njit(nogil=True, cache=True)(impl)
 
@@ -225,13 +334,31 @@ def chan_add_factory(present):
 
 def vis_normaliser_factory(present):
     if present:
-        def impl(vis_out, vis_in, row, chan, corr, vis_ampl):
-            ampl = vis_ampl[row, chan, corr]
+        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
+            wsum = weight_sum[row, chan, corr]
 
-            if ampl != 0.0:
-                vis_out[row, chan, corr] = vis_in[row, chan, corr] / ampl
+            if wsum != 0.0:
+                vis_out[row, chan, corr] = vis_in[row, chan, corr] / wsum
     else:
-        def impl(vis_out, vis_in, row, chan, corr, vis_ampl):
+        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
+            pass
+
+    return njit(nogil=True, cache=True)(impl)
+
+
+def sigma_spectrum_normaliser_factory(present):
+    if present:
+        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
+            wsum = weight_sum[row, chan, corr]
+
+            if wsum == 0.0:
+                return
+
+            # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+            res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
+            sigma_out[row, chan, corr] = res
+    else:
+        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
             pass
 
     return njit(nogil=True, cache=True)(impl)
@@ -249,7 +376,8 @@ def chan_normaliser_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
-def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
+def chan_corr_factory(have_vis, have_flag,
+                      have_weight_spectrum, have_sigma_spectrum):
     """ Returns function returning number of channels and correlations """
     if have_vis:
         def impl(vis, flag, weight_spectrum, sigma_spectrum):
@@ -257,10 +385,10 @@ def chan_corr_factory(have_vis, have_flag, have_weight, have_sigma):
     elif have_flag:
         def impl(vis, flag, weight_spectrum, sigma_spectrum):
             return flag.shape[1:]
-    elif have_weight:
+    elif have_weight_spectrum:
         def impl(vis, flag, weight_spectrum, sigma_spectrum):
             return weight_spectrum.shape[1:]
-    elif have_sigma:
+    elif have_sigma_spectrum:
         def impl(vis, flag, weight_spectrum, sigma_spectrum):
             return sigma_spectrum.shape[1:]
     else:
@@ -302,39 +430,43 @@ class RowChannelAverageException(Exception):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_chan_average(row_meta, chan_meta, flag_row=None,
+def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
 
     have_flag_row = not is_numba_type_none(flag_row)
     have_vis = not is_numba_type_none(vis)
     have_flag = not is_numba_type_none(flag)
-    have_weight = not is_numba_type_none(weight_spectrum)
-    have_sigma = not is_numba_type_none(sigma_spectrum)
+    have_weight = not is_numba_type_none(weight)
+    have_weight_spectrum = not is_numba_type_none(weight_spectrum)
+    have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
 
     flags_match = matching_flag_factory(have_flag_row)
     is_chan_flagged = is_chan_flagged_factory(have_flag)
 
     vis_factory = chan_output_factory(have_vis)
-    vis_ampl_factory = vis_ampl_output_factory(have_vis)
+    weight_sum_factory = weight_sum_output_factory(have_vis)
     flag_factory = chan_output_factory(have_flag)
-    weight_factory = chan_output_factory(have_weight)
-    sigma_factory = chan_output_factory(have_sigma)
+    weight_factory = chan_output_factory(have_weight_spectrum)
+    sigma_factory = chan_output_factory(have_sigma_spectrum)
 
-    vis_adder = vis_add_factory(have_vis)
-    weight_adder = chan_add_factory(have_weight)
-    sigma_adder = chan_add_factory(have_sigma)
+    vis_adder = vis_add_factory(have_vis,
+                                have_weight,
+                                have_weight_spectrum)
+    weight_adder = chan_add_factory(have_weight_spectrum)
+    sigma_adder = sigma_spectrum_add_factory(have_sigma_spectrum,
+                                             have_weight,
+                                             have_weight_spectrum)
 
     vis_normaliser = vis_normaliser_factory(have_vis)
-    weight_normaliser = chan_normaliser_factory(have_weight)
-    sigma_normaliser = chan_normaliser_factory(have_sigma)
+    sigma_normaliser = sigma_spectrum_normaliser_factory(have_sigma_spectrum)
 
     set_flagged = set_flagged_factory(have_flag)
 
     chan_corrs = chan_corr_factory(have_vis, have_flag,
-                                   have_weight, have_sigma)
+                                   have_weight_spectrum, have_sigma_spectrum)
 
-    def impl(row_meta, chan_meta, flag_row=None,
+    def impl(row_meta, chan_meta, flag_row=None, weight=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None):
 
@@ -345,16 +477,19 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
         out_shape = (out_rows, out_chans, ncorrs)
 
         vis_avg = vis_factory(out_shape, vis)
-        vis_ampl_avg = vis_ampl_factory(out_shape, vis)
+        vis_weight_sum = weight_sum_factory(out_shape, vis)
         weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
         sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
+        sigma_spectrum_weight_sum = sigma_factory(out_shape, sigma_spectrum)
 
         flagged_vis_avg = vis_factory(out_shape, vis)
-        flagged_vis_ampl_avg = vis_ampl_factory(out_shape, vis)
+        flagged_vis_weight_sum = weight_sum_factory(out_shape, vis)
         flagged_weight_spectrum_avg = weight_factory(out_shape,
                                                      weight_spectrum)
         flagged_sigma_spectrum_avg = sigma_factory(out_shape,
                                                    sigma_spectrum)
+        flagged_sigma_spectrum_weight_sum = sigma_factory(out_shape,
+                                                          sigma_spectrum)
 
         flag_avg = flag_factory(out_shape, flag)
 
@@ -374,25 +509,32 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
                         # Increment flagged averages and counts
                         flag_counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(flagged_vis_avg,
-                                  flagged_vis_ampl_avg,
-                                  vis,
+                        vis_adder(flagged_vis_avg, flagged_vis_weight_sum, vis,
+                                  weight, weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
                         weight_adder(flagged_weight_spectrum_avg,
                                      weight_spectrum,
                                      out_row, out_chan, in_row, in_chan, corr)
                         sigma_adder(flagged_sigma_spectrum_avg,
+                                    flagged_sigma_spectrum_weight_sum,
                                     sigma_spectrum,
+                                    weight,
+                                    weight_spectrum,
                                     out_row, out_chan, in_row, in_chan, corr)
                     else:
                         # Increment unflagged averages and counts
                         counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(vis_avg, vis_ampl_avg, vis,
+                        vis_adder(vis_avg, vis_weight_sum, vis,
+                                  weight, weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
                         weight_adder(weight_spectrum_avg, weight_spectrum,
                                      out_row, out_chan, in_row, in_chan, corr)
-                        sigma_adder(sigma_spectrum_avg, sigma_spectrum,
+                        sigma_adder(sigma_spectrum_avg,
+                                    sigma_spectrum_weight_sum,
+                                    sigma_spectrum,
+                                    weight,
+                                    weight_spectrum,
                                     out_row, out_chan, in_row, in_chan, corr)
 
         for r in range(out_rows):
@@ -405,33 +547,30 @@ def row_chan_average(row_meta, chan_meta, flag_row=None,
                         # We have some unflagged samples and
                         # only these are used as averaged output
                         vis_normaliser(vis_avg, vis_avg,
-                                       r, f, c, vis_ampl_avg)
-                        weight_normaliser(weight_spectrum_avg,
-                                          weight_spectrum_avg,
-                                          r, f, c, count)
+                                       r, f, c,
+                                       vis_weight_sum)
                         sigma_normaliser(sigma_spectrum_avg,
                                          sigma_spectrum_avg,
-                                         r, f, c, count)
+                                         r, f, c,
+                                         sigma_spectrum_weight_sum)
                     elif flag_count > 0:
                         # We only have flagged samples and
                         # these are used as averaged output
                         vis_normaliser(vis_avg, flagged_vis_avg,
                                        r, f, c,
-                                       flagged_vis_ampl_avg)
-                        weight_normaliser(weight_spectrum_avg,
-                                          flagged_weight_spectrum_avg,
-                                          r, f, c, flag_count)
-
+                                       flagged_vis_weight_sum)
                         sigma_normaliser(sigma_spectrum_avg,
                                          flagged_sigma_spectrum_avg,
-                                         r, f, c, flag_count)
+                                         r, f, c,
+                                         flagged_sigma_spectrum_weight_sum)
 
                         # Flag the output bin
                         set_flagged(flag_avg, r, f, c)
                     else:
                         raise RowChannelAverageException("Zero-filled bin")
 
-        return RowChanAverageOutput(vis_avg, flag_avg, weight_spectrum_avg,
+        return RowChanAverageOutput(vis_avg, flag_avg,
+                                    weight_spectrum_avg,
                                     sigma_spectrum_avg)
 
     return impl
@@ -561,11 +700,12 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
     have_vis = not is_numba_type_none(vis)
     have_flag = not is_numba_type_none(flag)
-    have_weight = not is_numba_type_none(weight_spectrum)
-    have_sigma = not is_numba_type_none(sigma_spectrum)
+    have_weight_spectrum = not is_numba_type_none(weight_spectrum)
+    have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
 
     chan_corrs = chan_corr_factory(have_vis, have_flag,
-                                   have_weight, have_sigma)
+                                   have_weight_spectrum,
+                                   have_sigma_spectrum)
 
     def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
@@ -599,7 +739,8 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
         # Average row and channel data
         row_chan_data = row_chan_average(row_meta, chan_meta,
-                                         flag_row=flag_row, vis=vis, flag=flag,
+                                         flag_row=flag_row, weight=weight,
+                                         vis=vis, flag=flag,
                                          weight_spectrum=weight_spectrum,
                                          sigma_spectrum=sigma_spectrum)
 
