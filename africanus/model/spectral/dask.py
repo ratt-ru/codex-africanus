@@ -25,7 +25,7 @@ def _wrapper(stokes, spi, ref_freq, frequencies, base=None):
 
 
 @requires_optional("dask.array", opt_import_error)
-def spectral_model(stokes, spi, ref_freq, frequencies, base):
+def spectral_model(stokes, spi, ref_freq, frequencies, base=0):
     if len(spi.chunks[1]) != 1:
         raise ValueError("Chunking along the spi dimension unsupported")
 

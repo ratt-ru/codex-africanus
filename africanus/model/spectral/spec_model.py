@@ -235,7 +235,7 @@ stokes : $(array_type)
     Stokes parameters of shape :code:`(source,)` or :code:`(source, pol)`.
     If a ``pol`` dimension is present, then it must also be present on ``spi``.
 spi : $(array_type)
-    Spectral index of shape :code:(`source, spi-comps`)
+    Spectral index of shape :code:`(source, spi-comps)`
     or :code:`(source, spi-comps, pol)`.
 ref_freq : $(array_type)
     Reference frequencies of shape :code:`(source,)`
@@ -259,7 +259,7 @@ spectral_model : $(array_type)
 """)
 
 try:
-    spectral_model.__doc__ = SPECTRAL_MODEL_DOC.subsitute(
+    spectral_model.__doc__ = SPECTRAL_MODEL_DOC.substitute(
                                 array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
