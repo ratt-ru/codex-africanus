@@ -6,7 +6,8 @@ from __future__ import print_function
 
 from functools import wraps
 
-from africanus.model.spec_model import (spectral_model as np_spectral_model,
+from africanus.model.spectral.spec_model import (
+                                        spectral_model as np_spectral_model,
                                         SPECTRAL_MODEL_DOC)
 from africanus.util.requirements import requires_optional
 

@@ -10,7 +10,8 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.compatibility import PY2, string_types
-from africanus.model.spec_model import spectral_model, numpy_spectral_model
+from africanus.model.spectral.spec_model import (spectral_model,
+                                                 numpy_spectral_model)
 
 
 @pytest.fixture
@@ -85,8 +86,9 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, ncorr):
 @pytest.mark.parametrize("ncorr", [1, 2, 4])
 def test_dask_spectral_model(flux, ref_freq, frequency, base, ncorr):
     da = pytest.importorskip("dask.array")
-    from africanus.model.spec_model import spectral_model as np_spectral_model
-    from africanus.model.dask import spectral_model
+    from africanus.model.spectral.spec_model import (
+                        spectral_model as np_spectral_model)
+    from africanus.model.spectral.dask import spectral_model
 
     sc = (5, 5)
     fc = (8, 8)
