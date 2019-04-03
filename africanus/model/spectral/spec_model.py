@@ -33,29 +33,29 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
         raise ValueError("Invalid base %s" % base)
 
 
-def corr_getter_factory(ncorrdims):
-    if ncorrdims == 0:
-        def impl(corr_shape):
+def pol_getter_factory(npoldims):
+    if npoldims == 0:
+        def impl(pol_shape):
             return 1
     else:
-        def impl(corr_shape):
-            ncorrs = 1
+        def impl(pol_shape):
+            npols = 1
 
-            for c in corr_shape:
-                ncorrs *= c
+            for c in pol_shape:
+                npols *= c
 
-            return ncorrs
+            return npols
 
     return njit(nogil=True, cache=True)(impl)
 
 
 def promote_base_factory(is_base_list):
     if is_base_list:
-        def impl(base, ncorr):
-            return base + [base[-1]] * (len(base) - ncorr)
+        def impl(base, npol):
+            return base + [base[-1]] * (len(base) - npol)
     else:
-        def impl(base, ncorr):
-            return [base] * ncorr
+        def impl(base, npol):
+            return [base] * npol
 
     return njit(nogil=True, cache=True)(impl)
 
@@ -110,40 +110,40 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     is_log = njit(nogil=True, cache=True)(is_log)
     is_log10 = njit(nogil=True, cache=True)(is_log10)
 
-    ncorrdims = stokes.ndim - 1
-    corr_get_fn = corr_getter_factory(ncorrdims)
+    npoldims = stokes.ndim - 1
+    pol_get_fn = pol_getter_factory(npoldims)
 
     def impl(stokes, spi, ref_freq, frequency, base=0):
         nsrc = stokes.shape[0]
         nchan = frequency.shape[0]
         nspi = spi.shape[1]
-        ncorr = corr_get_fn(stokes.shape[1:])
+        npol = pol_get_fn(stokes.shape[1:])
 
-        if ncorr != corr_get_fn(spi.shape[2:]):
+        if npol != pol_get_fn(spi.shape[2:]):
             raise ValueError("Correlations on stokes + spi do not agree")
 
-        # Promote base argument to a per-correlation list
-        list_base = promote_base(base, ncorr)
+        # Promote base argument to a per-polarisation list
+        list_base = promote_base(base, npol)
 
-        spectral_model = np.empty((nsrc, nchan, ncorr), dtype=dtype)
+        spectral_model = np.empty((nsrc, nchan, npol), dtype=dtype)
 
         # TODO(sjperkins)
-        # Correlation + associated base on the outer loop
+        # Polarisation + associated base on the outer loop
         # The output cache patterns could be improved.
-        for c, base in enumerate(list_base):
+        for p, base in enumerate(list_base):
             if is_std(base):
                 for s in range(nsrc):
                     rf = ref_freq[s]
 
                     for f in range(nchan):
                         freq_ratio = (frequency[f] / rf) - 1.0
-                        spec_model = stokes[s, c]
+                        spec_model = stokes[s, p]
 
                         for si in range(0, nspi):
-                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            term = spi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, c] = spec_model
+                        spectral_model[s, f, p] = spec_model
 
             elif is_log(base):
                 for s in range(nsrc):
@@ -151,13 +151,13 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
-                        spec_model = np.log(stokes[s, c])
+                        spec_model = np.log(stokes[s, p])
 
                         for si in range(0, nspi):
-                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            term = spi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, c] = np.exp(spec_model)
+                        spectral_model[s, f, p] = np.exp(spec_model)
 
             elif is_log10(base):
                 for s in range(nsrc):
@@ -165,13 +165,13 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
-                        spec_model = np.log10(stokes[s, c])
+                        spec_model = np.log10(stokes[s, p])
 
                         for si in range(0, nspi):
-                            term = spi[s, si, c] * freq_ratio**(si + 1)
+                            term = spi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, c] = 10**spec_model
+                        spectral_model[s, f, p] = 10**spec_model
 
             else:
                 raise ValueError("Invalid base")
@@ -182,20 +182,21 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
 
 SPECTRAL_MODEL_DOC = DocstringTemplate(r"""
-Calculate the spectral model.
+Derive a spectral model.
 
 Parameters
 ----------
 stokes : $(array_type)
-    Stokes parameters of shape :code:`(source, corr)`
+    Stokes parameters of shape :code:`(source, pol)`
 spi : $(array_type)
-    Spectral index of shape :code:`(source, spi-comps, corr)`
+    Spectral index of shape :code:`(source, spi-comps, pol)`
 ref_freq : $(array_type)
     Reference frequencies of shape :code:`(source,)`
 frequencies : $(array_type)
     Frequencies of shape :code:`(chan,)`
 base : {"std", "log", "log10"} or {0, 1, 2}.
-    string or enumeration specifying the polynomial base. Defaults to 0.
+    string or corresponding enumeration
+    specifying the polynomial base. Defaults to 0.
 
     string specification of the base is only supported in python 3.
     while the corresponding integer enumerations are supported
@@ -204,7 +205,7 @@ base : {"std", "log", "log10"} or {0, 1, 2}.
 Returns
 -------
 spectral_model : $(array_type)
-    Spectral Model of shape :code:`(source, chan, corr)`
+    Spectral Model of shape :code:`(source, chan, pol)`
 """)
 
 try:
