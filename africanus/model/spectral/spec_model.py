@@ -22,24 +22,38 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     if spi.ndim == 2:
         spi = spi[:, :, None]
 
-    spi_exps = np.arange(1, spi.shape[1] + 1)
-    if base in ("std", 0):
-        freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
-        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
-        term = spi[:, :, None, :] * term
-        spectral_model = stokes[:, None, :] + term.sum(axis=1)
-    elif base in ("log", 1):
-        freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
-        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
-        term = spi[:, :, None, :] * term
-        spectral_model = np.exp(np.log(stokes[:, None, :]) + term.sum(axis=1))
-    elif base in ("log10", 2):
-        freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
-        term = freq_ratio[:, None, :, None]**(spi_exps[None, :, None, None])
-        term = spi[:, :, None, :] * term
-        spectral_model = 10**(np.log10(stokes[:, None]) + term.sum(axis=1))
+    npol = spi.shape[2]
+
+    if isinstance(base, list):
+        base = base + [base[-1]] * (npol - len(base))
     else:
-        raise ValueError("Invalid base %s" % base)
+        base = [base]*npol
+
+    spi_exps = np.arange(1, spi.shape[1] + 1)
+
+    spectral_model = np.empty((stokes.shape[0], frequency.shape[0], npol),
+                              dtype=stokes.dtype)
+
+    for p, b in enumerate(base):
+        if b in ("std", 0):
+            freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
+            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
+            term = spi[:, :, p, None] * term
+            spectral_model[:, :, p] = stokes[:, p, None] + term.sum(axis=1)
+        elif b in ("log", 1):
+            freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
+            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
+            term = spi[:, :, p, None] * term
+            spectral_model[:, :, p] = (np.exp(np.log(stokes[:, p, None]) +
+                                       term.sum(axis=1)))
+        elif b in ("log10", 2):
+            freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
+            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
+            term = spi[:, :, p, None] * term
+            spectral_model[:, :, p] = (10**(np.log10(stokes[:, p, None]) +
+                                       term.sum(axis=1)))
+        else:
+            raise ValueError("Invalid base %s" % base)
 
     return spectral_model.reshape(out_shape)
 
@@ -63,7 +77,7 @@ def pol_getter_factory(npoldims):
 def promote_base_factory(is_base_list):
     if is_base_list:
         def impl(base, npol):
-            return base + [base[-1]] * (len(base) - npol)
+            return base + [base[-1]] * (npol - len(base))
     else:
         def impl(base, npol):
             return [base] * npol
@@ -160,8 +174,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         # TODO(sjperkins)
         # Polarisation + associated base on the outer loop
         # The output cache patterns could be improved.
-        for p, base in enumerate(list_base[:npol]):
-            if is_std(base):
+        for p, b in enumerate(list_base[:npol]):
+            if is_std(b):
                 for s in range(nsrc):
                     rf = ref_freq[s]
 
@@ -175,7 +189,7 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                         spectral_model[s, f, p] = spec_model
 
-            elif is_log(base):
+            elif is_log(b):
                 for s in range(nsrc):
                     rf = ref_freq[s]
 
@@ -189,7 +203,7 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                         spectral_model[s, f, p] = np.exp(spec_model)
 
-            elif is_log10(base):
+            elif is_log10(b):
                 for s in range(nsrc):
                     rf = ref_freq[s]
 
