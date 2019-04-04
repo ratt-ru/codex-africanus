@@ -116,10 +116,25 @@ Guarantees
 5. Certain columns are averaged, while others are summed,
    or simply assigned to the last value in the bin in the case
    of antenna indices.
-6. In particular, **visibility data** is averaged by a
-   `Mean of Circular Quantities
-   <https://en.wikipedia.org/wiki/Mean_of_circular_quantities>`_
-   and this means that visibility amplitudes are normalised.
+6. **Visibility data** is averaged by multiplying and dividing
+   by **WEIGHT_SPECTRUM** or **WEIGHT** or natural weighting,
+   in order of priority.
+
+  .. math::
+
+    \frac{\sum v_i w_i}{\sum w_i}
+
+7. **SIGMA_SPECTRUM** is averaged by multiplying and dividing
+   by **WEIGHT_SPECTRUM** or **WEIGHT** or natural weighting,
+   in order of priority and availability.
+
+   **SIGMA** is only averaged with **WEIGHT** or natural weighting.
+
+  .. math::
+
+    \sqrt{\frac{\sum w_i^2 \sigma_i^2}{(\sum w_i)^2}}
+
+
 
 =============== ================= ============================ ===========
 Column          Unflagged/Flagged Aggregation Method           Required
@@ -133,14 +148,14 @@ TIME_CENTROID   Effective         Mean                         No
 EXPOSURE        Effective         Sum                          No
 FLAG_ROW        Effective         Set if All Inputs Flagged    No
 UVW             Effective         Mean                         No
-WEIGHT          Effective         Mean                         No
-SIGMA           Effective         Mean                         No
+WEIGHT          Effective         Sum                          No
+SIGMA           Effective         Weighted Mean                No
 CHAN_FREQ       Nominal           Mean                         No
 CHAN_WIDTH      Nominal           Sum                          No
-DATA (vis)      Effective         Mean of Circular Quantities  No
+DATA (vis)      Effective         Weighted Mean                No
 FLAG            Effective         Set if All Inputs Flagged    No
-WEIGHT_SPECTRUM Effective         Mean                         No
-SIGMA_SPECTRUM  Effective         Mean                         No
+WEIGHT_SPECTRUM Effective         Sum                          No
+SIGMA_SPECTRUM  Effective         Weighted Mean                No
 =============== ================= ============================ ===========
 
 Dask Implementation
