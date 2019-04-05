@@ -73,15 +73,11 @@ def parse_sky_model(filename):
         'formats': (np.float64,)*6}
 
     data = np.loadtxt(filename, delimiter=",",
-                      converters=converters, dtype=dtype)
+                      converters=converters, dtype=dtype, ndmin=1)
 
     # Should have lists of values for each row.
     # raw numpy array implies only a single row, convert to list
-    if isinstance(data[0], np.ndarray):
-        data = [[d] for d in data]
-    else:
-        # Transpose
-        data = zip(*data)
+    data = zip(*data)
 
 
     # Convert to numpy arrays
