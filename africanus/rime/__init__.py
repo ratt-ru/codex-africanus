@@ -7,4 +7,4 @@ from .beam_cubes import beam_cube_dde
 from .parangles import parallactic_angles
 from .zernike import zernike_dde
 from .predict import predict_vis
-from .shapelets import shapelet_dde
+from .shapelet_dde import shapelet_dde
