@@ -40,11 +40,11 @@ def _test_shapelet():
 
 
 
-def _test_shapelet_vals():
-    npix = 100
+def test_shapelet_vals():
+    npix = 50
     nrow = npix **2
     nsrc = 1
-    nmax = [30, 30]
+    nmax = [3, 3]
     beta_vals = [1., 1.]
 
     u_range = [-3 * np.sqrt(2) *(beta_vals[0] ** (-1)), 3 * np.sqrt(2) * (beta_vals[0] ** (-1))]
@@ -64,6 +64,7 @@ def _test_shapelet_vals():
 
     coords[:, :2], coords[:, 2] = uv, 0
     coeffs[0, :, :] = np.random.randn(nmax[0], nmax[1])
+    coeffs[0, :, :] = 1.
     beta[0, 0], beta[0, 1] = beta_vals[0], beta_vals[1]
 
     codex_shapelets = nb_shapelet(coords, coeffs, beta).reshape((npix, npix))
@@ -85,6 +86,7 @@ def _test_shapelet_vals():
     im3 = axis3.imshow(np.abs(codex_shapelets - gf_shapelets))
     axis3.set_title("Difference")
 
+    print("should be writing via matplotlib by now")
     divider = make_axes_locatable(axis1)
     cax = divider.append_axes('right', size='5%', pad=0.05)
     plt.colorbar(im1, cax=cax, orientation='vertical')
@@ -99,7 +101,7 @@ def _test_shapelet_vals():
     plt.close()
     assert np.allclose(np.abs(gf_shapelets), np.abs(codex_shapelets))
 
-def test_dask_shapelets():
+def _test_dask_shapelets():
         da = pytest.importorskip('dask.array')
         from africanus.model.shape.dask import shapelet as da_shapelet
 
