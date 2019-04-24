@@ -136,8 +136,9 @@ im_to_vis_docs = _DFT_DOCSTRING(
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional
-        Datatype of result. Should be either np.complex64
-        or np.complex128. Defaults to np.complex128
+        Datatype of result. Should be either np.complex64 or np.complex128.
+        If ``None``, :func:`numpy.result_type` is used to infer the data type
+        from the inputs.
     """,
 
     returns="""
@@ -178,8 +179,9 @@ vis_to_im_docs = _DFT_DOCSTRING(
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional
-        Datatype of result. Should be either np.float32
-        or np.float64. Defaults to np.float64
+        Datatype of result. Should be either np.float32 or np.float64.
+        If ``None``, :func:`numpy.result_type` is used to infer the data type
+        from the inputs.
     """,
 
     returns="""

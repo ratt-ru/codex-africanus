@@ -4,6 +4,7 @@ History
 
 0.1.5 (YYYY-MM-DD)
 ------------------
+* Directly jit DFT functions (:pr:`100`, :pr:`101`)
 * Spectral Models (:pr:`86`)
 * Fix radec sign conversion in wsclean sky model (:pr:`96`)
 * Full Time and Channel Averaging Implementation (:pr:`80`, :pr:`97`, :pr:`98`)
