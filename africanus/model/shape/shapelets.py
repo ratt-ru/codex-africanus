@@ -12,9 +12,9 @@ def factorial(n):
     if n <= 1:
         return 1
     ans = 1
-    for i in range(1, n + 1):
+    for i in range(1, n):
         ans *= i
-    return ans
+    return ans * n
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, x, beta):
@@ -43,13 +43,10 @@ def shapelet(coords, coeffs, beta):
             tmp_shapelet = 0 + 0j
             for n1 in range(nmax1):
                 for n2 in range(nmax2):
-                    sl_val = coeffs[src, n1, n2]
+                    sl_val = coeffs[src, n1, n2] + 0j
+                    sl_val *= (1j**(n1)) * (1j ** (n2))
                     sl_val *= basis_function(n1, u, beta_u ** (-1))
                     sl_val *= basis_function(n2, v, beta_v ** (-1))
-                    if (n1 + n2) % 2 == 0:
-                        sl_val *= -1
-                    else:
-                        sl_val *= 1j
                     tmp_shapelet += sl_val
             out_shapelets[src, row] = tmp_shapelet
     return out_shapelets
