@@ -312,7 +312,7 @@ def predict(args):
         print(np_model.compute().shape)
         
         plt.figure()
-        plt.plot(xaxis=(np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), yaxis=np.abs(np_model[:, 0, 0]))
+        plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.abs(np_model[:, 0, 0]))
         plt.savefig('vis_vs_baseline.png')
         plt.close()
 
