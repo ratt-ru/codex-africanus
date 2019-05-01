@@ -39,7 +39,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 SOURCE_CHUNKS = 10
-
+Fs = np.fft.fftshift
 
 def create_parser():
     p = argparse.ArgumentParser()
@@ -154,7 +154,7 @@ def einsum_schema(pol):
     corrs = pol.NUM_CORR.values
 
     if corrs == 4:
-        return "sr, srf, sij -> srfij"
+        return "srf, sij -> srfij"
     elif corrs in (2, 1):
         return "srf, si -> srfi"
     else:
@@ -168,7 +168,7 @@ def _verify_shapelets(shapelets, uv, beta_vals, coeffs):
         for n2 in range(nmax[1]):
             gf_dimbasis = sl.shapelet.dimBasis2d(n1, n2, beta=beta_vals, fourier=True)
             gf_coeffs = coeffs[0, n1, n2]
-            gf_shapelets += gf_coeffs * sl.shapelet.computeBasis2d(gf_dimbasis, uv[:, 0].compute(), uv[:, 1].compute())
+            gf_shapelets += gf_coeffs * sl.shapelet.computeBasis2d(gf_dimbasis, uv[:, 0], uv[:, 1])
     assert_array_almost_equal(shapelets, gf_shapelets.reshape(shapelets.shape))
 
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
@@ -213,26 +213,93 @@ def predict(args):
 
         lm = radec_to_lm(radec, field.PHASE_DIR.data)
         uvw = -xds.UVW.data if args.invert_uvw else xds.UVW.data
+        """
+        nu = 90
+        nv = 84
 
+        u_range = [-3 * np.sqrt(2) *(shapelet_beta[0, 0] ** (-1)), 3 * np.sqrt(2) * (shapelet_beta[0, 0] ** (-1))]
+        v_range = [-3 * np.sqrt(2) *(shapelet_beta[0, 1] ** (-1)), 3 * np.sqrt(2) * (shapelet_beta[0, 1] ** (-1))]
+
+
+        du = (u_range[1] - u_range[0]) / nu
+        dv = (v_range[1] - v_range[0]) / nv
+        freqs_u = Fs(np.fft.fftfreq(nu, d=du))
+        freqs_v = Fs(np.fft.fftfreq(nv, d=dv))
+        uu, vv = np.meshgrid(freqs_u, freqs_v)
+        uv = np.vstack((uu.flatten(), vv.flatten())).T
+
+        uvw = np.empty((90 * 84, 3), dtype=np.float)
+
+        uvw[:, :2], uvw[:, 2] = uv, 0
+
+
+
+        uvw = da.from_array(uvw, chunks=uvw.shape)
+        """
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
+        print("Starting shapelet function now")
+        shapelets = shapelet_fn(da.from_array(uvw, chunks=uvw.shape), da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape), da.from_array(shapelet_beta, chunks=shapelet_beta.shape))
+        _verify_shapelets(shapelets, uvw.compute(), shapelet_beta[0], shapelet_coeffs)
+        """
+        print("Generating scatter plot")
+        plt.figure()
+        plt.scatter(uvw[:, 0], uvw[:, 1])
+        plt.show()
+        plt.close()
+        print(np.imag(shapelets.compute()))
 
-        shapelets = shapelet_fn(uvw.compute(), shapelet_coeffs, shapelet_beta)
-        _verify_shapelets(shapelets, uvw, shapelet_beta[0], shapelet_coeffs)
-
+        plt.figure()
+        plt.imshow(np.abs(shapelets.compute()[0, :].reshape((90, 84))))
+        plt.colorbar()
+        plt.title("Shapelets_MS_UVW")
+       # plt.show()
+        plt.savefig("shapelets_ms_uvw.png")
+        plt.close()
+        """
+        print("Creating brightness now")
         brightness = convert(stokes, ["I", "Q", "U", "V"],
                              corr_schema(pol))
 #use pywrap in python
 #casalite casa browser
         # (source, row, frequency, corr1, corr2)
-        jones = da.einsum(einsum_schema(pol), shapelets, phase, brightness)
 
+        #jones = da.einsum(einsum_schema(pol), shapelets, phase, brightness)
+        print("Starting Einstein sum")
+        phase_shapelet_einsum = da.einsum("srf, sr -> srf", phase, shapelets)
+        print(phase_shapelet_einsum)
+        print(phase)
+        """
+        plt.figure()
+        plt.imshow(np.abs(phase_shapelet_einsum.compute()[0, :, 0].reshape((90, 84))))
+        plt.colorbar()
+        plt.title("phase_shapelet_einsum_MS_UVW")
+        #plt.show()
+        plt.savefig("phase_shapelet_einsum_ms_uvw.png")
+        plt.close()
+        print("Created phase_shapelet_einsum image")
+        """
+        jones = da.einsum(einsum_schema(pol), phase_shapelet_einsum, brightness)
+        print(jones)
+        """
+        plt.figure()
+        plt.imshow(np.abs(jones.compute()[0, :, 0, 0, 0].reshape((90, 84))))
+        plt.title("Phase_MS_UVW")
+        plt.colorbar()
+        #plt.show()
+        plt.savefig("jones_ms_uvw.png")
+        plt.close()
+        print("Created Jones image")
+        """
         # Identify time indices
         _, time_index = da.unique(xds.TIME.data, return_inverse=True)
 
         # Predict visibilities
+        print("starting predict_vis now")
         vis = predict_vis(time_index, xds.ANTENNA1.data, xds.ANTENNA2.data,
                           None, jones, None, None, None, None)
+        print("predict_vis done now")
+
 
         # Reshape (2, 2) correlation to shape (4,)
         if corrs == 4:
@@ -240,14 +307,33 @@ def predict(args):
 
         # Assign visibilities to MODEL_DATA array on the dataset
         model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
+        np.save("model_data_test.npy", model_data.compute())
+        np_model = model_data.compute()
+        print(np_model.compute().shape)
+        
+        plt.figure()
+        plt.plot(xaxis=(np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), yaxis=np.abs(np_model[:, 0, 0]))
+        plt.savefig('vis_vs_baseline.png')
+        plt.close()
+
+        #model_data = xr.DataArray(model_shapelets, dims=["row", "chan", "corr"])
         xds = xds.assign(MODEL_DATA=model_data)
         # Create a write to the table
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
+        print(model_data)
+        md = model_data[:, 0, 0].data.reshape((90, 84))
+        """
+        plt.figure()
+        plt.imshow(np.abs(md))
+        plt.colorbar()
+        plt.title("Predict_Image_MS_UVW")
+        plt.savefig("./predict_img_ms_uvw.png")
+        plt.close()
+        print("Created predict image")
+        """
         
-    
-
     # Submit all graph computations in parallel
     with ProgressBar():
         dask.compute(writes)
