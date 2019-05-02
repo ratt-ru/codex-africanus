@@ -12,6 +12,7 @@ import pyrap.tables as pt
 from africanus.calibration import scalar_phase_only
 import matplotlib.pyplot as plt
 from africanus.rime.predict import predict_vis
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 
 def create_parser():
     p = argparse.ArgumentParser()
@@ -36,7 +37,7 @@ freqtab = pt.table(args.ms+"/SPECTRAL_WINDOW")
 freqs = freqtab.getcol("CHAN_FREQ").squeeze()
 freqtab.close()
 
-# sample DI gains
+# sample DI diagonal gains
 unique_times = np.unique(time)
 from africanus.gps.kernels import exponential_squared
 sigmat = 0.25
@@ -81,7 +82,7 @@ data = data.reshape(n_row, n_chan, 4)
 model = model.reshape(1, n_row, n_chan, 4)
 
 # we will use only diagonal correlations so remove the off diagonals
-I = slice(0,1)
+I = (0,3)
 data = data[:, :, I]
 model = model[:, :, :, I]
 
@@ -95,20 +96,15 @@ else:
     raise Exception("Incorrect shape for weights")
 
 # do calibration
-gains, jac, residual = scalar_phase_only.phase_only_calibration(model, data, weight, ant1, ant2, time, flag)
+gains, jhj, jhr = scalar_phase_only.phase_only_calibration(model, data, weight, ant1, ant2, time, flag)
 
 # plot the gains n_tim, n_ant, n_chan, n_dir, n_cor
-gains = gains.squeeze()
 n_ant = np.maximum(ant1.max(), ant2.max()) + 1
-for p in range(3):
+n_dir = 1
+for p in range(n_ant):
     for q in range(p):
-        # plt.figure(str(p)+str(q))
-        # plt.imshow(np.angle(gains[:, p, :] * gains[:, q, :]))
-        # plt.colorbar()
-        # plt.figure(str(p)+str(q)+'true')
-        # plt.imshow(np.angle(gains_true[:, p, :, 0, 0] * gains_true[:, q, :, 0, 0]))
-        # plt.colorbar()
-        plt.figure('diff'+str(p)+str(q))
-        plt.imshow(np.angle(gains[:, p, :] * np.conj(gains[:, q, :])) - np.angle(gains_true[:, p, :, 0, 0] * np.conj(gains_true[:, q, :, 0, 0])))
-        plt.colorbar()
-plt.show()
+        for s in range(n_dir):
+            for c in range(n_cor):
+                diff_true = np.angle(gains_true[:, p, :, c, c] * np.conj(gains_true[:, q, :, c, c]))
+                diff_inferred = np.angle(gains[:, p, :, s, c] * np.conj(gains[:, q, :, s, c]))
+                assert_array_almost_equal(diff_true, diff_inferred, decimal=4)
