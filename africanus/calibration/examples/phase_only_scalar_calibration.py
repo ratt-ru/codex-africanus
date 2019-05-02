@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import argparse
 import numpy as np
+np.random.seed(42)
 import pyrap.tables as pt
 from africanus.calibration import scalar_phase_only
 import matplotlib.pyplot as plt
@@ -69,21 +70,20 @@ for p in range(n_ant):
         gains_true[:, p, :, c, c] = np.exp(1.0j*samp)
 
 # apply gains
-tind = np.arange(0, n_tim)
+tind = np.unique(time, return_inverse=True)[1]
 n_row, _, _ = model.shape
+
 # add extra dimension for direction axis and reshape correlation axis into 2x2
 model = model[None].reshape(1, n_row, n_chan, 2, 2)
-print(tind)
 data = predict_vis(tind, ant1, ant2, source_coh=model, die1_jones=gains_true, die2_jones=gains_true)
 
-#print(data.shape)
-
-import sys
-sys.exit()
+data = data.reshape(n_row, n_chan, 4)
+model = model.reshape(1, n_row, n_chan, 4)
 
 # we will use only diagonal correlations so remove the off diagonals
 I = slice(0,1)
 data = data[:, :, I]
+model = model[:, :, :, I]
 
 flag = flag[:, :, I]
 if len(weight.shape)==3:
@@ -102,8 +102,13 @@ gains = gains.squeeze()
 n_ant = np.maximum(ant1.max(), ant2.max()) + 1
 for p in range(3):
     for q in range(p):
-        plt.figure(str(p)+str(q))
-        plt.imshow(np.angle(gains[:, p, :] * gains[:, q, :]))
+        # plt.figure(str(p)+str(q))
+        # plt.imshow(np.angle(gains[:, p, :] * gains[:, q, :]))
+        # plt.colorbar()
+        # plt.figure(str(p)+str(q)+'true')
+        # plt.imshow(np.angle(gains_true[:, p, :, 0, 0] * gains_true[:, q, :, 0, 0]))
+        # plt.colorbar()
+        plt.figure('diff'+str(p)+str(q))
+        plt.imshow(np.angle(gains[:, p, :] * np.conj(gains[:, q, :])) - np.angle(gains_true[:, p, :, 0, 0] * np.conj(gains_true[:, q, :, 0, 0])))
         plt.colorbar()
 plt.show()
-
