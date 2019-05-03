@@ -209,6 +209,9 @@ def predict(args):
         pol = pol_ds[ddid.POLARIZATION_ID.values]
         frequency = spw.CHAN_FREQ.data
 
+        print("frequency shape is")
+        print(frequency.shape)
+
         corrs = pol.NUM_CORR.values
 
         lm = radec_to_lm(radec, field.PHASE_DIR.data)
@@ -236,11 +239,30 @@ def predict(args):
 
         uvw = da.from_array(uvw, chunks=uvw.shape)
         """
+        
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
         print("Starting shapelet function now")
-        shapelets = shapelet_fn(da.from_array(uvw, chunks=uvw.shape), da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape), da.from_array(shapelet_beta, chunks=shapelet_beta.shape))
-        _verify_shapelets(shapelets, uvw.compute(), shapelet_beta[0], shapelet_coeffs)
+        shapelets = shapelet_fn(da.from_array(uvw, chunks=uvw.shape),
+            da.from_array(frequency, chunks=frequency.shape), 
+            da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape), 
+            da.from_array(shapelet_beta, chunks=shapelet_beta.shape))
+        """
+        plt.figure()
+        plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.real(shapelets.compute()[0, :]))
+        plt.title("Shapelets vs Baseline Own UVW")
+        plt.show()
+        plt.savefig("shapelets_baseline_own_uvw.png")
+        plt.close()
+        
+        plt.figure()
+        plt.scatter(uvw[:, 0], uvw[:, 1])
+        plt.title("Measurement Set UVW")
+        plt.show()
+        plt.savefig("ms_uvw.png")
+        plt.close()
+        """
+        #_verify_shapelets(shapelets, uvw.compute(), shapelet_beta[0], shapelet_coeffs)
         """
         print("Generating scatter plot")
         plt.figure()
@@ -266,7 +288,7 @@ def predict(args):
 
         #jones = da.einsum(einsum_schema(pol), shapelets, phase, brightness)
         print("Starting Einstein sum")
-        phase_shapelet_einsum = da.einsum("srf, sr -> srf", phase, shapelets)
+        phase_shapelet_einsum = da.einsum("srf, srf -> srf", phase, shapelets)
         print(phase_shapelet_einsum)
         print(phase)
         """
@@ -322,8 +344,8 @@ def predict(args):
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
-        print(model_data)
-        md = model_data[:, 0, 0].data.reshape((90, 84))
+        #print(model_data)
+        #md = model_data[:, 0, 0].data.reshape((90, 84))
         """
         plt.figure()
         plt.imshow(np.abs(md))

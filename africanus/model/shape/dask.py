@@ -35,14 +35,15 @@ def gaussian(uvw, frequency, shape_params):
                         shape_params, ("source", "shape-comp"),
                         dtype=dtype)
 
-def _shapelet_wrapper(coords, coeffs, beta):
-    return nb_shapelet(coords[0], coeffs[0][0], beta[0])
+def _shapelet_wrapper(coords, frequency, coeffs, beta):
+    return nb_shapelet(coords[0], frequency, coeffs[0][0], beta[0])
 
 @requires_optional('dask.array', opt_import_error)
-def shapelet(coords, coeffs, beta):
+def shapelet(coords, frequency, coeffs, beta):
     dtype = np.complex128
-    return da.blockwise(_shapelet_wrapper, ("source", "row" ),
+    return da.blockwise(_shapelet_wrapper, ("source", "row", "chan" ),
                         coords, ("row", "uvw-comp"),
+                        frequency, ("chan",),
                         coeffs, ("source", "nmax1", "nmax2"),
                         beta, ("source", "beta-comp"), dtype=dtype)
 

@@ -3,6 +3,7 @@ import numpy as np
 import numpy.polynomial.hermite as hermite
 from numpy import sqrt, exp
 from scipy.special import hermite
+from africanus.constants import c as lightspeed
 
 e = 2.7182818284590452353602874713527
 square_root_of_pi = 1.77245385091
@@ -19,11 +20,16 @@ def factorial(n):
 #@numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, x, beta):
     basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
-    exponential_component = hermite(n)(x / beta) * np.exp((-0.5) * (x**2) * (beta **(-2)))
+    #print("basis_component is %f" %basis_component)
+    exponential_component_1 = hermite(n)(x / beta)
+    #print("exponential_component_1 is %f" %exponential_component_1)
+    exponential_component_2 = np.exp((-0.5) * (x**2) * (beta **(-2)))
+    #print("exponential_component_2 is %f" %exponential_component_2)
+    exponential_component = exponential_component_1 * exponential_component_2
     return basis_component * exponential_component
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet(coords, coeffs, beta):
+def shapelet(coords, frequency, coeffs, beta):
     """
     shapelet: computes the shapelet model image in Fourier space
     Inputs:
@@ -33,20 +39,31 @@ def shapelet(coords, coeffs, beta):
     Returns:
         out_shapelets: Shapelet with shape (nsrc, nrow)
     """
+    fwhmint = 1.0 / np.sqrt(np.log(256))
+    gauss_scale = fwhmint * np.sqrt(2.) *np.pi / lightspeed
     nrow, _ = coords.shape
     nsrc, nmax1, nmax2 = coeffs.shape
-    out_shapelets = np.empty((nsrc, nrow), dtype=np.complex128)
+    nchan = coeffs.shape[0]
+    out_shapelets = np.empty((nsrc, nrow, nchan), dtype=np.complex128)
     for row in range(nrow):
-        u, v, w = coords[row, :]
-        for src in range(nsrc):
-            beta_u, beta_v = beta[src, :]
-            tmp_shapelet = 0 + 0j
-            for n1 in range(nmax1):
-                for n2 in range(nmax2):
-                    sl_val = coeffs[src, n1, n2] + 0j
-                    sl_val *= (1j**(n1)) * (1j ** (n2))
-                    sl_val *= basis_function(n1, u, beta_u ** (-1))
-                    sl_val *= basis_function(n2, v, beta_v ** (-1))
-                    tmp_shapelet += sl_val
-            out_shapelets[src, row] = tmp_shapelet
+        u, v, w = coords[row, :]/3000
+        for chan in range(nchan):
+            fu = u * frequency[chan] * gauss_scale
+            fv = v * frequency[chan] * gauss_scale 
+            for src in range(nsrc):
+                beta_u, beta_v = beta[src, :]
+                tmp_shapelet = np.complex128(0. + 0.j)
+                for n1 in range(nmax1):
+                    for n2 in range(nmax2):
+                        sl_val = coeffs[src, n1, n2] + 0j
+                        #print("sl_val_1 is %f" %sl_val)
+                        sl_val *= (1j**(n1)) * (1j ** (n2))
+                        #print("sl_val_2 is %f" %sl_val)
+                        sl_val *= basis_function(n1, fu, beta_u ** (-1))
+                        #print("sl_val_3 is %f, with u value %f" %(sl_val, u))
+                        sl_val *= basis_function(n2, fv, beta_v ** (-1))
+                        #print("sl_val_4 is %f, with v value %f" %(sl_val, v))
+                        tmp_shapelet += sl_val
+                #print("tmp_shapelet is %f" %tmp_shapelet)
+                out_shapelets[src, row, chan] = tmp_shapelet
     return out_shapelets
