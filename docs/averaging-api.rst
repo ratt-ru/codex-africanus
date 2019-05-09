@@ -166,10 +166,6 @@ averages each chunk independently of values in other chunks. This should
 be kept in mind if one wishes to maintain a particular ordering
 in the output dask arrays.
 
-Currently, chunking in channel can produce mismatches between **FLAG_ROW**
-and **FLAG**, as some channel chunks may be completely flagged
-while others may be unflagged. See `Flagged Data Handling`_.
-
 Typically, Measurement Set data is monotonically ordered in time. To
 maintain this guarantee in output dask arrays,
 the chunks will need to be separated by distinct time values.
