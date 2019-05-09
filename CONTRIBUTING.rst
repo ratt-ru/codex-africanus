@@ -141,7 +141,7 @@ A reminder for the maintainers on how to deploy.
 
        $ git checkout master
        $ git pull origin master
-       $ python setup.py sdist bdist
+       $ python setup.py sdist bdist_wheel
 
 6. Install twine and upload the source distribution to the
    pypi **test** server. Here, **pypitest** refers to to the
@@ -155,7 +155,7 @@ A reminder for the maintainers on how to deploy.
 
        $ python -m virtualenv --python=pythonM.N test
        $ source test/bin/activate
-       (test) $ pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org codex-africanus==Z.Y.X
+       (test) $ pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org/simple codex-africanus[complete]==Z.Y.X
        (test) $ py.test /path/to/tests
 
 
