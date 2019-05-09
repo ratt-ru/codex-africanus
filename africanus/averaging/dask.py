@@ -190,16 +190,13 @@ def _dask_chan_average(chan_meta, chan_freq=None, chan_width=None,
     return ChannelAverageOutput(*tuple_gets)
 
 
-def _merge_flags_wrapper(flag_row, flag):
-    return merge_flags(flag_row, flag[0][0])
-
-
 def _dask_merge_flags(flag_row, flag):
     """ Perform flag merging on dask arrays """
     if flag_row is None and flag is not None:
-        return da.blockwise(_merge_flags_wrapper, "r",
+        return da.blockwise(merge_flags, "r",
                             flag_row, None,
                             flag, "rfc",
+                            concatenate=True,
                             dtype=flag.dtype)
     elif flag_row is not None and flag is None:
         return da.blockwise(merge_flags, "r",
@@ -207,9 +204,10 @@ def _dask_merge_flags(flag_row, flag):
                             None, None,
                             dtype=flag_row.dtype)
     elif flag_row is not None and flag is not None:
-        return da.blockwise(_merge_flags_wrapper, "r",
+        return da.blockwise(merge_flags, "r",
                             flag_row, "r",
                             flag, "rfc",
+                            concatenate=True,
                             dtype=flag_row.dtype)
     else:
         return None

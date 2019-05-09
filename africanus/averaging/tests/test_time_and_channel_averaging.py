@@ -384,6 +384,7 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_ant2 = da.from_array(ant2, chunks=(rc,))
     da_chan_freq = da.from_array(frequency, chunks=(fc,))
     da_chan_width = da.from_array(chan_width, chunks=(fc,))
+    da_flag = da.from_array(flag, chunks=(rc, fc, cc))
     da_vis = da.from_array(vis, chunks=(rc, fc, cc))
 
     try:
