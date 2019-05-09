@@ -121,26 +121,36 @@ Deploying
 
 A reminder for the maintainers on how to deploy.
 
-1. Update HISTORY.rst with the intended release number Z.Y.X and commit to git.
+1. Start a release branch
 
-2. Bump the version number. If your current version is Z.Y.W and
+     $ git checkout -b prepare-release-Z.Y.X.
+
+2. Update HISTORY.rst with the intended release number Z.Y.X and commit to git.
+
+3. Bump the version number. If your current version is Z.Y.W and
    the new version is Z.Y.X call::
 
        $ python -m pip install bumpversion
        $ bumpversion --current-version Z.Y.W --new-version Z.Y.X patch
 
-3. Create the source and wheel distributions::
+4. Push the release branch to github and merge it.
 
+       $ git push origin prepare-release-Z.Y.X
+
+5. Create the source and wheel distributions::
+
+       $ git checkout master
+       $ git pull origin master
        $ python setup.py sdist bdist
 
-4. Install twine and upload the source distribution to the
+6. Install twine and upload the source distribution to the
    pypi **test** server. Here, **pypitest** refers to to the
    pypi test server setup in a ``.pypirc`` file.::
 
         $ python -m pip install twine
         $ python -m twine upload -r pypitest dist/codex-africanus-Z.Y.X.tar.gz
 
-5. Test pypi install on different python versions,
+7. Test pypi install on different python versions,
    running the test cases. ::
 
        $ python -m virtualenv --python=pythonM.N test
@@ -148,12 +158,13 @@ A reminder for the maintainers on how to deploy.
        (test) $ pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org codex-africanus==Z.Y.X
        (test) $ py.test /path/to/tests
 
-6. Upload the source distribution to the main pypi server. Here, **pypi**
+
+8. Upload the source distribution to the main pypi server. Here, **pypi**
    refers to to the main pypi setup in a ``.pypirc`` file.::
 
        $ python -m twine upload -r pypi dist/codex-africanus-Z.Y.X*
 
-7. Tag the release commit, push the release commits and tag to github.::
+9. Tag the release commit, push the release commits and tag to github.::
 
        $ git tag Z.Y.X
        $ git push
