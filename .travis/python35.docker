@@ -6,5 +6,5 @@ RUN docker-apt-install python3-pip # python3-casacore
 RUN pip3 install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
-RUN pip3 install .[astropy,dask,scipy,testing]
+RUN pip3 install .[astropy,dask,jax,scipy,testing]
 RUN py.test -s -vvv /code/africanus
