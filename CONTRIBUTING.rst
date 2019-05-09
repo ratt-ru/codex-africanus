@@ -142,5 +142,7 @@ A reminder for the maintainers on how to deploy.
        $ git checkout master
        $ git pull origin master
        $ git tag Z.Y.X
-       $ git push
-       $ git push --tags
+       $ git push && git push --tags
+
+6. Travis should automatically deploy the tagged release to PyPI
+   if the automated test pass.

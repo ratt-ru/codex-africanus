@@ -2,10 +2,18 @@
 History
 =======
 
+0.1.8 (YYYY-MM-DD)
+------------------
+
+0.1.7 (2019-05-09)
+------------------
+
+* Even more support for automated travis deploys.
+
 0.1.6 (2019-05-09)
 ------------------
 
-* Support automated travis releases.
+* Support automated travis deploys.
 
 0.1.5 (2019-05-09)
 ------------------
