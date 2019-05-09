@@ -71,7 +71,7 @@ def parse_sky_model(filename):
         'names': ("ra", "dec", "I", "Q", "U", "V"),
         'formats': (np.float64,)*6}
 
-    data = np.loadtxt(filename, delimiter=",",
+    data = np.loadtxt(filename, delimiter=",", ndmin=1,
                       converters=converters, dtype=dtype)
 
     # Transpose
