@@ -2,7 +2,11 @@
 History
 =======
 
-0.1.5 (YYYY-MM-DD)
+0.1.6 (YYYY-MM-DD)
+------------------
+
+
+0.1.5 (2019-05-09)
 ------------------
 * Predict script enhancements (:pr:`103`) and
   dask channel chunking fix (:issue:`104`).
