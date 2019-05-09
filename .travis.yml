@@ -19,11 +19,11 @@ script:
 deploy:
   provider: pypi
   user: sperkins
+  distributions: "sdist bdist_wheel --universal"
   skip_existing: true
   skip_cleanup: true
   password:
     secure: ZBYfuqgL34m5REGuNQxW7ZaiJftV9vS5B52ODPTteZppQH9WmAWIS1uf0kkUNNnkQDh5AfP5zCQWdjZlENaght3y9Es0GucKkk/jWCYJ8JzjHH5oY6JZmiiuaw48eNubl7++bmJG6WznxO5lzy5TOtD0gebXnCPpklVEvG2OIllGf1u1SAXm1R3qI4kxP7ir7c24e3ZkVTZ/9B1E4I55/nqgbdt1A+wBnteaAX2fXJ9uM8n79w/QIpvszi/zsvduA2kfdCmcaaUAtUEsRcXGgmy9ajo1fzMw8lmQUg/Gr+jHnLZRWtBhfTDnrPD67cKjJzJpwB0u9LhY1QyocqHFj2Y0yX1W4e/GAnx4CEIE6s8Dwc3OTmLQRz0caplRNZ/fG7+NbJ1LS0RtKSbptJaOYdM1mrxM4GAgwe0AT16Dmm6N/zavyivju4JvqjuNzM+0W4DxQ27BgulTHK7upT2m06LVnsqbw3upsShjlt0ghpWVQfduczLC3O3jvdSd5BJoxEBJsqeVQrIqG3nAo1ii0ha2EWqJfNS9XHUDMx7esebOQ2p2WgQ54TYOfl6HdTVNs1cMG4JAEgfyb2wei3X2zYnO8s866kqo0/sIp41EVQ34X28DSaa+8aoft4FR2wWZwJqIBz7ndddmHKQ2tXjVtFY6RXdWKpHIWOdMEyjk96Q=
   on:
     tags: true
-    distributions: sdist bdist_wheel
     repo: ska-sa/codex-africanus
