@@ -137,35 +137,10 @@ A reminder for the maintainers on how to deploy.
 
        $ git push origin prepare-release-Z.Y.X
 
-5. Create the source and wheel distributions::
+5. Pull master branch, tag the release commit and push the release up.
 
        $ git checkout master
        $ git pull origin master
-       $ python setup.py sdist bdist_wheel
-
-6. Install twine and upload the source distribution to the
-   pypi **test** server. Here, **pypitest** refers to to the
-   pypi test server setup in a ``.pypirc`` file.::
-
-        $ python -m pip install twine
-        $ python -m twine upload -r pypitest dist/codex-africanus-Z.Y.X.tar.gz
-
-7. Test pypi install on different python versions,
-   running the test cases. ::
-
-       $ python -m virtualenv --python=pythonM.N test
-       $ source test/bin/activate
-       (test) $ pip install --index-url https://test.pypi.org/simple --extra-index-url https://pypi.org/simple codex-africanus[complete]==Z.Y.X
-       (test) $ py.test /path/to/tests
-
-
-8. Upload the source distribution to the main pypi server. Here, **pypi**
-   refers to to the main pypi setup in a ``.pypirc`` file.::
-
-       $ python -m twine upload -r pypi dist/codex-africanus-Z.Y.X*
-
-9. Tag the release commit, push the release commits and tag to github.::
-
        $ git tag Z.Y.X
        $ git push
        $ git push --tags
