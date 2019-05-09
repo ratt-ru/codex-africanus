@@ -5,7 +5,7 @@ History
 0.1.6 (2019-05-09)
 ------------------
 
-* Automated travis release
+* Support automated travis releases.
 
 0.1.5 (2019-05-09)
 ------------------
