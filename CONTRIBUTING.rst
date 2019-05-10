@@ -111,9 +111,9 @@ Before you submit a pull request, check that it meets these guidelines:
 Tips
 ----
 
-To run a subset of tests::
+To run the tests::
 
-$ py.test tests.test_africanus
+$ py.test -vvv africanus/
 
 
 Deploying
@@ -121,28 +121,18 @@ Deploying
 
 A reminder for the maintainers on how to deploy.
 
-1. Start a release branch
+1. Update HISTORY.rst with the intended release number Z.Y.X and commit to git.
 
-     $ git checkout -b prepare-release-Z.Y.X.
+2. Bump the version number with bumpversion. This creates a new git commit,
+   as well as an annotated tag Z.Y.X for the release.
+   If your current version is Z.Y.W and the new version is Z.Y.X call::
 
-2. Update HISTORY.rst with the intended release number Z.Y.X and commit to git.
+       $ python -m pip install bump2version
+       $ bump2version --current-version Z.Y.W --new-version Z.Y.X patch
 
-3. Bump the version number. If your current version is Z.Y.W and
-   the new version is Z.Y.X call::
+3. Push the release commit and new tag up.
 
-       $ python -m pip install bumpversion
-       $ bumpversion --current-version Z.Y.W --new-version Z.Y.X patch
+       $ git push --follow-tags
 
-4. Push the release branch to github and merge it.
-
-       $ git push origin prepare-release-Z.Y.X
-
-5. Pull master branch, tag the release commit and push the release up.
-
-       $ git checkout master
-       $ git pull origin master
-       $ git tag Z.Y.X
-       $ git push && git push --tags
-
-6. Travis should automatically deploy the tagged release to PyPI
-   if the automated test pass.
+4. Travis should automatically deploy the tagged release to PyPI
+   if the automated tests pass.
