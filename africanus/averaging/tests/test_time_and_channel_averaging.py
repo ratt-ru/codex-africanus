@@ -397,4 +397,6 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
 
-    avg.vis.compute()
+    # Compute all the fields
+    fields = [getattr(avg, f) for f in avg._fields]
+    avg = type(avg)(*da.compute(fields)[0])
