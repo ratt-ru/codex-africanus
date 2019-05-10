@@ -270,6 +270,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
     expected_times = [time[i].mean(axis=0) for i in nom_idx]
     expected_ant1 = [ant1[i[0]] for i in nom_idx]
     expected_ant2 = [ant2[i[0]] for i in nom_idx]
+    expected_flag_row = [flag_row[i].any(axis=0) for i in eff_idx]
 
     # Take mean average, but sum of interval and exposure
     expected_uvw = [uvw[i].mean(axis=0) for i in eff_idx]
@@ -280,6 +281,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     assert_array_equal(row_meta.time, expected_times)
     assert_array_equal(row_meta.interval, expected_interval)
+    assert_array_equal(row_meta.flag_row, expected_flag_row)
     assert_array_equal(avg.antenna1, expected_ant1)
     assert_array_equal(avg.antenna2, expected_ant2)
     assert_array_equal(avg.time_centroid, expected_time_centroids)
