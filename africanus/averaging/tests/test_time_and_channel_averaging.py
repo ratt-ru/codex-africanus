@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
@@ -91,8 +91,8 @@ def chan_width():
 @pytest.fixture
 def vis():
     def _vis(row, chan, fcorrs):
-        flat_vis = (np.arange(row*chan*fcorrs, dtype=np.float32) +
-                    np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+        flat_vis = (np.arange(row*chan*fcorrs, dtype=np.float64) +
+                    np.arange(1, row*chan*fcorrs+1, dtype=np.float64)*1j)
 
         return flat_vis.reshape(row, chan, fcorrs)
 
@@ -296,6 +296,47 @@ def test_averager(time, ant1, ant2, flagged_rows,
     assert avg.flag.shape == chan_avg_shape
     assert avg.weight_spectrum.shape == chan_avg_shape
     assert avg.sigma_spectrum.shape == chan_avg_shape
+
+    chan_ranges = np.nonzero(np.ediff1d(chan_map, to_begin=1, to_end=1))[0]
+
+    # Three python loops. Slow, but works...
+    # Figure out some way to remove loops with numpy
+    for orow, idx in enumerate(eff_idx):
+        for ch, (cs, ce) in enumerate(zip(chan_ranges[:-1], chan_ranges[1:])):
+            for corr in range(ncorr):
+                chunk_flags = flag[idx, cs:ce, corr] == 1
+                expected_flags = chunk_flags.all()
+                assert_array_equal(expected_flags,  avg.flag[orow, ch, corr])
+
+                exp_vis = vis[idx, cs:ce, corr]
+                exp_wts = weight_spectrum[idx, cs:ce, corr]
+                exp_sigma = sigma_spectrum[idx, cs:ce, corr]
+
+                # If all rows+chans in this correlation are flagged
+                # then we use flagged values to calculate vis
+                if expected_flags:
+                    exp_vis = exp_vis[chunk_flags]
+                    exp_wts = exp_wts[chunk_flags]
+                    exp_sigma = exp_sigma[chunk_flags]
+                # Otherwise we used unflagged values to calculate vis
+                else:
+                    exp_vis = exp_vis[~chunk_flags]
+                    exp_wts = exp_wts[~chunk_flags]
+                    exp_sigma = exp_sigma[~chunk_flags]
+
+                exp_vis = (exp_vis*exp_wts).sum()
+                exp_sigma = (exp_sigma**2 * exp_wts**2).sum()
+                exp_wts = exp_wts.sum()
+
+                if exp_wts != 0.0:
+                    exp_vis = exp_vis / exp_wts
+                    exp_sigma = np.sqrt(exp_sigma / (exp_wts**2))
+
+                assert_array_almost_equal(exp_vis, avg.vis[orow, ch, corr])
+                assert_array_almost_equal(exp_sigma,
+                                          avg.sigma_spectrum[orow, ch, corr])
+                assert_array_almost_equal(exp_wts,
+                                          avg.weight_spectrum[orow, ch, corr])
 
 
 @pytest.mark.parametrize("flagged_rows", [
