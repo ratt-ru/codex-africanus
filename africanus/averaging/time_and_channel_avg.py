@@ -364,6 +364,17 @@ def sigma_spectrum_normaliser_factory(present):
     return njit(nogil=True, cache=True)(impl)
 
 
+def weight_spectrum_normaliser_factory(present):
+    if present:
+        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
+            wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
+    else:
+        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
+            pass
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 def chan_normaliser_factory(present):
     """ Returns function normalising channel data in a bin """
     if present:
@@ -460,6 +471,8 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
 
     vis_normaliser = vis_normaliser_factory(have_vis)
     sigma_normaliser = sigma_spectrum_normaliser_factory(have_sigma_spectrum)
+    weight_normaliser = weight_spectrum_normaliser_factory(
+                            have_weight_spectrum)
 
     set_flagged = set_flagged_factory(have_flag)
 
@@ -540,10 +553,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
         for r in range(out_rows):
             for f in range(out_chans):
                 for c in range(ncorrs):
-                    count = counts[r, f, c]
-                    flag_count = flag_counts[r, f, c]
-
-                    if count > 0:
+                    if counts[r, f, c] > 0:
                         # We have some unflagged samples and
                         # only these are used as averaged output
                         vis_normaliser(vis_avg, vis_avg,
@@ -553,7 +563,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                                          sigma_spectrum_avg,
                                          r, f, c,
                                          sigma_spectrum_weight_sum)
-                    elif flag_count > 0:
+                    elif flag_counts[r, f, c] > 0:
                         # We only have flagged samples and
                         # these are used as averaged output
                         vis_normaliser(vis_avg, flagged_vis_avg,
@@ -563,6 +573,9 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                                          flagged_sigma_spectrum_avg,
                                          r, f, c,
                                          flagged_sigma_spectrum_weight_sum)
+                        weight_normaliser(weight_spectrum_avg,
+                                          flagged_weight_spectrum_avg,
+                                          r, f, c)
 
                         # Flag the output bin
                         set_flagged(flag_avg, r, f, c)
