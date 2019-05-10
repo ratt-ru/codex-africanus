@@ -130,7 +130,7 @@ A reminder for the maintainers on how to deploy.
        $ python -m pip install bump2version
        $ bump2version --current-version Z.Y.W --new-version Z.Y.X patch
 
-3. Push the release commit and new tag up.
+3. Push the release commit and new tag up::
 
        $ git push --follow-tags
 
