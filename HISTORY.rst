@@ -5,6 +5,8 @@ History
 0.1.8 (YYYY-MM-DD)
 ------------------
 
+* Fix WEIGHT_SPECTRUM averaging and add more averaging tests (:pr:`106`)
+
 0.1.7 (2019-05-09)
 ------------------
 
