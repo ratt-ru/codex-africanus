@@ -46,8 +46,8 @@ _all_extras = extras_require.values()
 extras_require['complete'] = sorted(set(sum(_non_cuda_extras, [])))
 extras_require['complete-cuda'] = sorted(set(sum(_all_extras, [])))
 
-setup_requirements = ['pytest-runner', ]
-test_requirements = (['pytest'] +
+setup_requirements = []
+test_requirements = (extras_require['testing'] +
                      extras_require['astropy'] +
                      extras_require['python-casacore'] +
                      extras_require['dask'] +
