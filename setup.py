@@ -7,7 +7,7 @@ import os
 import sys
 from setuptools import setup, find_packages
 
-from .africanus.compatibility import PY2
+PY2 = sys.version_info[0] == 2
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
