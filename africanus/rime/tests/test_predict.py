@@ -116,7 +116,6 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 def test_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
     from africanus.rime.predict import apply_gains
 
-    s = sum(chunks['source'])
     t = sum(chunks['time'])
     a = sum(chunks['antenna'])
     c = sum(chunks['channels'])
@@ -239,14 +238,12 @@ def test_dask_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
     from africanus.rime.dask import apply_gains
 
     # chunk sizes
-    sc = chunks['source']
     tc = chunks['time']
     rrc = chunks['rows']
     ac = chunks['antenna']
     cc = chunks['channels']
 
     # dimension sizes
-    s = sum(sc)       # sources
     t = sum(tc)       # times
     a = sum(ac)       # antennas
     c = sum(cc)       # channels
@@ -288,4 +285,3 @@ def test_dask_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
             print(p, model_vis[p], np_model_vis[p])
 
     assert_array_almost_equal(model_vis, np_model_vis)
-

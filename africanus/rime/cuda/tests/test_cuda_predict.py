@@ -83,7 +83,6 @@ def test_cuda_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
 
     cp = pytest.importorskip('cupy')
 
-    s = sum(chunks['source'])
     t = sum(chunks['time'])
     a = sum(chunks['antenna'])
     c = sum(chunks['channels'])
