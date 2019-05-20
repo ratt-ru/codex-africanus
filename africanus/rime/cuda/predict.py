@@ -52,6 +52,16 @@ def _generate_kernel(time_index, antenna1, antenna2,
 
     (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
 
+    # Check types
+    if time_index.dtype != np.int32:
+        raise TypeError("time_index.dtype != np.int32 '%s'" % time_index.dtype)
+
+    if antenna1.dtype != np.int32:
+        raise TypeError("antenna1.dtype != np.int32 '%s'" % antenna1.dtype)
+
+    if antenna2.dtype != np.int32:
+        raise TypeError("antenna2.dtype != np.int32 '%s'" % antenna2.dtype)
+
     # Create template
     render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "predict_vis"
