@@ -7,8 +7,9 @@ from __future__ import print_function
 import numpy as np
 import pytest
 
-from africanus.rime.predict import predict_vis as np_predict_vis
-from africanus.rime.cuda.predict import predict_vis
+from africanus.rime.predict import (apply_gains as np_apply_gains,
+                                    predict_vis as np_predict_vis)
+from africanus.rime.cuda.predict import apply_gains, predict_vis
 from africanus.rime.tests.test_predict import (corr_shape_parametrization,
                                                die_presence_parametrization,
                                                dde_presence_parametrization,
@@ -71,5 +72,51 @@ def test_cuda_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                                   g1_jones if g1j else None,
                                   base_vis if bvis else None,
                                   g2_jones if g2j else None)
+
+    np.testing.assert_array_almost_equal(cp.asnumpy(model_vis), np_model_vis)
+
+
+@corr_shape_parametrization
+@chunk_parametrization
+def test_cuda_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
+    np.random.seed(40)
+
+    cp = pytest.importorskip('cupy')
+
+    s = sum(chunks['source'])
+    t = sum(chunks['time'])
+    a = sum(chunks['antenna'])
+    c = sum(chunks['channels'])
+    r = sum(chunks['rows'])
+
+    g1_jones = rc((t, a, c) + corr_shape)
+    base_vis = rc((r, c) + corr_shape)
+    g2_jones = rc((t, a, c) + corr_shape)
+
+    # Add 10 to the index to test time index normalisation
+    time_idx = np.concatenate([np.full(rows, i+10, dtype=np.int32)
+                               for i, rows in enumerate(chunks['rows'])])
+
+    ant1 = np.concatenate([np.random.randint(0, a, rows)
+                           for rows in chunks['rows']])
+
+    ant2 = np.concatenate([np.random.randint(0, a, rows)
+                           for rows in chunks['rows']])
+
+    assert ant1.size == r
+
+    model_vis = apply_gains(cp.asarray(time_idx),
+                            cp.asarray(ant1),
+                            cp.asarray(ant2),
+                            cp.asarray(g1_jones),
+                            cp.asarray(base_vis),
+                            cp.asarray(g2_jones))
+
+    np_model_vis = np_apply_gains(time_idx,
+                                  ant1,
+                                  ant2,
+                                  g1_jones,
+                                  base_vis,
+                                  g2_jones)
 
     np.testing.assert_array_almost_equal(cp.asnumpy(model_vis), np_model_vis)

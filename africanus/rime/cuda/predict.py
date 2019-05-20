@@ -11,7 +11,8 @@ from os.path import join as pjoin
 import numpy as np
 
 from africanus.compatibility import reduce
-from africanus.rime.predict import PREDICT_DOCS, predict_checks
+from africanus.rime.predict import (PREDICT_DOCS,
+                                    APPLY_GAINS_DOCS, predict_checks)
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_type, grids
 from africanus.util.jinja2 import jinja_env
@@ -96,8 +97,8 @@ def _generate_kernel(time_index, antenna1, antenna2,
 
 @requires_optional("cupy", opt_import_error)
 def predict_vis(time_index, antenna1, antenna2,
-                dde1_jones, source_coh, dde2_jones,
-                die1_jones, base_vis, die2_jones):
+                dde1_jones=None, source_coh=None, dde2_jones=None,
+                die1_jones=None, base_vis=None, die2_jones=None):
     """ Cupy implementation of the feed_rotation kernel. """
 
     have_ddes = dde1_jones is not None and dde2_jones is not None
@@ -118,6 +119,10 @@ def predict_vis(time_index, antenna1, antenna2,
         row = time_index.shape[0]
         chan = die1_jones.shape[2]
         corrs = die1_jones.shape[3:]
+    elif have_bvis:
+        row = time_index.shape[0]
+        chan = base_vis.shape[1]
+        corrs = base_vis.shape[2:]
     else:
         raise ValueError("Insufficient inputs supplied for determining "
                          "the output shape")
@@ -171,9 +176,9 @@ def predict_vis(time_index, antenna1, antenna2,
     # Normalise the time index
     # TODO(sjperkins)
     # Normalise the time index with a device-wide reduction
-    time_index = time_index - time_index.min()
+    norm_time_index = time_index - time_index.min()
 
-    args = (time_index, antenna1, antenna2,
+    args = (norm_time_index, antenna1, antenna2,
             dde1_jones, source_coh, dde2_jones,
             die1_jones, base_vis, die2_jones,
             out)
@@ -187,9 +192,24 @@ def predict_vis(time_index, antenna1, antenna2,
     return out.reshape((row, chan) + corrs)
 
 
+def apply_gains(time_index, antenna1, antenna2,
+                die1_jones, corrupted_vis, die2_jones):
+    return predict_vis(time_index, antenna1, antenna2,
+                       die1_jones=die1_jones,
+                       base_vis=corrupted_vis,
+                       die2_jones=die2_jones)
+
+
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`cupy.ndarray`",
                                 extra_notes="")
+except AttributeError:
+    pass
+
+try:
+    apply_gains.__doc__ = APPLY_GAINS_DOCS.substitute(
+                    array_type=":class:`cupy.ndarray`",
+                    wrapper_func=":func:`~africanus.rime.cuda.predict_vis`")
 except AttributeError:
     pass

@@ -112,6 +112,43 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 
 
 @corr_shape_parametrization
+@chunk_parametrization
+def test_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
+    from africanus.rime.predict import apply_gains
+
+    s = sum(chunks['source'])
+    t = sum(chunks['time'])
+    a = sum(chunks['antenna'])
+    c = sum(chunks['channels'])
+    r = sum(chunks['rows'])
+
+    g1_jones = rc((t, a, c) + corr_shape)
+    base_vis = rc((r, c) + corr_shape)
+    g2_jones = rc((t, a, c) + corr_shape)
+
+    #  Row indices into the above time/ant indexed arrays
+    time_idx = np.asarray([0, 0, 1, 1, 2, 2, 2, 2, 3, 3])
+    ant1 = np.asarray([0, 0, 0, 0, 1, 1, 1, 2, 2, 3])
+    ant2 = np.asarray([0, 1, 2, 3, 1, 2, 3, 2, 3, 3])
+
+    assert ant1.size == r
+
+    model_vis = apply_gains(time_idx, ant1, ant2,
+                            g1_jones, base_vis, g2_jones)
+
+    assert model_vis.shape == (r, c) + corr_shape
+
+    # Convert (time, ant) dimensions to row or
+    # or ID matrices if input is not present
+    g1_jones = g1_jones[time_idx, ant1]
+    g2_jones = g2_jones[time_idx, ant2].conj()
+
+    v = np.einsum(einsum_sig2, g1_jones, base_vis, g2_jones)
+
+    assert_array_almost_equal(v, model_vis)
+
+
+@corr_shape_parametrization
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
@@ -190,3 +227,65 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
             print(p, model_vis[p], np_model_vis[p])
 
     assert_array_almost_equal(model_vis, np_model_vis)
+
+
+@corr_shape_parametrization
+@chunk_parametrization
+def test_dask_apply_gains(corr_shape, idm, einsum_sig1, einsum_sig2, chunks):
+
+    da = pytest.importorskip('dask.array')
+    import numpy as np
+    from africanus.rime.predict import apply_gains as np_apply_gains
+    from africanus.rime.dask import apply_gains
+
+    # chunk sizes
+    sc = chunks['source']
+    tc = chunks['time']
+    rrc = chunks['rows']
+    ac = chunks['antenna']
+    cc = chunks['channels']
+
+    # dimension sizes
+    s = sum(sc)       # sources
+    t = sum(tc)       # times
+    a = sum(ac)       # antennas
+    c = sum(cc)       # channels
+    r = sum(rrc)      # rows
+
+    g1_jones = rc((t, a, c) + corr_shape)
+    base_vis = rc((r, c) + corr_shape)
+    g2_jones = rc((t, a, c) + corr_shape)
+
+    #  Row indices into the above time/ant indexed arrays
+    time_idx = np.asarray([0, 0, 1, 1, 2, 2, 2, 2, 3, 3])
+    ant1 = np.asarray([0, 0, 0, 0, 1, 1, 1, 2, 2, 3])
+    ant2 = np.asarray([0, 1, 2, 3, 1, 2, 3, 2, 3, 3])
+
+    assert ant1.size == r
+
+    np_model_vis = np_apply_gains(time_idx, ant1, ant2,
+                                  g1_jones, base_vis, g2_jones)
+
+    da_time_idx = da.from_array(time_idx, chunks=rrc)
+    da_ant1 = da.from_array(ant1, chunks=rrc)
+    da_ant2 = da.from_array(ant2, chunks=rrc)
+
+    da_g1_jones = da.from_array(g1_jones, chunks=(tc, ac, cc) + corr_shape)
+    da_base_vis = da.from_array(base_vis, chunks=(rrc, cc) + corr_shape)
+    da_g2_jones = da.from_array(g2_jones, chunks=(tc, ac, cc) + corr_shape)
+
+    model_vis = apply_gains(da_time_idx, da_ant1, da_ant2,
+                            da_g1_jones, da_base_vis, da_g2_jones)
+
+    model_vis = model_vis.compute()
+
+    if not np.allclose(model_vis, np_model_vis):
+        diff = model_vis - np_model_vis
+        diff[np.abs(diff) < 1e-10] = 0.0
+        problems = np.array(np.nonzero(diff)).T
+
+        for p in (tuple(p.tolist()) for p in problems):
+            print(p, model_vis[p], np_model_vis[p])
+
+    assert_array_almost_equal(model_vis, np_model_vis)
+
