@@ -344,11 +344,17 @@ def predict_checks(time_index, antenna1, antenna2,
         raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
 
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
+
     if have_ddes1 and dde1_jones.ndim not in (5, 6):
         raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
 
     if have_ddes2 and dde2_jones.ndim not in (5, 6):
         raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
+
+    if have_ddes and dde1_jones.ndim != dde2_jones.ndim:
+        raise ValueError("dde1_jones.ndim != dde2_jones.ndim")
 
     if have_coh and source_coh.ndim not in (4, 5):
         raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
@@ -361,6 +367,34 @@ def predict_checks(time_index, antenna1, antenna2,
 
     if have_dies2 and die2_jones.ndim not in (4, 5):
         raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
+
+    if have_dies1 and have_dies2 and die1_jones.ndim != die2_jones.ndim:
+        raise ValueError("die1_jones.ndim != die2_jones.ndim")
+
+    expected_sizes = []
+
+    if have_ddes:
+        ndim = dde1_jones.ndim
+        expected_sizes.append([ndim, ndim - 1, ndim - 2, ndim - 1]),
+
+    if have_coh:
+        ndim = source_coh.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_dies:
+        ndim = die1_jones.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_bvis:
+        ndim = base_vis.ndim
+        expected_sizes.append([ndim + 2, ndim + 1, ndim, ndim + 1])
+
+    if not all(expected_sizes[0] == s for s in expected_sizes[1:]):
+        raise ValueError("One of the following pre-conditions is broken "
+                         "(missing values are ignored):\n"
+                         "dde_jones{1,2}.ndim == source_coh.ndim + 1\n"
+                         "dde_jones{1,2}.ndim == base_vis.ndim + 2\n"
+                         "dde_jones{1,2}.ndim == die_jones{1,2}.ndim + 1")
 
     return (have_ddes1, have_coh, have_ddes2,
             have_dies1, have_bvis, have_dies2)
@@ -511,6 +545,7 @@ die1_jones : $(array_type), optional
 base_vis : $(array_type), optional
     :math:`B_{pq}` base visibilities, added to source coherency summation
     *before* multiplication with `die1_jones` and `die2_jones`.
+    shape :code:`(row,chan,corr_1,corr_2)`.
 die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     second antenna of the baseline.
