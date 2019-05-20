@@ -5,6 +5,7 @@ History
 0.1.8 (YYYY-MM-DD)
 ------------------
 
+* Add `apply_gains`, a wrapper around `predict_vis` (:pr:`108`)
 * Fix testing extras_require (:pr:`107`)
 * Fix WEIGHT_SPECTRUM averaging and add more averaging tests (:pr:`106`)
 
