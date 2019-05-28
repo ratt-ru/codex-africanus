@@ -9,9 +9,6 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
 # requirements
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
@@ -74,7 +71,8 @@ setup(
     extras_require=extras_require,
     install_requires=requirements,
     license="GNU General Public License v2",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
+    long_description_content_type='text/x-rst',
     include_package_data=True,
     keywords='codex-africanus',
     name='codex-africanus',
