@@ -4,10 +4,7 @@
 """The setup script."""
 
 import os
-import sys
 from setuptools import setup, find_packages
-
-PY2 = sys.version_info[0] == 2
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -35,7 +32,8 @@ extras_require = {
     'dask': ['dask[array] >= 1.1.0'],
     'jax': ['jax == 0.1.27', 'jaxlib == 0.1.14'],
     'scipy': ['scipy >= 1.0.0'],
-    'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
+    'astropy': ['astropy >= 2.0.0, < 3.0; python_version <= "2.7"',
+                'astropy >= 3.0; python_version >= "3.0"'],
     'python-casacore': ['python-casacore >= 2.2.1'],
     'testing': ['pytest', 'pytest-runner']
 }
