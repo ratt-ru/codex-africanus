@@ -9,7 +9,7 @@ from africanus.model.shape import shapelet as nb_shapelet
 
 Fs = np.fft.fftshift
 
-def test_shapelet():
+def _test_shapelet():
     npix = 15
     nrow = npix **2
     nsrc = 1
@@ -40,7 +40,7 @@ def test_shapelet():
 
 
 
-def test_shapelet_vals():
+def _test_shapelet_vals():
     npix = 35
     nrow = npix **2
     nsrc = 1
@@ -101,7 +101,7 @@ def test_shapelet_vals():
     plt.close()
     assert np.allclose(np.abs(gf_shapelets), np.abs(codex_shapelets))
 
-def test_dask_shapelets():
+def _test_dask_shapelets():
         da = pytest.importorskip('dask.array')
         from africanus.model.shape.dask import shapelet as da_shapelet
 
