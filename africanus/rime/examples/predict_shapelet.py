@@ -154,7 +154,7 @@ def einsum_schema(pol):
     corrs = pol.NUM_CORR.values
 
     if corrs == 4:
-        return "srf, sij -> srfij"
+        return "srf, snf, sij -> srfij"
     elif corrs in (2, 1):
         return "srf, si -> srfi"
     else:
@@ -189,7 +189,7 @@ def predict(args):
     spw_ds = tables["SPECTRAL_WINDOW"]
     pol_ds = tables["POLARIZATION"]
 
-    shapelet_beta = np.array([[1., 1.]])
+    shapelet_beta = np.array([[75., 75.]])
     shapelet_coeffs = np.array([[[1.]]])
 
     # List of write operations
@@ -288,9 +288,9 @@ def predict(args):
 
         #jones = da.einsum(einsum_schema(pol), shapelets, phase, brightness)
         print("Starting Einstein sum")
-        phase_shapelet_einsum = da.einsum("srf, srf -> srf", phase, shapelets)
-        print(phase_shapelet_einsum)
-        print(phase)
+        #phase_shapelet_einsum = da.einsum("srf, sif -> srf", phase, shapelets)
+        #print(phase_shapelet_einsum)
+        #print(phase)
         """
         plt.figure()
         plt.imshow(np.abs(phase_shapelet_einsum.compute()[0, :, 0].reshape((90, 84))))
@@ -301,7 +301,7 @@ def predict(args):
         plt.close()
         print("Created phase_shapelet_einsum image")
         """
-        jones = da.einsum(einsum_schema(pol), phase_shapelet_einsum, brightness)
+        jones = da.einsum(einsum_schema(pol), phase, shapelets, brightness)
         print(jones)
         """
         plt.figure()
@@ -328,7 +328,9 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
+        print("Assigning visibilities to MODEL_DATA")
         model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
+        """
         np.save("model_data_test.npy", model_data.compute())
         np_model = model_data.compute()
         print(np_model.compute().shape)
@@ -337,10 +339,13 @@ def predict(args):
         plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.real(np_model[:, 0, 0]))
         plt.savefig('vis_vs_baseline.png')
         plt.close()
+        """
 
         #model_data = xr.DataArray(model_shapelets, dims=["row", "chan", "corr"])
+        print("xds.assign()")
         xds = xds.assign(MODEL_DATA=model_data)
         # Create a write to the table
+        print("xds_to_table()")
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
@@ -358,6 +363,7 @@ def predict(args):
         
     # Submit all graph computations in parallel
     with ProgressBar():
+        print("dask.compute()")
         dask.compute(writes)
 
 
