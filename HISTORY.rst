@@ -2,7 +2,7 @@
 History
 =======
 
-0.1.8 (YYYY-MM-DD)
+0.1.8 (2019-05-28)
 ------------------
 
 * Use environment markers in setup.py (:pr:`110`)
