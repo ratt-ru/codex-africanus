@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 np.random.seed(42)
 import pyrap.tables as pt
-from africanus.calibration import scalar_phase_only
+from africanus.calibration import phase_only_GN
 import matplotlib.pyplot as plt
 from africanus.rime.predict import predict_vis
 from numpy.testing import assert_array_equal, assert_array_almost_equal
@@ -43,13 +43,11 @@ from africanus.gps.kernels import exponential_squared
 sigmat = 0.25
 lt = 0.1
 n_tim = unique_times.size
-# n_tim = 100
 t = np.linspace(0, 1, n_tim)
 Kt = exponential_squared(t, t, sigmat, lt)
 sigmanu = 0.5
 lnu = 0.25
 n_chan = freqs.size
-# n_chan = 150
 nu = np.linspace(0, 1, n_chan)
 Knu = exponential_squared(nu, nu, sigmanu, lnu)
 K = np.array([Kt, Knu])
@@ -78,11 +76,8 @@ n_row, _, _ = model.shape
 model = model[None].reshape(1, n_row, n_chan, 2, 2)
 data = predict_vis(tind, ant1, ant2, source_coh=model, die1_jones=gains_true, die2_jones=gains_true)
 
-data = data.reshape(n_row, n_chan, 4)
-model = model.reshape(1, n_row, n_chan, 4)
-
 # we will use only diagonal correlations so remove the off diagonals
-I = (0,3)
+I = ((0,0), (1,1))
 data = data[:, :, I]
 model = model[:, :, :, I]
 
@@ -96,7 +91,13 @@ else:
     raise Exception("Incorrect shape for weights")
 
 # do calibration
-gains, jhj, jhr = scalar_phase_only.phase_only_calibration(model, data, weight, ant1, ant2, time, flag)
+precision = 8
+maxiter = 100
+gains, jhj, jhr, k = phase_only_GN(model, data, weight, ant1, ant2, \
+                                                     time, flag, tol=10**(-precision), maxiter=maxiter)
+
+if k > maxiter:
+    print("Warning - maximum iterations exceeded")
 
 # plot the gains n_tim, n_ant, n_chan, n_dir, n_cor
 n_ant = np.maximum(ant1.max(), ant2.max()) + 1
@@ -107,4 +108,4 @@ for p in range(n_ant):
             for c in range(n_cor):
                 diff_true = np.angle(gains_true[:, p, :, c, c] * np.conj(gains_true[:, q, :, c, c]))
                 diff_inferred = np.angle(gains[:, p, :, s, c] * np.conj(gains[:, q, :, s, c]))
-                assert_array_almost_equal(diff_true, diff_inferred, decimal=4)
+                assert_array_almost_equal(diff_true, diff_inferred, decimal=precision-1)

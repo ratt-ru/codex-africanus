@@ -13,5 +13,6 @@ API
     model-api.rst
     averaging-api.rst
     util-api.rst
+    calibration-api.rst
 
 

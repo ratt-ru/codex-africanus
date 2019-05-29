@@ -5,70 +5,19 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from africanus.util.numba import generated_jit, njit
+import numba
 from africanus.averaging.support import unique_time
+from africanus.util.docs import DocstringTemplate
+from africanus.calibration.utils import residual_vis
 
-@njit(nopython=True, nogil=True, cache=True)
-def give_residual(model, data, gains, antenna1, antenna2, time_indices, counts, flag):
-    """
-    Computes the Jacobian required for phase only calibration assuming scalar
-    gains and that off diagonal correlations (i.e. xy, yx or rl, lr) are zero.
-    Inputs:
-    model       - (n_dir, n_row, n_fre, n_cor, n_cor) complex array containg model data 
-                  for all directions
-    data        - (n_row, n_fre, n_cor) complex array containg data
-    gains       - (n_tim, n_ant, n_fre, n_dir, n_cor) complex array containing current estimate of gains
-    antenna1    - (n_row) int array containing antenna1 column
-    antenna2    - (n_row) int array containing antenna2 column
-    time_indices- (n_tim) int array containing change points for unique time stamps
-    counts      - (n_tim) int array containing counts of unique time in time
-    flag        - (n_row, n_fre, n_cor) bool array containing flags
-    
-    Output:
-    residual    - (n_row, n_fre, n_cor) complex array containing residual
-    """
-    # get dimensions
-    n_dir, n_row, n_chan, n_cor = model.shape
-    assert n_cor == 1 or n_cor == 2
-    n_ant = np.maximum(antenna1.max(), antenna2.max()) + 1
-    n_bl = n_ant * (n_ant - 1)//2
-    
-    # get number of times
-    n_tim = time_indices.size
-
-    # Assume this for now
-    assert n_row == n_tim * n_bl
-
-    # so we just need to subtract model
-    residual = data.copy()
-    
-    # time iterator
-    for t in range(n_tim):
-        # I = np.arange(time_indices[t], time_indices[t] + counts[t])
-        # anta = antenna1[I]
-        # antb = antenna2[I]
-        # baseline iterator
-        for row in range(time_indices[t], time_indices[t] + counts[t]):
-            p = int(antenna1[row])
-            q = int(antenna2[row])
-            gp = gains[t, p]
-            gqH = np.conj(gains[t, q])
-            for nu in range(n_chan):
-                for s in range(n_dir):
-                    for c in range(n_cor):
-                        if not flag[row, nu, c]:
-                            residual[row, nu, c] -= gp[nu, s, c] * model[s, row, nu, c] * gqH[nu, s, c]
-
-    return residual
-
-@njit(nopython=True, nogil=True, cache=True)
-def give_jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag):
+@numba.jit(nopython=True, nogil=True, cache=True)
+def jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag):
     """
     Computes the jhj and jhr required for phase only calibration assuming scalar
     gains and that off diagonal correlations (i.e. xy, yx or rl, lr) are zero.
     Only computes the diagonal of jhj.
     Inputs:
-    model       - (n_dir, n_row, n_fre, n_cor, n_cor) complex array containg model data 
+    model       - (n_dir, n_row, n_fre, n_cor) complex array containg model data 
                   for all directions
     residual    - (n_row, n_fre, n_cor) complex array containg residual
     gains       - (n_tim, n_ant, n_fre, n_dir, n_cor) complex array containing current estimate of gains
@@ -119,26 +68,15 @@ def give_jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, c
 
     return jhj, jhr
 
-@njit(nopython=True, nogil=True, cache=True)
-def phase_only_calibration(model, data, weight, antenna1, antenna2, time, flag,
+@numba.jit(nopython=True, nogil=True, cache=True)
+def phase_only_GN(model, data, weight, antenna1, antenna2, time, flag,
                            tol=1e-4, maxiter=100):
-    """
-    Inputs:
-    model       - (n_dir, n_row, n_fre, n_cor, n_cor) complex array containg model data 
-                  for all directions
-    data        - (n_row, n_fre, n_cor) complex array containg data
-    weight      - either (n_row, n_fre, n_cor) or (n_row, ncor) float array containing data weights
-    antenna1    - (n_row) int array containing antenna1 column
-    antenna2    - (n_row) int array containing antenna2 column
-    time        - (n_row) float array containing observation time stamps
-    flag       - (n_row, n_fre, n_cor) bool array containing flags
-    """
-    # # whiten data
-    # sqrtweights = np.sqrt(weight)
-    # data *= sqrtweights
-    # model *= sqrtweights[None]
+    # whiten data
+    sqrtweights = np.sqrt(weight)
+    data *= sqrtweights
+    model *= sqrtweights[None]
     
-   # get dimensions
+    # get dimensions
     n_dir, n_row, n_chan, n_cor = model.shape
     assert n_cor == 1 or n_cor == 2
     n_ant = np.maximum(antenna1.max(), antenna2.max()) + 1
@@ -161,10 +99,10 @@ def phase_only_calibration(model, data, weight, antenna1, antenna2, time, flag,
         phases = np.angle(gains)
         
         # get residual
-        residual = give_residual(model, data, gains, antenna1, antenna2, time_indices, counts, flag)
+        residual = residual_vis(model, data, gains, antenna1, antenna2, time_indices, counts, flag)
 
         # get diag(jhj) andf jhr
-        jhj, jhr = give_jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag)
+        jhj, jhr = jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag)
         
         # implement update
         phases_new = phases + (jhr/jhj).real 
@@ -174,4 +112,53 @@ def phase_only_calibration(model, data, weight, antenna1, antenna2, time, flag,
         eps = np.abs(phases_new - phases).max()
         k += 1
         # print("At iteration %i max diff = %f" % (k, eps))
-    return gains, jhj, jhr
+    return gains, jhj, jhr, k
+
+PHASE_CALIBRATION_DOCS = DocstringTemplate("""
+Performs phase-only maximum likelihood 
+calibration assuming scalar or diagonal 
+inputs.
+
+Parameters
+----------
+model : $(array_type)
+    Model data values of shape :code:`(dir, row, chan, corr)`.
+data : $(array_type)
+    Data values of shape :code:`(row, chan, corr)`.
+weight : $(array_type)
+    Weight spectrum of shape :code:`(row, chan, corr)`.
+    If the channel axis is missing weights are duplicated 
+    for each channel.
+antenna1 : $(array_type)
+    First antenna indices of shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Second antenna indices of shape :code:`(row,)`
+time : $(array_type)
+    Time values of shape :code:`(row,)`
+flag : $(array_type)
+    Flag data of shape :code:`(row, chan, corr)`.
+tol : float, optional
+    The tolerance of the solver. Defaults to 1e-4
+maxiter: int, optional
+    The maximum number of iterations. Defaults to 100.
+
+Returns
+-------
+gains: $(array_type)
+    Gain solutions of shape :code:`(time, ant, chan, dir, corr)`.
+jhj: $(array_type)
+    The diagonal of the Hessian of 
+    shape :code:`(time, ant, chan, dir, corr)`.
+jhr: $(array_type)
+    Residuals projected into gain space 
+    of shape :code:`(time, ant, chan, dir, corr)`.
+k: int
+    Number of iterations  
+""")
+
+
+try:
+    phase_only_GN.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
+                                    array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
