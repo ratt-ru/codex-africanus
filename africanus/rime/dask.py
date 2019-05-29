@@ -13,7 +13,8 @@ from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
 from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
-from africanus.rime.predict import PREDICT_DOCS, predict_checks
+from africanus.rime.predict import (APPLY_GAINS_DOCS,
+                                    PREDICT_DOCS, predict_checks)
 from africanus.rime.predict import predict_vis as np_predict_vis
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
@@ -257,12 +258,15 @@ def predict_vis(time_index, antenna1, antenna2,
                              (time_index.chunks[0], die1_jones.chunks[1]))
 
     # Generate strings for the correlation dimensions
+    # This also has the effect of checking that we have all valid inputs
     if have_ddes:
         cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
     elif have_coh:
         cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
     elif have_dies:
         cdims = tuple("corr-%d" % i for i in range(len(die1_jones.shape[3:])))
+    elif have_bvis:
+        cdims = tuple("corr-%d" % i for i in range(len(base_vis.shape[2:])))
     else:
         raise ValueError("Missing both antenna and baseline jones terms")
 
@@ -280,82 +284,99 @@ def predict_vis(time_index, antenna1, antenna2,
     # For this reason, we use the lower level blockwise and
     # substitute "row" for "time" in arrays such as dde1_jones
     # and die1_jones.
-    token = da.core.tokenize(time_index, antenna1, antenna2,
-                             dde1_jones, source_coh, dde2_jones, base_vis)
-
     ajones_dims = ("src", "row", "ant", "chan") + cdims
     gjones_dims = ("row", "ant", "chan") + cdims
 
-    # Setup
-    # 1. Optional blockwise arguments
-    # 2. Optional numblocks kwarg
-    # 3. HighLevelGraph dependencies
-    bw_args = [time_index.name, ("row",),
-               antenna1.name, ("row",),
-               antenna2.name, ("row",)]
-    numblocks = {
-        time_index.name: time_index.numblocks,
-        antenna1.name: antenna1.numblocks,
-        antenna2.name: antenna2.numblocks
-    }
+    do_source_coh = have_ddes or have_coh
 
-    # Dependencies
-    deps = [time_index, antenna1, antenna2]
+    # We create separate graphs for computing coherencies and applying
+    # the gains because coherencies are chunked over source which
+    # must be summed and added to the (possibly present) base visibilities
 
-    # Handle presence/absence of dde1_jones
-    if have_ddes:
-        bw_args.extend([dde1_jones.name, ajones_dims])
-        numblocks[dde1_jones.name] = dde1_jones.numblocks
-        deps.append(dde1_jones)
-        other_chunks = dde1_jones.chunks[3:]
-        src_chunks = dde1_jones.chunks[0]
+    if do_source_coh:
+        # Setup
+        # 1. Optional blockwise arguments
+        # 2. Optional numblocks kwarg
+        # 3. HighLevelGraph dependencies
+        bw_args = [time_index.name, ("row",),
+                   antenna1.name, ("row",),
+                   antenna2.name, ("row",)]
+        numblocks = {
+            time_index.name: time_index.numblocks,
+            antenna1.name: antenna1.numblocks,
+            antenna2.name: antenna2.numblocks
+        }
+
+        # Dependencies
+        deps = [time_index, antenna1, antenna2]
+
+        # Handle presence/absence of dde1_jones
+        if have_ddes:
+            bw_args.extend([dde1_jones.name, ajones_dims])
+            numblocks[dde1_jones.name] = dde1_jones.numblocks
+            deps.append(dde1_jones)
+            other_chunks = dde1_jones.chunks[3:]
+            src_chunks = dde1_jones.chunks[0]
+        else:
+            bw_args.extend([None, None])
+
+        # Handle presence/absence of source_coh
+        if have_coh:
+            bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
+            numblocks[source_coh.name] = source_coh.numblocks
+            deps.append(source_coh)
+            other_chunks = source_coh.chunks[2:]
+            src_chunks = source_coh.chunks[0]
+        else:
+            bw_args.extend([None, None])
+
+        # Handle presence/absence of dde2_jones
+        if have_ddes:
+            bw_args.extend([dde2_jones.name, ajones_dims])
+            numblocks[dde2_jones.name] = dde2_jones.numblocks
+            deps.append(dde2_jones)
+            other_chunks = dde2_jones.chunks[3:]
+            src_chunks = dde2_jones.chunks[0]
+        else:
+            bw_args.extend([None, None])
+
+        # die1_jones, base_vis and die2_jones absent for this part of the graph
+        bw_args.extend([None, None, None, None, None, None])
+
+        assert len(bw_args) // 2 == 9, len(bw_args) // 2
+
+        token = da.core.tokenize(time_index, antenna1, antenna2,
+                                 dde1_jones, source_coh, dde2_jones)
+        name = "-".join(("predict-vis-sum-coh", token))
+        layer = blockwise(_predict_coh_wrapper,
+                          name, ("src", "row", "chan") + cdims,
+                          *bw_args, numblocks=numblocks)
+
+        graph = HighLevelGraph.from_collections(name, layer, deps)
+
+        # We can infer output chunk sizes from source_coh
+        chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
+
+        # Creat array
+        sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
+
+        # Collapse source axis
+        sum_coherencies = sum_coherencies.sum(axis=0)
     else:
-        bw_args.extend([None, None])
+        assert have_dies or have_bvis
+        sum_coherencies = None
 
-    # Handle presence/absence of source_coh
-    if have_coh:
-        bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
-        numblocks[source_coh.name] = source_coh.numblocks
-        other_chunks = source_coh.chunks[2:]
-        src_chunks = source_coh.chunks[0]
-        deps.append(source_coh)
-    else:
-        bw_args.extend([None, None])
-
-    # Handle presence/absence of dde2_jones
-    if have_ddes:
-        bw_args.extend([dde2_jones.name, ajones_dims])
-        numblocks[dde2_jones.name] = dde2_jones.numblocks
-        other_chunks = dde1_jones.chunks[3:]
-        deps.append(dde2_jones)
-        other_chunks = dde2_jones.chunks[3:]
-        src_chunks = dde1_jones.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # die1_jones, base_vis and die2_jones absent for this part of the graph
-    bw_args.extend([None, None, None, None, None, None])
-
-    assert len(bw_args) // 2 == 9, len(bw_args) // 2
-
-    name = "-".join(("predict_vis", token))
-    layer = blockwise(_predict_coh_wrapper,
-                      name, ("src", "row", "chan") + cdims,
-                      *bw_args, numblocks=numblocks)
-
-    graph = HighLevelGraph.from_collections(name, layer, deps)
-
-    # We can infer output chunk sizes from source_coh
-    chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
-
-    sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
-    sum_coherencies = sum_coherencies.sum(axis=0)
-
-    if have_bvis:
-        sum_coherencies += base_vis
-
-    if not have_dies:
+    # No more effects to apply, return at this point
+    if not have_dies and not have_bvis:
         return sum_coherencies
+
+    # Add coherencies to the base visibilities
+    if sum_coherencies is not None:
+        if not have_bvis:
+            base_vis = sum_coherencies
+            have_bvis = True
+        else:
+            base_vis += sum_coherencies
 
     # Now apply any Direction Independent Effect Terms
 
@@ -374,23 +395,39 @@ def predict_vis(time_index, antenna1, antenna2,
 
     deps = [time_index, antenna1, antenna2]
 
-    # dde1_jones, source_coh  and dde2_jones not present
+    # dde1_jones, source_coh and dde2_jones not present
+    # these are already applied into sum_coherencies
     bw_args.extend([None, None, None, None, None, None])
 
-    bw_args.extend([die1_jones.name, gjones_dims])
-    bw_args.extend([sum_coherencies.name, ("row", "chan") + cdims])
-    bw_args.extend([die2_jones.name, gjones_dims])
-    numblocks[die1_jones.name] = die1_jones.numblocks
-    numblocks[sum_coherencies.name] = sum_coherencies.numblocks
-    numblocks[die2_jones.name] = die2_jones.numblocks
+    if have_dies:
+        bw_args.extend([die1_jones.name, gjones_dims])
+        numblocks[die1_jones.name] = die1_jones.numblocks
+        deps.append(die1_jones)
+        other_chunks = die1_jones.chunks[2:]
+    else:
+        bw_args.extend([None, None])
 
-    deps.extend([die1_jones, sum_coherencies, die2_jones])
+    if have_bvis:
+        bw_args.extend([base_vis.name, ("row", "chan") + cdims])
+        numblocks[base_vis.name] = base_vis.numblocks
+        deps.append(base_vis)
+        other_chunks = base_vis.chunks[1:]
+    else:
+        bw_args.extend([None, None])
+
+    if have_dies:
+        bw_args.extend([die2_jones.name, gjones_dims])
+        numblocks[die2_jones.name] = die2_jones.numblocks
+        deps.append(die2_jones)
+        other_chunks = die2_jones.chunks[2:]
+    else:
+        bw_args.extend([None, None])
 
     assert len(bw_args) // 2 == 9
 
     token = da.core.tokenize(time_index, antenna1, antenna2,
-                             die1_jones, sum_coherencies, die2_jones)
-    name = '-'.join(("predict_vis", token))
+                             die1_jones, base_vis, die2_jones)
+    name = '-'.join(("predict-vis-apply-dies", token))
     layer = blockwise(_predict_dies_wrapper,
                       name, ("row", "chan") + cdims,
                       *bw_args, numblocks=numblocks)
@@ -401,92 +438,127 @@ def predict_vis(time_index, antenna1, antenna2,
     return da.Array(graph, name, chunks, dtype=out_dtype)
 
 
+@requires_optional('dask.array', da_import_error)
+def apply_gains(time_index, antenna1, antenna2,
+                die1_jones, corrupted_vis, die2_jones):
+
+    return predict_vis(time_index, antenna1, antenna2,
+                       die1_jones=die1_jones,
+                       base_vis=corrupted_vis,
+                       die2_jones=die2_jones)
+
+
 try:
     phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
                             array_type=":class:`dask.array.Array`")
+except AttributeError:
+    pass
 
+try:
     parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
                                           [(":class:`numpy.ndarray`",
                                             ":class:`dask.array.Array`")])
+except AttributeError:
+    pass
 
+try:
     feed_rotation.__doc__ = FEED_ROTATION_DOCS.substitute(
                                 array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
 
+try:
     transform_sources.__doc__ = mod_docs(np_transform_sources.__doc__,
                                          [(":class:`numpy.ndarray`",
                                            ":class:`dask.array.Array`")])
+except AttributeError:
+    pass
 
+try:
     beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
                                      [(":class:`numpy.ndarray`",
                                        ":class:`dask.array.Array`")])
+except AttributeError:
+    pass
 
+try:
     zernike_dde.__doc__ = mod_docs(np_zernike_dde.__doc__,
                                    [(":class:`numpy.ndarray`",
                                      ":class:`dask.array.Array`")])
+except AttributeError:
+    pass
 
-    EXTRA_DASK_NOTES = """
-    * The ``ant`` dimension should only contain a single chunk equal
-      to the number of antenna. Since each ``row`` can contain
-      any antenna, random access must be preserved along this dimension.
-    * The chunks in the ``row`` and ``time`` dimension **must** align.
-      This subtle point **must be understood otherwise
-      invalid results will be produced** by the chunking scheme.
-      In the example below
-      we have four unique time indices :code:`[0,1,2,3]`, and
-      four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
+EXTRA_DASK_NOTES = """
+* The ``ant`` dimension should only contain a single chunk equal
+  to the number of antenna. Since each ``row`` can contain
+  any antenna, random access must be preserved along this dimension.
+* The chunks in the ``row`` and ``time`` dimension **must** align.
+  This subtle point **must be understood otherwise
+  invalid results will be produced** by the chunking scheme.
+  In the example below
+  we have four unique time indices :code:`[0,1,2,3]`, and
+  four unique antenna :code:`[0,1,2,3]` indexing :code:`10` rows.
 
-      .. code-block:: python
+  .. code-block:: python
 
-          #  Row indices into the time/antenna indexed arrays
-          time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
-          ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
-          ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
+      #  Row indices into the time/antenna indexed arrays
+      time_idx = np.asarray([0,0,1,1,2,2,2,2,3,3])
+      ant1 = np.asarray(    [0,0,0,0,1,1,1,2,2,3]
+      ant2 = np.asarray(    [0,1,2,3,1,2,3,2,3,3])
 
 
-      A reasonable chunking scheme for the
-      ``row`` and ``time`` dimension would be :code:`(4,4,2)`
-      and :code:`(2,1,1)` respectively.
-      Another way of explaining this is that the first
-      four rows contain two unique timesteps, the second four
-      rows contain one unique timestep and the last two rows
-      contain one unique timestep.
+  A reasonable chunking scheme for the
+  ``row`` and ``time`` dimension would be :code:`(4,4,2)`
+  and :code:`(2,1,1)` respectively.
+  Another way of explaining this is that the first
+  four rows contain two unique timesteps, the second four
+  rows contain one unique timestep and the last two rows
+  contain one unique timestep.
 
-      Some rules of thumb:
+  Some rules of thumb:
 
-      1. The number chunks in ``row`` and ``time`` must match
-         although the individual chunk sizes need not.
-      2. Unique timesteps should not be split across row chunks.
-      3. For a Measurement Set whose rows are ordered on the
-         ``TIME`` column, the following is a good way of obtaining
-         the row chunking strategy:
+  1. The number chunks in ``row`` and ``time`` must match
+     although the individual chunk sizes need not.
+  2. Unique timesteps should not be split across row chunks.
+  3. For a Measurement Set whose rows are ordered on the
+     ``TIME`` column, the following is a good way of obtaining
+     the row chunking strategy:
 
-         .. code-block:: python
+     .. code-block:: python
 
-            import numpy as np
-            import pyrap.tables as pt
+        import numpy as np
+        import pyrap.tables as pt
 
-            ms = pt.table("data.ms")
-            times = ms.getcol("TIME")
-            unique_times, chunks = np.unique(times, return_counts=True)
+        ms = pt.table("data.ms")
+        times = ms.getcol("TIME")
+        unique_times, chunks = np.unique(times, return_counts=True)
 
-      4. Use :func:`~africanus.util.shapes.aggregate_chunks`
-         to aggregate multiple ``row`` and ``time``
-         chunks into chunks large enough such that functions operating
-         on the resulting data can drop the GIL and spend time
-         processing the data. Expanding the previous example:
+  4. Use :func:`~africanus.util.shapes.aggregate_chunks`
+     to aggregate multiple ``row`` and ``time``
+     chunks into chunks large enough such that functions operating
+     on the resulting data can drop the GIL and spend time
+     processing the data. Expanding the previous example:
 
-         .. code-block:: python
+     .. code-block:: python
 
-            # Aggregate row
-            utimes = unique_times.size
-            # Single chunk for each unique time
-            time_chunks = (1,)*utimes
-            # Aggregate row chunks into chunks <= 10000
-            aggregate_chunks((chunks, time_chunks), (10000, utimes))
-    """
+        # Aggregate row
+        utimes = unique_times.size
+        # Single chunk for each unique time
+        time_chunks = (1,)*utimes
+        # Aggregate row chunks into chunks <= 10000
+        aggregate_chunks((chunks, time_chunks), (10000, utimes))
+"""
 
+try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`dask.array.Array`",
                                 extra_notes=EXTRA_DASK_NOTES)
+except AttributeError:
+    pass
+
+try:
+    apply_gains.__doc__ = APPLY_GAINS_DOCS.substitute(
+                    array_type=":class:`dask.array.Array`",
+                    wrapper_func=":func:`~africanus.rime.dask.predict_vis`")
 except AttributeError:
     pass

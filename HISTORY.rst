@@ -2,8 +2,28 @@
 History
 =======
 
-0.1.5 (YYYY-MM-DD)
+0.1.8 (2019-05-28)
 ------------------
+
+* Use environment markers in setup.py (:pr:`110`)
+* Add `apply_gains`, a wrapper around `predict_vis` (:pr:`108`)
+* Fix testing extras_require (:pr:`107`)
+* Fix WEIGHT_SPECTRUM averaging and add more averaging tests (:pr:`106`)
+
+0.1.7 (2019-05-09)
+------------------
+
+* Even more support for automated travis deploys.
+
+0.1.6 (2019-05-09)
+------------------
+
+* Support automated travis deploys.
+
+0.1.5 (2019-05-09)
+------------------
+* Predict script enhancements (:pr:`103`) and
+  dask channel chunking fix (:issue:`104`).
 * Directly jit DFT functions (:pr:`100`, :pr:`101`)
 * Spectral Models (:pr:`86`)
 * Fix radec sign conversion in wsclean sky model (:pr:`96`)

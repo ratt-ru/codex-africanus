@@ -4,16 +4,10 @@
 """The setup script."""
 
 import os
-import sys
 from setuptools import setup, find_packages
-
-PY2 = sys.version_info[0] == 2
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
-
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
 
 # requirements
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
@@ -33,9 +27,10 @@ if not on_rtd:
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
     'dask': ['dask[array] >= 1.1.0'],
-    'jax': ['jax == 0.1.16', 'jaxlib == 0.1.6'],
+    'jax': ['jax == 0.1.27', 'jaxlib == 0.1.14'],
     'scipy': ['scipy >= 1.0.0'],
-    'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
+    'astropy': ['astropy >= 2.0.0, < 3.0; python_version <= "2.7"',
+                'astropy >= 3.0; python_version >= "3.0"'],
     'python-casacore': ['python-casacore >= 2.2.1'],
     'testing': ['pytest', 'pytest-runner']
 }
@@ -46,8 +41,8 @@ _all_extras = extras_require.values()
 extras_require['complete'] = sorted(set(sum(_non_cuda_extras, [])))
 extras_require['complete-cuda'] = sorted(set(sum(_all_extras, [])))
 
-setup_requirements = ['pytest-runner', ]
-test_requirements = (['pytest'] +
+setup_requirements = []
+test_requirements = (extras_require['testing'] +
                      extras_require['astropy'] +
                      extras_require['python-casacore'] +
                      extras_require['dask'] +
@@ -76,7 +71,8 @@ setup(
     extras_require=extras_require,
     install_requires=requirements,
     license="GNU General Public License v2",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
+    long_description_content_type='text/x-rst',
     include_package_data=True,
     keywords='codex-africanus',
     name='codex-africanus',
@@ -85,6 +81,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.1.4',
+    version='0.1.8',
     zip_safe=False,
 )

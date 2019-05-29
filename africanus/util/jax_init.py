@@ -14,4 +14,4 @@ try:
 except ImportError:
     pass
 else:
-    jax.config.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", True)
