@@ -6,27 +6,14 @@ from __future__ import print_function
 
 import numpy as np
 import numba
+from africanus.calibration.utils import check_type
 from africanus.averaging.support import unique_time
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag):
-    """
-    Computes the jhj and jhr required for phase only calibration assuming scalar
-    gains and that off diagonal correlations (i.e. xy, yx or rl, lr) are zero.
-    Only computes the diagonal of jhj.
-    Inputs:
-    model       - (n_dir, n_row, n_fre, n_cor) complex array containg model data 
-                  for all directions
-    residual    - (n_row, n_fre, n_cor) complex array containg residual
-    gains       - (n_tim, n_ant, n_fre, n_dir, n_cor) complex array containing current estimate of gains
-    antenna1    - (n_row) int array containing antenna1 column
-    antenna2    - (n_row) int array containing antenna2 column
-    time_indices- (n_tim) int array containing change points for unique time stamps
-    counts      - (n_tim) int array containing counts of unique time in time
-    flag        - (n_row, n_fre, n_cor) bool array containing flags
-    """
+def jhj_and_jhr(time_indices, antenna1, antenna2, counts, 
+                jones, residual, model, flag):
     # get dimensions
     n_dir, n_row, n_chan, n_cor = model.shape
     assert n_cor == 1 or n_cor == 2
@@ -69,11 +56,12 @@ def jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts
     return jhj, jhr
 
 @numba.jit(nopython=True, nogil=True, cache=True)
-def phase_only_GN(model, data, weight, antenna1, antenna2, time, flag,
-                           tol=1e-4, maxiter=100):
+def phase_only_GN(times_indices, antenna1, antenna2, 
+                  counts, jones, vis, flag, model, 
+                  weight, tol=1e-4, maxiter=100):
     # whiten data
     sqrtweights = np.sqrt(weight)
-    data *= sqrtweights
+    vis *= sqrtweights
     model *= sqrtweights[None]
     
     # get dimensions
@@ -90,29 +78,29 @@ def phase_only_GN(model, data, weight, antenna1, antenna2, time, flag,
     n_tim = time_indices.size
     
     # set initial guess for the gains
-    gains = np.ones((n_tim, n_ant, n_chan, n_dir, n_cor), dtype=np.complex128)
+    jones = np.ones((n_tim, n_ant, n_chan, n_dir, n_cor), dtype=np.complex128)
 
     eps = 1.0
     k = 0
     while eps > tol and k < maxiter:
         # keep track of old phases
-        phases = np.angle(gains)
+        phases = np.angle(jones)
         
         # get residual
-        residual = residual_vis(model, data, gains, antenna1, antenna2, time_indices, counts, flag)
+        residual = residual_vis(time_indices, antenna1, antenna2, counts, jones, data, flag, model)
 
         # get diag(jhj) andf jhr
         jhj, jhr = jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag)
         
         # implement update
         phases_new = phases + (jhr/jhj).real 
-        gains = np.exp(1.0j * phases_new)
+        jones = np.exp(1.0j * phases_new)
 
         # check convergence/iteration control
         eps = np.abs(phases_new - phases).max()
         k += 1
         # print("At iteration %i max diff = %f" % (k, eps))
-    return gains, jhj, jhr, k
+    return jones, jhj, jhr, k
 
 PHASE_CALIBRATION_DOCS = DocstringTemplate("""
 Performs phase-only maximum likelihood 
@@ -159,6 +147,58 @@ k: int
 
 try:
     phase_only_GN.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
+                                    array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
+
+JHJ_AND_JHR_DOCS = DocstringTemplate("""
+Computes the diagonal of the Hessian and
+the residual projected in to gain space. 
+These are the terms required to perform
+phase-only maximum likelihood calibration
+assuming scalar or diagonal 
+inputs.
+
+Parameters
+----------
+model : $(array_type)
+    Model data values of shape :code:`(dir, row, chan, corr)`.
+data : $(array_type)
+    Data values of shape :code:`(row, chan, corr)`.
+weight : $(array_type)
+    Weight spectrum of shape :code:`(row, chan, corr)`.
+    If the channel axis is missing weights are duplicated 
+    for each channel.
+antenna1 : $(array_type)
+    First antenna indices of shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Second antenna indices of shape :code:`(row,)`
+time : $(array_type)
+    Time values of shape :code:`(row,)`
+flag : $(array_type)
+    Flag data of shape :code:`(row, chan, corr)`.
+tol : float, optional
+    The tolerance of the solver. Defaults to 1e-4
+maxiter: int, optional
+    The maximum number of iterations. Defaults to 100.
+
+Returns
+-------
+gains: $(array_type)
+    Gain solutions of shape :code:`(time, ant, chan, dir, corr)`.
+jhj: $(array_type)
+    The diagonal of the Hessian of 
+    shape :code:`(time, ant, chan, dir, corr)`.
+jhr: $(array_type)
+    Residuals projected into gain space 
+    of shape :code:`(time, ant, chan, dir, corr)`.
+k: int
+    Number of iterations  
+""")
+
+
+try:
+    jhj_and_jhr.__doc__ = JHJ_AND_JHR_DOCS.substitute(
                                     array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
