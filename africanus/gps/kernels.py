@@ -7,6 +7,7 @@ from __future__ import print_function
 import numpy as np
 from africanus.gps.utils import abs_diff
 
+
 def exponential_squared(x, xp, sigmaf, l):
     """
     Create exponential squared covariance function between inputs x and xp

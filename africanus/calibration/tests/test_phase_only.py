@@ -5,14 +5,13 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-np.random.seed(42)
-from numpy.testing import assert_array_equal, assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal
 import pytest
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration import phase_only_GN
 from africanus.rime.predict import predict_vis
-
+np.random.seed(42)
 n_time = 32
 n_chan = 16
 n_ant = 7
@@ -20,12 +19,14 @@ n_bl = n_ant*(n_ant-1)//2
 n_row = n_bl*n_time
 n_cor = 2
 
+
 @pytest.fixture
 def give_lm(n_dir):
-    l = 0.1*np.random.randn(n_dir)
-    m = 0.1*np.random.randn(n_dir)
-    lm = np.vstack((l, m)).T
-    return l, m, lm
+    ls = 0.1*np.random.randn(n_dir)
+    ms = 0.1*np.random.randn(n_dir)
+    lm = np.vstack((ls, ms)).T
+    return lm
+
 
 @pytest.fixture
 def give_flux(n_dir):
@@ -38,8 +39,8 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     antenna2 = np.zeros(n_row, dtype=np.int16)
     time = np.zeros(n_row, dtype=np.float32)
     uvw = np.zeros((n_row, 3), dtype=np.float32)
-    unique_time = np.linspace(0,1,n_time)
-    freq = np.linspace(1e9,2e9,n_chan)
+    unique_time = np.linspace(0, 1, n_time)
+    freq = np.linspace(1e9, 2e9, n_chan)
     for i in range(n_time):
         row = 0
         for p in range(n_ant):
@@ -53,7 +54,7 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     # simulate visibilities
     model_data = np.zeros((n_row, n_chan, n_dir, n_cor), dtype=np.complex64)
     # make up some sources
-    l, m, lm = give_lm(n_dir)
+    lm = give_lm(n_dir)
     flux = give_flux(n_dir)
     # simulate model data (pure Stokes I)
     for dir in range(n_dir):
@@ -61,24 +62,30 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
         this_flux = np.tile(flux[dir], (n_chan)).reshape(1, n_chan)
         model_tmp = im_to_vis(this_flux, uvw, this_lm, freq)
         model_data[:, :, dir, 0] = model_tmp
-        model_data[:, :, dir, 1] = model_tmp 
+        model_data[:, :, dir, 1] = model_tmp
     assert not np.isnan(model_data).any()
     # simulate gains (just radnomly scattered around 1 for now)
     jones = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)
     if sigma_f:
-        jones += sigma_f*(np.random.randn(n_time, n_ant, n_chan, n_dir, n_cor) +\
-           1.0j*np.random.randn(n_time, n_ant, n_chan, n_dir, n_cor))
+        jones += sigma_f*(
+            np.random.randn(n_time, n_ant, n_chan, n_dir, n_cor) +
+            1.0j*np.random.randn(n_time, n_ant, n_chan, n_dir, n_cor))
         assert (np.abs(jones) > 1e-5).all()
         assert not np.isnan(jones).any()
     # get vis
     time_index = np.unique(time, return_inverse=True)[1]
-    jones_tmp = np.transpose(jones, [3,0,1,2,4])
+    jones_tmp = np.transpose(jones, [3, 0, 1, 2, 4])
     model_tmp = np.transpose(model_data, [2, 0, 1, 3])
-    vis = predict_vis(time_index, antenna1, antenna2, source_coh=model_tmp, dde1_jones=jones_tmp, dde2_jones=jones_tmp)
+    vis = predict_vis(
+        time_index, antenna1, antenna2,
+        source_coh=model_tmp,
+        dde1_jones=jones_tmp,
+        dde2_jones=jones_tmp)
     assert not np.isnan(vis).any()
     # add noise
     if sigma_n:
-        vis += sigma_n*(np.random.randn(n_row, n_chan, n_cor) + 1.0j*np.random.randn(n_row, n_chan, n_cor)) 
+        vis += sigma_n*(np.random.randn(n_row, n_chan, n_cor) +
+                        1.0j*np.random.randn(n_row, n_chan, n_cor))
     weights = np.ones((n_row, n_chan, n_cor), dtype=np.float32)
     if sigma_n:
         weights /= sigma_n**2
@@ -93,6 +100,7 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     data_dict["FLAG"] = flag
     data_dict['JONES'] = jones
     return data_dict
+
 
 def test_phase_only_diag_diag():
     """
@@ -117,11 +125,15 @@ def test_phase_only_diag_diag():
     # calibrate the data
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)
     precision = 5
-    gains, jhj, jhr, k = phase_only_GN(time_indices, ant1, ant2, counts, jones0, vis, flag, model, weight, tol=10**(-precision), maxiter=100)
+    gains, jhj, jhr, k = phase_only_GN(
+        time_indices, ant1, ant2, counts,
+        jones0, vis, flag, model, weight,
+        tol=10**(-precision), maxiter=100)
     # check that phase differences are correct
     for p in range(n_ant):
         for q in range(p):
             phase_diff_true = np.angle(jones[:, p] * np.conj(jones[:, q]))
             phase_diff = np.angle(gains[:, p] * np.conj(gains[:, q]))
-            assert_array_almost_equal(phase_diff_true, phase_diff, decimal=precision-1)
+            assert_array_almost_equal(
+                phase_diff_true, phase_diff, decimal=precision-1)
     return

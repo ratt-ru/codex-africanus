@@ -5,17 +5,16 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import numba
 from functools import wraps
 from africanus.calibration.utils import check_type
-from africanus.averaging.support import unique_time
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis
-from africanus.util.numba import is_numba_type_none, generated_jit, njit
+from africanus.util.numba import generated_jit, njit
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
+
 
 def jacobian_factory(mode):
     if mode == DIAG_DIAG:
@@ -29,8 +28,9 @@ def jacobian_factory(mode):
             out[...] = 0
     return njit(nogil=True)(jacobian)
 
+
 @generated_jit(nopython=True, nogil=True, cache=True)
-def jhj_and_jhr(time_indices, antenna1, antenna2, counts, 
+def jhj_and_jhr(time_indices, antenna1, antenna2, counts,
                 jones, residual, model, flag):
 
     mode = check_type(jones, residual)
@@ -41,24 +41,24 @@ def jhj_and_jhr(time_indices, antenna1, antenna2, counts,
     jacobian = jacobian_factory(mode)
 
     @wraps(jhj_and_jhr)
-    def _jhj_and_jhr_fn(time_indices, antenna1, antenna2, counts, 
+    def _jhj_and_jhr_fn(time_indices, antenna1, antenna2, counts,
                         jones, residual, model, flag):
         jones_shape = np.shape(jones)
-        tmp_out_array = np.zeros_like(jones[0,0,0,0], dtype=jones.dtype)
+        tmp_out_array = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
         n_tim = jones_shape[0]
         n_ant = jones_shape[1]
         n_chan = jones_shape[2]
         n_dir = jones_shape[3]
 
-        jhr = np.zeros(jones.shape, dtype=jones.dtype) 
+        jhr = np.zeros(jones.shape, dtype=jones.dtype)
         jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
-        
+
         for t in range(n_tim):
-            I = np.arange(time_indices[t], time_indices[t] + counts[t])
+            ind = np.arange(time_indices[t], time_indices[t] + counts[t])
             for ant in range(n_ant):
                 # find where either antenna == ant
                 # these will be mutually exclusive since no autocorrs
-                for row in I:
+                for row in ind:
                     if antenna1[row] == ant or antenna2[row] == ant:
                         p = antenna1[row]
                         q = antenna2[row]
@@ -67,19 +67,30 @@ def jhj_and_jhr(time_indices, antenna1, antenna2, counts,
                         elif ant == q:
                             sign = -1.0j
                         else:
-                            raise RuntimeError("Got impossible antenna number. This is a bug")
+                            raise RuntimeError(
+                                "Got impossible antenna number. This is a bug")
                         for nu in range(n_chan):
                             if not np.any(flag[row, nu]):
                                 for s in range(n_dir):
-                                    jacobian(jones[t, p, nu, s], model[row, nu, s], jones[t, q, nu, s], sign, tmp_out_array)
-                                    jhj[t, ant, nu, s] += (np.conj(tmp_out_array) * tmp_out_array).real
-                                    jhr[t, ant, nu, s] += np.conj(tmp_out_array) * residual[row, nu]
+                                    jacobian(
+                                        jones[t, p, nu, s],
+                                        model[row, nu, s],
+                                        jones[t, q, nu, s],
+                                        sign,
+                                        tmp_out_array)
+                                    jhj[t, ant, nu,
+                                        s] += (np.conj(tmp_out_array) *
+                                               tmp_out_array).real
+                                    jhr[t, ant, nu,
+                                        s] += (np.conj(tmp_out_array) *
+                                               residual[row, nu])
         return jhj, jhr
     return _jhj_and_jhr_fn
 
-def phase_only_GN(time_indices, antenna1, antenna2, 
+
+def phase_only_GN(time_indices, antenna1, antenna2,
                   counts, jones, vis, flag, model,
-                  weight, tol=1e-4, maxiter=100): 
+                  weight, tol=1e-4, maxiter=100):
     # whiten data
     sqrtweights = np.sqrt(weight)
     vis *= sqrtweights
@@ -90,26 +101,29 @@ def phase_only_GN(time_indices, antenna1, antenna2,
     while eps > tol and k < maxiter:
         # keep track of old phases
         phases = np.angle(jones)
-        
+
         # get residual
-        residual = residual_vis(time_indices, antenna1, antenna2, counts, jones, vis, flag, model)
+        residual = residual_vis(time_indices, antenna1,
+                                antenna2, counts, jones, vis, flag, model)
 
         # get diag(jhj) and jhr
-        jhj, jhr = jhj_and_jhr(time_indices, antenna1, antenna2, counts, jones, residual, model, flag)
+        jhj, jhr = jhj_and_jhr(time_indices, antenna1,
+                               antenna2, counts, jones, residual, model, flag)
 
         # implement update
-        phases_new = phases + (jhr/jhj).real 
+        phases_new = phases + (jhr/jhj).real
         jones = np.exp(1.0j * phases_new)
 
         # check convergence/iteration control
         eps = np.abs(phases_new - phases).max()
         k += 1
-        
+
     return jones, jhj, jhr, k
 
+
 PHASE_CALIBRATION_DOCS = DocstringTemplate("""
-Performs phase-only maximum likelihood 
-calibration assuming scalar or diagonal 
+Performs phase-only maximum likelihood
+calibration assuming scalar or diagonal
 inputs.
 
 Parameters
@@ -120,7 +134,7 @@ data : $(array_type)
     Data values of shape :code:`(row, chan, corr)`.
 weight : $(array_type)
     Weight spectrum of shape :code:`(row, chan, corr)`.
-    If the channel axis is missing weights are duplicated 
+    If the channel axis is missing weights are duplicated
     for each channel.
 antenna1 : $(array_type)
     First antenna indices of shape :code:`(row,)`.
@@ -140,13 +154,13 @@ Returns
 gains: $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`.
 jhj: $(array_type)
-    The diagonal of the Hessian of 
+    The diagonal of the Hessian of
     shape :code:`(time, ant, chan, dir, corr)`.
 jhr: $(array_type)
-    Residuals projected into gain space 
+    Residuals projected into gain space
     of shape :code:`(time, ant, chan, dir, corr)`.
 k: int
-    Number of iterations  
+    Number of iterations
 """)
 
 
@@ -158,11 +172,10 @@ except AttributeError:
 
 JHJ_AND_JHR_DOCS = DocstringTemplate("""
 Computes the diagonal of the Hessian and
-the residual projected in to gain space. 
+the residual projected in to gain space.
 These are the terms required to perform
 phase-only maximum likelihood calibration
-assuming scalar or diagonal 
-inputs.
+assuming scalar or diagonal inputs.
 
 Parameters
 ----------
@@ -172,7 +185,7 @@ data : $(array_type)
     Data values of shape :code:`(row, chan, corr)`.
 weight : $(array_type)
     Weight spectrum of shape :code:`(row, chan, corr)`.
-    If the channel axis is missing weights are duplicated 
+    If the channel axis is missing weights are duplicated
     for each channel.
 antenna1 : $(array_type)
     First antenna indices of shape :code:`(row,)`.
@@ -192,13 +205,13 @@ Returns
 gains: $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`.
 jhj: $(array_type)
-    The diagonal of the Hessian of 
+    The diagonal of the Hessian of
     shape :code:`(time, ant, chan, dir, corr)`.
 jhr: $(array_type)
-    Residuals projected into gain space 
+    Residuals projected into gain space
     of shape :code:`(time, ant, chan, dir, corr)`.
 k: int
-    Number of iterations  
+    Number of iterations
 """)
 
 

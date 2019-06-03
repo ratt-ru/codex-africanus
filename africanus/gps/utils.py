@@ -6,7 +6,8 @@ from __future__ import print_function
 
 import numpy as np
 
-def abs_diff(x,xp):
+
+def abs_diff(x, xp):
     """
     Gets vectorised differences between x and xp
     :param x: NxD array of floats (inputs1)
@@ -15,7 +16,7 @@ def abs_diff(x,xp):
     try:
         N, D = x.shape
         Np, D = xp.shape
-    except:
+    except Exception:
         N = x.size
         D = 1
         Np = xp.size
