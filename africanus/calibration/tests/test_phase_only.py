@@ -20,7 +20,6 @@ n_row = n_bl*n_time
 n_cor = 2
 
 
-@pytest.fixture
 def give_lm(n_dir):
     ls = 0.1*np.random.randn(n_dir)
     ms = 0.1*np.random.randn(n_dir)
@@ -28,7 +27,6 @@ def give_lm(n_dir):
     return lm
 
 
-@pytest.fixture
 def give_flux(n_dir):
     return 0.1 + np.random.random(n_dir)
 

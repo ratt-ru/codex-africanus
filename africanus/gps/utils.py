@@ -24,7 +24,7 @@ def abs_diff(x, xp):
         xp = np.reshape(xp, (Np, D))
     xD = np.zeros([D, N, Np])
     xpD = np.zeros([D, N, Np])
-    for i in xrange(D):
+    for i in range(D):
         xD[i] = np.tile(x[:, i], (Np, 1)).T
         xpD[i] = np.tile(xp[:, i], (N, 1))
     return np.linalg.norm(xD - xpD, axis=0)
