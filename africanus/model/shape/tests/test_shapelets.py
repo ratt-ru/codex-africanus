@@ -1,13 +1,79 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
-import pytest
-import shapelets as sl
+#import pytest
+from shapelets import shapelet as sl
+from scipy.special import factorial, hermite
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from africanus.model.shape import shapelet as nb_shapelet
 
 Fs = np.fft.fftshift
+
+def shapelet_img_space(xx, n, beta):
+    basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
+    exponential_component = hermite(n)(xx / beta) * np.exp((-0.5) * (xx**2) * (beta **(-2)))
+    return basis_component * exponential_component
+
+def test_image_space():
+        # Define all respective values for nrow, ncoeff, etc
+        beta = [1., 1.]
+        npix = 25
+        nrow = npix ** 2
+        nchan = 1
+        ncoeffs = [1, 1]
+        nsrc = 1
+        
+        # Create a regular uv grid. The lm grid gets generated based on this
+        u_range = [-3 * np.sqrt(2) * (beta[0] ** (-1)), 3 * np.sqrt(2) * (beta[0] ** (-1))]
+        v_range = [-3 * np.sqrt(2) * (beta[1] ** (-1)), 3 * np.sqrt(2) * (beta[1] ** (-1))]
+        du = (u_range[1] - u_range[0]) / npix
+        dv = (v_range[1] - v_range[0]) / npix
+        freqs_u = Fs(np.fft.fftfreq(npix, d=du))
+        freqs_v = Fs(np.fft.fftfreq(npix, d=dv))
+        uu, vv = np.meshgrid(freqs_u, freqs_v)
+        uv = np.vstack((uu.flatten(), vv.flatten()))
+
+        # Create an lm grid from the regular uv grid
+        max_u = np.max(uv[:, 0])
+        max_v = np.max(uv[:, 1])
+        delta_x = 1/(2 * max_u) if max_u > max_v else 1/(2 * max_v)
+        x_range = [-3 * np.sqrt(2) * beta[0], 3 * np.sqrt(2) * beta[0]]
+        y_range = [-3 * np.sqrt(2) * beta[1], 3 * np.sqrt(2) * beta[1]]
+        npix_x = int((x_range[1] - x_range[0]) / delta_x)
+        npix_y = int((y_range[1] - y_range[0]) / delta_x)
+        l_vals = np.linspace(x_range[0], x_range[1], npix_x)
+        m_vals = np.linspace(y_range[0], y_range[1], npix_y)
+        ll, mm = np.meshgrid(l_vals, m_vals)
+        lm = np.vstack((ll.flatten(), mm.flatten()))
+
+        ###############################################################
+        ################ BEGIN IMAGE SPACE TEST #######################
+        ###############################################################
+        # Create input arrays
+        img_coords = np.zeros((nrow, 3))
+        img_coeffs = np.random.randn(nsrc, ncoeffs[0], ncoeffs[1])
+        img_beta = np.zeros((nsrc, 2))
+        frequency = np.empty((nchan), dtype=np.float)
+
+        # Assign values to input arrays
+        img_coords[:, :1], img_coords[:, 2] = lm, 0
+        img_beta[0, :] = beta[:]
+        frequency[:] = 1
+
+        # Create output arrays
+        gf_shapelets = np.zeros((nrow), dtype=np.float)
+        pt_shapelets = np.zeros((nrow))
+
+        for n1 in range(ncoeffs[0]):
+                for n2 in range(ncoeffs[1]):
+                        sl_dimensional_basis = sl.shapelet.dimBasis2d(n1, n2, beta=beta)
+                        c = img_coeffs[0, n1, n2]
+                        pt_basis_func = shapelet_img_space(img_coords[:, 0], n1, beta[0]) * shapelet_img_space(img_coords[:, 1], n2, beta[1])
+                        shapelets_basis_func = sl.shapelet.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
+                        gf_shapelets[:] += c * shapelets_basis_func
+                        pt_shapelets[:] += c * pt_basis_func
+        assert np.allclose(gf_shapelets, pt_shapelets)
 
 def _test_shapelet():
     npix = 15
@@ -128,7 +194,7 @@ def _test_dask_shapelets():
         da_shapelets = da_shapelet(da_coords, da_coeffs, da_beta).compute()
         assert_array_almost_equal(da_shapelets, np_shapelets)
 
-def test_single_shapelet():
+def _test_single_shapelet():
     npix = 35
     nrow = npix **2
     nsrc = 1
