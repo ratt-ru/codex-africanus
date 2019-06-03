@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
-import pytest
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration.utils import residual_vis, correct_vis

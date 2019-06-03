@@ -17,7 +17,7 @@ def kron_matvec(A, b):
     D = A.shape[0]
     N = b.size
     x = b
-    for d in xrange(D):
+    for d in range(D):
         Gd = A[d].shape[0]
         X = np.reshape(x, (Gd, N//Gd))
         Z = np.einsum("ab,bc->ac", A[d], X)
@@ -34,7 +34,7 @@ def kron_cholesky(A):
     """
     D = A.shape[0]
     L = np.zeros_like(A)
-    for i in xrange(D):
+    for i in range(D):
         try:
             L[i] = np.linalg.cholesky(A[i])
         except Exception:  # add jitter
