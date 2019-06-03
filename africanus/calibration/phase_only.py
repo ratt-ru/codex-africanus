@@ -27,8 +27,8 @@ def jhj_and_jhr(time_indices, antenna1, antenna2, counts,
     assert n_row == n_tim * n_bl
 
     # initialise
-    jhr = np.zeros(gains.shape, dtype=np.complex128) 
-    jhj = np.zeros(gains.shape, dtype=np.float64)
+    jhr = np.zeros(jones.shape, dtype=np.complex128) 
+    jhj = np.zeros(jones.shape, dtype=np.float64)
     
     for t in range(n_tim):
         I = np.arange(time_indices[t], time_indices[t] + counts[t])
@@ -49,16 +49,18 @@ def jhj_and_jhr(time_indices, antenna1, antenna2, counts,
                                         sign = -1.0j
                                     else:
                                         print("Something has gone wrong")               
-                                    tmp = sign * gains[t, p, nu, s, c] * model[s, row, nu, c] * np.conj(gains[t, q, nu, s, c])
+                                    tmp = sign * jones[t, p, nu, s, c] * \
+                                                 model[s, row, nu, c] * \
+                                                 np.conj(jones[t, q, nu, s, c])
                                     jhj[t, ant, nu, s, c] += (np.conj(tmp) * tmp).real
                                     jhr[t, ant, nu, s, c] += np.conj(tmp) * residual[row, nu, c]
 
     return jhj, jhr
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def phase_only_GN(times_indices, antenna1, antenna2, 
-                  counts, jones, vis, flag, model, 
-                  weight, tol=1e-4, maxiter=100):
+#@numba.jit(nopython=True, nogil=True, cache=True)
+def phase_only_GN(time_indices, antenna1, antenna2, 
+                  counts, vis, flag, model, weight, 
+                  jones=None, tol=1e-4, maxiter=100):
     # whiten data
     sqrtweights = np.sqrt(weight)
     vis *= sqrtweights
@@ -70,15 +72,12 @@ def phase_only_GN(times_indices, antenna1, antenna2,
     n_ant = np.maximum(antenna1.max(), antenna2.max()) + 1
     n_bl = n_ant * (n_ant - 1)//2
     
-    # get unique times
-    tmp = unique_time(time)
-    time_indices = tmp[1]
-    counts = tmp[3]
-    #_, time_indices, _, counts = 
+    # number of times
     n_tim = time_indices.size
     
     # set initial guess for the gains
-    jones = np.ones((n_tim, n_ant, n_chan, n_dir, n_cor), dtype=np.complex128)
+    if jones is None:
+        jones = np.ones((n_tim, n_ant, n_chan, n_dir, n_cor), dtype=np.complex128)
 
     eps = 1.0
     k = 0
@@ -87,10 +86,10 @@ def phase_only_GN(times_indices, antenna1, antenna2,
         phases = np.angle(jones)
         
         # get residual
-        residual = residual_vis(time_indices, antenna1, antenna2, counts, jones, data, flag, model)
+        residual = residual_vis(time_indices, antenna1, antenna2, counts, jones, vis, flag, model)
 
         # get diag(jhj) andf jhr
-        jhj, jhr = jhj_and_jhr(model, residual, gains, antenna1, antenna2, time_indices, counts, flag)
+        jhj, jhr = jhj_and_jhr(model, residual, jones, antenna1, antenna2, time_indices, counts, flag)
         
         # implement update
         phases_new = phases + (jhr/jhj).real 

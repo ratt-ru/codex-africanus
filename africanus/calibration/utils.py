@@ -14,6 +14,7 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
+# @numba.jit(nopython=True, nogil=True, cache=True)
 def check_type(jones, vis):
     """
     Determines which calibration scenario to apply i.e.
@@ -29,18 +30,13 @@ def check_type(jones, vis):
         or :code:`(row, chan, corr, corr)`
 
     """
-    vis_shape = vis.shape
-    vis_axes_count = len(vis_shape)
-    jones_shape = jones.shape
-    jones_axes_count = len(jones_shape)
+    vis_axes_count = vis.ndim
+    jones_axes_count = jones.ndim
     if vis_axes_count == 3:
         mode = DIAG_DIAG
-        shape = vis_shape
         if jones_axes_count != 5:
-            raise(RuntimeError, "Jones axes not\
-                compatible with visibility axes.\
-                Expected length 5 but got length\
-                %i"%jones_axes_count)
+            raise RuntimeError("Jones axes not compatible with visibility axes.\
+                                Expected length 5 but got length %d"%jones_axes_count)
 
     elif vis_axes_count == 4:
          if jones_axes_count == 5:
@@ -49,25 +45,25 @@ def check_type(jones, vis):
          elif jones_axes_count == 6:
              mode = FULL
          else:
-             raise(RuntimeError, "Jones term has incorrect shape")
+             raise RuntimeError("Jones term has incorrect shape")
     else:
-        raise(RuntimeError, "Visibility data has incorrect shape")
+        raise RuntimeError("Visibility data has incorrect shape")
 
     return mode
 
 
 def jones_inverse_mul_factory(mode):
     if mode == DIAG_DIAG:
-        def jones_inverse_mul(a1j, blj, a2j):
-            blj /= (a1j*np.conj(a2j))
+        def jones_inverse_mul(a1j, blj, a2j, out):
+            out[...] = blj/(a1j*np.conj(a2j))
     elif mode == DIAG:
-        def jones_inverse_mul(a1j, blj, a2j):
-            blj[0,0] /= (a1j[0]*np.conj(a2j[0]))
-            blj[0,1] /= (a1j[0]*np.conj(a2j[1]))
-            blj[1,0] /= (a1j[1]*np.conj(a2j[0]))
-            blj[1,1] /= (a1j[1]*np.conj(a2j[1]))
+        def jones_inverse_mul(a1j, blj, a2j, out):
+            out[0,0] = blj[0,0]/(a1j[0]*np.conj(a2j[0]))
+            out[0,1] = blj[0,1]/(a1j[0]*np.conj(a2j[1]))
+            out[1,0] = blj[1,0]/(a1j[1]*np.conj(a2j[0]))
+            out[1,1] = blj[1,1]/(a1j[1]*np.conj(a2j[1]))
     elif mode == FULL:
-        def jones_inverse_mul(a1j, blj, a2j):
+        def jones_inverse_mul(a1j, blj, a2j, out):
             # get determinant
             deta1j = a1j[0,0]*a1j[1,1]-a1j[0,1]*a1j[1,0]
             # compute inverse
@@ -87,97 +83,112 @@ def jones_inverse_mul_factory(mode):
             t2 = a01*blj[1,0]
             t3 = a00*blj[0,1]
             t4 = a01*blj[1,1]
-            t5 = a10*blj[0,0]
-            t6 = a11*blj[1,0]
-            t7 = a10*blj[0,1]
-            t8 = a11*blj[1,1]
             # overwrite with result
-            blj[0,0] = t1*b00+\
+            out[0,0] = t1*b00+\
                        t2*b00+\
                        t3*b10+\
                        t4*b10
-            blj[0,1] = t1*b01+\
+            out[0,1] = t1*b01+\
                        t2*b01+\
                        t3*b11+\
                        t4*b11
-            blj[1,0] = t5*b00+\
-                       t6*b00+\
-                       t7*b10+\
-                       t8*b10
-            blj[1,1] = t5*b01+\
-                       t6*b01+\
-                       t7*b11+\
-                       t8*b11
+            t1 = a10*blj[0,0]
+            t2 = a11*blj[1,0]
+            t3 = a10*blj[0,1]
+            t4 = a11*blj[1,1]
+            out[1,0] = t1*b00+\
+                       t2*b00+\
+                       t3*b10+\
+                       t4*b10
+            out[1,1] = t1*b01+\
+                       t2*b01+\
+                       t3*b11+\
+                       t4*b11
+    #return jones_inverse_mul
     return njit(nogil=True)(jones_inverse_mul)
 
 def subtract_model_factory(mode):
     if mode == DIAG_DIAG:
-        def subtract_model(a1j, blj, a2j, model):
-            for s in range(model.shape[0]):
-                blj -= a1j[s]*model[s]*np.conj(a2j[s])
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            out[...] = blj
+            for s in range(n_dir):
+                out -= a1j[s]*model[s]*np.conj(a2j[s])
     elif mode == DIAG:
-        def subtract_model(a1j, blj, a2j, model):
-            for s in range(model.shape[0]):
-                blj[0,0] -= a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
-                blj[0,1] -= a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
-                blj[1,0] -= a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
-                blj[1,1] -= a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            out[...] = blj
+            for s in range(n_dir):
+                out[0,0] -= a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
+                out[0,1] -= a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
+                out[1,0] -= a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
+                out[1,1] -= a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
     elif mode == FULL:
-        def subtract_model(a1j, blj, a2j, model):
-            for s in range(model.shape[0]):
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            for s in range(n_dir):
                 # precompute resuable terms
                 t1 = a1j[s,0,0]*model[s,0,0]
                 t2 = a1j[s,0,1]*model[s,1,0]
                 t3 = a1j[s,0,0]*model[s,0,1]
                 t4 = a1j[s,0,1]*model[s,1,1]
-                t5 = a1j[s,1,0]*model[s,0,0]
-                t6 = a1j[s,1,1]*model[s,1,0]
-                t7 = a1j[s,1,0]*model[s,0,1]
-                t8 = a1j[s,1,1]*model[s,1,1]
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
-                blj[0,0] -= t1*tmp[0,0]+\
-                            t2*tmp[0,0]+\
-                            t3*tmp[1,0]+\
-                            t4*tmp[1,0]
-                blj[0,1] -= t1*tmp[0,1]+\
-                            t2*tmp[0,1]+\
-                            t3*tmp[1,1]+\
-                            t4*tmp[1,1]
-                blj[1,0] -= t5*tmp[0,0]+\
-                            t6*tmp[0,0]+\
-                            t7*tmp[1,0]+\
-                            t8*tmp[1,0]
-                blj[1,1] -= t5*tmp[0,1]+\
-                            t6*tmp[0,1]+\
-                            t7*tmp[1,1]+\
-                            t8*tmp[1,1]
+                out[0,0] = blj[0,0]-\
+                           t1*tmp[0,0]+\
+                           t2*tmp[0,0]+\
+                           t3*tmp[1,0]+\
+                           t4*tmp[1,0]
+                out[0,1] = blj[0,1]-\
+                           t1*tmp[0,1]+\
+                           t2*tmp[0,1]+\
+                           t3*tmp[1,1]+\
+                           t4*tmp[1,1]
+                t1 = a1j[s,1,0]*model[s,0,0]
+                t2 = a1j[s,1,1]*model[s,1,0]
+                t3 = a1j[s,1,0]*model[s,0,1]
+                t4 = a1j[s,1,1]*model[s,1,1]
+                out[1,0] = blj[1,0]-\
+                           t1*tmp[0,0]+\
+                           t2*tmp[0,0]+\
+                           t3*tmp[1,0]+\
+                           t4*tmp[1,0]
+                out[1,1] = blj[1,1]-\
+                           t1*tmp[0,1]+\
+                           t2*tmp[0,1]+\
+                           t3*tmp[1,1]+\
+                           t4*tmp[1,1]
     return njit(nogil=True)(subtract_model)
             
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def correct_vis(time_indices, antenna1, antenna2,
-                jones, vis, flag):
+                counts, jones, vis, flag):
 
     mode = check_type(jones, vis)
 
     jones_inverse_mul = jones_inverse_mul_factory(mode)
     @wraps(correct_vis)
     def _correct_vis_fn(time_indices, antenna1, antenna2,
-                        counts, jones, vis):
-        n_tim = time_indices.size
-        vis_shape = vis.shape
-        n_chan = vis_shape[1]
+                        counts, jones, vis, flag):
+        jones_shape = np.shape(jones)
+        n_tim = jones_shape[0]
+        n_dir = jones_shape[3]
+        if n_dir > 1:
+            raise RuntimeError("Jones has n_dir > 1.\
+                                Cannot correct for direction dependent gains")
+        n_chan = jones_shape[2]
+        corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
         for t in range(n_tim):
             for row in range(time_indices[t], time_indices[t] + counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
-                gp = jones[t, p].squeeze()  # squeezes out dir axis
-                gq = jones[t, q].squeeze()
+                gp = jones[t, p] 
+                gq = jones[t, q]
                 for nu in range(n_chan):
-                    if not any(flag[row, nu]):
-                        jones_inverse_mul(gp, vis[row, nu], gq)
-        return vis
+                    if not np.any(flag[row, nu]):
+                        jones_inverse_mul(gp[nu, 0], vis[row, nu], gq[nu, 0], corrected_vis[row, nu])
+        return corrected_vis
 
     return _correct_vis_fn
 
@@ -185,17 +196,16 @@ def correct_vis(time_indices, antenna1, antenna2,
 @generated_jit(nopython=True, nogil=True, cache=True)
 def residual_vis(time_indices, antenna1, antenna2, 
                  counts, jones, vis, flag, model):
-
-    mode = check_type(jones, vis)
     
+    mode = check_type(jones, vis)
     subtract_model = subtract_model_factory(mode)
-
     @wraps(residual_vis)
     def _residual_vis_fn(time_indices, antenna1, antenna2, 
                          counts, jones, vis, flag, model):
-        n_tim = time_indices.size
-        vis_shape = vis.shape
+        n_tim = np.shape(time_indices)[0]
+        vis_shape = np.shape(vis)
         n_chan = vis_shape[1]
+        residual = np.zeros(vis_shape, dtype=vis.dtype)
         for t in range(n_tim):
             for row in range(time_indices[t], time_indices[t] + counts[t]):
                 p = int(antenna1[row])
@@ -203,9 +213,9 @@ def residual_vis(time_indices, antenna1, antenna2,
                 gp = jones[t, p]
                 gq = jones[t, q]
                 for nu in range(n_chan):
-                    if not any(flag[row, nu]):
-                        subtract_model(gp, vis[row,nu], gq, model[:,row,nu])
-        return vis
+                    if not np.any(flag[row, nu]):
+                        subtract_model(gp[nu], vis[row,nu], gq[nu], model[:,row,nu], residual[row, nu])
+        return residual
 
     return _residual_vis_fn
 
@@ -265,7 +275,7 @@ the corrected visibilities are defined as
 
 .. math::
 
-    C_{pq} = G_{p}^{-1} V_{pq} G_{q}^{-\dagger}
+    C_{pq} = G_{p}^{-1} V_{pq} G_{q}^{-H}
 
 The corrected visibilities therefore have
 a non-trivial noise contribution. Note 
