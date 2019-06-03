@@ -6,78 +6,84 @@ from __future__ import print_function
 
 import numpy as np
 import numba
+from functools import wraps
 from africanus.calibration.utils import check_type
 from africanus.averaging.support import unique_time
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+DIAG_DIAG = 0
+DIAG = 1
+FULL = 2
+
+def jacobian_factory(mode):
+    if mode == DIAG_DIAG:
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = sign * a1j * blj * np.conj(a2j)
+    elif mode == DIAG:
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = 0
+    elif mode == FULL:
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = 0
+    return njit(nogil=True)(jacobian)
+
+@generated_jit(nopython=True, nogil=True, cache=True)
 def jhj_and_jhr(time_indices, antenna1, antenna2, counts, 
                 jones, residual, model, flag):
-    # get dimensions
-    n_dir, n_row, n_chan, n_cor = model.shape
-    assert n_cor == 1 or n_cor == 2
-    n_ant = np.maximum(antenna1.max(), antenna2.max()) + 1
-    n_bl = n_ant * (n_ant - 1)//2
-    
-    # get number of times
-    n_tim = time_indices.size
 
-    # Assume this for now
-    assert n_row == n_tim * n_bl
+    mode = check_type(jones, residual)
 
-    # initialise
-    jhr = np.zeros(jones.shape, dtype=np.complex128) 
-    jhj = np.zeros(jones.shape, dtype=np.float64)
-    
-    for t in range(n_tim):
-        I = np.arange(time_indices[t], time_indices[t] + counts[t])
-        for ant in range(n_ant):
-            # find where either antenna == ant
-            # these will be mutually exclusive since no autocorrs
-            for row in I:
-                if antenna1[row] == ant or antenna2[row] == ant:
-                    p = antenna1[row]
-                    q = antenna2[row]
-                    for nu in range(n_chan):
-                        for s in range(n_dir):
-                            for c in range(n_cor):
-                                if not flag[row, nu, c]:
-                                    if ant == p:
-                                        sign = 1.0j
-                                    elif ant == q:
-                                        sign = -1.0j
-                                    else:
-                                        print("Something has gone wrong")               
-                                    tmp = sign * jones[t, p, nu, s, c] * \
-                                                 model[s, row, nu, c] * \
-                                                 np.conj(jones[t, q, nu, s, c])
-                                    jhj[t, ant, nu, s, c] += (np.conj(tmp) * tmp).real
-                                    jhr[t, ant, nu, s, c] += np.conj(tmp) * residual[row, nu, c]
+    if mode:
+        raise NotImplementedError("Only DIAG-DIAG case has been implemented")
 
-    return jhj, jhr
+    jacobian = jacobian_factory(mode)
 
-#@numba.jit(nopython=True, nogil=True, cache=True)
+    @wraps(jhj_and_jhr)
+    def _jhj_and_jhr_fn(time_indices, antenna1, antenna2, counts, 
+                        jones, residual, model, flag):
+        jones_shape = np.shape(jones)
+        tmp_out_array = np.zeros_like(jones[0,0,0,0], dtype=jones.dtype)
+        n_tim = jones_shape[0]
+        n_ant = jones_shape[1]
+        n_chan = jones_shape[2]
+        n_dir = jones_shape[3]
+
+        jhr = np.zeros(jones.shape, dtype=jones.dtype) 
+        jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
+        
+        for t in range(n_tim):
+            I = np.arange(time_indices[t], time_indices[t] + counts[t])
+            for ant in range(n_ant):
+                # find where either antenna == ant
+                # these will be mutually exclusive since no autocorrs
+                for row in I:
+                    if antenna1[row] == ant or antenna2[row] == ant:
+                        p = antenna1[row]
+                        q = antenna2[row]
+                        if ant == p:
+                            sign = 1.0j
+                        elif ant == q:
+                            sign = -1.0j
+                        else:
+                            raise RuntimeError("Got impossible antenna number. This is a bug")
+                        for nu in range(n_chan):
+                            if not np.any(flag[row, nu]):
+                                for s in range(n_dir):
+                                    jacobian(jones[t, p, nu, s], model[row, nu, s], jones[t, q, nu, s], sign, tmp_out_array)
+                                    jhj[t, ant, nu, s] += (np.conj(tmp_out_array) * tmp_out_array).real
+                                    jhr[t, ant, nu, s] += np.conj(tmp_out_array) * residual[row, nu]
+        return jhj, jhr
+    return _jhj_and_jhr_fn
+
 def phase_only_GN(time_indices, antenna1, antenna2, 
-                  counts, vis, flag, model, weight, 
-                  jones=None, tol=1e-4, maxiter=100):
+                  counts, jones, vis, flag, model,
+                  weight, tol=1e-4, maxiter=100): 
     # whiten data
     sqrtweights = np.sqrt(weight)
     vis *= sqrtweights
-    model *= sqrtweights[None]
-    
-    # get dimensions
-    n_dir, n_row, n_chan, n_cor = model.shape
-    assert n_cor == 1 or n_cor == 2
-    n_ant = np.maximum(antenna1.max(), antenna2.max()) + 1
-    n_bl = n_ant * (n_ant - 1)//2
-    
-    # number of times
-    n_tim = time_indices.size
-    
-    # set initial guess for the gains
-    if jones is None:
-        jones = np.ones((n_tim, n_ant, n_chan, n_dir, n_cor), dtype=np.complex128)
+    model *= sqrtweights[:, :, None]
 
     eps = 1.0
     k = 0
@@ -88,9 +94,9 @@ def phase_only_GN(time_indices, antenna1, antenna2,
         # get residual
         residual = residual_vis(time_indices, antenna1, antenna2, counts, jones, vis, flag, model)
 
-        # get diag(jhj) andf jhr
-        jhj, jhr = jhj_and_jhr(model, residual, jones, antenna1, antenna2, time_indices, counts, flag)
-        
+        # get diag(jhj) and jhr
+        jhj, jhr = jhj_and_jhr(time_indices, antenna1, antenna2, counts, jones, residual, model, flag)
+
         # implement update
         phases_new = phases + (jhr/jhj).real 
         jones = np.exp(1.0j * phases_new)
@@ -98,7 +104,7 @@ def phase_only_GN(time_indices, antenna1, antenna2,
         # check convergence/iteration control
         eps = np.abs(phases_new - phases).max()
         k += 1
-        # print("At iteration %i max diff = %f" % (k, eps))
+        
     return jones, jhj, jhr, k
 
 PHASE_CALIBRATION_DOCS = DocstringTemplate("""

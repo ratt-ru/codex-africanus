@@ -51,7 +51,7 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
                 row += 1
     assert time.size == n_row
     # simulate visibilities
-    model_data = np.zeros((n_dir, n_row, n_chan, n_cor), dtype=np.complex64)
+    model_data = np.zeros((n_row, n_chan, n_dir, n_cor), dtype=np.complex64)
     # make up some sources
     l, m, lm = give_lm(n_dir)
     flux = give_flux(n_dir)
@@ -60,8 +60,8 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
         this_lm = lm[dir].reshape(1, 2)
         this_flux = np.tile(flux[dir], (n_chan)).reshape(1, n_chan)
         model_tmp = im_to_vis(this_flux, uvw, this_lm, freq)
-        model_data[dir, :, :, 0] = model_tmp
-        model_data[dir, :, :, 1] = model_tmp 
+        model_data[:, :, dir, 0] = model_tmp
+        model_data[:, :, dir, 1] = model_tmp 
     assert not np.isnan(model_data).any()
     # simulate gains (just radnomly scattered around 1 for now)
     jones = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)
@@ -73,7 +73,8 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     # get vis
     time_index = np.unique(time, return_inverse=True)[1]
     jones_tmp = np.transpose(jones, [3,0,1,2,4])
-    vis = predict_vis(time_index, antenna1, antenna2, source_coh=model_data, dde1_jones=jones_tmp, dde2_jones=jones_tmp)
+    model_tmp = np.transpose(model_data, [2, 0, 1, 3])
+    vis = predict_vis(time_index, antenna1, antenna2, source_coh=model_tmp, dde1_jones=jones_tmp, dde2_jones=jones_tmp)
     assert not np.isnan(vis).any()
     # add noise
     if sigma_n:
@@ -113,16 +114,17 @@ def test_residual_vis():
     jones = data_dict['JONES']
     flag = data_dict['FLAG']
     # split the model and jones terms
-    model_unsubtracted = model[0:1]
-    model_subtract = model[1::]
+    model_unsubtracted = model[:, :, 0:1]
+    model_subtract = model[:, :, 1::]
     jones_unsubtracted = jones[:, :, :, 0:1]
     jones_subtract = jones[:, :, :, 1::]
     # subtract all but one direction
     residual = residual_vis(time_indices, ant1, ant2, counts, jones_subtract, vis, flag, model_subtract)
     # apply gains to the unsubtracted direction
     jones_tmp = np.transpose(jones_unsubtracted, [3,0,1,2,4])
+    model_tmp = np.transpose(model_unsubtracted, [2, 0, 1, 3])
     time_index = np.unique(time, return_inverse=True)[1]
-    vis_unsubtracted = predict_vis(time_index, ant1, ant2, dde1_jones=jones_tmp, source_coh=model_unsubtracted, dde2_jones=jones_tmp)
+    vis_unsubtracted = predict_vis(time_index, ant1, ant2, dde1_jones=jones_tmp, source_coh=model_tmp, dde2_jones=jones_tmp)
     # residual should now be equal to unsubtracted vis
     assert_array_almost_equal(residual, vis_unsubtracted, decimal=5)
     return
@@ -151,6 +153,3 @@ def test_correct_vis():
     model = model.squeeze()
     assert_array_almost_equal(corrected_vis, model, decimal=5)
     return
-
-test_residual_vis()
-test_correct_vis()

@@ -214,7 +214,7 @@ def residual_vis(time_indices, antenna1, antenna2,
                 gq = jones[t, q]
                 for nu in range(n_chan):
                     if not np.any(flag[row, nu]):
-                        subtract_model(gp[nu], vis[row,nu], gq[nu], model[:,row,nu], residual[row, nu])
+                        subtract_model(gp[nu], vis[row,nu], gq[nu], model[row,nu], residual[row, nu])
         return residual
 
     return _residual_vis_fn
@@ -243,8 +243,8 @@ flag : $(array_type)
     Flag data of shape :code:`(row, chan, corr)`
     or :code:`(row, chan, corr, corr)`
 model : $(array_type)
-    Model data values of shape :code:`(dir, row, chan, corr)`
-    or :code:`(dir, row, chan, corr, corr)`.
+    Model data values of shape :code:`(row, chan, dir, corr)`
+    or :code:`(row, chan, dir, corr, corr)`.
 Returns
 -------
 
