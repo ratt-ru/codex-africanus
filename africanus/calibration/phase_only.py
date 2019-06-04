@@ -90,8 +90,8 @@ def jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
 
 
 def phase_only_Gauss_Newton(time_bin_indices, time_bin_counts, antenna1,
-                  antenna2, jones, vis, flag, model,
-                  weight, tol=1e-4, maxiter=100):
+                            antenna2, jones, vis, flag, model,
+                            weight, tol=1e-4, maxiter=100):
     # whiten data
     sqrtweights = np.sqrt(weight)
     vis *= sqrtweights
@@ -166,7 +166,7 @@ gains: $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`
     or shape :code:`(time, ant, chan, dir, corr, corr)`
 jhj: $(array_type)
-    The diagonal of the Hessian of shape 
+    The diagonal of the Hessian of shape
     :code:`(time, ant, chan, dir, corr)` or shape
     :code:`(time, ant, chan, dir, corr, corr)`
 jhr: $(array_type)
@@ -174,7 +174,7 @@ jhr: $(array_type)
     of shape :code:`(time, ant, chan, dir, corr)`
     or shape :code:`(time, ant, chan, dir, corr, corr)`.
 k: int
-    Number of iterations (will equal maxiter if 
+    Number of iterations (will equal maxiter if
     not converged)
 """)
 

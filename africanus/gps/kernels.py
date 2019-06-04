@@ -27,7 +27,7 @@ def exponential_squared(x, xp, sigmaf, l):
         The signal variance hyper-parameter
     l : float
         The length scale hyper-parameter
-    
+
     Returns
     -------
     K : :class:`numpy.ndarray`

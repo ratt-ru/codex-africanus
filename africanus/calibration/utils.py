@@ -181,7 +181,7 @@ def correct_vis(time_bin_indices, time_bin_counts,
         n_chan = jones_shape[2]
         corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
         for t in range(n_tim):
-            for row in range(time_bin_indices[t], 
+            for row in range(time_bin_indices[t],
                              time_bin_indices[t] + time_bin_counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
@@ -212,7 +212,7 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
         n_chan = vis_shape[1]
         residual = np.zeros(vis_shape, dtype=vis.dtype)
         for t in range(n_tim):
-            for row in range(time_bin_indices[t], 
+            for row in range(time_bin_indices[t],
                              time_bin_indices[t] + time_bin_counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])

@@ -124,8 +124,9 @@ def test_residual_vis():
     jones_unsubtracted = jones[:, :, :, 0:1]
     jones_subtract = jones[:, :, :, 1::]
     # subtract all but one direction
-    residual = residual_vis(time_bin_indices, time_bin_counts, 
-                            ant1, ant2, jones_subtract, vis, flag, model_subtract)
+    residual = residual_vis(time_bin_indices, time_bin_counts,
+                            ant1, ant2, jones_subtract, vis,
+                            flag, model_subtract)
     # apply gains to the unsubtracted direction
     jones_tmp = np.transpose(jones_unsubtracted, [3, 0, 1, 2, 4])
     model_tmp = np.transpose(model_unsubtracted, [2, 0, 1, 3])
@@ -160,7 +161,7 @@ def test_correct_vis():
     flag = data_dict['FLAG']
     # correct vis
     corrected_vis = correct_vis(
-        time_bin_indices, time_bin_counts, 
+        time_bin_indices, time_bin_counts,
         ant1, ant2, jones, vis, flag)
     # squeeze out dir axis to get expected model data
     model = model.squeeze()

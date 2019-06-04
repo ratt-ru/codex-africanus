@@ -9,7 +9,7 @@ import numpy as np
 
 def kron_matvec(A, b):
     """
-    Computes the matrix vector product of 
+    Computes the matrix vector product of
     a kronecker matrix in linear time.
 
     Parameters
@@ -50,7 +50,7 @@ def kron_cholesky(A):
         An array of arrays holding
         matrices [K0, K1, ...] where
         :math:`A = K_0 \otimes K_1 \otimes \cdots`
-    
+
     Returns
     -------
     L : :class:`numpy.ndarray`
