@@ -89,7 +89,7 @@ def jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
     return _jhj_and_jhr_fn
 
 
-def phase_only_Gauss_Newton(time_bin_indices, time_bin_counts, antenna1,
+def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
                             antenna2, jones, vis, flag, model,
                             weight, tol=1e-4, maxiter=100):
     # whiten data
@@ -180,7 +180,7 @@ k: int
 
 
 try:
-    phase_only_Gauss_Newton.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
+    phase_only_gauss_newton.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
                                     array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

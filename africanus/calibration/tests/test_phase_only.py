@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
-from africanus.calibration import phase_only_Gauss_Newton
+from africanus.calibration import phase_only_gauss_newton
 from africanus.rime.predict import predict_vis
 
 n_time = 32
@@ -123,7 +123,7 @@ def test_phase_only_diag_diag():
     # calibrate the data
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)
     precision = 5
-    gains, jhj, jhr, k = phase_only_Gauss_Newton(
+    gains, jhj, jhr, k = phase_only_gauss_newton(
         time_bin_indices, time_bin_counts,
         ant1, ant2, jones0, vis,
         flag, model, weight,

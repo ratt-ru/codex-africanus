@@ -54,8 +54,8 @@ Numpy
 .. autosummary::
     residual_vis
     correct_vis
-    phase_only_Gauss_Newton
+    phase_only_gauss_newton
 
 .. autofunction:: residual_vis
 .. autofunction:: correct_vis
-.. autofunction:: phase_only_Gauss_Newton
+.. autofunction:: phase_only_gauss_newton
