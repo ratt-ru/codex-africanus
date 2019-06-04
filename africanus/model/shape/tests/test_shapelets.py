@@ -35,8 +35,8 @@ def test_image_space():
         uv = np.vstack((uu.flatten(), vv.flatten()))
 
         # Create an lm grid from the regular uv grid
-        max_u = np.max(uv[:, 0])
-        max_v = np.max(uv[:, 1])
+        max_u = np.max(uv[0, :])
+        max_v = np.max(uv[1, :])
         delta_x = 1/(2 * max_u) if max_u > max_v else 1/(2 * max_v)
         x_range = [-3 * np.sqrt(2) * beta[0], 3 * np.sqrt(2) * beta[0]]
         y_range = [-3 * np.sqrt(2) * beta[1], 3 * np.sqrt(2) * beta[1]]
@@ -46,9 +46,10 @@ def test_image_space():
         m_vals = np.linspace(y_range[0], y_range[1], npix_y)
         ll, mm = np.meshgrid(l_vals, m_vals)
         lm = np.vstack((ll.flatten(), mm.flatten()))
+        nrow = lm.shape[1]
 
         ###############################################################
-        ################ BEGIN IMAGE SPACE TEST #######################
+        ################ BEGIN IMAGE SPACE TEST (passes) ##############
         ###############################################################
         # Create input arrays
         img_coords = np.zeros((nrow, 3))
@@ -57,7 +58,7 @@ def test_image_space():
         frequency = np.empty((nchan), dtype=np.float)
 
         # Assign values to input arrays
-        img_coords[:, :1], img_coords[:, 2] = lm, 0
+        img_coords[:, 0], img_coords[:, 1], img_coords[:, 2] = lm[0, :], lm[1, :], 0
         img_beta[0, :] = beta[:]
         frequency[:] = 1
 
@@ -67,13 +68,16 @@ def test_image_space():
 
         for n1 in range(ncoeffs[0]):
                 for n2 in range(ncoeffs[1]):
-                        sl_dimensional_basis = sl.shapelet.dimBasis2d(n1, n2, beta=beta)
+                        sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
                         c = img_coeffs[0, n1, n2]
                         pt_basis_func = shapelet_img_space(img_coords[:, 0], n1, beta[0]) * shapelet_img_space(img_coords[:, 1], n2, beta[1])
-                        shapelets_basis_func = sl.shapelet.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
+                        shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
                         gf_shapelets[:] += c * shapelets_basis_func
                         pt_shapelets[:] += c * pt_basis_func
         assert np.allclose(gf_shapelets, pt_shapelets)
+        ###############################################################
+        ################# END IMAGE SPACE TEST ########################
+        ###############################################################
 
 def _test_shapelet():
     npix = 15
