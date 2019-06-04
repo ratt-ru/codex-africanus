@@ -2,7 +2,7 @@
 History
 =======
 
-0.1.9 (2019-01-03)
+0.1.9 (2019-06-04)
 ------------------
 
 * Add residual_vis, correct_vis, phase_only_GN (:pr:`113`)

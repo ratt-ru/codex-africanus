@@ -9,10 +9,22 @@ import numpy as np
 
 def kron_matvec(A, b):
     """
-    Computes matrix vector product of kronecker matrix in linear time.
-    :param A: an array of arrays holding matrices [K0, K1, K2, ...]
-    :param b: the RHS vector
-    :return: A.dot(b)
+    Computes the matrix vector product of 
+    a kronecker matrix in linear time.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        An array of arrays holding
+        matrices [K0, K1, ...] where
+        :math:`A = K_0 \otimes K_1 \otimes \cdots`
+    b : :class:`numpy.ndarray`
+        The right hand side vector
+
+    Returns
+    -------
+    x : :class:`numpy.ndarray`
+        The result of :code:`A.dot(b)`
     """
     D = A.shape[0]
     N = b.size
@@ -28,9 +40,24 @@ def kron_matvec(A, b):
 
 def kron_cholesky(A):
     """
-    Computes the cholesky decomposition of a kronecker matrix
-    :param A: an array of arrays holding matrices [K1, K2, K3, ...]
-    :return:
+    Computes the Cholesky decomposition
+    of a kronecker matrix as a kronecker
+    matrix of Cholesky factors.
+
+    Parameters
+    ----------
+    A : :class:`numpy.ndarray`
+        An array of arrays holding
+        matrices [K0, K1, ...] where
+        :math:`A = K_0 \otimes K_1 \otimes \cdots`
+    
+    Returns
+    -------
+    L : :class:`numpy.ndarray`
+        An array of arrays holding
+        matrices [L0, L1, ...] where
+        :math:`L = L_0 \otimes L_1 \otimes \cdots`
+        and each :code:`Li = cholesky(Ki)`
     """
     D = A.shape[0]
     L = np.zeros_like(A)

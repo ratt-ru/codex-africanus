@@ -13,8 +13,6 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
-# @numba.jit(nopython=True, nogil=True, cache=True)
-
 
 def check_type(jones, vis):
     """
@@ -106,7 +104,6 @@ def jones_inverse_mul_factory(mode):
                 t2*b01 +\
                 t3*b11 +\
                 t4*b11
-    # return jones_inverse_mul
     return njit(nogil=True)(jones_inverse_mul)
 
 
@@ -165,26 +162,27 @@ def subtract_model_factory(mode):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def correct_vis(time_indices, antenna1, antenna2,
-                counts, jones, vis, flag):
+def correct_vis(time_bin_indices, time_bin_counts,
+                antenna1, antenna2, jones, vis, flag):
 
     mode = check_type(jones, vis)
 
     jones_inverse_mul = jones_inverse_mul_factory(mode)
 
     @wraps(correct_vis)
-    def _correct_vis_fn(time_indices, antenna1, antenna2,
-                        counts, jones, vis, flag):
+    def _correct_vis_fn(time_bin_indices, time_bin_counts,
+                        antenna1, antenna2, jones, vis, flag):
         jones_shape = np.shape(jones)
         n_tim = jones_shape[0]
         n_dir = jones_shape[3]
         if n_dir > 1:
-            raise RuntimeError("Jones has n_dir > 1.\
+            raise ValueError("Jones has n_dir > 1.\
                                 Cannot correct for direction dependent gains")
         n_chan = jones_shape[2]
         corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
         for t in range(n_tim):
-            for row in range(time_indices[t], time_indices[t] + counts[t]):
+            for row in range(time_bin_indices[t], 
+                             time_bin_indices[t] + time_bin_counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
                 gp = jones[t, p]
@@ -200,21 +198,22 @@ def correct_vis(time_indices, antenna1, antenna2,
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def residual_vis(time_indices, antenna1, antenna2,
-                 counts, jones, vis, flag, model):
+def residual_vis(time_bin_indices, time_bin_counts, antenna1,
+                 antenna2, jones, vis, flag, model):
 
     mode = check_type(jones, vis)
     subtract_model = subtract_model_factory(mode)
 
     @wraps(residual_vis)
-    def _residual_vis_fn(time_indices, antenna1, antenna2,
-                         counts, jones, vis, flag, model):
-        n_tim = np.shape(time_indices)[0]
+    def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
+                         antenna2, jones, vis, flag, model):
+        n_tim = np.shape(time_bin_indices)[0]
         vis_shape = np.shape(vis)
         n_chan = vis_shape[1]
         residual = np.zeros(vis_shape, dtype=vis.dtype)
         for t in range(n_tim):
-            for row in range(time_indices[t], time_indices[t] + counts[t]):
+            for row in range(time_bin_indices[t], 
+                             time_bin_indices[t] + time_bin_counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
                 gp = jones[t, p]
@@ -235,14 +234,16 @@ given model visibilities and gains solutions.
 
 Parameters
 ----------
-time_indices : $(array_type)
-    Time values of shape :code:`(row,)`
+time_bin_indices : $(array_type)
+    The start indices of the time bins
+    of shape :code:`(utime)`
+time_bin_counts : $(array_type)
+    The counts of unique time in each
+    time bin of shape :code:`(utime)`
 antenna1 : $(array_type)
     First antenna indices of shape :code:`(row,)`.
 antenna2 : $(array_type)
     Second antenna indices of shape :code:`(row,)`
-counts : $(array_type)
-    Counts of unique times in time
 jones : $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
@@ -296,29 +297,27 @@ the jones terms should always be one.
 
 Parameters
 ----------
-time_index : $(array_type)
-    Time index used to look up the antenna Jones index
-    for a particular baseline
-    with shape :code:`(row,)`.
+time_bin_indices : $(array_type)
+    The start indices of the time bins
+    of shape :code:`(utime)`.
+time_bin_counts : $(array_type)
+    The counts of unique time in each
+    time bin of shape :code:`(utime)`.
 antenna1 : $(array_type)
     Antenna 1 index used to look up the antenna Jones
-    for a particular baseline
-    with shape :code:`(row,)`.
+    for a particular baseline with shape :code:`(row,)`.
 antenna2 : $(array_type)
     Antenna 2 index used to look up the antenna Jones
-    for a particular baseline
-    with shape :code:`(row,)`.
-counts : $(array_type)
-    Counts of unique times in time
+    for a particular baseline with shape :code:`(row,)`.
 jones : $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
 vis : $(array_type)
-    Data values of shape :code:`(row, chan, corr)`.
+    Data values of shape :code:`(row, chan, corr)`
     or :code:`(row, chan, corr, corr)`.
 flag : $(array_type)
     Flag data of shape :code:`(row, chan, corr)`
-    or :code:`(row, chan, corr, corr)`
+    or :code:`(row, chan, corr, corr)`.
 Returns
 -------
 corrected_vis : $(array_type)

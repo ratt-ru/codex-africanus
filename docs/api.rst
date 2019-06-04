@@ -14,5 +14,7 @@ API
     averaging-api.rst
     util-api.rst
     calibration-api.rst
+    linalg-api.rst
+    gps-api.rst
 
 

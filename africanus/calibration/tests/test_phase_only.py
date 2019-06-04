@@ -8,9 +8,9 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
-from africanus.calibration import phase_only_GN
+from africanus.calibration import phase_only_Gauss_Newton
 from africanus.rime.predict import predict_vis
-np.random.seed(42)
+
 n_time = 32
 n_chan = 16
 n_ant = 7
@@ -105,13 +105,14 @@ def test_phase_only_diag_diag():
     we reconstruct the correct gains for a noise
     free simulation.
     """
+    np.random.seed(42)
     # simulate noise free data with random DDE's
     n_dir = 1
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_dual_pol_data(sigma_n, n_dir, sigma_f)
     time = data_dict['TIME']
-    _, time_indices, _, counts = unique_time(time)
+    _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     vis = data_dict['DATA']
@@ -122,9 +123,10 @@ def test_phase_only_diag_diag():
     # calibrate the data
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)
     precision = 5
-    gains, jhj, jhr, k = phase_only_GN(
-        time_indices, ant1, ant2, counts,
-        jones0, vis, flag, model, weight,
+    gains, jhj, jhr, k = phase_only_Gauss_Newton(
+        time_bin_indices, time_bin_counts,
+        ant1, ant2, jones0, vis,
+        flag, model, weight,
         tol=10**(-precision), maxiter=100)
     # check that phase differences are correct
     for p in range(n_ant):
@@ -133,4 +135,3 @@ def test_phase_only_diag_diag():
             phase_diff = np.angle(gains[:, p] * np.conj(gains[:, q]))
             assert_array_almost_equal(
                 phase_diff_true, phase_diff, decimal=precision-1)
-    return

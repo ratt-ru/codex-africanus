@@ -9,9 +9,25 @@ import numpy as np
 
 def abs_diff(x, xp):
     """
-    Gets vectorised differences between x and xp
-    :param x: NxD array of floats (inputs1)
-    :param xp: NpxD array of floats (inputs2)
+    Gets matrix of differences between
+    :math:`D`-dimensional vectors x and xp
+    i.e.
+
+    .. math::
+        X_{ij} = |x_i - x_j|
+
+    Parameters
+    ----------
+    x : :class:`numpy.ndarray`
+        Array of inputs of shape :code:`(N, D)`.
+    xp : :class:`numpy.ndarray`
+        Array of inputs of shape :code:`(Np, D)`.
+
+    Returns
+    -------
+    XX : :class:`numpy.ndarray`
+        Array of differences of shape :code:`(N, Np)`.
+
     """
     try:
         N, D = x.shape

@@ -10,7 +10,7 @@ from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration.utils import residual_vis, correct_vis
 from africanus.rime.predict import predict_vis
-np.random.seed(42)
+
 n_time = 32
 n_chan = 16
 n_ant = 7
@@ -104,13 +104,14 @@ def test_residual_vis():
     direction from noise free simulated data and comparing
     the output to the unsubtracted direction.
     """
+    np.random.seed(42)
     # simulate noise free data with random DDE's
     n_dir = 3
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_dual_pol_data(sigma_n, n_dir, sigma_f)
     time = data_dict['TIME']
-    _, time_indices, _, counts = unique_time(time)
+    _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     vis = data_dict['DATA']
@@ -123,8 +124,8 @@ def test_residual_vis():
     jones_unsubtracted = jones[:, :, :, 0:1]
     jones_subtract = jones[:, :, :, 1::]
     # subtract all but one direction
-    residual = residual_vis(time_indices, ant1, ant2,
-                            counts, jones_subtract, vis, flag, model_subtract)
+    residual = residual_vis(time_bin_indices, time_bin_counts, 
+                            ant1, ant2, jones_subtract, vis, flag, model_subtract)
     # apply gains to the unsubtracted direction
     jones_tmp = np.transpose(jones_unsubtracted, [3, 0, 1, 2, 4])
     model_tmp = np.transpose(model_unsubtracted, [2, 0, 1, 3])
@@ -136,7 +137,6 @@ def test_residual_vis():
         dde2_jones=jones_tmp)
     # residual should now be equal to unsubtracted vis
     assert_array_almost_equal(residual, vis_unsubtracted, decimal=5)
-    return
 
 
 def test_correct_vis():
@@ -144,13 +144,14 @@ def test_correct_vis():
     Tests correct_vis by correcting noise free simulation
     with random DIE gains
     """
+    np.random.seed(42)
     # simulate noise free data with only DIE's
     n_dir = 1
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_dual_pol_data(sigma_n, n_dir, sigma_f)
     time = data_dict['TIME']
-    _, time_indices, _, counts = unique_time(time)
+    _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     vis = data_dict['DATA']
@@ -159,8 +160,8 @@ def test_correct_vis():
     flag = data_dict['FLAG']
     # correct vis
     corrected_vis = correct_vis(
-        time_indices, ant1, ant2, counts, jones, vis, flag)
+        time_bin_indices, time_bin_counts, 
+        ant1, ant2, jones, vis, flag)
     # squeeze out dir axis to get expected model data
     model = model.squeeze()
     assert_array_almost_equal(corrected_vis, model, decimal=5)
-    return

@@ -54,10 +54,8 @@ Numpy
 .. autosummary::
     residual_vis
     correct_vis
-    jhj_and_jhr
-    phase_only_GN
+    phase_only_Gauss_Newton
 
 .. autofunction:: residual_vis
 .. autofunction:: correct_vis
-.. autofunction:: jhj_and_jhr
-.. autofunction:: phase_only_GN
+.. autofunction:: phase_only_Gauss_Newton
