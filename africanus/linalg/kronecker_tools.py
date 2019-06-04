@@ -17,7 +17,7 @@ def kron_matvec(A, b):
     A : :class:`numpy.ndarray`
         An array of arrays holding
         matrices [K0, K1, ...] where
-        :math:`A = K_0 \otimes K_1 \otimes \cdots`
+        :math:`A = K_0 \\otimes K_1 \\otimes \\cdots`
     b : :class:`numpy.ndarray`
         The right hand side vector
 
@@ -49,14 +49,14 @@ def kron_cholesky(A):
     A : :class:`numpy.ndarray`
         An array of arrays holding
         matrices [K0, K1, ...] where
-        :math:`A = K_0 \otimes K_1 \otimes \cdots`
+        :math:`A = K_0 \\otimes K_1 \\otimes \\cdots`
 
     Returns
     -------
     L : :class:`numpy.ndarray`
         An array of arrays holding
         matrices [L0, L1, ...] where
-        :math:`L = L_0 \otimes L_1 \otimes \cdots`
+        :math:`L = L_0 \\otimes L_1 \\otimes \\cdots`
         and each :code:`Li = cholesky(Ki)`
     """
     D = A.shape[0]

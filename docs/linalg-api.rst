@@ -13,7 +13,7 @@ A kronecker matrix is matrix that can be written
 as a kronecker matrix of the individual matrices i.e.
 
 .. math::
-    K = K_0 \otimes K_1 \otimes K_2 \otimes \cdots
+    K = K_0 \\otimes K_1 \\otimes K_2 \\otimes \\cdots
     
 Matrices which exhibit this structure can exploit
 properties of the kronecker product to avoid 
