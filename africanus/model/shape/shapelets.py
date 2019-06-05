@@ -24,12 +24,12 @@ def basis_function(n, x, beta):
     exponential_component_1 = hermite(n)(x / beta)
     #print("exponential_component_1 is %f" %exponential_component_1)
     exponential_component_2 = np.exp((-0.5) * (x**2) * (beta **(-2)))
+    
+    #print(exponential_component_2, x**2)
     #print("exponential_component_2 is %f" %exponential_component_2)
     exponential_component = exponential_component_1 * exponential_component_2
     return basis_component * exponential_component
 
-def convert_to_lm(u, nyquist_frequency, u_min, u_max):
-    return nyquist_frequency * ((u - u_min) / (u_max - u_min))
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet(coords, frequency, coeffs, beta):
@@ -54,13 +54,15 @@ def shapelet(coords, frequency, coeffs, beta):
         u, v, w = coords[row, :]
         for chan in range(nchan):
             fu = u * frequency[chan] * gauss_scale
-            fv = v * frequency[chan] * gauss_scale 
+            fv = v * frequency[chan] * gauss_scale
+            #print(fu, fv)
             for src in range(nsrc):
                 beta_u, beta_v = beta[src, :]
                 tmp_shapelet = np.complex128(0. + 0.j)
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
                         tmp_shapelet += coeffs[src, n1, n2] * (1j**(n1)) * (1j ** (n2)) * basis_function(n1, fu, beta_u ** (-1)) * basis_function(n2, fv, beta_v ** (-1))
+                        #print(tmp_shapelet)
                 #print("tmp_shapelet is %f" %tmp_shapelet)
                 out_shapelets[src, row, chan] = tmp_shapelet
     return out_shapelets
