@@ -9,6 +9,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from africanus.model.shape import shapelet as nb_shapelet
 
 Fs = np.fft.fftshift
+iFs = np.fft.ifftshift
 
 def shapelet_img_space(xx, n, beta):
     basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
@@ -17,8 +18,8 @@ def shapelet_img_space(xx, n, beta):
 
 def test_image_space():
         # Define all respective values for nrow, ncoeff, etc
-        beta = [1., 1.]
-        npix = 25
+        beta = [5., 5.]
+        npix = 128
         nrow = npix ** 2
         nchan = 1
         ncoeffs = [1, 1]
@@ -29,8 +30,8 @@ def test_image_space():
         v_range = [-3 * np.sqrt(2) * (beta[1] ** (-1)), 3 * np.sqrt(2) * (beta[1] ** (-1))]
         du = (u_range[1] - u_range[0]) / npix
         dv = (v_range[1] - v_range[0]) / npix
-        freqs_u = Fs(np.fft.fftfreq(npix, d=du))
-        freqs_v = Fs(np.fft.fftfreq(npix, d=dv))
+        freqs_u = iFs(np.fft.fftfreq(npix, d=du))
+        freqs_v = iFs(np.fft.fftfreq(npix, d=dv))
         uu, vv = np.meshgrid(freqs_u, freqs_v)
         uv = np.vstack((uu.flatten(), vv.flatten()))
 
@@ -46,6 +47,7 @@ def test_image_space():
         m_vals = np.linspace(y_range[0], y_range[1], npix_y)
         ll, mm = np.meshgrid(l_vals, m_vals)
         lm = np.vstack((ll.flatten(), mm.flatten()))
+        print(nrow **2, uv.shape, lm.shape)
         nrow = lm.shape[1]
 
         ###############################################################
@@ -61,6 +63,7 @@ def test_image_space():
         img_coords[:, 0], img_coords[:, 1], img_coords[:, 2] = lm[0, :], lm[1, :], 0
         img_beta[0, :] = beta[:]
         frequency[:] = 1
+        img_coeffs[:, :, :] = 1
 
         # Create output arrays
         gf_shapelets = np.zeros((nrow), dtype=np.float)
@@ -74,10 +77,85 @@ def test_image_space():
                         shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
                         gf_shapelets[:] += c * shapelets_basis_func
                         pt_shapelets[:] += c * pt_basis_func
+
+        plt.figure()
+        plt.imshow(pt_shapelets.reshape(3149, 3149))
+        plt.colorbar()
+        plt.title("Image Space Shapelets")
+        plt.show()
+        plt.savefig("./img_shapelet.png")
+        plt.close()
+
         assert np.allclose(gf_shapelets, pt_shapelets)
         ###############################################################
         ################# END IMAGE SPACE TEST ########################
         ###############################################################
+
+        ###############################################################
+        ################# BEGIN FOURIER SPACE TEST ####################
+        ###############################################################
+        # Call shapelet script
+        nrow = uv.shape[1]
+        f_coords = np.zeros((nrow, 3))
+        f_frequencies = np.empty(nchan)
+        f_coeffs = img_coeffs
+        f_beta = img_beta
+
+        f_coords[:, 0], f_coords[:, 1], f_coords[:, 2] = uv[0, :], uv[1, :], 0
+        f_frequencies[:] = 1
+        
+        ca_shapelets = nb_shapelet(f_coords, f_frequencies, f_coeffs, f_beta)
+        pt_shapelets = np.zeros((nrow))
+        for n1 in range(ncoeffs[0]):
+                for n2 in range(ncoeffs[1]):
+                        c = f_coeffs[0, n1, n2]
+                        pt_ft_img_func = shapelet_img_space(f_coords[:, 0], n1, f_beta[0, 0]) * shapelet_img_space(f_coords[:, 1], n2, f_beta[0, 1])
+                        pt_shapelets += c * pt_ft_img_func
+        ft_shapelets = iFs(np.fft.fft2(pt_shapelets.reshape((npix,npix))))
+        ca_shapelets = ca_shapelets[0, :,  0]
+
+        ca_shapelets = np.abs(ca_shapelets.reshape((npix, npix)))
+        ft_shapelets = np.abs(ft_shapelets)
+
+        print(np.average(ft_shapelets / ca_shapelets))
+
+   
+
+        plt.figure()
+        plt.imshow(ft_shapelets)
+        plt.colorbar()
+        plt.title("FFT Shapelets")
+        plt.show()
+        plt.savefig("./ft_shapelets.png")
+        plt.close()
+
+        plt.figure()
+        plt.imshow(ca_shapelets)
+        plt.colorbar()
+        plt.title("Codex Africanus Shapelets")
+        plt.show()
+        plt.savefig("./ca_shapelets.png")
+        plt.close()
+        plt.figure()
+        plt.imshow(ca_shapelets / ft_shapelets)
+        plt.colorbar()
+        plt.title("Quotient")
+        plt.show()
+        plt.savefig("./division.png")
+        plt.close()
+
+        
+        plt.figure()
+        plt.imshow(ca_shapelets - ft_shapelets)
+        plt.colorbar()
+        plt.title("Difference")
+        plt.show()
+        plt.savefig("./difference.png")
+        plt.close()
+        
+        assert np.allclose(ca_shapelets, ft_shapelets)
+
+
 
 def _test_shapelet():
     npix = 15
