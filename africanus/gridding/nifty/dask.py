@@ -47,10 +47,9 @@ class GridderConfigWrapper(object):
         self.csx = cell_size_x
         self.csy = cell_size_y
         self.eps = eps
-        # NOTE(sjperkins). Swapped X and Y axes
-        self.grid_config = ng.GridderConfig(ny, nx, eps,
-                                            cell_size_y,
-                                            cell_size_x)
+        self.grid_config = ng.GridderConfig(nx, ny, eps,
+                                            cell_size_x,
+                                            cell_size_y)
 
     @property
     def object(self):
@@ -198,8 +197,7 @@ def dirty(grid, grid_config):
 
 
 def _degrid(grid, baselines, indices, grid_config):
-    assert len(grid) == 1
-    assert len(grid[0]) == 1
+    assert len(grid) == 1 and len(grid[0]) == 1
     return ng.grid2ms_c(baselines, grid_config.object, indices, grid[0][0])
 
 
