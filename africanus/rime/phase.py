@@ -11,22 +11,40 @@ import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit
+from africanus.util.numba import generated_jit, njit, is_numba_type_none
 from africanus.util.type_inference import infer_complex_dtype
 
 
+def _out_factory(out_present):
+    if out_present:
+        def impl(out, shape, dtype):
+            # TODO(sjperkins) Check the dtype too?
+            if out.shape != shape:
+                raise ValueError("out.shape does not match expected shape")
+
+            return out
+    else:
+        def impl(out, shape, dtype):
+            return np.zeros(shape, dtype)
+
+    return njit(nogil=True, cache=True)(impl)
+
+
 @generated_jit(nopython=True, nogil=True, cache=True)
-def phase_delay(lm, uvw, frequency):
+def phase_delay(lm, uvw, frequency, out=None):
+    have_out = not is_numba_type_none(out)
+
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
     neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
-
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
+    create_output = _out_factory(have_out)
+
     @wraps(phase_delay)
-    def _phase_delay_impl(lm, uvw, frequency):
+    def _phase_delay_impl(lm, uvw, frequency, out=None):
         shape = (lm.shape[0], uvw.shape[0], frequency.shape[0])
-        complex_phase = np.zeros(shape, dtype=out_dtype)
+        complex_phase = create_output(out, shape, out_dtype)
 
         # For each source
         for source in range(lm.shape[0]):
@@ -87,6 +105,9 @@ PHASE_DELAY_DOCS = DocstringTemplate(
         U, V and W components in the last dimension.
     frequency : $(array_type)
         frequencies of shape :code:`(chan,)`
+    out : $(array_type), optional
+        Array holding the output results. Should have the
+        same shape as the returned `complex_phase`.
 
     Returns
     -------
