@@ -37,11 +37,6 @@ def grid_data(baselines, grid_config, indices, vis):
     return grid[None, :, :]
 
 
-def grid_config_reduce(self):
-    return (self.__class__, (self.Nxdirty(), self.Nydirty(), self.Epsilon(),
-                             self.Pixsize_x(), self.Pixsize_y()))
-
-
 class GridderConfigWrapper(object):
     """
     Wraps a nifty GridderConfiguration for pickling purposes.
