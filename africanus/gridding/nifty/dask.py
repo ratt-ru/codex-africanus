@@ -32,8 +32,7 @@ def create_indices(baselines, grid_config, flag,
 
 def grid_data(baselines, grid_config, indices, vis):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    flat_vis = baselines.ms2vis(vis[0], indices)
-    grid = ng.vis2grid_c(baselines, grid_config, indices, flat_vis)
+    grid = ng.ms2grid_c(baselines, grid_config, indices, vis[0])
     return grid[None, :, :]
 
 
@@ -201,8 +200,7 @@ def dirty(grid, grid_config):
 def _degrid(grid, baselines, indices, grid_config):
     assert len(grid) == 1
     assert len(grid[0]) == 1
-    vis = ng.grid2vis_c(baselines, grid_config.object, indices, grid[0][0])
-    return baselines.vis2ms(vis, indices)
+    return ng.grid2ms_c(baselines, grid_config.object, indices, grid[0][0])
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
