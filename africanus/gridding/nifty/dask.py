@@ -37,9 +37,35 @@ def grid_data(baselines, grid_config, indices, vis):
     return grid[None, :, :]
 
 
+def grid_config_reduce(self):
+    return (self.__class__, (self.Nxdirty(), self.Nydirty(), self.Epsilon(),
+                             self.Pixsize_x(), self.Pixsize_y()))
+
+
+class GridderConfigWrapper(object):
+    def __init__(self, nx=1024, ny=1024, eps=2e-13,
+                 cell_size_x=2.0, cell_size_y=2.0):
+        self.nx = nx
+        self.ny = ny
+        self.csx = cell_size_x
+        self.csy = cell_size_y
+        self.eps = eps
+        self.grid_config = ng.GridderConfig(nx, ny, eps,
+                                            cell_size_x,
+                                            cell_size_y)
+
+    @property
+    def object(self):
+        return self.grid_config
+
+    def __reduce__(self):
+        return (GridderConfigWrapper,
+                (self.nx, self.ny, self.eps, self.csx, self.csy))
+
+
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def grid_config(nx=1024, ny=1024, cell_size_x=2.0, cell_size_y=2.0, eps=2e-13):
-    return ng.GridderConfig(nx, ny, eps, cell_size_x, cell_size_y)
+    return GridderConfigWrapper(nx, ny, eps, cell_size_x, cell_size_y)
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
@@ -54,9 +80,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     if len(frequencies.chunks[0]) != 1:
         raise ValueError("Chunking in channel unsupported")
 
-    nu = grid_config.Nu()
-    nv = grid_config.Nv()
-
+    gc = grid_config.object
     grids = []
 
     for corr in range(vis.shape[2]):
@@ -64,7 +88,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
         indices = da.blockwise(create_indices, ("row",),
                                baselines, ("row",),
-                               grid_config, None,
+                               gc, None,
                                corr_flags, ("row", "chan"),
                                0, None,
                                frequencies.shape[0], None,
@@ -74,10 +98,10 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
         grid = da.blockwise(grid_data, ("row", "nu", "nv"),
                             baselines, ("row",),
-                            grid_config, None,
+                            gc, None,
                             indices, ("row",),
                             vis[:, :, corr], ("row", "chan"),
-                            new_axes={"nu": nu, "nv": nv},
+                            new_axes={"nu": gc.Nu(), "nv": gc.Nv()},
                             adjust_chunks={"row": 1},
                             dtype=np.complex128)
 
@@ -89,9 +113,6 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
 def create_dirty(grid_config, grid):
     """ Wrapper function for creating a dirty image """
-    nx = grid_config.Nxdirty()
-    ny = grid_config.Nydirty()
-
     grids = [grid_config.grid2dirty_c(grid[:, :, c])
              for c in range(grid.shape[2])]
 
@@ -100,11 +121,12 @@ def create_dirty(grid_config, grid):
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def dirty(grid, grid_config):
-    nx = grid_config.Nxdirty()
-    ny = grid_config.Nydirty()
+    gc = grid_config.object
+    nx = gc.Nxdirty()
+    ny = gc.Nydirty()
 
     return da.blockwise(create_dirty, ("nx", "ny", "corr"),
-                        grid_config, None,
+                        gc, None,
                         grid, ("nx", "ny", "corr"),
                         adjust_chunks={"nx": nx, "ny": ny},
                         dtype=grid.dtype)
