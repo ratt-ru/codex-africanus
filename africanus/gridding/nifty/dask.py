@@ -94,7 +94,7 @@ def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def grid(vis, uvw, flags, weights, frequencies, grid_config,
-         wmin=-1e16, wmax=1e16):
+         wmin=-1e30, wmax=1e30):
     """
     Grids the supplied visibilities in parallel. Note that
     a grid is create for each visibility chunk.
@@ -113,24 +113,23 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     grid_config : :class:`GridderConfigWrapper`
         Gridding Configuration
     wmin : float
-        Minimum W coordinate to grid. Defaults to -1e16
+        Minimum W coordinate to grid. Defaults to -1e30.
     wmax : float
-        Maximum W coordinate to grid. Default to 1e16.
+        Maximum W coordinate to grid. Default to 1e30.
 
     Returns
     -------
     grid : :class:`dask.array.Array`
         grid of shape :code:`(ny, nx, corr)`
     """
+    if len(frequencies.chunks[0]) != 1:
+        raise ValueError("Chunking in channel currently unsupported")
 
     # Create a baseline object per row chunk
     baselines = da.blockwise(create_baselines, ("row",),
                              uvw, ("row", "uvw"),
                              frequencies, ("chan",),
                              dtype=np.object)
-
-    if len(frequencies.chunks[0]) != 1:
-        raise ValueError("Chunking in channel unsupported")
 
     gc = grid_config.object
     grids = []
@@ -142,8 +141,8 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
                                baselines, ("row",),
                                gc, None,
                                corr_flags, ("row", "chan"),
-                               0, None,
-                               frequencies.shape[0], None,
+                               -1, None,  # channel begin
+                               -1, None,  # channel end
                                wmin, None,
                                wmax, None,
                                dtype=np.int32)
@@ -199,3 +198,50 @@ def dirty(grid, grid_config):
                         grid, ("nx", "ny", "corr"),
                         adjust_chunks={"nx": nx, "ny": ny},
                         dtype=grid.dtype)
+
+
+def _degrid(grid, baselines, indices, grid_config):
+    assert len(grid) == 1
+    assert len(grid[0]) == 1
+    vis = ng.grid2vis_c(baselines, grid_config.object, indices, grid[0][0])
+    return baselines.vis2ms(vis, indices)
+
+
+@requires_optional("dask.array", "nifty_gridder", import_error)
+def degrid(grid, uvw, flags, frequencies, grid_config, wmin=-1e30, wmax=1e30):
+    if len(frequencies.chunks[0]) != 1:
+        raise ValueError("Chunking in channel currently unsupported")
+
+    # Create a baseline object per row chunk
+    baselines = da.blockwise(create_baselines, ("row",),
+                             uvw, ("row", "uvw"),
+                             frequencies, ("chan",),
+                             dtype=np.object)
+
+    gc = grid_config.object
+    vis_chunks = []
+
+    for corr in range(grid.shape[2]):
+        corr_flags = flags[:, :, corr]
+
+        indices = da.blockwise(create_indices, ("row",),
+                               baselines, ("row",),
+                               gc, None,
+                               corr_flags, ("row", "chan"),
+                               -1, None,  # channel begin
+                               -1, None,  # channel end
+                               wmin, None,
+                               wmax, None,
+                               dtype=np.int32)
+
+        vis = da.blockwise(_degrid, ("row", "chan"),
+                           grid[:, :, corr], ("ny", "nx"),
+                           baselines, ("row",),
+                           indices, ("row",),
+                           grid_config, None,
+                           new_axes={"chan": frequencies.shape[0]},
+                           dtype=grid.dtype)
+
+        vis_chunks.append(vis)
+
+    return da.stack(vis_chunks, axis=2)

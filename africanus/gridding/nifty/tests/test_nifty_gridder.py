@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 import pytest
 
-from africanus.gridding.nifty.dask import grid, grid_config, dirty
+from africanus.gridding.nifty.dask import grid, degrid, grid_config, dirty
 
 
 def rf(*a, **kw):
@@ -56,6 +56,43 @@ def test_dask_nifty_gridder():
     assert d.shape == dirty_shape
 
     assert d.compute().shape == dirty_shape
+
+
+def test_dask_nifty_degridder():
+    """ Only tests that we can call it and create a dirty image """
+    da = pytest.importorskip('dask.array')
+    _ = pytest.importorskip('nifty_gridder')
+
+    row = (16, 16, 16, 16)
+    chan = (32,)
+    corr = (4,)
+
+    nrow = sum(row)
+    nchan = sum(chan)
+    ncorr = sum(corr)
+    nx = 1024
+    ny = 1024
+
+    gc = grid_config(ny, nx, 2e-13, 2.0, 2.0)
+    nu = gc.object.Nu()
+    nv = gc.object.Nv()
+
+    # Random UV data
+    uvw = rf(size=(nrow, 3)).astype(np.float64)*128
+    freq = np.linspace(.856e9, 2*.856e9, nchan)
+    flag = np.zeros((nrow, nchan, ncorr), dtype=np.uint8)
+    weight = np.ones((nrow, nchan, ncorr), dtype=np.float64)
+    grid = rc(size=(nv, nu, ncorr)).astype(np.complex128)
+
+    da_uvw = da.from_array(uvw, chunks=(row, 3))
+    da_freq = da.from_array(freq, chunks=chan)
+    da_flag = da.from_array(flag, chunks=(row, chan, corr))
+    da_weight = da.from_array(weight, chunks=(row, chan, corr))
+    da_grid = da.from_array(grid, chunks=(nv, nu, 1))
+
+    da_vis = degrid(da_grid, da_uvw, da_flag, da_freq, gc)
+    vis = da_vis.compute()
+    assert vis.shape == da_vis.shape
 
 
 def test_pickle_gridder_config():
