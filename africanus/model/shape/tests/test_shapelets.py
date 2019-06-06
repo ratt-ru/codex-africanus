@@ -18,7 +18,7 @@ def shapelet_img_space(xx, n, beta):
 
 def test_image_space():
         # Define all respective values for nrow, ncoeff, etc
-        beta = [1., 1.]
+        beta = [.01, .01]
         npix = 128
         nrow = npix ** 2
         nchan = 1
@@ -44,11 +44,8 @@ def test_image_space():
         nrow = lm.shape[1]
 
         # Create regular uv grid
-        du = (u_range[1] - u_range[0]) / npix_x
-        dv = (v_range[1] - v_range[0]) / npix_y
-
-        freqs_u = Fs(np.fft.fftfreq(npix_x, d=du))
-        freqs_v = Fs(np.fft.fftfreq(npix_y, d=dv))
+        freqs_u = Fs(np.fft.fftfreq(npix_x, d=delta_x))
+        freqs_v = Fs(np.fft.fftfreq(npix_y, d=delta_x))
         uu, vv = np.meshgrid(freqs_u, freqs_v)
         uv = np.vstack((uu.flatten(), vv.flatten()))
 
@@ -64,7 +61,7 @@ def test_image_space():
         # Assign values to input arrays
         img_coords[:, 0], img_coords[:, 1], img_coords[:, 2] = lm[0, :], lm[1, :], 0
         img_beta[0, :] = beta[:]
-        frequency[:] = 1e15
+        frequency[:] = 1
         img_coeffs[:, :, :] = 1
 
         # Create output arrays
@@ -105,7 +102,7 @@ def test_image_space():
         f_frequencies[:] = 1e6
         print(uv)
         
-        ca_shapelets = Fs(nb_shapelet(f_coords, f_frequencies, f_coeffs, f_beta))
+        ca_shapelets = nb_shapelet(f_coords, f_frequencies, f_coeffs, f_beta)
         """
         pt_shapelets = np.zeros((nrow))
         for n1 in range(ncoeffs[0]):
@@ -128,7 +125,7 @@ def test_image_space():
         plt.imshow(ft_shapelets)
         plt.colorbar()
         plt.title("FFT Shapelets")
-        #plt.show()
+        plt.show()
         plt.savefig("./ft_shapelets.png")
         plt.close()
 
@@ -136,7 +133,7 @@ def test_image_space():
         plt.imshow(ca_shapelets)
         plt.colorbar()
         plt.title("Codex Africanus Shapelets")
-        #plt.show()
+        plt.show()
         plt.savefig("./ca_shapelets.png")
         plt.close()
 
