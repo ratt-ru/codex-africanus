@@ -49,13 +49,10 @@ def test_dask_nifty_gridder():
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc)
     d = dirty(g, gc)
 
-    grid_shape = (gc.object.Nu(), gc.object.Nv(), ncorr)
-    dirty_shape = (gc.object.Nxdirty(), gc.object.Nydirty(), ncorr)
+    assert g.shape == (gc.object.Nu(), gc.object.Nv(), ncorr)
+    assert d.shape == (gc.object.Nxdirty(), gc.object.Nydirty(), ncorr)
 
-    assert g.shape == grid_shape
-    assert d.shape == dirty_shape
-
-    assert d.compute().shape == dirty_shape
+    assert d.compute().shape == d.shape
 
 
 def test_dask_nifty_degridder():

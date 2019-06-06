@@ -126,6 +126,9 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
                              frequencies, ("chan",),
                              dtype=np.object)
 
+    if len(frequencies.chunks[0]) != 1:
+        raise ValueError("Chunking in channel unsupported")
+
     gc = grid_config.object
     grids = []
 
