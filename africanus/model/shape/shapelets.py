@@ -18,16 +18,9 @@ def factorial(n):
     return ans * n
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def basis_function(n, x, beta):
+def basis_function(n, xx, beta):
     basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
-    #print("basis_component is %f" %basis_component)
-    exponential_component_1 = hermite(n)(x / beta)
-    #print("exponential_component_1 is %f" %exponential_component_1)
-    exponential_component_2 = np.exp((-0.5) * (x**2) * (beta **(-2)))
-    
-    #print(exponential_component_2, x**2)
-    #print("exponential_component_2 is %f" %exponential_component_2)
-    exponential_component = exponential_component_1 * exponential_component_2
+    exponential_component = hermite(n)(xx / beta) * np.exp((-0.5) * (xx**2) * (beta **(-2)))
     return basis_component * exponential_component
 
 
@@ -55,6 +48,7 @@ def shapelet(coords, frequency, coeffs, beta):
         for chan in range(nchan):
             fu = u * frequency[chan] * gauss_scale
             fv = v * frequency[chan] * gauss_scale
+            #print(fu, fv, frequency[chan])
             #print(fu, fv)
             for src in range(nsrc):
                 beta_u, beta_v = beta[src, :]
