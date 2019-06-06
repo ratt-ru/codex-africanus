@@ -101,8 +101,10 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     flags : :class:`dask.array.Array`
         flags of shape :code:`(row, chan, corr)`
     weights : :class:`dask.array.Array`
-        weights of shape :code:`(row, chan, corr)`
+        weights of shape :code:`(row, chan, corr)`.
+        Currently unsupported and ignored.
     frequencies : :class:`dask.array.Array`
+        frequencies of shape :code:`(chan,)`
     grid_config : :class:`GridderConfigWrapper`
         Gridding Configuration
     wmin : float
@@ -202,7 +204,37 @@ def _degrid(grid, baselines, indices, grid_config):
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
-def degrid(grid, uvw, flags, frequencies, grid_config, wmin=-1e30, wmax=1e30):
+def degrid(grid, uvw, flags, weights, frequencies,
+           grid_config, wmin=-1e30, wmax=1e30):
+    """
+    Degrids the visibilities from the supplied grid in parallel.
+
+    Parameters
+    ----------
+    grid : :class:`dask.array.Array`
+        gridded visibilities of shape :code:`(ny, nx, corr)`
+    uvw : :class:`dask.array.Array`
+        uvw coordinates of shape :code:`(row, 3)`
+    flags : :class:`dask.array.Array`
+        flags of shape :code:`(row, chan, corr)`
+    weights : :class:`dask.array.Array`
+        weights of shape :code:`(row, chan, corr)`.
+        Currently unsupported and ignored.
+    frequencies : :class:`dask.array.Array`
+        frequencies of shape :code:`(chan,)`
+    grid_config : :class:`GridderConfigWrapper`
+        Gridding Configuration
+    wmin : float
+        Minimum W coordinate to grid. Defaults to -1e30.
+    wmax : float
+        Maximum W coordinate to grid. Default to 1e30.
+
+    Returns
+    -------
+    grid : :class:`dask.array.Array`
+        grid of shape :code:`(ny, nx, corr)`
+    """
+
     if len(frequencies.chunks[0]) != 1:
         raise ValueError("Chunking in channel currently unsupported")
 
