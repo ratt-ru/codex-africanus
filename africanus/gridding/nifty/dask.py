@@ -44,6 +44,9 @@ class GridderConfigWrapper(object):
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
     """
+    Returns a wrapper around a NIFTY GridderConfiguration object.
+
+
     Parameters
     ----------
     nx : int, optional
