@@ -160,7 +160,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     return da.stack(grids, axis=2)
 
 
-def create_dirty(grid_config, grid):
+def create_dirty(grid, grid_config):
     """ Wrapper function for creating a dirty image """
     grids = [grid_config.grid2dirty_c(grid[:, :, c])
              for c in range(grid.shape[2])]
@@ -171,7 +171,7 @@ def create_dirty(grid_config, grid):
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def dirty(grid, grid_config):
     """
-    Computes the dirty image from gridded visibiltiies and the
+    Computes the dirty image from gridded visibilities and the
     gridding configuration.
 
     Parameters
@@ -192,10 +192,47 @@ def dirty(grid, grid_config):
     ny = gc.Nydirty()
 
     return da.blockwise(create_dirty, ("nx", "ny", "corr"),
-                        gc, None,
                         grid, ("nx", "ny", "corr"),
+                        gc, None,
                         adjust_chunks={"nx": nx, "ny": ny},
                         dtype=grid.dtype)
+
+
+def _model(image, grid_config):
+    """ Wrapper function for creating a dirty image """
+    images = [grid_config.dirty2grid_c(image[:, :, c])
+              for c in range(image.shape[2])]
+
+    return np.stack(images, axis=2)
+
+
+def model(image, grid_config):
+    """
+    Computes model visibilities from an image
+    and a gridding configuration.
+
+    Parameters
+    ----------
+    image : :class:`dask.array.Array`
+        Image of shape :code:`(ny, nx, corr)`.
+    grid_config : :class:`GridderConfigWrapper`
+        nifty gridding configuration object
+
+    Returns
+    -------
+    model_vis : :class:`dask.array.Array`
+        Model visibilities of shape :code:`(nu, nv, corr)`.
+    """
+
+    gc = grid_config.object
+    nu = gc.Nu()
+    nv = gc.Nv()
+
+    return da.blockwise(_model, ("nu", "nv", "corr"),
+                        image, ("nu", "nv", "corr"),
+                        gc, None,
+                        adjust_chunks={"nu": nu, "nv": nv},
+                        dtype=image.dtype)
 
 
 def _degrid(grid, baselines, indices, grid_config):

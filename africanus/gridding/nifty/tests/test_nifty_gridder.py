@@ -8,7 +8,8 @@ import numpy as np
 import pickle
 import pytest
 
-from africanus.gridding.nifty.dask import grid, degrid, grid_config, dirty
+from africanus.gridding.nifty.dask import (grid, degrid, dirty, model,
+                                           grid_config)
 
 
 def rf(*a, **kw):
@@ -84,14 +85,15 @@ def test_dask_nifty_degridder():
     freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros((nrow, nchan, ncorr), dtype=np.uint8)
     weight = np.ones((nrow, nchan, ncorr), dtype=np.float64)
-    grid = rc(size=(nu, nv, ncorr)).astype(np.complex128)
+    image = rc(size=(nx, ny, ncorr)).astype(np.complex128)
 
     da_uvw = da.from_array(uvw, chunks=(row, 3))
     da_freq = da.from_array(freq, chunks=chan)
     da_flag = da.from_array(flag, chunks=(row, chan, corr))
     da_weight = da.from_array(weight, chunks=(row, chan, corr))
-    da_grid = da.from_array(grid, chunks=(nu, nv, ncorr))
+    da_image = da.from_array(image, chunks=(nx, ny, ncorr))
 
+    da_grid = model(da_image, gc)
     da_vis = degrid(da_grid, da_uvw, da_flag, da_weight, da_freq, gc)
     vis = da_vis.compute()
     assert vis.shape == da_vis.shape
