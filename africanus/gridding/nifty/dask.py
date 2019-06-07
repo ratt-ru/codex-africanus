@@ -17,23 +17,22 @@ else:
 from africanus.util.requirements import requires_optional
 
 
-def create_baselines(uvw, chan_freq):
+def _nifty_baselines(uvw, chan_freq):
     """ Wrapper function for creating baseline mappings per row chunk """
-    chan_freq = np.concatenate(chan_freq)
-    return ng.Baselines(uvw[0], chan_freq)
+    assert len(chan_freq) == 1, "Handle multiple channel chunks"
+    return ng.Baselines(uvw[0], chan_freq[0])
 
 
-def create_indices(baselines, grid_config, flag,
+def _nifty_indices(baselines, grid_config, flag,
                    chan_begin, chan_end, wmin, wmax):
     """ Wrapper function for creating indices per row chunk """
     return ng.getIndices(baselines, grid_config, flag[0],
                          chan_begin, chan_end, wmin, wmax)
 
 
-def grid_data(baselines, grid_config, indices, vis):
+def _grid_data(baselines, grid_config, indices, vis):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    grid = ng.ms2grid_c(baselines, grid_config, indices, vis[0])
-    return grid[None, :, :]
+    return ng.ms2grid_c(baselines, grid_config, indices, vis[0])[None, :, :]
 
 
 class GridderConfigWrapper(object):
@@ -121,7 +120,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
         raise ValueError("Chunking in channel currently unsupported")
 
     # Create a baseline object per row chunk
-    baselines = da.blockwise(create_baselines, ("row",),
+    baselines = da.blockwise(_nifty_baselines, ("row",),
                              uvw, ("row", "uvw"),
                              frequencies, ("chan",),
                              dtype=np.object)
@@ -135,7 +134,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     for corr in range(vis.shape[2]):
         corr_flags = flags[:, :, corr]
 
-        indices = da.blockwise(create_indices, ("row",),
+        indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
                                gc, None,
                                corr_flags, ("row", "chan"),
@@ -145,7 +144,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
                                wmax, None,
                                dtype=np.int32)
 
-        grid = da.blockwise(grid_data, ("row", "nu", "nv"),
+        grid = da.blockwise(_grid_data, ("row", "nu", "nv"),
                             baselines, ("row",),
                             gc, None,
                             indices, ("row",),
@@ -276,7 +275,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
         raise ValueError("Chunking in channel currently unsupported")
 
     # Create a baseline object per row chunk
-    baselines = da.blockwise(create_baselines, ("row",),
+    baselines = da.blockwise(_nifty_baselines, ("row",),
                              uvw, ("row", "uvw"),
                              frequencies, ("chan",),
                              dtype=np.object)
@@ -287,7 +286,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
     for corr in range(grid.shape[2]):
         corr_flags = flags[:, :, corr]
 
-        indices = da.blockwise(create_indices, ("row",),
+        indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
                                gc, None,
                                corr_flags, ("row", "chan"),
