@@ -17,24 +17,6 @@ else:
 from africanus.util.requirements import requires_optional
 
 
-def _nifty_baselines(uvw, chan_freq):
-    """ Wrapper function for creating baseline mappings per row chunk """
-    assert len(chan_freq) == 1, "Handle multiple channel chunks"
-    return ng.Baselines(uvw[0], chan_freq[0])
-
-
-def _nifty_indices(baselines, grid_config, flag,
-                   chan_begin, chan_end, wmin, wmax):
-    """ Wrapper function for creating indices per row chunk """
-    return ng.getIndices(baselines, grid_config, flag[0],
-                         chan_begin, chan_end, wmin, wmax)
-
-
-def _grid_data(baselines, grid_config, indices, vis):
-    """ Wrapper function for creating a grid of visibilities per row chunk """
-    return ng.ms2grid_c(baselines, grid_config, indices, vis[0])[None, :, :]
-
-
 class GridderConfigWrapper(object):
     """
     Wraps a nifty GridderConfiguration for pickling purposes.
@@ -82,6 +64,24 @@ def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
         The NIFTY Gridder Configuration
     """
     return GridderConfigWrapper(nx, ny, eps, cell_size_x, cell_size_y)
+
+
+def _nifty_baselines(uvw, chan_freq):
+    """ Wrapper function for creating baseline mappings per row chunk """
+    assert len(chan_freq) == 1, "Handle multiple channel chunks"
+    return ng.Baselines(uvw[0], chan_freq[0])
+
+
+def _nifty_indices(baselines, grid_config, flag,
+                   chan_begin, chan_end, wmin, wmax):
+    """ Wrapper function for creating indices per row chunk """
+    return ng.getIndices(baselines, grid_config, flag[0],
+                         chan_begin, chan_end, wmin, wmax)
+
+
+def _nifty_grid(baselines, grid_config, indices, vis):
+    """ Wrapper function for creating a grid of visibilities per row chunk """
+    return ng.ms2grid_c(baselines, grid_config, indices, vis[0])[None, :, :]
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
@@ -144,7 +144,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
                                wmax, None,
                                dtype=np.int32)
 
-        grid = da.blockwise(_grid_data, ("row", "nu", "nv"),
+        grid = da.blockwise(_nifty_grid, ("row", "nu", "nv"),
                             baselines, ("row",),
                             gc, None,
                             indices, ("row",),
@@ -159,7 +159,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     return da.stack(grids, axis=2)
 
 
-def create_dirty(grid, grid_config):
+def _nifty_dirty(grid, grid_config):
     """ Wrapper function for creating a dirty image """
     grids = [grid_config.grid2dirty_c(grid[:, :, c])
              for c in range(grid.shape[2])]
@@ -190,14 +190,14 @@ def dirty(grid, grid_config):
     nx = gc.Nxdirty()
     ny = gc.Nydirty()
 
-    return da.blockwise(create_dirty, ("nx", "ny", "corr"),
+    return da.blockwise(_nifty_dirty, ("nx", "ny", "corr"),
                         grid, ("nx", "ny", "corr"),
                         gc, None,
                         adjust_chunks={"nx": nx, "ny": ny},
                         dtype=grid.dtype)
 
 
-def _model(image, grid_config):
+def _nifty_model(image, grid_config):
     """ Wrapper function for creating a dirty image """
     images = [grid_config.dirty2grid_c(image[:, :, c])
               for c in range(image.shape[2])]
@@ -205,6 +205,7 @@ def _model(image, grid_config):
     return np.stack(images, axis=2)
 
 
+@requires_optional("dask.array", "nifty_gridder", import_error)
 def model(image, grid_config):
     """
     Computes model visibilities from an image
@@ -227,14 +228,14 @@ def model(image, grid_config):
     nu = gc.Nu()
     nv = gc.Nv()
 
-    return da.blockwise(_model, ("nu", "nv", "corr"),
+    return da.blockwise(_nifty_model, ("nu", "nv", "corr"),
                         image, ("nu", "nv", "corr"),
                         gc, None,
                         adjust_chunks={"nu": nu, "nv": nv},
                         dtype=image.dtype)
 
 
-def _degrid(grid, baselines, indices, grid_config):
+def _nifty_degrid(grid, baselines, indices, grid_config):
     assert len(grid) == 1 and len(grid[0]) == 1
     return ng.grid2ms_c(baselines, grid_config.object, indices, grid[0][0])
 
@@ -296,7 +297,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
                                wmax, None,
                                dtype=np.int32)
 
-        vis = da.blockwise(_degrid, ("row", "chan"),
+        vis = da.blockwise(_nifty_degrid, ("row", "chan"),
                            grid[:, :, corr], ("ny", "nx"),
                            baselines, ("row",),
                            indices, ("row",),
