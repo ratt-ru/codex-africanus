@@ -77,8 +77,6 @@ def test_dask_nifty_degridder():
     ny = 1022
 
     gc = grid_config(nx, ny, 2e-13, 2.0, 2.0)
-    nu = gc.object.Nu()
-    nv = gc.object.Nv()
 
     # Random UV data
     uvw = rf(size=(nrow, 3)).astype(np.float64)*128
