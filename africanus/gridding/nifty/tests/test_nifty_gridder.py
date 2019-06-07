@@ -91,8 +91,8 @@ def test_dask_nifty_degridder():
     da_weight = da.from_array(weight, chunks=(row, chan, corr))
     da_image = da.from_array(image, chunks=(nx, ny, ncorr))
 
-    da_grid = model(da_image, gc)
-    da_vis = degrid(da_grid, da_uvw, da_flag, da_weight, da_freq, gc)
+    da_grid_vis = model(da_image, gc)
+    da_vis = degrid(da_grid_vis, da_uvw, da_flag, da_weight, da_freq, gc)
     vis = da_vis.compute()
     assert vis.shape == da_vis.shape
 
