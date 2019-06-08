@@ -7,7 +7,9 @@ from __future__ import print_function
 import numpy as np
 
 try:
+    import dask
     import dask.array as da
+    from dask.highlevelgraph import HighLevelGraph
     import nifty_gridder as ng
 except ImportError as e:
     import_error = e
@@ -82,14 +84,15 @@ def _nifty_indices(baselines, grid_config, flag,
                          chan_begin, chan_end, wmin, wmax)
 
 
-def _nifty_grid(baselines, grid_config, indices, vis):
+def _nifty_grid(baselines, grid_config, indices, vis, user_grid=None):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    return ng.ms2grid_c(baselines, grid_config, indices, vis[0])[None, :, :]
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis, user_grid=user_grid)
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
 def grid(vis, uvw, flags, weights, frequencies, grid_config,
-         wmin=-1e30, wmax=1e30):
+         wmin=-1e30, wmax=1e30, streams=None):
     """
     Grids the supplied visibilities in parallel. Note that
     a grid is create for each visibility chunk.
@@ -113,6 +116,10 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
         Minimum W coordinate to grid. Defaults to -1e30.
     wmax : float
         Maximum W coordinate to grid. Default to 1e30.
+    streams : int, optional
+        Number of parallel gridding operations. Default to None,
+        in which case as many grids as visibility chunks will
+        be created.
 
     Returns
     -------
@@ -136,7 +143,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
     for corr in range(vis.shape[2]):
         corr_flags = flags[:, :, corr]
-
+        corr_vis = flags[:, :, corr]
         indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
                                gc, None,
@@ -147,17 +154,55 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
                                wmax, None,
                                dtype=np.int32)
 
-        grid = da.blockwise(_nifty_grid, ("row", "nu", "nv"),
-                            baselines, ("row",),
-                            gc, None,
-                            indices, ("row",),
-                            vis[:, :, corr], ("row", "chan"),
-                            new_axes={"nu": gc.Nu(), "nv": gc.Nv()},
-                            adjust_chunks={"row": 1},
-                            dtype=np.complex128)
+        if streams is None:
+            grid = da.blockwise(_nifty_grid, ("row", "nu", "nv"),
+                                baselines, ("row",),
+                                gc, None,
+                                indices, ("row",),
+                                corr_vis, ("row", "chan"),
+                                new_axes={"nu": gc.Nu(), "nv": gc.Nv()},
+                                adjust_chunks={"row": 1},
+                                dtype=np.complex128)
 
-        grid = grid.sum(axis=0)
-        grids.append(grid)
+            grids.append(grid.sum(axis=0))
+        else:
+            token = dask.base.tokenize(baselines, indices, corr_vis, corr)
+            name = "-".join(("nifty-grid", str(corr), token))
+            layers = {}
+
+            # Split our row blocks by the number of streams
+            # For all blocks in a stream, we'll grid those
+            # blocks serially, passing one grid into the other
+            row_blocks = indices.numblocks[0]
+            row_block_chunks = (row_blocks + streams - 1) // streams
+            end_keys = []
+
+            for rb_start in range(0, row_blocks, row_block_chunks):
+                rb_end = min(rb_start + row_block_chunks, row_blocks)
+                last_key = None
+
+                for rb in range(rb_start, rb_end):
+                    key = (name, rb, 0, 0, corr)
+                    fn = (_nifty_grid,
+                          (baselines.name, rb),
+                          gc,
+                          (indices.name, rb),
+                          (corr_vis.name, rb, 0),
+                          # Re-use grid from last operation if present
+                          None if last_key is None else last_key)
+
+                    layers[key] = fn
+                    last_key = key
+
+                end_keys.append(last_key)
+
+            layers[(name, 0, 0)] = (reduce, sum, end_keys)
+            deps = [baselines, indices, corr_vis]
+            graph = HighLevelGraph.from_collections(name, layers, deps)
+            chunks = ((gc.Nu(),), (gc.Nv(),))
+
+            corr_grid = da.Array(graph, name, chunks, vis.dtype)
+            grids.append(corr_grid)
 
     return da.stack(grids, axis=2)
 

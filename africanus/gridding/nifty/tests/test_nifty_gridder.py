@@ -25,9 +25,9 @@ def test_dask_nifty_gridder():
     da = pytest.importorskip('dask.array')
     _ = pytest.importorskip('nifty_gridder')
 
-    row = (16, 16, 16, 16)
+    row = (16,)*8
     chan = (32,)
-    corr = (4,)
+    corr = (1,)
     nx = 1026
     ny = 1022
 
@@ -52,13 +52,30 @@ def test_dask_nifty_gridder():
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc)
     d = dirty(g, gc)
 
+    d.visualize("fan.pdf")
+
     grid_shape = (gc.object.Nu(), gc.object.Nv(), ncorr)
     dirty_shape = (gc.object.Nxdirty(), gc.object.Nydirty(), ncorr)
 
     assert g.shape == grid_shape
     assert d.shape == dirty_shape == (nx, ny, ncorr)
 
-    assert d.compute().shape == d.shape
+    g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=1)
+    d = dirty(g, gc)
+
+    assert g.shape == grid_shape
+    assert d.shape == dirty_shape == (nx, ny, ncorr)
+
+    g.visualize("gridding_one_stream.pdf")
+    d.compute()
+
+    g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=3)
+    d = dirty(g, gc)
+
+    assert g.shape == grid_shape
+    assert d.shape == dirty_shape == (nx, ny, ncorr)
+
+    g.visualize("gridding_two_stream.pdf")
 
 
 def test_dask_nifty_degridder():
