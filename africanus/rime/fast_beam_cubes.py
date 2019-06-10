@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
@@ -32,8 +31,9 @@ def freq_grid_interp(frequencies, beam_freq_map):
     for chan in range(frequencies.shape[0]):
         freq = frequencies[chan]
 
-        # Below the beam_freq_map, we'll clamp frequencies
-        # to the lower position and introduce scaling for the lm coordinates
+        # Below the beam_freq_map,
+        # we'll clamp frequencies to the lower position
+        # and introduce scaling for the lm coordinates
         if freq < beam_freq_map[0]:
             freq_scale[chan] = freq / beam_freq_map[0]
             grid_pos[chan] = 0
