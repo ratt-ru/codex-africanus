@@ -71,6 +71,6 @@ def test_fast_beams(freqs, beam_freq_map):
     exp_diff = [0., 0., 0.04, 0., 0.1, 0.2, 0.09, 0.09]
     assert_array_almost_equal(fgrid_diff, exp_diff)
 
-    ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
+    ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,  # noqa
                          lm, parangles, point_errors, antenna_scaling,
                          freqs)
