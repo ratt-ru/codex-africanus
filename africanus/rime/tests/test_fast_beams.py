@@ -50,9 +50,8 @@ def test_fast_beams(freqs, beam_freq_map):
     point_errors = np.random.random(size=(time, ants, 2))
     antenna_scaling = np.random.random(size=(ants, chans, 2))
 
-    # Beam sampling variables
+    # Beam variables
     beam = rc((beam_lw, beam_mh, beam_nud, 2, 2))
-
     beam_lm_extents = np.asarray([[-1.0, 1.0], [-1.0, 1.0]])
 
     grid_pos, freq_scale, fgrid_diff = freq_grid_interp(freqs, beam_freq_map)
