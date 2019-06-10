@@ -86,8 +86,6 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     # Maximum l and m indices in float and int
     lmaxf = ex_dtype.type(beam_lw - 1)
     mmaxf = ex_dtype.type(beam_mh - 1)
-    lmaxi = np.int32(beam_lw - 1)
-    mmaxi = np.int32(beam_mh - 1)
 
     lscale = lmaxf / (upper_l - lower_l)
     mscale = mmaxf / (upper_m - lower_m)
@@ -150,8 +148,6 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     gc0 = grid_pos[f]
 
                     # Snap to the upper grid coordinates
-                    gl1 = np.int(min(gl0 + 1, lmaxi))
-                    gm1 = np.int(min(gm0 + 1, mmaxi))
                     gc1 = gc0 + 1
 
                     # Difference between grid and offset coordinates
