@@ -159,13 +159,13 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     corr_sum[:] = 0
                     absc_sum[:] = 0
 
-                    # Precompute lower cube weights
+                    # Lower cube weights
                     weight[0] = (one - ld)*(one - md)*nud
                     weight[1] = ld*(one - md)*nud
                     weight[2] = (one - ld)*md*nud
                     weight[3] = ld*md*nud
 
-                    # Precompute upper cube weights
+                    # Upper cube weights
                     weight[4] = (one - ld)*(one - md)*(one - nud)
                     weight[5] = ld*(one - md)*(one - nud)
                     weight[6] = (one - ld)*md*(one - nud)
@@ -175,37 +175,28 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     beam_scratch[:] = fbeam[gl0, gm0, gc0]
 
                     for c in range(ncorrs):
-                        absc_sum[c] += weight[0] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[0] * beam_scratch[c]
-
-                        absc_sum[c] += weight[1] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[1] * beam_scratch[c]
-
-                        absc_sum[c] += weight[2] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[2] * beam_scratch[c]
-
-                        absc_sum[c] += weight[3] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[3] * beam_scratch[c]
+                        # Sensible compilers should unroll this loop
+                        for w in range(4):
+                            absc_sum[c] += weight[w] * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight[w] * beam_scratch[c]
 
                     # Accumulate upper cube correlations
                     beam_scratch[:] = fbeam[gl0, gm0, gc1]
 
                     for c in range(ncorrs):
-                        absc_sum[c] += weight[4] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[4] * beam_scratch[c]
-
-                        absc_sum[c] += weight[5] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[5] * beam_scratch[c]
-
-                        absc_sum[c] += weight[6] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[6] * beam_scratch[c]
-
-                        absc_sum[c] += weight[7] * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight[7] * beam_scratch[c]
+                        # Sensible compilers should unroll this loop
+                        for w in range(4, 8):
+                            absc_sum[c] += weight[w] * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight[w] * beam_scratch[c]
 
                         # Added all correlations, normalise
-                        norm = absc_sum[c] / np.abs(corr_sum[c])
-                        corr_sum[c] *= absc_sum[c] if np.isinf(norm) else norm
+                        div = np.abs(corr_sum[c])
+
+                        if div != 0.0:
+                            # This case probably works out to a zero assign
+                            corr_sum[c] *= absc_sum[c]
+                        else:
+                            corr_sum[c] *= absc_sum[c] / div
 
                     # Assign normalised values
                     fjones[s, t, a, f, :] = corr_sum
