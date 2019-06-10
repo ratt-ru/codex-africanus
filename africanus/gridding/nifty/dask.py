@@ -84,7 +84,14 @@ def _nifty_indices(baselines, grid_config, flag,
                          chan_begin, chan_end, wmin, wmax)
 
 
-def _nifty_grid(baselines, grid_config, indices, vis, user_grid=None):
+def _nifty_grid(baselines, grid_config, indices, vis):
+    """ Wrapper function for creating a grid of visibilities per row chunk """
+    assert len(vis) == 1 and type(vis) == list
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis[0], None)[None, :, :]
+
+
+def _nifty_grid_streams(baselines, grid_config, indices, vis, user_grid=None):
     """ Wrapper function for creating a grid of visibilities per row chunk """
     return ng.ms2grid_c(baselines, grid_config, indices,
                         vis, user_grid=user_grid)
@@ -166,8 +173,10 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
             grids.append(grid.sum(axis=0))
         else:
-            token = dask.base.tokenize(baselines, indices, corr_vis, corr)
-            name = "-".join(("nifty-grid", str(corr), token))
+            token = dask.base.tokenize(baselines, indices, gc,
+                                       corr_vis, corr,
+                                       streams)
+            name = "-".join(("nifty-grid-stream", str(corr), token))
             layers = {}
 
             # Split our row blocks by the number of streams
@@ -175,28 +184,33 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
             # blocks serially, passing one grid into the other
             row_blocks = indices.numblocks[0]
             row_block_chunks = (row_blocks + streams - 1) // streams
-            end_keys = []
+            last_keys = []
 
             for rb_start in range(0, row_blocks, row_block_chunks):
                 rb_end = min(rb_start + row_block_chunks, row_blocks)
                 last_key = None
 
                 for rb in range(rb_start, rb_end):
-                    key = (name, rb, 0, 0, corr)
-                    fn = (_nifty_grid,
+                    key = (name, rb, corr)
+                    fn = (_nifty_grid_streams,
                           (baselines.name, rb),
                           gc,
                           (indices.name, rb),
                           (corr_vis.name, rb, 0),
                           # Re-use grid from last operation if present
-                          None if last_key is None else last_key)
+                          last_key)
 
                     layers[key] = fn
                     last_key = key
 
-                end_keys.append(last_key)
+                last_keys.append(last_key)
 
-            layers[(name, 0, 0)] = (reduce, sum, end_keys)
+            name = "-".join(("nifty-grid-last", str(corr), token))
+
+            for stream, key in enumerate(last_keys):
+                layers[(name, stream, 0, 0)] = layers.pop(key)
+
+            layers[(name, 0, 0)] = (reduce, sum, last_keys)
             deps = [baselines, indices, corr_vis]
             graph = HighLevelGraph.from_collections(name, layers, deps)
             chunks = ((gc.Nu(),), (gc.Nv(),))

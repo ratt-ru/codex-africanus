@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 import pickle
 import pytest
 
@@ -50,32 +51,67 @@ def test_dask_nifty_gridder():
 
     gc = grid_config(nx, ny, 2e-13, 2.0, 2.0)
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc)
-    d = dirty(g, gc)
-
-    d.visualize("fan.pdf")
+    d1 = dirty(g, gc)
 
     grid_shape = (gc.object.Nu(), gc.object.Nv(), ncorr)
     dirty_shape = (gc.object.Nxdirty(), gc.object.Nydirty(), ncorr)
 
     assert g.shape == grid_shape
-    assert d.shape == dirty_shape == (nx, ny, ncorr)
+    assert d1.shape == dirty_shape == (nx, ny, ncorr)
 
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=1)
-    d = dirty(g, gc)
+    d2 = dirty(g, gc)
 
     assert g.shape == grid_shape
-    assert d.shape == dirty_shape == (nx, ny, ncorr)
-
-    g.visualize("gridding_one_stream.pdf")
-    d.compute()
+    assert d2.shape == dirty_shape == (nx, ny, ncorr)
 
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=3)
-    d = dirty(g, gc)
+    d3 = dirty(g, gc)
 
     assert g.shape == grid_shape
-    assert d.shape == dirty_shape == (nx, ny, ncorr)
+    assert d3.shape == dirty_shape == (nx, ny, ncorr)
 
-    g.visualize("gridding_two_stream.pdf")
+    from dask.diagnostics import Profiler
+
+    # d1.compute()
+    #d1, d2, d3 = da.compute(d1, d2, d3)
+    prof = Profiler()
+
+    with prof:
+        d1 = d1.compute()
+
+    prof.visualize()
+
+    prof = Profiler()
+
+    print("d1 done")
+    with prof:
+        d2 = d2.compute()
+
+    prof.visualize()
+
+    print("d2 done")
+
+    import dask
+    d3.visualize("graph_unoptimized.pdf")
+    d3, = dask.optimize(d3)
+    d3.visualize("graph_optimized.pdf")
+
+
+
+
+
+    prof = Profiler()
+
+    with prof:
+        d3 = d3.compute()
+
+
+    prof.visualize()
+
+    print("d3 done")
+    assert_array_almost_equal(d1, d2)
+    assert_array_almost_equal(d2, d3)
 
 
 def test_dask_nifty_degridder():
