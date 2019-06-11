@@ -12,7 +12,7 @@ from africanus.rime.parangles import parallactic_angles as np_parangles
 from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
-from africanus.rime.beam_cubes import beam_cube_dde as np_beam_cude_dde
+from africanus.rime.fast_beam_cubes import beam_cube_dde as np_beam_cube_dde
 from africanus.rime.predict import (APPLY_GAINS_DOCS,
                                     PREDICT_DOCS, predict_checks)
 from africanus.rime.predict import predict_vis as np_predict_vis
@@ -114,33 +114,47 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
                              dtype_=dtype)
 
 
-@wraps(np_beam_cude_dde)
-def _beam_wrapper(beam, coords, l_grid, m_grid, freq_grid,
-                  spline_order=1, mode='nearest'):
-    return np_beam_cude_dde(beam[0][0][0], coords[0],
-                            l_grid[0], m_grid[0], freq_grid[0],
-                            spline_order=spline_order, mode=mode)
+@wraps(np_beam_cube_dde)
+def _beam_cube_dde_wrapper(beam, beam_lm_extents, beam_freq_map,
+                           lm, parallactic_angles,
+                           point_errors, antenna_scaling,
+                           frequencies):
+    return np_beam_cube_dde(beam[0][0][0], beam_lm_extents[0][0],
+                            beam_freq_map[0], lm[0],
+                            parallactic_angles, point_errors[0],
+                            antenna_scaling[0], frequencies)
 
 
 @requires_optional('dask.array', da_import_error)
-def beam_cube_dde(beam, coords, l_grid, m_grid, freq_grid,
-                  spline_order=1, mode='nearest'):
+def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
+                  lm, parallactic_angles,
+                  point_errors, antenna_scaling,
+                  frequencies):
 
-    coord_shapes = coords.shape[1:]
+    if not all(len(c) == 1 for c in beam.chunks):
+        raise ValueError("Beam chunking unsupported")
+
+    if not all(len(c) == 1 for c in beam_freq_map.chunks):
+        raise ValueError("Beam frequency map chunking unsupported")
+
+    if not all(len(c) == 1 for c in beam_lm_extents.chunks):
+        raise ValueError("Chunking of beam_lm_extents unsupported")
+
     corr_shapes = beam.shape[3:]
     corr_dims = tuple("corr-%d" % i for i in range(len(corr_shapes)))
-    coord_dims = tuple("coord-%d" % i for i in range(len(coord_shapes)))
 
-    beam_dims = ("beam_lw", "beam_mh", "beam_nud") + corr_dims
+    dde_dims = ("source", "time", "ant", "chan") + corr_dims
+    beam_dims = ("beam-lw", "beam-mh", "beam-nud") + corr_dims
 
-    return da.core.blockwise(_beam_wrapper, coord_dims + corr_dims,
+    return da.core.blockwise(_beam_cube_dde_wrapper, dde_dims,
                              beam, beam_dims,
-                             coords, ("coords",) + coord_dims,
-                             l_grid, ("beam_lw",),
-                             m_grid, ("beam_mh",),
-                             freq_grid, ("beam_nud",),
-                             spline_order=spline_order,
-                             mode=mode,
+                             beam_lm_extents, ("beam-lm", "beam-ext"),
+                             beam_freq_map, ("beam-nud",),
+                             lm, ("source", "source-comp"),
+                             parallactic_angles, ("time", "ant"),
+                             point_errors, ("time", "ant", "chan", "pt-comp"),
+                             antenna_scaling, ("ant", "chan", "scale-comp"),
+                             frequencies, ("chan",),
                              dtype=beam.dtype)
 
 
@@ -475,7 +489,7 @@ except AttributeError:
     pass
 
 try:
-    beam_cube_dde.__doc__ = mod_docs(np_beam_cude_dde.__doc__,
+    beam_cube_dde.__doc__ = mod_docs(np_beam_cube_dde.__doc__,
                                      [(":class:`numpy.ndarray`",
                                        ":class:`dask.array.Array`")])
 except AttributeError:

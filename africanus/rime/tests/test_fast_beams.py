@@ -147,6 +147,61 @@ def test_grid_interpolate(freqs, beam_freq_map):
     assert_array_almost_equal(fgrid_diff, exp_diff)
 
 
+def test_dask_fast_beams(freqs, beam_freq_map):
+    da = pytest.importorskip("dask.array")
+    from africanus.rime.dask import beam_cube_dde as dask_beam_cube_dde
+
+    beam_lw = 10
+    beam_mh = 10
+    beam_nud = beam_freq_map.shape[0]
+
+    src_c = (2, 3, 5)
+    time_c = (3, 2)
+    ants_c = (2, 1, 1)
+    chan_c = da.core.normalize_chunks(3, shape=freqs.shape)[0]
+
+    src = sum(src_c)
+    time = sum(time_c)
+    ants = sum(ants_c)
+    chans = sum(chan_c)
+
+    # Source Transform variables
+    lm = np.random.random(size=(src, 2))
+    parangles = np.random.random(size=(time, ants))
+    point_errors = np.random.random(size=(time, ants, chans, 2))
+    antenna_scaling = np.random.random(size=(ants, chans, 2))
+
+    # Make random values more representative
+    lm = (lm - 0.5)*0.0001        # Shift lm to around the centre
+    parangles *= np.pi / 12        # parangles to 15 degrees max
+    point_errors *= 0.001         # Pointing errors
+    antenna_scaling *= 0.0001     # Antenna scaling
+
+    # Beam variables
+    beam = rc((beam_lw, beam_mh, beam_nud, 2, 2))
+    beam_lm_extents = np.asarray([[-1.0, 1.0], [-1.0, 1.0]])
+
+    ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
+                         lm, parangles, point_errors, antenna_scaling,
+                         freqs)
+
+    da_beam = da.from_array(beam, chunks=beam.shape)
+    da_beam_freq_map = da.from_array(beam_freq_map, chunks=beam_freq_map.shape)
+    da_lm = da.from_array(lm, chunks=(src_c, 2))
+    da_parangles = da.from_array(parangles, chunks=(time_c, ants_c))
+    da_point_errors = da.from_array(point_errors,
+                                    chunks=(time_c, ants_c, chan_c, 2))
+    da_ant_scale = da.from_array(antenna_scaling, chunks=(ants_c, chan_c, 2))
+    da_extents = da.from_array(beam_lm_extents, chunks=beam_lm_extents.shape)
+    da_freqs = da.from_array(freqs, chunks=chan_c)
+
+    da_ddes = dask_beam_cube_dde(da_beam, da_extents, da_beam_freq_map,
+                                 da_lm, da_parangles, da_point_errors,
+                                 da_ant_scale, da_freqs)
+
+    assert_array_equal(da_ddes.compute(), ddes)
+
+
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
     """ Test that the numba beam matches montblanc implementation """
