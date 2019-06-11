@@ -10,10 +10,11 @@ except ImportError:
     pass
 
 import numpy as np
+from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import njit
 
 
-@njit(nogil=True)
+@njit(nogil=True, cache=True)
 def freq_grid_interp(frequencies, beam_freq_map):
     # Interpolated grid coordinate
     beam_nud = beam_freq_map.shape[0]
@@ -75,13 +76,13 @@ def freq_grid_interp(frequencies, beam_freq_map):
     return grid_pos, freq_scale, freq_grid_diff
 
 
-# @njit(nogil=True, cache=True)
+@njit(nogil=True, cache=True)
 def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
-                  lm, parangles, point_errors, antenna_scaling,
+                  lm, parallactic_angles, point_errors, antenna_scaling,
                   frequencies):
 
     nsrc = lm.shape[0]
-    ntime, nants = parangles.shape
+    ntime, nants = parallactic_angles.shape
     nchan = frequencies.shape[0]
     beam_lw, beam_mh, beam_nud = beam.shape[:3]
     corrs = beam.shape[3:]
@@ -125,8 +126,8 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
 
     for t in range(ntime):
         for a in range(nants):
-            sin_pa = np.sin(parangles[t, a])
-            cos_pa = np.cos(parangles[t, a])
+            sin_pa = np.sin(parallactic_angles[t, a])
+            cos_pa = np.cos(parallactic_angles[t, a])
 
             for s in range(nsrc):
                 # Extract lm coordinates
@@ -248,3 +249,62 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     fjones[s, t, a, f, :] = corr_sum
 
     return fjones.reshape((nsrc, ntime, nants, nchan) + corrs)
+
+
+BEAM_CUBE_DOCS = DocstringTemplate(
+    r"""
+    Evaluates Direction Dependent Effects along a source's path
+    by interpolating the values  of a complex beam cube
+    at the source location.
+
+    Notes
+    -----
+    1. Sources are clamped to the provided `beam_lm_extents`.
+    2. Frequencies outside the cube (i.e. outside beam_freq_map)
+       introduce linear scaling to the lm coordinates of a source.
+
+    Parameters
+    ----------
+    beam : $(array_type)
+        Complex beam cube of
+        shape :code:`(beam_lw, beam_mh, beam_nud, corr, corr)`.
+        `beam_lw`, `beam_mh` and `beam_nud` define the size
+        of the cube in the l, m and frequency dimensions, respectively.
+    beam_lm_extents : $(array_type)
+        lm extents of the beam cube of shape :code:`(2, 2)`.
+        ``[[lower_l, upper_l], [lower_m, upper_m]]``.
+    beam_freq_map : $(array_type)
+        Beam frequency map of shape :code:`(beam_nud,)`.
+        This array is used to define interpolation along
+        the :code:`(chan,)` dimension.
+    lm : $(array_type)
+        Source lm coordinates of shape :code:`(source, 2)`.
+        These coordinates are:
+
+            1. Scaled if the associated frequency lies outside the beam cube.
+            2. Offset by pointing errors: ``point_errors``
+            3. Rotated by parallactic angles: ``parallactic_angles``.
+            4. Scaled by antenna scaling factors: `` antenna_scaling``.
+
+    parallactic_angles : $(array_type)
+        Parallactic angles of shape :code:`(time, ant)`.
+    point_errors : $(array_type)
+        Pointing errors of shape :code:`(time, ant, chan, 2)`.
+    antenna_scaling : $(array_type)
+        Antenna scaling factors of shape :code:`(ant, chan, 2)`
+    frequencies : $(array_type)
+        Frequencies of shape :code:`(chan,)`.
+
+    Returns
+    -------
+    ddes : $(array_type)
+        Direction Dependent Effects of shape
+        :code:`(source, time, ant, chan, corr, corr)`
+    """)
+
+
+try:
+    beam_cube_dde.__doc__ = BEAM_CUBE_DOCS.substitute(
+                                array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass

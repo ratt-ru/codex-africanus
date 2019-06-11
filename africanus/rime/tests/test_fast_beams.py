@@ -175,7 +175,7 @@ def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
 
     # Make random values more representative
     lm = (lm - 0.5)*0.0001        # Shift lm to around the centre
-    parangles *= np.pi / 6        # parangles to 30 degrees
+    parangles *= np.pi / 12        # parangles to 15 degrees max
     point_errors *= 0.001         # Pointing errors
     antenna_scaling *= 0.0001     # Antenna scaling
 
