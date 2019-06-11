@@ -284,7 +284,7 @@ BEAM_CUBE_DOCS = DocstringTemplate(
             1. Scaled if the associated frequency lies outside the beam cube.
             2. Offset by pointing errors: ``point_errors``
             3. Rotated by parallactic angles: ``parallactic_angles``.
-            4. Scaled by antenna scaling factors: `` antenna_scaling``.
+            4. Scaled by antenna scaling factors: ``antenna_scaling``.
 
     parallactic_angles : $(array_type)
         Parallactic angles of shape :code:`(time, ant)`.

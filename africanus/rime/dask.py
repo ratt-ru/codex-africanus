@@ -12,7 +12,8 @@ from africanus.rime.parangles import parallactic_angles as np_parangles
 from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
-from africanus.rime.fast_beam_cubes import beam_cube_dde as np_beam_cube_dde
+from africanus.rime.fast_beam_cubes import (beam_cube_dde as np_beam_cube_dde,
+                                            BEAM_CUBE_DOCS)
 from africanus.rime.predict import (APPLY_GAINS_DOCS,
                                     PREDICT_DOCS, predict_checks)
 from africanus.rime.predict import predict_vis as np_predict_vis
@@ -489,9 +490,8 @@ except AttributeError:
     pass
 
 try:
-    beam_cube_dde.__doc__ = mod_docs(np_beam_cube_dde.__doc__,
-                                     [(":class:`numpy.ndarray`",
-                                       ":class:`dask.array.Array`")])
+    beam_cube_dde.__doc__ = BEAM_CUBE_DOCS.substitute(
+                                array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass
 
