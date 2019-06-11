@@ -181,10 +181,12 @@ def test_dask_fast_beams(freqs, beam_freq_map):
     beam = rc((beam_lw, beam_mh, beam_nud, 2, 2))
     beam_lm_extents = np.asarray([[-1.0, 1.0], [-1.0, 1.0]])
 
+    # Compute numba ddes
     ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                          lm, parangles, point_errors, antenna_scaling,
                          freqs)
 
+    # Create dask arrays
     da_beam = da.from_array(beam, chunks=beam.shape)
     da_beam_freq_map = da.from_array(beam_freq_map, chunks=beam_freq_map.shape)
     da_lm = da.from_array(lm, chunks=(src_c, 2))
@@ -195,10 +197,12 @@ def test_dask_fast_beams(freqs, beam_freq_map):
     da_extents = da.from_array(beam_lm_extents, chunks=beam_lm_extents.shape)
     da_freqs = da.from_array(freqs, chunks=chan_c)
 
+    # dask ddes
     da_ddes = dask_beam_cube_dde(da_beam, da_extents, da_beam_freq_map,
                                  da_lm, da_parangles, da_point_errors,
                                  da_ant_scale, da_freqs)
 
+    # Should be strictly equal
     assert_array_equal(da_ddes.compute(), ddes)
 
 
