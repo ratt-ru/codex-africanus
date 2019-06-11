@@ -19,8 +19,6 @@ def shapelet_img_space(xx, n, beta):
 def test_image_space():
         # Define all respective values for nrow, ncoeff, etc
         beta = [.01, .01]
-        npix = 128
-        nrow = npix ** 2
         nchan = 1
         ncoeffs = [1, 1]
         nsrc = 1
@@ -40,14 +38,14 @@ def test_image_space():
         l_vals = np.linspace(x_range[0], x_range[1], npix_x)
         m_vals = np.linspace(y_range[0], y_range[1], npix_y)
         ll, mm = np.meshgrid(l_vals, m_vals)
-        lm = np.vstack((ll.flatten(), mm.flatten()))
-        nrow = lm.shape[1]
+        lm = np.vstack((ll.flatten(), mm.flatten())).T
+        nrow = lm.shape[0]
 
         # Create regular uv grid
         freqs_u = Fs(np.fft.fftfreq(npix_x, d=delta_x))
         freqs_v = Fs(np.fft.fftfreq(npix_y, d=delta_x))
         uu, vv = np.meshgrid(freqs_u, freqs_v)
-        uv = np.vstack((uu.flatten(), vv.flatten()))
+        uv = np.vstack((uu.flatten(), vv.flatten())).T
 
         ###############################################################
         ################ BEGIN IMAGE SPACE TEST (passes) ##############
@@ -59,7 +57,7 @@ def test_image_space():
         frequency = np.empty((nchan), dtype=np.float)
 
         # Assign values to input arrays
-        img_coords[:, 0], img_coords[:, 1], img_coords[:, 2] = lm[0, :], lm[1, :], 0
+        img_coords[:, :2], img_coords[:, 2] = lm[:,:], 0
         img_beta[0, :] = beta[:]
         frequency[:] = 1
         img_coeffs[:, :, :] = 1
@@ -67,7 +65,7 @@ def test_image_space():
         # Create output arrays
         gf_shapelets = np.zeros((nrow), dtype=np.float)
         pt_shapelets = np.zeros((nrow))
-
+        """
         for n1 in range(ncoeffs[0]):
                 for n2 in range(ncoeffs[1]):
                         sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
@@ -76,12 +74,39 @@ def test_image_space():
                         shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
                         gf_shapelets[:] += c * shapelets_basis_func
                         pt_shapelets[:] += c * pt_basis_func
-        
+        """
+        for row in range(nrow):
+                pt_tmp_shapelet = 0
+                l, m = img_coords[row, :2]
+                for n1 in range(ncoeffs[0]):
+                        for n2 in range(ncoeffs[1]):
+                                c = img_coeffs[0, n1, n2]
+                                pt_basis_func = shapelet_img_space(l, n1, beta[0]) * shapelet_img_space(m, n2, beta[1])
+                                pt_tmp_shapelet += c * pt_basis_func
+                pt_shapelets[row] = pt_tmp_shapelet
+
+        for n1 in range(ncoeffs[0]):
+                for n2 in range(ncoeffs[1]):
+                        sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
+                        shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
+                        gf_shapelets[:] += c * shapelets_basis_func[:]
+
+                                
+
         plt.figure()
         plt.imshow(pt_shapelets.reshape((npix_x, npix_y)))
         plt.colorbar()
         plt.title("Image Space Shapelets")
+        #plt.show()
         plt.savefig("./img_shapelets.png")
+        plt.close()
+
+        plt.figure()
+        plt.imshow(gf_shapelets.reshape((npix_x, npix_y)))
+        plt.colorbar()
+        plt.title("Griffinfoster Shapelets")
+        #plt.show()
+        plt.savefig("./gf_shapelets.png")
         plt.close()
 
         assert np.allclose(gf_shapelets, pt_shapelets)
@@ -98,11 +123,12 @@ def test_image_space():
         f_coeffs = img_coeffs
         f_beta = img_beta
 
-        f_coords[:, 0], f_coords[:, 1], f_coords[:, 2] = uv[0, :], uv[1, :], 0
-        f_frequencies[:] = 1e6
+        f_coords[:, :2], f_coords[:, 2] = lm[:, :], 0
+        f_frequencies[:] = 1
         print(uv)
-        
+        print("running numba now")
         ca_shapelets = nb_shapelet(f_coords, f_frequencies, f_coeffs, f_beta)
+        print("numba finished running")
         """
         pt_shapelets = np.zeros((nrow))
         for n1 in range(ncoeffs[0]):
@@ -111,13 +137,14 @@ def test_image_space():
                         pt_ft_img_func = shapelet_img_space(f_coords[:, 0], n1, f_beta[0, 0]) * shapelet_img_space(f_coords[:, 1], n2, f_beta[0, 1])
                         pt_shapelets += c * pt_ft_img_func
         """
-        ft_shapelets = Fs(np.fft.fft2(iFs(pt_shapelets).reshape((npix_x,npix_x))))
+        ft_shapelets = pt_shapelets.reshape((npix_x,npix_y))
         ca_shapelets = Fs(ca_shapelets[0, :,  0])
 
         ca_shapelets = np.abs(ca_shapelets.reshape((npix_x, npix_y)))
         ft_shapelets = np.abs(ft_shapelets)
 
-        print(np.average(ft_shapelets / ca_shapelets))
+        #print(np.average(ft_shapelets / ca_shapelets))
+        print("******************************")
 
    
 
@@ -137,7 +164,7 @@ def test_image_space():
         plt.savefig("./ca_shapelets.png")
         plt.close()
 
-        """
+        
         plt.figure()
         plt.imshow(ca_shapelets / ft_shapelets)
         plt.colorbar()
@@ -154,9 +181,12 @@ def test_image_space():
         plt.show()
         plt.savefig("./difference.png")
         plt.close()
-        """
+        
         
         assert np.allclose(ca_shapelets, ft_shapelets)
+        #####################################################
+        #####################################################
+        #####################################################
 
 
 
