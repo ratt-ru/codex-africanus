@@ -6,27 +6,27 @@ from __future__ import print_function
 
 from operator import mul
 
-try:
-    # in python3, reduce is in functools
-    from functools import reduce
-except ImportError:
-    # I guess this is python2
-    pass
+from africanus.compatibility import reduce
+from africanus.util.numba import jit
 
-import numba
 import numpy as np
 
-from ...util.docs import on_rtd
+_ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def _nb_grid(vis, uvw, flags, weights, ref_wave,
-             convolution_filter, grid):
+@jit(nopython=True, nogil=True, cache=True)
+def numba_grid(vis, uvw, flags, weights, ref_wave,
+               convolution_filter, cell_size, grid):
     """
-    See :func:"~africanus.gridding.simple.gridding._grid" for
+    See :func:"~africanus.gridding.simple.gridding.grid" for
     documentation.
     """
     cf = convolution_filter
+
+    # Shape checks
+    assert vis.shape[0] == uvw.shape[0] == flags.shape[0] == weights.shape[0]
+    assert vis.shape[1] == flags.shape[1] == weights.shape[1]
+    assert vis.shape[2] == flags.shape[2] == weights.shape[2]
 
     nrow, nchan = vis.shape[0:2]
     assert nchan == ref_wave.shape[0]
@@ -35,6 +35,13 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
     ny, nx = grid.shape[0:2]
     flat_corrs = grid.shape[2]
 
+    # Similarity Theorem
+    # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
+    # Scale UV coordinates
+    # Note u => x and v => y
+    u_scale = _ARCSEC2RAD * cell_size * nx
+    v_scale = _ARCSEC2RAD * cell_size * ny
+
     # Flatten correlation dimension for easier loop handling
     fvis = vis.reshape((nrow, nchan, flat_corrs))
     fflags = flags.reshape((nrow, nchan, flat_corrs))
@@ -42,16 +49,21 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
 
     filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
 
+    half_x = nx // 2
+    half_y = ny // 2
+
     for r in range(uvw.shape[0]):                 # row (vis)
         for f in range(vis.shape[1]):             # channel (freq)
-            scaled_u = uvw[r, 0] / ref_wave[f]
-            scaled_v = uvw[r, 1] / ref_wave[f]
+            # Exact UV coordinates
+            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
+            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
 
-            disc_u = int(np.round(scaled_u))
-            disc_v = int(np.round(scaled_v))
+            # Discretised UV coordinates
+            disc_u = int(np.round(exact_u))
+            disc_v = int(np.round(exact_v))
 
-            extent_v = disc_v + ny // 2
-            extent_u = disc_u + nx // 2
+            extent_u = disc_u + half_x
+            extent_v = disc_v + half_y
 
             # Out of bounds check
             if (extent_v + cf.half_sup >= ny or
@@ -60,26 +72,26 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
                     extent_u - cf.half_sup < 0):
                 continue
 
-            # One plus half support
+            # One plus half support (our kernels have 1 pixel of extra padding)
             one_half_sup = 1 + cf.half_sup
 
             # Compute fractional u and v
-            base_frac_u = one_half_sup + disc_u - scaled_u
-            base_frac_v = one_half_sup + disc_v - scaled_v
+            base_frac_u = disc_u - exact_u
+            base_frac_v = disc_v - exact_v
 
-            frac_u = int(base_frac_u*cf.oversample)
-            frac_v = int(base_frac_v*cf.oversample)
+            frac_u = int(np.round(base_frac_u*cf.oversample))
+            frac_v = int(np.round(base_frac_v*cf.oversample))
 
             # Iterate over v/y
             for conv_v in filter_index:
-                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
-                grid_v = disc_v + conv_v + ny // 2
+                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
+                grid_v = disc_v + conv_v + half_y
 
                 # Iterate over u/x
                 for conv_u in filter_index:
-                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
-                    conv_weight = v_tap*u_tap
-                    grid_u = disc_u + conv_u + nx // 2
+                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
+                    conv_weight = cf.filter_taps[v_idx, u_idx]
+                    grid_u = disc_u + conv_u + half_x
 
                     for c in range(flat_corrs):      # correlation
                         # Ignore flagged correlations
@@ -96,6 +108,7 @@ def _nb_grid(vis, uvw, flags, weights, ref_wave,
 
 def grid(vis, uvw, flags, weights, ref_wave,
          convolution_filter,
+         cell_size,
          nx=1024, ny=1024,
          grid=None):
     """
@@ -117,6 +130,7 @@ def grid(vis, uvw, flags, weights, ref_wave,
         complex visibility array of shape :code:`(row, chan, corr_1, corr_2)`
     uvw : np.ndarray
         float64 array of UVW coordinates of shape :code:`(row, 3)`
+        in wavelengths.
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
@@ -129,6 +143,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
         float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution filter
+    cell_size : float
+        Cell size in arcseconds.
     nx : integer, optional
         Size of the grid's X dimension
     ny : integer, optional
@@ -158,11 +174,82 @@ def grid(vis, uvw, flags, weights, ref_wave,
         ny, nx = grid.shape[0:2]
         grid = grid.reshape((ny, nx) + flat_corrs)
 
-    return _nb_grid(vis, uvw, flags, weights, ref_wave,
-                    convolution_filter, grid)
+    return numba_grid(vis, uvw, flags, weights, ref_wave,
+                      convolution_filter, cell_size, grid)
 
 
-def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
+@jit(nopython=True, nogil=True, cache=True)
+def numba_degrid(grid, uvw, weights, ref_wave,
+                 convolution_filter, cell_size, vis):
+    """
+    See :func:"~africanus.gridding.simple.gridding.degrid" for
+    documentation.
+    """
+    cf = convolution_filter
+    ny, nx, flat_corrs = grid.shape
+
+    # Similarity Theorem
+    # https://www.cv.nrao.edu/course/astr534/FTSimilarity.html
+    # Scale UV coordinates
+    # Note u => x and v => y
+    u_scale = _ARCSEC2RAD * cell_size * nx
+    v_scale = _ARCSEC2RAD * cell_size * ny
+
+    filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
+
+    half_x = nx // 2
+    half_y = ny // 2
+
+    for r in range(uvw.shape[0]):                 # row (vis)
+        for f in range(vis.shape[1]):             # channel (freq)
+            exact_u = uvw[r, 0] * u_scale / ref_wave[f]
+            exact_v = uvw[r, 1] * v_scale / ref_wave[f]
+
+            disc_u = int(np.round(exact_u))
+            disc_v = int(np.round(exact_v))
+
+            extent_v = disc_v + half_y
+            extent_u = disc_u + half_x
+
+            # Out of bounds check
+            if (extent_v + cf.half_sup >= ny or
+                extent_u + cf.half_sup >= nx or
+                extent_v - cf.half_sup < 0 or
+                    extent_u - cf.half_sup < 0):
+                continue
+
+            # One plus half support
+            one_half_sup = 1 + cf.half_sup
+
+            # Compute fractional u and v
+            base_frac_u = disc_u - exact_u
+            base_frac_v = disc_v - exact_v
+
+            frac_u = int(np.round(base_frac_u*cf.oversample))
+            frac_v = int(np.round(base_frac_v*cf.oversample))
+
+            # Iterate over v/y
+            for conv_v in filter_index:
+                v_idx = (conv_v + one_half_sup)*cf.oversample + frac_v
+                grid_v = disc_v + conv_v + half_y
+
+                # Iterate over u/x
+                for conv_u in filter_index:
+                    u_idx = (conv_u + one_half_sup)*cf.oversample + frac_u
+                    conv_weight = cf.filter_taps[v_idx, u_idx]
+                    grid_u = disc_u + conv_u + half_x
+
+                    # Correlation
+                    for c in range(flat_corrs):
+                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
+                                         conv_weight *
+                                         weights[r, f, c])
+
+    return vis
+
+
+def degrid(grid, uvw, weights, ref_wave,
+           convolution_filter, cell_size, dtype=np.complex64):
     """
     Convolutional degridder (continuum)
 
@@ -181,6 +268,7 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
         of shape :code:`(ny, nx, corr_1, corr_2)`
     uvw : np.ndarray
         float64 array of UVW coordinates of shape :code:`(row, 3)`
+        in wavelengths.
     weights : np.ndarray
         float32 or float64 array of weights. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
@@ -188,83 +276,29 @@ def _degrid(grid, uvw, weights, ref_wave, convolution_filter):
         float64 array of wavelengths of shape :code:`(chan,)`
     convolution_filter :  :class:`~africanus.filters.ConvolutionFilter`
         Convolution Filter
+    cell_size : float
+        Cell size in arcseconds.
+    dtype : :class:`numpy.dtype`
+        Data type of the visibilities
 
     Returns
     -------
     np.ndarray
         :code:`(row, chan, corr_1, corr_2)` complex ndarray of visibilities
     """
-    cf = convolution_filter
-
-    ny, nx = grid.shape[0:2]
-    corrs = grid.shape[2:]
-    nchan = ref_wave.shape[0]
     nrow = uvw.shape[0]
+    nchan = ref_wave.shape[0]
+    corrs = flat_corrs = grid.shape[2:]
 
-    flat_corrs = 1
+    # Flatten if necessary
+    if len(corrs) > 1:
+        flat_corrs = (reduce(mul, corrs),)
+        grid = grid.reshape(grid.shape[:2] + flat_corrs)
+        weights = weights.reshape(weights.shape[:2] + flat_corrs)
 
-    for corr in corrs:
-        flat_corrs *= corr
+    vis = np.zeros((nrow, nchan) + flat_corrs, dtype=dtype)
 
-    vis = np.zeros((nrow, nchan, flat_corrs), dtype=np.complex64)
-    grid = grid.reshape((ny, nx, flat_corrs))
-    weights = weights.reshape((nrow, nchan, flat_corrs))
+    vis = numba_degrid(grid, uvw, weights, ref_wave,
+                       convolution_filter, cell_size, vis)
 
-    assert vis.shape[1] == ref_wave.shape[0]
-    filter_index = np.arange(-cf.half_sup, cf.half_sup+1)
-
-    for r in range(uvw.shape[0]):                 # row (vis)
-        for f in range(vis.shape[1]):             # channel
-
-            scaled_u = uvw[r, 0] / ref_wave[f]
-            scaled_v = uvw[r, 1] / ref_wave[f]
-
-            disc_u = int(round(scaled_u))
-            disc_v = int(round(scaled_v))
-
-            extent_v = disc_v + ny // 2
-            extent_u = disc_u + nx // 2
-
-            # Out of bounds check
-            if (extent_v + cf.half_sup >= ny or
-                extent_u + cf.half_sup >= nx or
-                extent_v - cf.half_sup < 0 or
-                    extent_u - cf.half_sup < 0):
-                continue
-
-            # One plus half support
-            one_half_sup = 1 + cf.half_sup
-
-            # Compute fractional u and v
-            base_frac_u = one_half_sup + disc_u - scaled_u
-            base_frac_v = one_half_sup + disc_v - scaled_v
-
-            frac_u = int(base_frac_u*cf.oversample)
-            frac_v = int(base_frac_v*cf.oversample)
-
-            for conv_v in filter_index:
-                v_tap = cf.filter_taps[conv_v*cf.oversample + frac_v]
-                grid_v = disc_v + conv_v + ny // 2
-
-                for conv_u in filter_index:
-                    u_tap = cf.filter_taps[conv_u*cf.oversample + frac_u]
-                    conv_weight = v_tap * u_tap
-                    grid_u = disc_u + conv_u + nx // 2
-
-                    # Correlation
-                    for c in range(flat_corrs):
-                        vis[r, f, c] += (grid[grid_v, grid_u, c] *
-                                         conv_weight *
-                                         weights[r, f, c])
-
-    return vis.reshape((nrow, nchan) + corrs)
-
-# jit the functions if this is not RTD otherwise
-# use the private funcs for generating docstrings
-
-
-if not on_rtd():
-    degrid = numba.jit(nopython=True, nogil=True, cache=True)(_degrid)
-    # degrid = _degrid
-else:
-    degrid = _degrid
+    return vis.reshape(weights.shape[:2] + corrs)

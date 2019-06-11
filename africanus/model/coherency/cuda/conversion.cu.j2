@@ -1,0 +1,60 @@
+#include <cupy/carray.cuh>
+
+{%- from "rime/cuda/macros.j2" import warp_transpose %}
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{input_type}}, 2> inputs,
+    CArray<{{output_type}}, 2> outputs)
+{
+    // Number of sources
+    const ptrdiff_t & nsrc = inputs.shape()[0];
+    // Number of sources rounded up to a multiple of the number of elements
+    int nsrcmulup = {{elements}}*((nsrc + {{elements - 1}}) / {{elements}});
+    // Current source
+    int source = blockIdx.x*blockDim.x + threadIdx.x;
+
+    // Guard
+    if(source >= nsrcmulup)
+        { return; }
+
+    // Array to hold our variables
+    {{input_type}} in[{{elements}}];
+    {{output_type}} out[{{elements}}];
+
+    // Read in data
+    {
+        int idx = source;
+        int upper = {{elements}}*nsrc;
+        {%- for elem in range(elements) %}
+        if(idx < upper)
+        {
+            in[{{elem}}] = inputs[idx];
+            idx += nsrcmulup;
+        }
+        {%- endfor %}
+    }
+
+    // Transpose forward
+    {{ warp_transpose("in", input_type, elements) }}
+
+    {%- for expr in assign_exprs %}
+    {{expr}}
+    {%- endfor %}
+
+    // Transpose backward
+    {{ warp_transpose("out", output_type, elements) }}
+
+    // Write out data
+    {
+        int idx = source;
+        int upper = {{elements}}*nsrc;
+        {%- for elem in range(elements) %}
+        if(idx < upper)
+        {
+            outputs[idx] = out[{{elem}}];
+            idx += nsrcmulup;
+        }
+
+        {%- endfor %}
+    }
+}

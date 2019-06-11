@@ -4,67 +4,83 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from .gridding import (grid as np_grid_fn, degrid as np_degrid_fn)
-from ...util.docs import on_rtd, mod_docs
-from ...util.requirements import have_packages, MissingPackageException
+from functools import reduce
+from operator import mul
 
-_package_requirements = ('dask.array', 'toolz')
-have_requirements = have_packages(*_package_requirements)
+import numpy as np
 
-if not have_requirements or on_rtd():
-    def grid(vis, uvw, flags, weights, ref_wave,
-             convolution_filter, nx=1024, ny=1024):
-        raise MissingPackageException(*_package_requirements)
+from africanus.gridding.simple.gridding import (grid as np_grid_fn,
+                                                degrid as np_degrid_fn)
+from africanus.util.docs import mod_docs
+from africanus.util.requirements import requires_optional
 
-    def degrid(grid, uvw, weights, ref_wave, convolution_filter):
-        raise MissingPackageException(*_package_requirements)
-else:
-    import numpy as np
+try:
     import dask.array as da
+except ImportError as e:
+    da_import_error = e
+else:
+    da_import_error = None
 
-    def grid(vis, uvw, flags, weights, ref_wave,
-             convolution_filter, nx=1024, ny=1024):
-        """ Documentation below """
 
-        # Creation correlation dimension strings for each correlation
-        corrs = tuple('corr-%d' for i in range(len(vis.shape[2:])))
+# Unfortunately necessary to introduce an extra dim
+# for blockwise to work properly
+def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter,
+             cell_size, nx, ny):
+    return np_grid_fn(vis[0], uvw[0], flags[0], weights[0],
+                      ref_wave[0], convolution_filter,
+                      cell_size,
+                      nx=nx, ny=ny)[None, :]
 
-        # Unfortunately necessary to introduce an extra dim
-        # for atop to work properly
-        def _grid_fn(vis, uvw, flags, weights, ref_wave, convolution_filter):
-            return np_grid_fn(vis[0], uvw[0], flags[0], weights[0],
-                              ref_wave[0], convolution_filter,
-                              nx=nx, ny=ny)[None, :]
 
-        # Get grids, stacked by row
-        grids = da.core.atop(_grid_fn, ("row", "ny", "nx") + corrs,
-                             vis, ("row", "chan") + corrs,
+@requires_optional('dask.array', da_import_error)
+def grid(vis, uvw, flags, weights, ref_wave,
+         convolution_filter, cell_size, nx=1024, ny=1024):
+    """ Documentation below """
+
+    # Creation correlation dimension strings for each correlation
+    corrs = tuple('corr-%d' % i for i in range(len(vis.shape[2:])))
+
+    # Get grids, stacked by row
+    grids = da.core.blockwise(_grid_fn, ("row", "ny", "nx") + corrs,
+                              vis, ("row", "chan") + corrs,
+                              uvw, ("row", "(u,v,w)"),
+                              flags, ("row", "chan") + corrs,
+                              weights, ("row", "chan") + corrs,
+                              ref_wave, ("chan",),
+                              new_axes={"ny": ny, "nx": nx},
+                              adjust_chunks={"row": 1},
+                              convolution_filter=convolution_filter,
+                              cell_size=cell_size, ny=ny, nx=nx,
+                              dtype=vis.dtype)
+
+    # Sum grids over the row dimension to produce (ny, nx, corr_1, corr_2)
+    return grids.sum(axis=0)
+
+
+@requires_optional('dask.array', da_import_error)
+def degrid(grid, uvw, weights, ref_wave, convolution_filter, cell_size):
+    """ Documentation below """
+
+    grid_flat_corrs = reduce(mul, grid.shape[2:])
+    weight_flat_corrs = reduce(mul, weights.shape[2:])
+
+    assert grid_flat_corrs == weight_flat_corrs
+    assert uvw.shape[0] == weights.shape[0]
+    assert weights.shape[1] == ref_wave.shape[0]
+
+    # Creation correlation dimension strings for each correlation
+    corrs = tuple('corr-%d' % i for i in range(len(grid.shape[2:])))
+
+    return da.core.blockwise(np_degrid_fn, ("row", "chan") + corrs,
+                             grid, ("ny", "nx") + corrs,
                              uvw, ("row", "(u,v,w)"),
-                             flags, ("row", "chan") + corrs,
                              weights, ("row", "chan") + corrs,
                              ref_wave, ("chan",),
-                             new_axes={"ny": ny, "nx": nx},
-                             adjust_chunks={"row": 1},
+                             concatenate=True,
                              convolution_filter=convolution_filter,
+                             cell_size=cell_size,
                              dtype=np.complex64)
 
-        # Sum grids over the row dimension to produce (ny, nx, corr_1, corr_2)
-        return grids.sum(axis=0)
-
-    def degrid(grid, uvw, weights, ref_wave, convolution_filter):
-        """ Documentation below """
-
-        # Creation correlation dimension strings for each correlation
-        corrs = tuple('corr-%d' for i in range(len(grid.shape[2:])))
-
-        return da.core.atop(np_degrid_fn, ("row", "chan") + corrs,
-                            grid, ("ny", "nx") + corrs,
-                            uvw, ("row", "(u,v,w)"),
-                            weights, ("row", "chan") + corrs,
-                            ref_wave, ("chan",),
-                            concatenate=True,
-                            convolution_filter=convolution_filter,
-                            dtype=np.complex64)
 
 grid.__doc__ = mod_docs(np_grid_fn.__doc__,
                         [(":class:`numpy.ndarray`",

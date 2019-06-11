@@ -1,3 +1,4 @@
+===========================================
 Welcome to Codex Africanus's documentation!
 ===========================================
 
@@ -8,6 +9,7 @@ Welcome to Codex Africanus's documentation!
    readme
    installation
    usage
+   cmdline-utils
    api
    contributing
    authors

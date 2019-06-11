@@ -1,0 +1,36 @@
+#include <cupy/carray.cuh>
+
+{%- from "rime/cuda/macros.j2" import warp_transpose %}
+
+extern "C" __global__ void kernel(
+    const CArray<{{type}}, 2> input,
+    CArray<{{type}}, 2> output)
+{
+    const ptrdiff_t & nvis = input.shape()[0];
+    int v = blockIdx.x*blockDim.x + threadIdx.x;
+
+
+    // Array to hold our variables
+    {{type}} values[{{corrs}}];
+
+    if(v < nvis)
+    {
+        {% for corr in range(corrs) %}
+        values[{{corr}}] = input[v + {{corr}}*nvis];
+        {%- endfor %}
+    }
+
+
+    if(v < {{corrs}}*((nvis + {{corrs - 1}}) / {{corrs}}))
+    {
+        {{ warp_transpose("values", type, corrs) }}
+        {{ warp_transpose("values", type, corrs) }}
+    }
+
+    if(v < nvis)
+    {
+        {% for corr in range(corrs) %}
+        output[v + {{corr}}*nvis] = values[{{corr}}];
+        {%- endfor %}
+    }
+}

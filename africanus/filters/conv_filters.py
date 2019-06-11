@@ -8,13 +8,16 @@ import collections
 
 import numpy as np
 
+from .kaiser_bessel_filter import (kaiser_bessel_with_sinc,
+                                   estimate_kaiser_bessel_beta)
+
 ConvolutionFilter = collections.namedtuple("ConvolutionFilter",
                                            ['half_sup', 'oversample',
                                             'full_sup_wo_padding', 'full_sup',
                                             'no_taps', 'filter_taps'])
 """
 :class:`collections.namedtuple` containing attributes
-defining a Convolution Filter. A namedtuple is used
+defining a 2D Convolution Filter. A namedtuple is used
 because they're easier to use when using
 ``nopython`` mode in :mod:`numba`.
 
@@ -40,25 +43,38 @@ because they're easier to use when using
 
 .. attribute:: filter_taps
 
-    Filter taps
+    2D filter taps with shape (v, u)
 """
 
 
-def convolution_filter(half_support, oversampling_factor, filter_type):
-    """
-    Create a 1D Convolution Filter suitable
+class AsymmetricKernel(Exception):
+    pass
+
+
+def convolution_filter(half_support, oversampling_factor,
+                       filter_type, **kwargs):
+    r"""
+    Create a 2D Convolution Filter suitable
     for use with gridding and degridding functions.
 
     Parameters
     ----------
     half_support : integer
         Half support (N) of the filter. The filter has a
-        full support of N*2 + 1 taps
+        full support of N*2 + 3 taps.
+        Two of the taps exist as padding.
     oversampling_factor : integer
         Number of spaces in-between grid-steps
         (improves gridding/degridding accuracy)
-    filter_type : {'sinc', 'box', 'gaussian'}
-        Filter type
+    filter_type : {'kaiser-bessel', 'sinc'}
+        Filter type. See `Convolution Filters <convolution-filter-api_>`_
+        for further information.
+    beta : float, optional
+        Beta shape parameter for
+        `Kaiser Bessel <kaiser-bessel-filter_>`_ filters.
+    normalise : {True, False}
+        Normalise the filter by the it's volume.
+        Defaults to ``True``.
 
     Returns
     -------
@@ -69,25 +85,31 @@ def convolution_filter(half_support, oversampling_factor, filter_type):
     full_sup = full_sup_wo_padding + 2  # + padding
     no_taps = full_sup + (full_sup - 1) * (oversampling_factor - 1)
 
-    taps = np.arange(no_taps)/float(oversampling_factor) - full_sup / 2
+    normalise = kwargs.pop("normalise", True)
 
-    if filter_type == 'box':
-        filter_taps = np.empty_like(taps, dtype=np.float64)
-        condition = (taps >= -0.5) & (taps <= 0.5)
-        filter_taps[condition] = 1
-        filter_taps[np.invert(condition)] = 0
-    elif filter_type == 'sinc':
+    taps = np.arange(no_taps) / oversampling_factor - full_sup // 2
+
+    if filter_type == 'sinc':
         filter_taps = np.sinc(taps)
-    elif filter_type == 'gaussian_sinc':
-        alpha_1 = 1.55
-        alpha_2 = 2.52
-        taps_eps = taps + 1e-11
+    elif filter_type == 'kaiser-bessel':
+        # https://www.dsprelated.com/freebooks/sasp/Kaiser_Window.html
+        try:
+            beta = kwargs.pop('beta')
+        except KeyError:
+            beta = estimate_kaiser_bessel_beta(full_sup)
 
-        filter_taps = np.exp(-(taps/alpha_2)**2)
-        filter_taps *= np.sin(np.pi*taps_eps/alpha_1)
-        filter_taps /= np.pi*taps_eps
+        # Compute Kaiser Bessel and multiply in the sinc
+        filter_taps = kaiser_bessel_with_sinc(taps, full_sup,
+                                              oversampling_factor, beta,
+                                              normalise=normalise)
     else:
-        raise ValueError("Expected one of 'box','sinc' or 'gaussian_sinc'")
+        raise ValueError("Expected one of {'kaiser-bessel', 'sinc'}")
+
+    # Expand filter taps to 2D
+    filter_taps = np.outer(filter_taps, filter_taps)
+
+    if not np.all(filter_taps == filter_taps.T):
+        raise AsymmetricKernel("Kernel is asymmetric")
 
     return ConvolutionFilter(half_support, oversampling_factor,
                              full_sup_wo_padding, full_sup,

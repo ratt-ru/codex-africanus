@@ -18,14 +18,18 @@
 # relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
 #
+
+import importlib
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('..'))
 
 try:
     from unittest.mock import MagicMock
 except ImportError:
     from mock import Mock as MagicMock
+
 
 class Mock(MagicMock):
     @classmethod
@@ -35,10 +39,21 @@ class Mock(MagicMock):
             obj.__doc__ = "doc"
             return obj
 
-MOCK_MODULES = ['numba', 'numpy',
-                'scipy', 'scipy.signal', 'scipy.ndimage'
-                ]
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
+MOCK_MODULES = {}
+_MOCK_MODULES = ['numba', 'numpy']
+
+# Don't mock if we can import it.
+# This allows us to build locally without
+# Mocks interfering with other imports.
+# e.g. np.__version__ getting tested by dask/scipy/astropy
+for m in _MOCK_MODULES:
+    try:
+        importlib.import_module(m)
+    except ImportError:
+        MOCK_MODULES[m] = Mock()
+
+sys.modules.update((k, v) for k, v in MOCK_MODULES.items())
 
 import sphinx_rtd_theme
 import africanus
@@ -190,6 +205,7 @@ extlinks = {
 }
 
 intersphinx_mapping = {
+    'cupy': ('https://docs-cupy.chainer.org/en/latest/', None),
     'dask': ('https://dask.pydata.org/en/latest/', None),
     'numba': ('https://numba.pydata.org/numba-doc/dev/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),

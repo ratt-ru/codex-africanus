@@ -1,5 +1,6 @@
 .. _rime-api-anchor:
 
+-----------------------------------------
 Radio Interferometer Measurement Equation
 -----------------------------------------
 
@@ -43,23 +44,40 @@ Numpy
 .. currentmodule:: africanus.rime
 
 .. autosummary::
+    apply_gains
     predict_vis
     phase_delay
-    brightness
     parallactic_angles
     feed_rotation
     transform_sources
     beam_cube_dde
     zernike_dde
 
+.. autofunction:: apply_gains
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
-.. autofunction:: brightness
 .. autofunction:: parallactic_angles
 .. autofunction:: feed_rotation
 .. autofunction:: transform_sources
 .. autofunction:: beam_cube_dde
 .. autofunction:: zernike_dde
+
+Cuda
+~~~~
+
+.. currentmodule:: africanus.rime.cuda
+
+.. autosummary::
+    apply_gains
+    predict_vis
+    phase_delay
+    feed_rotation
+
+.. autofunction:: apply_gains
+.. autofunction:: predict_vis
+.. autofunction:: phase_delay
+.. autofunction:: feed_rotation
+
 
 Dask
 ~~~~
@@ -67,9 +85,9 @@ Dask
 .. currentmodule:: africanus.rime.dask
 
 .. autosummary::
+    apply_gains
     predict_vis
     phase_delay
-    brightness
     parallactic_angles
     feed_rotation
     transform_sources
@@ -77,9 +95,9 @@ Dask
     zernike_dde
 
 
+.. autofunction:: apply_gains
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
-.. autofunction:: brightness
 .. autofunction:: parallactic_angles
 .. autofunction:: feed_rotation
 .. autofunction:: transform_sources
