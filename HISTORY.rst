@@ -5,6 +5,7 @@ History
 0.1.9 (2019-06-04)
 ------------------
 
+* Implement the beam in numba (:pr:`112`)
 * Add residual_vis, correct_vis, phase_only_GN (:pr:`113`)
 
 0.1.8 (2019-05-28)
