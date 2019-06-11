@@ -209,7 +209,7 @@ def test_dask_fast_beams(freqs, beam_freq_map):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
     """ Test that the numba beam matches montblanc implementation """
-    _ = pytest.importorskip("montblanc")
+    mb_tf_mod = pytest.importorskip("montblanc.impl.rime.tensorflow")
     tf = pytest.importorskip("tensorflow")
 
     freqs = freqs.astype(dtype)
@@ -248,8 +248,7 @@ def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
 
     assert ddes.shape == (src, time, ants, chans, 2, 2)
 
-    from montblanc.impl.rime.tensorflow import load_tf_lib
-    rime = load_tf_lib()
+    rime = mb_tf_mod.load_tf_lib()
 
     # Montblanc beam extent format is different
     mb_beam_extents = np.array([beam_lm_extents[0, 0],
