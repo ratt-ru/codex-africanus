@@ -45,13 +45,13 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
             term = freq_ratio[:, None, :]**spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
             spectral_model[:, :, p] = (np.exp(np.log(stokes[:, p, None]) +
-                                       term.sum(axis=1)))
+                                              term.sum(axis=1)))
         elif b in ("log10", 2):
             freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
             term = freq_ratio[:, None, :]**spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
             spectral_model[:, :, p] = (10**(np.log10(stokes[:, p, None]) +
-                                       term.sum(axis=1)))
+                                            term.sum(axis=1)))
         else:
             raise ValueError("Invalid base %s" % base)
 
