@@ -399,8 +399,10 @@ def wplanes(nwplanes, cell_size, support, maxw,
         zw_conj = np.conj(zw)
 
         # Now fft2 zero padded w and it's conjugate
-        fzw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw)))
-        fzw_conj = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw_conj)))
+        zw_size = zw.dtype.type(zw.size)
+        zw_conj_size = zw_conj.dtype.type(zw_conj.size)
+        fzw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw))) / zw_size
+        fzw_conj = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw_conj))) / zw_conj_size
 
         # TODO(sjperkins)
         # Understand what is going on here...
