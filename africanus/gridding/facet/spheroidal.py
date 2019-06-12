@@ -5,10 +5,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.util.numba import jit
 import numpy as np
 
 from africanus.constants import c as lightspeed
+from africanus.util.numba import jit
+from africanus.util.requirements import requires_optional
+
+try:
+    from scipy.interpolate import interp1d
+except ImportError as e:
+    opt_import_error = e
+else:
+    opt_import_error = None
 
 
 @jit(nopython=True, nogil=True, cache=True)
@@ -251,7 +259,7 @@ def reorganise_convolution_filter(cf, oversampling):
         Reorganised convolution filter
 
     """
-    support = cf.shape[0]//oversampling
+    support = cf.shape[0] // oversampling
     result = np.empty((oversampling, oversampling, support, support),
                       dtype=cf.dtype)
 
@@ -261,9 +269,8 @@ def reorganise_convolution_filter(cf, oversampling):
 
     return result.reshape(cf.shape)
 
-# Find maximum support
 
-
+@requires_optional("scipy.interpolate", opt_import_error)
 def find_max_support(radius, maxw, min_wave):
     """
     Find the maximum support
@@ -285,8 +292,9 @@ def find_max_support(radius, maxw, min_wave):
     w_size = w.dtype.type(w.size)
     fw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(w))) / w_size
 
-    # Want to interpolate across fw. fw is symmetric
-    # so take a slice across fw at the halfway point
+    # Want to interpolate across fw.
+    # I think we take a slice across fw at the halfway point
+    # because fw is symmetric
     fw1d = np.abs(fw[(max_support-1)//2, :])
     # normalise
     fw1d /= np.max(fw1d)
@@ -295,12 +303,12 @@ def find_max_support(radius, maxw, min_wave):
 
     ind = np.argsort(fw1d)
 
-    from scipy.interpolate import interp1d
-
     # TODO(sjperkins)
     # Find a less clunky way to find the maximum support
+    # Why are we sampling some value right near the start?
+    # Replace scipy interp with numpy.interp?
     interp_fn = interp1d(fw1d[ind], np.arange(fw1d.shape[0])[ind])
-    max_support = interp_fn(1./1000)
+    max_support = int(interp_fn(1./1000))
 
     return max_support
 
@@ -340,7 +348,6 @@ def wplanes(nwplanes, cell_size, support, maxw,
     """
 
     # Radius in radians, given cell size and number of pixels
-    radius = np.deg2rad((npix/2.)*cell_size/3600.)
     radius = np.deg2rad((npix / 2.0)*cell_size / 3600.0)
 
     # Minimum wavelength relates to max frequency
