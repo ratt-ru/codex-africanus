@@ -282,7 +282,8 @@ def find_max_support(radius, maxw, min_wave):
 
     # Compute the w term
     w = np.exp(-2.0*1j*np.pi*(maxw/min_wave)*n_1)*spheroidal_w
-    fw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(w)))
+    w_size = w.dtype.type(w.size)
+    fw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(w))) / w_size
 
     # Want to interpolate across fw. fw is symmetric
     # so take a slice across fw at the halfway point
