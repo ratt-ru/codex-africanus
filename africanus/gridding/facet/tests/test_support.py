@@ -6,10 +6,10 @@ from __future__ import print_function
 
 import numpy as np
 
-from africanus.gridding.facet.support import delta_uvw_delta_time
+from africanus.gridding.facet.support import duvw_dtime
 
 
-def test_delta_uvw_delta_time():
+def test_duvw_dtime():
     ntime = 10
 
     ant1, ant2 = (a.astype(np.int32) for a in np.triu_indices(7, 1))
@@ -23,5 +23,5 @@ def test_delta_uvw_delta_time():
 
     uvw = np.random.random((ntime*nbl, 3))
 
-    duvw_dt = delta_uvw_delta_time(time, ant1, ant2, uvw)
+    duvw_dt = duvw_dtime(time, ant1, ant2, uvw)
     assert duvw_dt.shape == uvw.shape

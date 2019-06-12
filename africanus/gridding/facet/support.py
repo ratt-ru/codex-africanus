@@ -6,8 +6,48 @@ from __future__ import print_function
 
 import numpy as np
 
+from africanus.constants import c as lightspeed
 
-def delta_uvw_delta_time(time, antenna1, antenna2, uvw):
+
+class Decorrelator(object):
+    def __init__(self, uvw, duvw_dtime,
+                 interval, chan_width,
+                 time_smear, freq_smear,
+                 l0, m0):
+
+        self.uvw = uvw
+        self.duvw_dtime = duvw_dtime
+        self.interval = interval
+        self.chan_width = chan_width
+        self.time_smear = time_smear
+        self.freq_smear = freq_smear
+        self.l0 = l0
+        self.m0 = m0
+        self.n0 = np.sqrt(1.0 - l0*l0 - m0*m0) - 1.0
+
+    def get(self, row, freq):
+        factor = 1.0
+
+        if self.freq_smear:
+            phase = (uvw[row, 0] * self.l0 +
+                     uvw[row, 1] * self.m0 +
+                     uvw[row, 2] * self.n0)
+
+            phi = np.pi * phase * self.chan_width / lightspeed
+            factor *= (1.0 if phi == 0.0 else np.sin(phi)/phi)
+
+        if self.time_smear:
+            phase = (duvw_dtime[row, 0] * self.l0 +
+                     duvw_dtime[row, 1] * self.m0 +
+                     duvw_dtime[row, 2] * self.no) * self.interval
+
+            phi = np.pi * phase * freq / lightspeed
+            factor *= (1.0 if phi == 0.0 else np.sin(phi)/phi)
+
+        return factor
+
+
+def duvw_dtime(time, antenna1, antenna2, uvw):
     """
     Calculates dUVW / dTIME
 
