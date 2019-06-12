@@ -406,7 +406,8 @@ def wplanes(nwplanes, cell_size, support, maxw,
         zw_size = zw.dtype.type(zw.size)
         zw_conj_size = zw_conj.dtype.type(zw_conj.size)
         fzw = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw))) / zw_size
-        fzw_conj = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw_conj))) / zw_conj_size
+        fzw_conj = (np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw_conj)))
+                    / zw_conj_size)
 
         # TODO(sjperkins)
         # Understand what is going on here...
@@ -427,7 +428,6 @@ def wplanes(nwplanes, cell_size, support, maxw,
 
 if __name__ == "__main__":
     import argparse
-    import sys
 
     p = argparse.ArgumentParser()
     p.add_argument("-np", "--npix", default=129, type=int)

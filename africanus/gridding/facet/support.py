@@ -29,17 +29,17 @@ class Decorrelator(object):
         factor = 1.0
 
         if self.freq_smear:
-            phase = (uvw[row, 0] * self.l0 +
-                     uvw[row, 1] * self.m0 +
-                     uvw[row, 2] * self.n0)
+            phase = (self.uvw[row, 0] * self.l0 +
+                     self.uvw[row, 1] * self.m0 +
+                     self.uvw[row, 2] * self.n0)
 
             phi = np.pi * phase * self.chan_width / lightspeed
             factor *= (1.0 if phi == 0.0 else np.sin(phi)/phi)
 
         if self.time_smear:
-            phase = (duvw_dtime[row, 0] * self.l0 +
-                     duvw_dtime[row, 1] * self.m0 +
-                     duvw_dtime[row, 2] * self.no) * self.interval
+            phase = (self.duvw_dtime[row, 0] * self.l0 +
+                     self.duvw_dtime[row, 1] * self.m0 +
+                     self.duvw_dtime[row, 2] * self.no) * self.interval
 
             phi = np.pi * phase * freq / lightspeed
             factor *= (1.0 if phi == 0.0 else np.sin(phi)/phi)
