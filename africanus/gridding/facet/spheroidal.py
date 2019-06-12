@@ -5,13 +5,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numba
+from africanus.util.numba import jit
 import numpy as np
 
 from africanus.constants import c as lightspeed
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def _gen_coeffs(x, y, order):
     ncols = (order+1)**2
     coeffs = np.empty((x.size, ncols), dtype=x.dtype)
@@ -38,7 +38,7 @@ def polyfit2d(x, y, z, order=3):
     return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=None)[0]
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def polyval2d(x, y, coeffs):
     """
     Reproduce values from a two-dimensional polynomial fit.
@@ -82,7 +82,7 @@ Q = np.array([
     [1.0000000e0, 9.599102e-1, 2.918724e-1]])
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def spheroidal_2d(npix, factor=1.0):
     result = np.empty((npix, npix), dtype=np.float64)
     c = np.linspace(-1.0, 1.0, npix)
@@ -127,7 +127,7 @@ def spheroidal_2d(npix, factor=1.0):
     return result
 
 
-def _spheroidal_2d(npix, factor=1.0):
+def np_spheroidal_2d(npix, factor=1.0):
     """ Numpy implementation of spheroidal_2d """
     x = np.mgrid[-1:1:1j*npix]**2
 
@@ -229,7 +229,7 @@ def delta_n_coefficients(l0, m0, radius=1., order=4):
     return Cl, Cm, coeff
 
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def reorganise_convolution_filter(cf, oversampling):
     """
     TODO(sjperkins)
@@ -433,7 +433,7 @@ if __name__ == "__main__":
     print("Inverse Fourier transform of Zero-padded fcf", ifzfcf.shape)
 
     assert np.allclose(spheroidal_2d(args.spheroidal_support),
-                       _spheroidal_2d(args.spheroidal_support))
+                       np_spheroidal_2d(args.spheroidal_support))
 
     import matplotlib.pyplot as plt
     from matplotlib import cm
