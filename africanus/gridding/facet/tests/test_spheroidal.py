@@ -15,9 +15,11 @@ from africanus.gridding.facet.spheroidal import (delta_n_coefficients,
                                                  spheroidal_aa_filter as spaaf,
                                                  wplanes)
 
+
 @pytest.fixture
 def freqs():
     return np.linspace(.856e9, 2*.856e9, 4)
+
 
 @pytest.mark.parametrize("support", [11])
 @pytest.mark.parametrize("spheroidal_support", [111])
