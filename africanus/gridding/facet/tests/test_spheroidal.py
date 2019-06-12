@@ -70,6 +70,7 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
     assert_array_almost_equal(ddf_cm, afr_cm)
     assert_array_almost_equal(ddf_dn, afr_dn)
 
+    # Now create a full on DDFacet W-term class
     cf_dict = SharedDict(str(tmpdir))
 
     wterm = ClassWTermModified(cf_dict=cf_dict, OverS=oversampling,
@@ -77,6 +78,7 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
                                Freqs=freqs, Nw=wlayers, wmax=maxw,
                                lmShift=lm_shift)
 
+    # Check that spheroidals match again
     ddf_cf, ddf_fcf, ddf_ifzfcf = wterm.SpheM.MakeSphe(npix)
     cf, fcf, ifzfcf = spaaf(npix, support=support)
 
@@ -84,6 +86,7 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
     assert_array_almost_equal(fcf, ddf_fcf)
     assert_array_almost_equal(ifzfcf, ddf_ifzfcf)
 
+    # Create codex-africanus wplanes
     wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
                             npix, oversampling,
                             lm_shift, freqs)
@@ -92,6 +95,7 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
     assert len(wcf) == len(wterm.Wplanes) == wlayers
     assert len(wcf_conj) == len(wterm.WplanesConj) == wlayers
 
+    # Check that codex and DDFacet wplanes match
     for w, (cf, cf_conj) in enumerate(zip(wcf, wcf_conj)):
         assert_array_almost_equal(cf, wterm.Wplanes[w])
         assert_array_almost_equal(cf_conj, wterm.WplanesConj[w])
