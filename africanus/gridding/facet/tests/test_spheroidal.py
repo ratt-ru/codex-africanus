@@ -17,7 +17,7 @@ from africanus.gridding.facet.spheroidal import (np_spheroidal_2d,
 @pytest.mark.parametrize("support", [10, 11, 12])
 @pytest.mark.parametrize("spheroidal_support", [110, 111, 112])
 @pytest.mark.parametrize("npix", [1025])
-def test_spheroidal_vs_ddfacet(support, spheroidal_support, npix):
+def test_spheroidal_vs_ddfacet(support, spheroidal_support, npix, tmpdir):
     pytest.importorskip("DDFacet")
 
     from DDFacet.Imager.ModCF import SpheMachine
@@ -42,3 +42,17 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support, npix):
     assert_array_almost_equal(cf, ddf_cf)
     assert_array_almost_equal(fcf, ddf_fcf)
     assert_array_almost_equal(ifzfcf, ddf_ifzfcf)
+
+    from DDFacet.Imager.ModCF import ClassWTermModified
+    from DDFacet.Array.shared_dict import SharedDict
+
+    cf_dict = SharedDict(path=str(tmpdir))
+    wterm = ClassWTermModified(cf_dict=cf_dict, Sup=support, Npix=npix)
+
+    ddf_cf, ddf_fcf, ddf_ifzfcf = wterm.SpheM.MakeSphe(npix)
+    cf, fcf, ifzfcf = spaaf(npix, support=support)
+
+    assert_array_almost_equal(cf, ddf_cf)
+    assert_array_almost_equal(fcf, ddf_fcf)
+    assert_array_almost_equal(ifzfcf, ddf_ifzfcf)
+
