@@ -19,10 +19,6 @@ from africanus.gridding.facet.spheroidal import (delta_n_coefficients,
 def freqs():
     return np.linspace(.856e9, 2*.856e9, 4)
 
-# @pytest.mark.parametrize("support", [10, 11, 12])
-# @pytest.mark.parametrize("spheroidal_support", [110, 111, 112])
-# @pytest.mark.parametrize("npix", [1025])
-# @pytest.mark.parametrize("wlayers", [11, 7])
 @pytest.mark.parametrize("support", [11])
 @pytest.mark.parametrize("spheroidal_support", [111])
 @pytest.mark.parametrize("npix", [1025])
