@@ -123,7 +123,7 @@ def test_image_space():
         f_coeffs = img_coeffs
         f_beta = img_beta
 
-        f_coords[:, :2], f_coords[:, 2] = lm[:, :], 0
+        f_coords[:, :2], f_coords[:, 2] = uv[:, :], 0
         f_frequencies[:] = 1
         print(uv)
         print("running numba now")
@@ -137,8 +137,8 @@ def test_image_space():
                         pt_ft_img_func = shapelet_img_space(f_coords[:, 0], n1, f_beta[0, 0]) * shapelet_img_space(f_coords[:, 1], n2, f_beta[0, 1])
                         pt_shapelets += c * pt_ft_img_func
         """
-        ft_shapelets = pt_shapelets.reshape((npix_x,npix_y))
-        ca_shapelets = Fs(ca_shapelets[0, :,  0])
+        ft_shapelets = Fs(np.fft.fft2(pt_shapelets.reshape((npix_x,npix_y))))
+        ca_shapelets = ca_shapelets[0, :,  0]
 
         ca_shapelets = np.abs(ca_shapelets.reshape((npix_x, npix_y)))
         ft_shapelets = np.abs(ft_shapelets)

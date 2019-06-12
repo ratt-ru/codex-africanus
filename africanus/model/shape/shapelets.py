@@ -59,7 +59,7 @@ def shapelet(coords, frequency, coeffs, beta):
             #print(fu, fv, frequency[chan])
             #print(fu, fv)
             for src in range(nsrc):
-                beta_u, beta_v = beta[src, :]# ** (-1)
+                beta_u, beta_v = beta[src, :] ** (-1)
                 tmp_shapelet = 0 + 0j
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
