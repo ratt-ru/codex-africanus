@@ -341,9 +341,10 @@ def wplanes(nwplanes, cell_size, support, maxw,
 
     # Radius in radians, given cell size and number of pixels
     radius = np.deg2rad((npix/2.)*cell_size/3600.)
+    radius = np.deg2rad((npix / 2.0)*cell_size / 3600.0)
 
-    # Minimum wavelength
-    min_wave = lightspeed / frequencies.min()
+    # Minimum wavelength relates to max frequency
+    min_wave = lightspeed / frequencies.max()
 
     # Find the maximum support
     max_support = find_max_support(radius, maxw, min_wave)
