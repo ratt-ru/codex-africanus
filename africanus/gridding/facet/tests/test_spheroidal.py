@@ -76,9 +76,10 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
 
     cf_dict = SharedDict(str(tmpdir))
 
-    wterm = ClassWTermModified(cf_dict=cf_dict, Sup=support, Npix=npix,
+    wterm = ClassWTermModified(cf_dict=cf_dict, OverS=oversampling,
+                               Sup=support, Npix=npix,  Cell=cell_size,
                                Freqs=freqs, Nw=wlayers, wmax=maxw,
-                               OverS=oversampling, lmShift=lm_shift)
+                               lmShift=lm_shift)
 
     ddf_cf, ddf_fcf, ddf_ifzfcf = wterm.SpheM.MakeSphe(npix)
     cf, fcf, ifzfcf = spaaf(npix, support=support)
@@ -87,6 +88,14 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
     assert_array_almost_equal(fcf, ddf_fcf)
     assert_array_almost_equal(ifzfcf, ddf_ifzfcf)
 
-    wplanes(wlayers, cell_size, support, maxw,
-            npix, oversampling,
-            lm_shift, freqs)
+    wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
+                            npix, oversampling,
+                            lm_shift, freqs)
+
+    # Same number of wplanes
+    assert len(wcf) == len(wterm.Wplanes) == wlayers
+    assert len(wcf_conj) == len(wterm.WplanesConj) == wlayers
+
+    for w, (cf, cf_conj) in enumerate(zip(wcf, wcf_conj)):
+        assert_array_almost_equal(cf, wterm.Wplanes[w])
+        assert_array_almost_equal(cf_conj, wterm.WplanesConj[w])
