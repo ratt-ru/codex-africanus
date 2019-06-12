@@ -341,10 +341,14 @@ def wplanes(nwplanes, cell_size, support, maxw,
 
     Returns
     -------
-    list
-        w projection planes
-    list
-        conjugate w projection planes
+    cu : float
+        First polynomial U coefficient
+    cv : float
+        First polynomial V coefficient
+    w_proj_filters : list
+        w projection filters
+    w_proj_conj_filters : list
+        conjugate w projection filters
     """
 
     # Radius in radians, given cell size and number of pixels
@@ -370,7 +374,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
     l0, m0 = lmshift if lmshift else (0.0, 0.0)
 
     # Work out general dn polynomial coefficients
-    cv, cu, poly_coeffs = delta_n_coefficients(l0, m0, 3*radius, order=5)
+    cu, cv, poly_coeffs = delta_n_coefficients(l0, m0, 3*radius, order=5)
 
     wplanes = []
     wplanes_conj = []
@@ -418,7 +422,7 @@ def wplanes(nwplanes, cell_size, support, maxw,
         wplanes.append(fzw)
         wplanes_conj.append(fzw_conj)
 
-    return wplanes, wplanes_conj
+    return cu, cv, wplanes, wplanes_conj
 
 
 if __name__ == "__main__":

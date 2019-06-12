@@ -89,13 +89,19 @@ def test_spheroidal_vs_ddfacet(support, spheroidal_support,
     assert_array_almost_equal(ifzfcf, ddf_ifzfcf)
 
     # Create codex-africanus wplanes
-    wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
-                            npix, oversampling,
-                            lm_shift, freqs)
+    cu, cv, wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
+                                    npix, oversampling,
+                                    lm_shift, freqs)
 
     # Same number of wplanes
     assert len(wcf) == len(wterm.Wplanes) == wlayers
     assert len(wcf_conj) == len(wterm.WplanesConj) == wlayers
+
+    # The convention is wrong in DDFacet but its all symmetric anyway
+    assert_array_almost_equal(wterm.Cv, cu)
+    assert_array_almost_equal(wterm.Cu, cv)
+    assert_array_almost_equal(wterm.Cu, cu)
+    assert_array_almost_equal(wterm.Cv, cv)
 
     # Check that codex and DDFacet wplanes match
     for w, (cf, cf_conj) in enumerate(zip(wcf, wcf_conj)):
