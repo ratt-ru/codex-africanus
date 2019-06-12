@@ -13,12 +13,12 @@ from africanus.constants import c as lightspeed
 
 @jit(nopython=True, nogil=True, cache=True)
 def _gen_coeffs(x, y, order):
-    ncols = (order+1)**2
+    ncols = (order + 1)**2
     coeffs = np.empty((x.size, ncols), dtype=x.dtype)
     c = 0
 
-    for i in range(order+1):
-        for j in range(order+1):
+    for i in range(order + 1):
+        for j in range(order + 1):
             for k in range(x.size):
                 coeffs[k, c] = x[k]**i * y[k]**j
 
@@ -35,7 +35,7 @@ def polyfit2d(x, y, z, order=3):
 
     Derived from https://stackoverflow.com/a/7997925
     """
-    return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=None)[0]
+    return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=-1)[0]
 
 
 @jit(nopython=True, nogil=True, cache=True)
@@ -49,8 +49,8 @@ def polyval2d(x, y, coeffs):
     z = np.zeros_like(x)
     c = 0
 
-    for i in range(order+1):
-        for j in range(order+1):
+    for i in range(order + 1):
+        for j in range(order + 1):
             a = coeffs[c]
             for k in range(x.shape[0]):
                 z[k] += a * x[k]**i * y[k]**j
@@ -209,21 +209,21 @@ def delta_n_coefficients(l0, m0, radius=1., order=4):
     """
     Returns polynomical coefficients representing the difference
     of coordinate n between a grid of (l,m) values centred
-    around (l0, m0) and (l0, m0).
+    around (l0, m0).
     """
 
-    Np = 100
+    p = 100
 
-    l, m = np.mgrid[l0-radius:l0+radius:Np*1j, m0-radius:m0+radius:Np*1j]
+    l, m = np.mgrid[l0 - radius:l0 + radius:p*1j, m0 - radius:m0 + radius:p*1j]
 
-    dl = l-l0
-    dm = m-m0
+    dl = l - l0
+    dm = m - m0
 
     dl = dl.flatten()
     dm = dm.flatten()
-    y = np.sqrt(1-(dl+l0)**2-(dm+m0)**2)-np.sqrt(1-l0**2-m0**2)
+    y = np.sqrt(1-(dl + l0)**2 - (dm + m0)**2) - np.sqrt(1 - l0**2 - m0**2)
     coeff = polyfit2d(dl, dm, y, order=order)
-    C = coeff.reshape((order+1, order+1))
+    C = coeff.reshape((order + 1, order + 1))
     Cl = C[0, 1]
     Cm = C[1, 0]
     C[0, 1] = 0
