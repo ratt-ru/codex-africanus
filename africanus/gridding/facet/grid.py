@@ -74,6 +74,13 @@ def degrid(grid, uvw, freqs,
         if nw != len(w_planes_conj):
             raise ValueError("Number of kernels and conjugates differ")
 
+        for cf, cf_conj in zip(w_planes, w_planes_conj):
+            if cf.shape[0] % 2 != 1 or cf.shape[1] % 2 != 1:
+                raise ValueError("w-projection kernels must be odd")
+
+            if cf_conj.shape[0] % 2 != 1 or cf_conj.shape[1] % 2 != 1:
+                raise ValueError("conjugate w-projection kernels must be odd")
+
         if ny % 2 != 1 or nx % 2 != 1:
             raise ValueError("Grid must be odd")
 
@@ -102,17 +109,13 @@ def degrid(grid, uvw, freqs,
 
                 w_kernel = w_planes[wi] if w > 0 else w_planes_conj[wi]
 
-                ncy = w_kernel.shape[0]
-                ncx = w_kernel.shape[1]
+                ncy, ncx = w_kernel.shape
 
                 # This calculation probably depends on an odd support size
                 support_y = ncy // overs
                 support_x = ncx // overs
                 half_sup_y = support_y // 2
                 half_sup_x = support_x // 2
-
-                w_kernel_exp = w_kernel.reshape((overs, overs,
-                                                 ncy // overs, ncx // overs))
 
                 # Scale UV coordinate into the [0:ny, 0:nx]
                 # coordinate system
@@ -132,28 +135,32 @@ def degrid(grid, uvw, freqs,
                         loc_yi + half_sup_y >= ny):
                     continue
 
-                # Oversampling index
+                # Oversampling index in a [-n/2, n/2] coordinate system
                 overs_y = int(np.round((loc_yf - pos_y)*overs))
                 overs_x = int(np.round((loc_xf - pos_x)*overs))
 
-                # Shift from a [-n/2, n/2] to a [0, n] coordinate system
+                # Shift to a [0, n] coordinate system
                 overs_y = (overs_y + ((3 * overs) // 2)) % overs
                 overs_x = (overs_x + ((3 * overs) // 2)) % overs
 
                 # Dereference the appropriate kernel
                 # associated with these oversampling factors
+                w_kernel_exp = w_kernel.reshape((overs, overs,
+                                                 support_y, support_x))
+
                 sub_kernel = w_kernel_exp[overs_y, overs_x, :, :]
 
                 # Zero accumulation buffers
                 vis_scratch[:] = 0
 
                 # Iterate over the convolution kernel
+                # accumulating values from the grid
                 for sy in range(0, support_y):
                     gy = loc_yi + sy  # Grid position in y
 
                     for sx in range(0, support_x):
-                        gx = loc_xi + sx           # Grid position in x
-                        weight = sub_kernel[sy, sx]
+                        gx = loc_xi + sx                # Grid position in x
+                        weight = sub_kernel[sy, sx]     # Filter value
 
                         for c in range(ncorr):
                             vis_scratch[c] += grid[gy, gx, c]*weight
