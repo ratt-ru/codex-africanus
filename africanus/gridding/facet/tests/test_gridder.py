@@ -93,3 +93,4 @@ def test_gridder(support, spheroidal_support, npix,
     grid_ = grid(vis, uvw, flags, weights, freqs, wcf, wcf_conj, meta,
                  ny=npix, nx=npix)
 
+    assert grid_.shape == (npix, npix, ncorr)
