@@ -119,7 +119,7 @@ def degrid(grid, uvw, freqs,
                 pos_x = u * u_scale * inv_wave + half_x
                 pos_y = v * v_scale * inv_wave + half_y
 
-                # Snap to grid point
+                # Snap to grid point (float and integer)
                 loc_yf = np.round(pos_y)
                 loc_xf = np.round(pos_x)
                 loc_yi = int(loc_yf)
@@ -132,9 +132,13 @@ def degrid(grid, uvw, freqs,
                         loc_yi + half_sup_y >= ny):
                     continue
 
-                # Location within oversampling
+                # Oversampling index
                 overs_y = int(np.round((loc_yf - pos_y)*overs))
                 overs_x = int(np.round((loc_xf - pos_x)*overs))
+
+                # Shift from a [-n/2, n/2] to a [0, n] coordinate system
+                overs_y = (overs_y + ((3 * overs) // 2)) % overs
+                overs_x = (overs_x + ((3 * overs) // 2)) % overs
 
                 # Dereference the appropriate kernel
                 # associated with these oversampling factors
@@ -145,7 +149,7 @@ def degrid(grid, uvw, freqs,
 
                 # Iterate over the convolution kernel
                 for sy in range(0, support_y):
-                    gy = loc_yi + sy  # grid position in y
+                    gy = loc_yi + sy  # Grid position in y
 
                     for sx in range(0, support_x):
                         gx = loc_xi + sx           # Grid position in x
