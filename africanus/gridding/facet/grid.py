@@ -120,21 +120,21 @@ def degrid(grid, uvw, freqs,
                 pos_y = v * v_scale * inv_wave + half_y
 
                 # Snap to grid point
-                loc_y = np.round(pos_y)
-                loc_x = np.round(pos_x)
-                loc_yi = int(loc_y)
-                loc_xi = int(loc_x)
+                loc_yf = np.round(pos_y)
+                loc_xf = np.round(pos_x)
+                loc_yi = int(loc_yf)
+                loc_xi = int(loc_xf)
 
                 # Only degrid vis if the full support lies within the grid
-                if (loc_x - half_sup_x < 0 or
-                    loc_x + half_sup_x >= nx or
-                    loc_y - half_sup_y < 0 or
-                        loc_y + half_sup_y >= ny):
+                if (loc_xi - half_sup_x < 0 or
+                    loc_xi + half_sup_x >= nx or
+                    loc_yi - half_sup_y < 0 or
+                        loc_yi + half_sup_y >= ny):
                     continue
 
                 # Location within oversampling
-                overs_y = int(np.round((loc_y - pos_y)*overs))
-                overs_x = int(np.round((loc_x - pos_x)*overs))
+                overs_y = int(np.round((loc_yf - pos_y)*overs))
+                overs_x = int(np.round((loc_xf - pos_x)*overs))
 
                 # print(r, f, wi, loc_y, loc_x, overs_y, overs_x)
 
@@ -151,7 +151,7 @@ def degrid(grid, uvw, freqs,
 
                     for sx in range(0, support_x):
                         gx = loc_xi + sx           # Grid position in x
-                        weight = subgrid[sy, sx]  #
+                        weight = subgrid[sy, sx]
 
                         for c in range(ncorr):
                             vis_scratch[c] += grid[gy, gx, c]*weight
