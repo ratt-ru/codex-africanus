@@ -49,5 +49,7 @@ def test_degridder(support, spheroidal_support, npix,
                     oversampling, cell_size, cell_size,
                     cu, cv)
 
-    degrid(vis, uvw, flags, freqs, wcf, wcf_conj,
-           meta, ny=129, nx=129)
+    grid = rc((npix, npix, ncorr)).astype(np.complex128)
+
+    vis = degrid(grid, uvw, flags, freqs, wcf, wcf_conj, meta)
+    assert vis.shape == (uvw.shape[0], freqs.shape[0], grid.shape[2])

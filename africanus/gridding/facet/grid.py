@@ -34,60 +34,51 @@ Smear = namedtuple("Smear", [
     "freq_smear"])
 
 
-def output_factory(have_size, have_grid):
-    if have_size and have_grid:
-        def impl(ny, nx, grid, dtype):
-            if grid.shape[:2] == (ny, nx):
-                raise ValueError("(ny, nx) != grid.shape[:2")
+def output_factory(have_vis):
+    if have_vis:
+        def impl(nrow, nchan, ncorr, vis, dtype):
+            if vis.shape != (nrow, nchan, ncorr):
+                raise ValueError("(nrow, nchan, ncorr) != vis.shape")
 
-            return grid
-    elif have_size and not have_grid:
-        def impl(ny, nx, grid, dtype):
-            return np.zeros((ny, nx), dtype=dtype)
-    elif not have_size and have_grid:
-        def impl(ny, nx, grid, dtype):
-            return grid
+            return vis
     else:
-        def impl(ny, nx, grid, dtype):
-            raise ValueError("Must supply both ny and nx, or a grid")
+        def impl(nrow, nchan, ncorr, vis, dtype):
+            return np.zeros((nrow, nchan, ncorr), dtype=dtype)
 
     return njit(nogil=True, cache=True)(impl)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def degrid(vis, uvw, flags, freqs,
+def degrid(grid, uvw, flags, freqs,
            w_planes, w_planes_conj, meta,
-           grid=None, ny=None, nx=None):
+           vis=None):
 
     _ARCSEC2RAD = np.deg2rad(1.0/(60*60))
 
-    have_grid = not is_numba_type_none(grid)
-    have_nx = not is_numba_type_none(nx)
-    have_ny = not is_numba_type_none(ny)
+    create_output = output_factory(not is_numba_type_none(vis))
 
-    create_output = output_factory(have_ny and have_nx, have_grid)
-
-    def impl(vis, uvw, flags, freqs,
+    def impl(grid, uvw, flags, freqs,
              w_planes, w_planes_conj, meta,
-             grid=None, ny=None, nx=None):
-        nrow, nchan, ncorr = vis.shape
+             vis=None):
+        nrow = uvw.shape[0]
+        nchan = freqs.shape[0]
+        ny, nx, ncorr = grid.shape
         n0 = np.sqrt(1.0 - meta.l0**2 - meta.m0**2) - 1.0
         maxw = meta.maxw
         ref_wave = meta.ref_wave
         overs = meta.oversampling
         nw = len(w_planes)
 
+        vis = create_output(nrow, nchan, ncorr, vis, grid.dtype)
+
         if nw != len(w_planes_conj):
             raise ValueError("Number of kernels and conjugates differ")
 
-        # Create grid and and check shape
-        grid = create_output(ny, nx, grid, vis.dtype)
-
-        if grid.shape[1] % 2 != 1 or grid.shape[0] % 2 != 1:
+        if ny % 2 != 1 or nx % 2 != 1:
             raise ValueError("Grid must be odd")
 
-        centre_y = grid.shape[1] // 2
-        centre_x = grid.shape[0] // 2
+        centre_y = ny // 2
+        centre_x = nx // 2
         u_scale = _ARCSEC2RAD * meta.cell_size_x * nx
         v_scale = _ARCSEC2RAD * meta.cell_size_y * ny
 
@@ -143,5 +134,7 @@ def degrid(vis, uvw, flags, freqs,
 
                 for c in range(ncorr):
                     pass
+
+        return vis
 
     return impl
