@@ -1,1 +1,1 @@
-from .consts import *  # noqa
+from africanus.constants.consts import *  # noqa

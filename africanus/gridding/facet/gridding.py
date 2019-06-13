@@ -9,7 +9,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.constants import c as lightspeed
+from africanus.constants import c as lightspeed, arcseconds_to_radians
 from africanus.util.numba import generated_jit, njit, is_numba_type_none
 
 
@@ -97,8 +97,8 @@ def grid(vis, uvw, flags, weights, freqs,
         half_x = np.float64(nx // 2)
 
         # # UV scaling in radians
-        u_scale = np.float64(_ARCSEC2RAD * meta.cell_size_x * nx)
-        v_scale = np.float64(_ARCSEC2RAD * meta.cell_size_y * ny)
+        u_scale = np.float64(arcseconds_to_radians * meta.cell_size_x * nx)
+        v_scale = np.float64(arcseconds_to_radians * meta.cell_size_y * ny)
 
         for r in range(nrow):
             # Extract UVW coordinate, incorporating 1st order polynomial
@@ -234,8 +234,8 @@ def degrid(grid, uvw, freqs,
         half_x = np.float64(nx // 2)
 
         # # UV scaling in radians
-        u_scale = np.float64(_ARCSEC2RAD * meta.cell_size_x * nx)
-        v_scale = np.float64(_ARCSEC2RAD * meta.cell_size_y * ny)
+        u_scale = np.float64(arcseconds_to_radians * meta.cell_size_x * nx)
+        v_scale = np.float64(arcseconds_to_radians * meta.cell_size_y * ny)
 
         vis_scratch = np.empty((ncorr,), dtype=vis.dtype)
 
