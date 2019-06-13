@@ -172,7 +172,7 @@ def np_spheroidal_2d(npix, factor=1.0):
 def zero_pad(img, npix):
     """ Zero pad ``img`` up to ``npix`` """
 
-    if isinstance(npix, int):
+    if np.issubdtype(type(npix), np.integer):
         npix = (npix,)*img.ndim
 
     padding = []

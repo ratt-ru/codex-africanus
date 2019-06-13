@@ -77,12 +77,12 @@ def degrid(grid, uvw, freqs,
         if ny % 2 != 1 or nx % 2 != 1:
             raise ValueError("Grid must be odd")
 
-        centre_y = ny // 2
-        centre_x = nx // 2
+        half_y = np.float64(ny // 2)
+        half_x = np.float64(nx // 2)
 
-        # UV scaling in radians
-        u_scale = _ARCSEC2RAD * meta.cell_size_x * nx
-        v_scale = _ARCSEC2RAD * meta.cell_size_y * ny
+        # # UV scaling in radians
+        u_scale = np.float64(_ARCSEC2RAD * meta.cell_size_x * nx)
+        v_scale = np.float64(_ARCSEC2RAD * meta.cell_size_y * ny)
 
         vis_scratch = np.empty((ncorr,), dtype=vis.dtype)
 
@@ -106,11 +106,6 @@ def degrid(grid, uvw, freqs,
                 ncx = w_kernel.shape[1]
 
                 # This calculation probably depends on an odd support size
-                # support_x = int(((ncx // overs) - 1) // 2)
-                # support_y = int(((ncy // overs) - 1) // 2)
-                # Full support
-                # support_cf = ncx // overs
-
                 support_y = ncy // overs
                 support_x = ncx // overs
                 half_sup_y = support_y // 2
@@ -119,13 +114,16 @@ def degrid(grid, uvw, freqs,
                 w_kernel_exp = w_kernel.reshape((overs, overs,
                                                  ncy // overs, ncx // overs))
 
-                # Scale UV coordinate.
-                pos_x = u * u_scale * inv_wave + centre_x
-                pos_y = v * v_scale * inv_wave + centre_y
+                # Scale UV coordinate into the [0:ny, 0:nx]
+                # coordinate system
+                pos_x = u * u_scale * inv_wave + half_x
+                pos_y = v * v_scale * inv_wave + half_y
 
-                # Snap to grid
-                loc_y = int(np.round(pos_y))
-                loc_x = int(np.round(pos_x))
+                # Snap to grid point
+                loc_y = np.round(pos_y)
+                loc_x = np.round(pos_x)
+                loc_yi = int(loc_y)
+                loc_xi = int(loc_x)
 
                 # Only degrid vis if the full support lies within the grid
                 if (loc_x - half_sup_x < 0 or
@@ -134,19 +132,26 @@ def degrid(grid, uvw, freqs,
                         loc_y + half_sup_y >= ny):
                     continue
 
-                # Location within the oversampling
-                off_y = int(np.round((loc_y - pos_y)*overs))
-                off_x = int(np.round((loc_x - pos_x)*overs))
+                # Location within oversampling
+                overs_y = int(np.round((loc_y - pos_y)*overs))
+                overs_x = int(np.round((loc_x - pos_x)*overs))
 
-                subgrid = w_kernel_exp[off_y, off_x, :, :]
-                vis_scratch[:] = 0.0
+                # print(r, f, wi, loc_y, loc_x, overs_y, overs_x)
 
+                # Dereference the appropriate kernel
+                # associated with these oversampling factors
+                subgrid = w_kernel_exp[overs_y, overs_x, :, :]
+
+                # Zero accumulation buffers
+                vis_scratch[:] = 0
+
+                # Iterate over the convolution kernel
                 for sy in range(0, support_y):
-                    gy = loc_y + sy
+                    gy = loc_yi + sy  # grid position in y
 
                     for sx in range(0, support_x):
-                        gx = loc_x + sx
-                        weight = subgrid[sy, sx]
+                        gx = loc_xi + sx           # Grid position in x
+                        weight = subgrid[sy, sx]  #
 
                         for c in range(ncorr):
                             vis_scratch[c] += grid[gy, gx, c]*weight
