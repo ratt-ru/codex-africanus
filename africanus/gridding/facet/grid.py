@@ -136,11 +136,9 @@ def degrid(grid, uvw, freqs,
                 overs_y = int(np.round((loc_yf - pos_y)*overs))
                 overs_x = int(np.round((loc_xf - pos_x)*overs))
 
-                # print(r, f, wi, loc_y, loc_x, overs_y, overs_x)
-
                 # Dereference the appropriate kernel
                 # associated with these oversampling factors
-                subgrid = w_kernel_exp[overs_y, overs_x, :, :]
+                sub_kernel = w_kernel_exp[overs_y, overs_x, :, :]
 
                 # Zero accumulation buffers
                 vis_scratch[:] = 0
@@ -151,7 +149,7 @@ def degrid(grid, uvw, freqs,
 
                     for sx in range(0, support_x):
                         gx = loc_xi + sx           # Grid position in x
-                        weight = subgrid[sy, sx]
+                        weight = sub_kernel[sy, sx]
 
                         for c in range(ncorr):
                             vis_scratch[c] += grid[gy, gx, c]*weight
