@@ -31,13 +31,14 @@ def rc(*args, **kwargs):
 def test_degridder(support, spheroidal_support, npix,
                    wlayers, maxw, cell_size,
                    oversampling, lm_shift):
+    np.random.seed(42)
     nrow = 10
     nchan = 8
     ncorr = 4
 
     vis = rc((nrow, nchan, ncorr)).astype(np.complex64)
-    flags = np.random.randint(0, 2, (nrow, nchan, ncorr))
     uvw = rf((nrow, 3)) - 0.5
+    uvw[:, :2] *= 1e4
     freqs = np.linspace(.856e9, 2*.856e9, nchan)
     ref_wave = freqs[nchan // 2] / lightspeed
 
@@ -51,5 +52,5 @@ def test_degridder(support, spheroidal_support, npix,
 
     grid = rc((npix, npix, ncorr)).astype(np.complex128)
 
-    vis = degrid(grid, uvw, flags, freqs, wcf, wcf_conj, meta)
+    vis = degrid(grid, uvw, freqs, wcf, wcf_conj, meta)
     assert vis.shape == (uvw.shape[0], freqs.shape[0], grid.shape[2])

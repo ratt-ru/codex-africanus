@@ -49,7 +49,7 @@ def output_factory(have_vis):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def degrid(grid, uvw, flags, freqs,
+def degrid(grid, uvw, freqs,
            w_planes, w_planes_conj, meta,
            vis=None):
 
@@ -57,7 +57,7 @@ def degrid(grid, uvw, flags, freqs,
 
     create_output = output_factory(not is_numba_type_none(vis))
 
-    def impl(grid, uvw, flags, freqs,
+    def impl(grid, uvw, freqs,
              w_planes, w_planes_conj, meta,
              vis=None):
         nrow = uvw.shape[0]
