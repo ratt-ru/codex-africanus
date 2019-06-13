@@ -134,6 +134,20 @@ def spheroidal_2d(npix, factor=1.0):
     return result
 
 
+def _eval_spheroid(nu, part, end):
+    sP = P[part]
+    sQ = Q[part]
+
+    nu_sqrd = nu**2
+    del_nu_sqrd = nu_sqrd - end*end
+    powers = del_nu_sqrd[:, None]**np.arange(5)
+
+    top = np.sum(sP[None, :]*powers, axis=1)
+    bot = np.sum(sQ[None, :]*powers[:, 0:3], axis=1)
+
+    return (1.0 - nu_sqrd) * (top/bot)
+
+
 def np_spheroidal_2d(npix, factor=1.0):
     """ Numpy implementation of spheroidal_2d """
     x = np.mgrid[-1:1:1j*npix]**2
@@ -145,19 +159,6 @@ def np_spheroidal_2d(npix, factor=1.0):
     bin1 = np.logical_and(r >= 0.0, r < 0.75)
     bin2 = np.logical_and(r >= 0.75, r <= 1.00)
     bin3 = np.invert(np.logical_or(bin1, bin2))
-
-    def _eval_spheroid(nu, part, end):
-        sP = P[part]
-        sQ = Q[part]
-
-        nu_sqrd = nu**2
-        del_nu_sqrd = nu_sqrd - end*end
-        powers = del_nu_sqrd[:, None]**np.arange(5)
-
-        top = np.sum(sP[None, :]*powers, axis=1)
-        bot = np.sum(sQ[None, :]*powers[:, 0:3], axis=1)
-
-        return (1.0 - nu_sqrd) * (top/bot)
 
     result = np.empty_like(r)
 
