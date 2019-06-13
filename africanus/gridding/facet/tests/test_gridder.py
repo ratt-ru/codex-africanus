@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 from africanus.constants import c as lightspeed
-from africanus.gridding.facet.grid import degrid, Metadata
+from africanus.gridding.facet.gridding import degrid, Metadata
 from africanus.gridding.facet.spheroidal import wplanes
 
 import numpy as np
