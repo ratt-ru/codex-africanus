@@ -243,20 +243,26 @@ def delta_n_coefficients(l0, m0, radius=1., order=4):
 @jit(nopython=True, nogil=True, cache=True)
 def reorganise_convolution_filter(cf, oversampling):
     """
-    TODO(sjperkins)
-    Understand what's going on here...
+    Re-organise the convolution filter
 
     Parameters
     ----------
     cf : np.ndarray
-        Oversampled convolution filter
+        Oversampled convolution filter of shape
+        :code:`(support, support, oversampling, oversampling)`
+        but flattened to shape
+        :code:`(support*oversampling, support*oversampling)`
+
     oversampling : integer
         Oversampling factor
 
     Returns
     -------
     np.ndarray
-        Reorganised convolution filter
+        Reorganised convolution filter of shape
+        :code:`(oversampling, oversampling, support, support)`
+        flattened to
+        :code:`(support*oversampling, support*oversampling)`
 
     """
     support = cf.shape[0] // oversampling
@@ -409,8 +415,6 @@ def wplanes(nwplanes, cell_size, support, maxw,
         fzw_conj = (np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(zw_conj)))
                     / zw_conj_size)
 
-        # TODO(sjperkins)
-        # Understand what is going on here...
         fzw = reorganise_convolution_filter(fzw, oversampling)
         fzw_conj = reorganise_convolution_filter(fzw_conj, oversampling)
 
