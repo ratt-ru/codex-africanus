@@ -79,8 +79,12 @@ def degrid(grid, uvw, flags, freqs,
 
         centre_y = ny // 2
         centre_x = nx // 2
+
+        # UV scaling in radians
         u_scale = _ARCSEC2RAD * meta.cell_size_x * nx
         v_scale = _ARCSEC2RAD * meta.cell_size_y * ny
+
+        vis_scratch = np.empty((ncorr,), dtype=vis.dtype)
 
         for r in range(nrow):
             # Extract UVW coordinate, incorporating 1st order polynomial
@@ -98,42 +102,56 @@ def degrid(grid, uvw, flags, freqs,
 
                 w_kernel = w_planes[wi] if w > 0 else w_planes_conj[wi]
 
-                ncx = w_kernel.shape[0]
-                ncy = w_kernel.shape[1]
+                ncy = w_kernel.shape[0]
+                ncx = w_kernel.shape[1]
 
                 # This calculation probably depends on an odd support size
-                support_x = int(((ncx // overs) - 1) // 2)
-                support_y = int(((ncy // overs) - 1) // 2)
+                # support_x = int(((ncx // overs) - 1) // 2)
+                # support_y = int(((ncy // overs) - 1) // 2)
                 # Full support
-                support_cf = ncx // overs
+                # support_cf = ncx // overs
+
+                support_y = ncy // overs
+                support_x = ncx // overs
+                half_sup_y = support_y // 2
+                half_sup_x = support_x // 2
+
+                w_kernel_exp = w_kernel.reshape((overs, overs,
+                                                 ncy // overs, ncx // overs))
 
                 # Scale UV coordinate.
                 pos_x = u * u_scale * inv_wave + centre_x
                 pos_y = v * v_scale * inv_wave + centre_y
 
                 # Snap to grid
-                loc_x = int(np.round(pos_x))
                 loc_y = int(np.round(pos_y))
+                loc_x = int(np.round(pos_x))
 
                 # Only degrid vis if the full support lies within the grid
-                if (loc_x - support_x < 0 or
-                    loc_x + support_x >= nx or
-                    loc_y - support_y < 0 or
-                        loc_y + support_y >= ny):
+                if (loc_x - half_sup_x < 0 or
+                    loc_x + half_sup_x >= nx or
+                    loc_y - half_sup_y < 0 or
+                        loc_y + half_sup_y >= ny):
                     continue
 
                 # Location within the oversampling
-                off_x = int(np.round((loc_x - pos_x)*overs))
-                off_x += (ncx - 1) // 2
                 off_y = int(np.round((loc_y - pos_y)*overs))
-                off_y += (ncy - 1) // 2
+                off_x = int(np.round((loc_x - pos_x)*overs))
 
-                io = off_y - support_y*overs
-                jo = off_x - support_x*overs
-                cfoff = (io * overs + jo) * support_cf**2
+                subgrid = w_kernel_exp[off_y, off_x, :, :]
+                vis_scratch[:] = 0.0
 
-                for c in range(ncorr):
-                    pass
+                for sy in range(0, support_y):
+                    gy = loc_y + sy
+
+                    for sx in range(0, support_x):
+                        gx = loc_x + sx
+                        weight = subgrid[sy, sx]
+
+                        for c in range(ncorr):
+                            vis_scratch[c] += grid[gy, gx, c]*weight
+
+                vis[r, f, :] = vis_scratch
 
         return vis
 
