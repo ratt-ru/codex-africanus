@@ -63,7 +63,7 @@ def degrid(grid, uvw, freqs,
         nrow = uvw.shape[0]
         nchan = freqs.shape[0]
         ny, nx, ncorr = grid.shape
-        n0 = np.sqrt(1.0 - meta.l0**2 - meta.m0**2) - 1.0
+        n0 = np.sqrt(1.0 - meta.l0**2 - meta.m0**2) - 1.0  # noqa
         maxw = meta.maxw
         ref_wave = meta.ref_wave
         overs = meta.oversampling
