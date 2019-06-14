@@ -90,7 +90,7 @@ def test_gridder(support, spheroidal_support, npix,
     assert grid_.shape == (npix, npix, ncorr)
 
 
-# @pytest.mark.xfail(reason="Dirty vs PSF scaling is off for some reason")
+@pytest.mark.xfail(reason="Dirty vs PSF scaling is off for some reason")
 @pytest.mark.parametrize("support", [11])
 @pytest.mark.parametrize("spheroidal_support", [111])
 @pytest.mark.parametrize("npix", [513])

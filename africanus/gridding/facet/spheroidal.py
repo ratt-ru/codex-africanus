@@ -207,6 +207,7 @@ def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
     # if_cut_fcf = np.fft.ifft2(fcf)
 
     # Pad and ifft2 the fourier transformed convolution filter
+    # This expands the filter to the full (npix, npix) image size
     zfcf = zero_pad(fcf, npix)
     zfcf_size = zfcf.real.dtype.type(zfcf.size)
     ifzfcf = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(zfcf))) * zfcf_size
@@ -324,6 +325,8 @@ def find_max_support(radius, maxw, min_wave):
 Metadata = namedtuple("Metadata", [
     # W projection kernels and their conjugates
     "w_kernels", "w_kernels_conj",
+    # Taper
+    "taper",
     # Facet phase centre
     "l0", "m0",
     # maximum W coordinate
@@ -446,7 +449,10 @@ def wplanes(nwplanes, cell_size, support, maxw,
         wplanes.append(fzw)
         wplanes_conj.append(fzw_conj)
 
-    return Metadata(wplanes, wplanes_conj,
+    # Construct the taper
+    taper = (1.0 / spheroidal_aa_filter(npix)[2]).real
+
+    return Metadata(wplanes, wplanes_conj, taper,
                     lmshift[0], lmshift[1], ref_wave, maxw,
                     oversampling, cell_size, cell_size,
                     cu, cv)
