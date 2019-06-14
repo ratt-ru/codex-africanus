@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import namedtuple
+
 import numpy as np
 
 from africanus.constants import c as lightspeed
@@ -16,6 +18,19 @@ except ImportError as e:
     opt_import_error = e
 else:
     opt_import_error = None
+
+
+Metadata = namedtuple("Metadata", [
+    # Facet phase centre
+    "l0", "m0",
+    # maximum W coordinate
+    "ref_wave", "maxw",
+    # Oversampling factor
+    "oversampling",
+    # Cell Size in X and Y
+    "cell_size_x", "cell_size_y",
+    # First polynomial coefficients
+    "cu", "cv"])
 
 
 @jit(nopython=True, nogil=True, cache=True)
@@ -361,7 +376,9 @@ def wplanes(nwplanes, cell_size, support, maxw,
     radius = np.deg2rad((npix / 2.0)*cell_size / 3600.0)
 
     # Minimum wavelength relates to max frequency
-    min_wave = lightspeed / frequencies.max()
+    wavelengths = lightspeed / frequencies
+    min_wave = wavelengths.min()
+    ref_wave = (wavelengths.max() - min_wave) / 2.0
 
     # Find the maximum support
     max_support = find_max_support(radius, maxw, min_wave)
@@ -427,7 +444,11 @@ def wplanes(nwplanes, cell_size, support, maxw,
         wplanes.append(fzw)
         wplanes_conj.append(fzw_conj)
 
-    return cu, cv, wplanes, wplanes_conj
+    meta = Metadata(lmshift[0], lmshift[1], ref_wave, maxw,
+                    oversampling, cell_size, cell_size,
+                    cu, cv)
+
+    return meta, wplanes, wplanes_conj
 
 
 if __name__ == "__main__":

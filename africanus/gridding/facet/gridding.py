@@ -13,19 +13,6 @@ from africanus.constants import c as lightspeed, arcseconds_to_radians
 from africanus.util.numba import generated_jit, njit, is_numba_type_none
 
 
-Metadata = namedtuple("Metadata", [
-    # Facet phase centre
-    "l0", "m0",
-    # Reference wavelength, maximum W coordinate
-    "ref_wave", "maxw",
-    # Oversampling factor
-    "oversampling",
-    # Cell Size in X and Y
-    "cell_size_x", "cell_size_y",
-    # First polynomial coefficients
-    "cu", "cv"])
-
-
 Smear = namedtuple("Smear", [
     "duvw_dtime",
     "interval",
