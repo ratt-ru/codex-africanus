@@ -20,19 +20,6 @@ else:
     opt_import_error = None
 
 
-Metadata = namedtuple("Metadata", [
-    # Facet phase centre
-    "l0", "m0",
-    # maximum W coordinate
-    "ref_wave", "maxw",
-    # Oversampling factor
-    "oversampling",
-    # Cell Size in X and Y
-    "cell_size_x", "cell_size_y",
-    # First polynomial coefficients
-    "cu", "cv"])
-
-
 @jit(nopython=True, nogil=True, cache=True)
 def _gen_coeffs(x, y, order):
     ncols = (order + 1)**2
@@ -334,6 +321,21 @@ def find_max_support(radius, maxw, min_wave):
     return max_support
 
 
+Metadata = namedtuple("Metadata", [
+    # W projection kernels and their conjugates
+    "w_kernels", "w_kernels_conj",
+    # Facet phase centre
+    "l0", "m0",
+    # maximum W coordinate
+    "ref_wave", "maxw",
+    # Oversampling factor
+    "oversampling",
+    # Cell Size in X and Y
+    "cell_size_x", "cell_size_y",
+    # First polynomial coefficients
+    "cu", "cv"])
+
+
 def wplanes(nwplanes, cell_size, support, maxw,
             npix, oversampling,
             lmshift, frequencies):
@@ -444,7 +446,8 @@ def wplanes(nwplanes, cell_size, support, maxw,
         wplanes.append(fzw)
         wplanes_conj.append(fzw_conj)
 
-    meta = Metadata(lmshift[0], lmshift[1], ref_wave, maxw,
+    return Metadata(wplanes, wplanes_conj,
+                    lmshift[0], lmshift[1], ref_wave, maxw,
                     oversampling, cell_size, cell_size,
                     cu, cv)
 

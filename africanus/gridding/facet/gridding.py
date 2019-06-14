@@ -44,8 +44,7 @@ def grid_out_factory(have_sizes, have_grid):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def grid(vis, uvw, flags, weights, freqs,
-         w_planes, w_planes_conj, meta,
+def grid(vis, uvw, flags, weights, freqs, meta,
          grid=None, ny=None, nx=None):
 
     have_ny = not is_numba_type_none(ny)
@@ -55,8 +54,7 @@ def grid(vis, uvw, flags, weights, freqs,
     create_grid = grid_out_factory(have_nx and have_ny, have_grid)
     out_dtype = vis.dtype
 
-    def impl(vis, uvw, flags, weights, freqs,
-             w_planes, w_planes_conj, meta,
+    def impl(vis, uvw, flags, weights, freqs, meta,
              grid=None, ny=None, nx=None):
         nrow, nchan, ncorr = vis.shape
         grid = create_grid(ny, nx, ncorr, grid, out_dtype)
@@ -65,12 +63,14 @@ def grid(vis, uvw, flags, weights, freqs,
         maxw = meta.maxw
         ref_wave = meta.ref_wave
         overs = meta.oversampling
-        nw = len(w_planes)
+        w_kernels = meta.w_kernels
+        w_kernels_conj = meta.w_kernels_conj
+        nw = len(w_kernels)
 
-        if nw != len(w_planes_conj):
+        if nw != len(w_kernels_conj):
             raise ValueError("Number of kernels and conjugates differ")
 
-        for cf, cf_conj in zip(w_planes, w_planes_conj):
+        for cf, cf_conj in zip(w_kernels, w_kernels_conj):
             if cf.shape[0] % 2 != 1 or cf.shape[1] % 2 != 1:
                 raise ValueError("w-projection kernels must be odd")
 
@@ -105,7 +105,7 @@ def grid(vis, uvw, flags, weights, freqs,
                 if wi >= nw:
                     continue
 
-                w_kernel = w_planes[wi] if w > 0 else w_planes_conj[wi]
+                w_kernel = w_kernels[wi] if w > 0 else w_kernels_conj[wi]
                 ncy, ncx = w_kernel.shape
 
                 # This calculation probably depends on an odd support size
@@ -186,15 +186,10 @@ def vis_out_factory(have_vis):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def degrid(grid, uvw, freqs,
-           w_planes, w_planes_conj, meta,
-           vis=None):
-
+def degrid(grid, uvw, freqs, meta, vis=None):
     create_output = vis_out_factory(not is_numba_type_none(vis))
 
-    def impl(grid, uvw, freqs,
-             w_planes, w_planes_conj, meta,
-             vis=None):
+    def impl(grid, uvw, freqs, meta, vis=None):
         nrow = uvw.shape[0]
         nchan = freqs.shape[0]
         ny, nx, ncorr = grid.shape
@@ -202,14 +197,16 @@ def degrid(grid, uvw, freqs,
         maxw = meta.maxw
         ref_wave = meta.ref_wave
         overs = meta.oversampling
-        nw = len(w_planes)
+        w_kernels = meta.w_kernels
+        w_kernels_conj = meta.w_kernels_conj
+        nw = len(w_kernels)
 
         vis = create_output(nrow, nchan, ncorr, vis, grid.dtype)
 
-        if nw != len(w_planes_conj):
+        if nw != len(w_kernels_conj):
             raise ValueError("Number of kernels and conjugates differ")
 
-        for cf, cf_conj in zip(w_planes, w_planes_conj):
+        for cf, cf_conj in zip(w_kernels, w_kernels_conj):
             if cf.shape[0] % 2 != 1 or cf.shape[1] % 2 != 1:
                 raise ValueError("w-projection kernels must be odd")
 
@@ -242,7 +239,7 @@ def degrid(grid, uvw, freqs,
                 if wi >= nw:
                     continue
 
-                w_kernel = w_planes[wi] if w > 0 else w_planes_conj[wi]
+                w_kernel = w_kernels[wi] if w > 0 else w_kernels_conj[wi]
                 ncy, ncx = w_kernel.shape
 
                 # This calculation probably depends on an odd support size

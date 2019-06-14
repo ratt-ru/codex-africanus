@@ -45,13 +45,13 @@ def test_degridder(support, spheroidal_support, npix,
     freqs = np.linspace(.856e9, 2*.856e9, nchan)
     ref_wave = freqs[nchan // 2] / lightspeed
 
-    meta, wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
-                                  npix, oversampling,
-                                  lm_shift, freqs)
+    meta = wplanes(wlayers, cell_size, support, maxw,
+                   npix, oversampling,
+                   lm_shift, freqs)
 
     grid_ = rc((npix, npix, ncorr)).astype(np.complex128)
 
-    vis = degrid(grid_, uvw, freqs, wcf, wcf_conj, meta)
+    vis = degrid(grid_, uvw, freqs, meta)
     assert vis.shape == (uvw.shape[0], freqs.shape[0], grid_.shape[2])
 
 
@@ -81,12 +81,11 @@ def test_gridder(support, spheroidal_support, npix,
 
     ref_wave = freqs[nchan // 2] / lightspeed
 
-    meta, wcf, wcf_conj = wplanes(wlayers, cell_size, support, maxw,
-                                  npix, oversampling,
-                                  lm_shift, freqs)
+    meta = wplanes(wlayers, cell_size, support, maxw,
+                   npix, oversampling,
+                   lm_shift, freqs)
 
-    grid_ = grid(vis, uvw, flags, weights, freqs, wcf, wcf_conj, meta,
-                 ny=npix, nx=npix)
+    grid_ = grid(vis, uvw, flags, weights, freqs, meta, ny=npix, nx=npix)
 
     assert grid_.shape == (npix, npix, ncorr)
 
@@ -105,7 +104,7 @@ def test_psf_subtraction(support, spheroidal_support,
                          oversampling, lm_shift,
                          plot):
 
-    def _kernels_and_meta(cell_size, npix):
+    def _kernel_meta(cell_size, npix):
         return wplanes(wlayers, cell_size, support, maxw,
                        npix, oversampling,
                        lm_shift, freqs)
@@ -153,14 +152,14 @@ def test_psf_subtraction(support, spheroidal_support,
 
     ref_wave = wavelengths[wavelengths.shape[0] // 2]
 
-    meta, wcf, wcf_conj = _kernels_and_meta(2*cell_size,  npix_psf)
-    vis = degrid(fft_image[:, :, None], uvw, freqs, wcf, wcf_conj, meta)
+    vis = degrid(fft_image[:, :, None], uvw, freqs,
+                 _kernel_meta(2*cell_size,  npix_psf))
 
     assert vis.shape == (nrow, nchan, 1)
 
     # I^D = R+(V)
-    meta, wcf, wcf_conj = _kernels_and_meta(2*cell_size,  npix)
-    grid_vis = grid(vis, uvw, flags, weights, freqs, wcf, wcf_conj, meta,
+    grid_vis = grid(vis, uvw, flags, weights, freqs,
+                    _kernel_meta(2*cell_size,  npix),
                     ny=npix, nx=npix)
     assert grid_vis.shape == (npix, npix, 1)
     assert grid_vis.dtype == np.complex128
@@ -177,9 +176,9 @@ def test_psf_subtraction(support, spheroidal_support,
     assert dirty.dtype == grid_vis.real.dtype
 
     # PSF = R+(1)
-    meta, wcf, wcf_conj = _kernels_and_meta(cell_size,  npix_psf)
     grid_unity = grid(np.ones_like(vis), uvw, flags, weights, freqs,
-                      wcf, wcf_conj, meta, ny=npix_psf, nx=npix_psf)
+                      _kernel_meta(cell_size,  npix_psf),
+                      ny=npix_psf, nx=npix_psf)
 
     psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]))).real
 
