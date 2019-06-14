@@ -184,7 +184,7 @@ def zero_pad(img, npix):
         p = npix_ - dim
         hp = p // 2
 
-        # Pad the imagew
+        # Pad the image
         padding.append((hp, hp) if p % 2 == 0 else (hp+1, hp))
 
     return np.pad(img, padding, 'constant', constant_values=0)
