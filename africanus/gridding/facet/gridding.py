@@ -161,13 +161,13 @@ def grid(vis, uvw, flags, weights, freqs,
                 sub_kernel = w_kernel_exp[overs_y, overs_x, :, :]
 
                 # Iterate over the convolution kernel
-                # accumulating values from the grid
+                # accumulating values on the grid
                 for sy in range(0, support_y):
                     gy = loc_yi + sy  # Grid position in y
 
                     for sx in range(0, support_x):
                         gx = loc_xi + sx                # Grid position in x
-                        weight = sub_kernel[sy, sx]     # Filter value
+                        conv_weight = sub_kernel[sy, sx]     # Filter value
 
                         for c in range(ncorr):
                             # Ignore if flagged
@@ -175,7 +175,9 @@ def grid(vis, uvw, flags, weights, freqs,
                                 continue
 
                             # Accumulate visibility onto the grid
-                            grid[gy, gx, c] += vis[r, f, c] * weight
+                            grid[gy, gx, c] += (vis[r, f, c] *
+                                                weights[r, f, c] *
+                                                conv_weight)
 
         return grid
 
@@ -304,11 +306,11 @@ def degrid(grid, uvw, freqs,
                     gy = loc_yi + sy  # Grid position in y
 
                     for sx in range(0, support_x):
-                        gx = loc_xi + sx                # Grid position in x
-                        weight = sub_kernel[sy, sx]     # Filter value
+                        gx = loc_xi + sx                   # Grid position in x
+                        conv_weight = sub_kernel[sy, sx]   # Filter value
 
                         for c in range(ncorr):
-                            vis_scratch[c] += grid[gy, gx, c]*weight
+                            vis_scratch[c] += grid[gy, gx, c] * conv_weight
 
                 vis[r, f, :] = vis_scratch
 
