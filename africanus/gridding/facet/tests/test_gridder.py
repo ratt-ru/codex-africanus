@@ -62,7 +62,7 @@ def test_degridder(support, spheroidal_support, npix,
 @pytest.mark.parametrize("maxw", [30000])
 @pytest.mark.parametrize("cell_size", [1.3])
 @pytest.mark.parametrize("oversampling", [11])
-@pytest.mark.parametrize("lm_shift", [(1e-8, 1e-8)])
+@pytest.mark.parametrize("lm_shift", [(0.0, 0.0)])
 def test_gridder(support, spheroidal_support, npix,
                  wlayers, maxw, cell_size,
                  oversampling, lm_shift):
