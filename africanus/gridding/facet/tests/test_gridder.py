@@ -111,6 +111,8 @@ def test_psf_subtraction(support, spheroidal_support,
 
     from numpy.fft import fftshift, fft2, ifftshift, ifft2
 
+    np.random.seed(42)
+
     nrow = 10
     nchan = 8
     ncorr = 1
@@ -138,66 +140,57 @@ def test_psf_subtraction(support, spheroidal_support,
 
     npix_psf = 2*npix - 1
     npad_psf = (npix_psf - npix) // 2
+    unpad = slice(npad_psf, -npad_psf)
 
     # V = R(I)
-    # Created a padded image, FFT into the centre
+    # Pad the  image, FFT into the centre
     padding = ((npad_psf, npad_psf), (npad_psf, npad_psf))
-    fft_image = np.pad(fftshift(fft2(ifftshift(image))), padding,
-                       mode='constant', constant_values=np.complex128(0+0j))
+    pad_image = np.pad(image, padding, mode='constant',
+                       constant_values=np.complex128(0+0j))
+    fft_image = fftshift(fft2(ifftshift(pad_image)))
 
-    # FFT should produce one's over the central npix x npix
+    # FFT should produce one's
     assert fft_image.shape == (npix_psf, npix_psf)
-    assert np.sum(fft_image) == npix*npix
+    assert np.sum(fft_image) == npix_psf * npix_psf
     assert fft_image.dtype == np.complex128
 
-    ref_wave = wavelengths[wavelengths.shape[0] // 2]
-
     vis = degrid(fft_image[:, :, None], uvw, freqs,
-                 _kernel_meta(2*cell_size,  npix_psf))
+                 _kernel_meta(cell_size,  npix_psf))
 
     assert vis.shape == (nrow, nchan, 1)
 
     # I^D = R+(V)
-    grid_vis = grid(vis, uvw, flags, weights, freqs,
-                    _kernel_meta(2*cell_size,  npix),
-                    ny=npix, nx=npix)
-    assert grid_vis.shape == (npix, npix, 1)
+    meta = _kernel_meta(cell_size,  npix_psf)
+    grid_vis = grid(vis, uvw, flags, weights, freqs, meta,
+                    ny=npix_psf, nx=npix_psf)
+    assert grid_vis.shape == (npix_psf, npix_psf, 1)
     assert grid_vis.dtype == np.complex128
 
-    padding = ((npad_psf, npad_psf), (npad_psf, npad_psf), (0, 0))
-    grid_vis = np.pad(grid_vis, padding, mode='constant',
-                      constant_values=grid_vis.dtype.type(0))
-
-    assert grid_vis.shape == (npix_psf, npix_psf, 1)
-    assert grid_vis.dtype == vis.dtype
-
     dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]))).real
+    dirty = (dirty*meta.taper)[unpad, unpad]
 
     assert dirty.dtype == grid_vis.real.dtype
 
     # PSF = R+(1)
-    grid_unity = grid(np.ones_like(vis), uvw, flags, weights, freqs,
-                      _kernel_meta(cell_size,  npix_psf),
+    grid_unity = grid(np.ones_like(vis), uvw, flags, weights, freqs, meta,
                       ny=npix_psf, nx=npix_psf)
 
     psf = fftshift(ifft2(ifftshift(grid_unity[:, :, 0]))).real
+    psf = (psf*meta.taper)[unpad, unpad]
 
-    assert psf.shape == (npix_psf, npix_psf)
+    assert psf.shape == (npix, npix)
     assert psf.dtype == grid_unity.real.dtype
 
     # Test that we have gridded something
     assert np.any(dirty != 0.0)
     assert np.any(psf != 0.0)
 
-    norm_psf = psf / psf.max()
-    norm_dirty = dirty / psf.max()
+    # Normalise by PSF
+    psf_max = psf.max()
+    norm_psf = psf / psf_max
+    norm_dirty = dirty / psf_max
 
     psf, dirty = norm_psf, norm_dirty
-
-    # Extract the centre of the PSF and the dirty image
-    ex = slice(npix - npad_psf, npix + npad_psf + 1)
-    centre_psf = psf[ex, ex].copy()
-    centre_dirty = dirty[ex, ex].copy()
 
     try:
         if not plot:
@@ -208,17 +201,17 @@ def test_psf_subtraction(support, spheroidal_support,
         pass
     else:
         plt.subplot(1, 4, 1)
-        plt.imshow(centre_dirty, cmap="cubehelix")
+        plt.imshow(dirty, cmap="cubehelix")
         plt.title("CENTRE DIRTY")
         plt.colorbar()
 
         plt.subplot(1, 4, 2)
-        plt.imshow(centre_psf, cmap="cubehelix")
+        plt.imshow(psf, cmap="cubehelix")
         plt.title("CENTRE PSF")
         plt.colorbar()
 
         plt.subplot(1, 4, 3)
-        plt.imshow(centre_psf - centre_dirty, cmap="cubehelix")
+        plt.imshow(psf - dirty, cmap="cubehelix")
         plt.title("PSF - DIRTY")
         plt.colorbar()
 
