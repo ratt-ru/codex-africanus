@@ -127,9 +127,9 @@ def grid(vis, uvw, flags, weights, freqs, meta,
 
                 # Only degrid vis if the full support lies within the grid
                 if (loc_xi - half_sup_x < 0 or
-                    loc_xi + half_sup_x >= nx or
+                    loc_xi + half_sup_x + 1 >= nx or
                     loc_yi - half_sup_y < 0 or
-                        loc_yi + half_sup_y >= ny):
+                        loc_yi + half_sup_y + 1 >= ny):
                     continue
 
                 # Oversampling index in a [-n/2, n/2] coordinate system
@@ -149,12 +149,14 @@ def grid(vis, uvw, flags, weights, freqs, meta,
 
                 # Iterate over the convolution kernel
                 # accumulating values on the grid
-                for sy in range(0, support_y):
-                    gy = loc_yi + sy  # Grid position in y
+                for sy in range(-half_sup_y, half_sup_y + 1):
+                    gy = loc_yi + sy - half_sup_y         # Grid position in y
+                    fy = sy + half_sup_y
 
-                    for sx in range(0, support_x):
-                        gx = loc_xi + sx                # Grid position in x
-                        conv_weight = sub_kernel[sy, sx]     # Filter value
+                    for sx in range(-half_sup_x, half_sup_x + 1):
+                        gx = loc_xi + sx - half_sup_x     # Grid position in x
+                        fx = sx + half_sup_x
+                        conv_weight = sub_kernel[fy, fx]  # Filter value
 
                         for c in range(ncorr):
                             # Ignore if flagged
@@ -261,9 +263,9 @@ def degrid(grid, uvw, freqs, meta, vis=None):
 
                 # Only degrid vis if the full support lies within the grid
                 if (loc_xi - half_sup_x < 0 or
-                    loc_xi + half_sup_x >= nx or
+                    loc_xi + half_sup_x + 1 >= nx or
                     loc_yi - half_sup_y < 0 or
-                        loc_yi + half_sup_y >= ny):
+                        loc_yi + half_sup_y + 1 >= ny):
                     continue
 
                 # Oversampling index in a [-n/2, n/2] coordinate system
@@ -286,12 +288,14 @@ def degrid(grid, uvw, freqs, meta, vis=None):
 
                 # Iterate over the convolution kernel
                 # accumulating values from the grid
-                for sy in range(0, support_y):
-                    gy = loc_yi + sy  # Grid position in y
+                for sy in range(-half_sup_y, half_sup_y + 1):
+                    gy = loc_yi + sy - half_sup_y         # Grid position in y
+                    fy = sy + half_sup_y
 
-                    for sx in range(0, support_x):
-                        gx = loc_xi + sx                   # Grid position in x
-                        conv_weight = sub_kernel[sy, sx]   # Filter value
+                    for sx in range(-half_sup_x, half_sup_x + 1):
+                        gx = loc_xi + sx - half_sup_x     # Grid position in x
+                        fx = sx + half_sup_x
+                        conv_weight = sub_kernel[fy, fx]  # Filter value
 
                         for c in range(ncorr):
                             vis_scratch[c] += grid[gy, gx, c] * conv_weight
