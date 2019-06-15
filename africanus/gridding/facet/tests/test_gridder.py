@@ -43,7 +43,6 @@ def test_degridder(support, spheroidal_support, npix,
     uvw = rf((nrow, 3)) - 0.5
     uvw[:, :2] *= 1e4
     freqs = np.linspace(.856e9, 2*.856e9, nchan)
-    ref_wave = freqs[nchan // 2] / lightspeed
 
     meta = wplanes(wlayers, cell_size, support, maxw,
                    npix, oversampling,
@@ -78,8 +77,6 @@ def test_gridder(support, spheroidal_support, npix,
     flags = np.random.randint(0, 2, (nrow, nchan, ncorr))
     weights = np.random.random((nrow, nchan, ncorr))
     freqs = np.linspace(.856e9, 2*.856e9, nchan)
-
-    ref_wave = freqs[nchan // 2] / lightspeed
 
     meta = wplanes(wlayers, cell_size, support, maxw,
                    npix, oversampling,
@@ -228,7 +225,7 @@ def test_psf_subtraction(support, npix, wlayers,
 @pytest.mark.parametrize("lm", [(0.0, 0.0)])
 def test_landman(support, cell_size, npix, wlayers,
                  oversampling, lm):
-    from numpy.fft import fftshift, fft2, ifftshift, ifft2
+    from numpy.fft import fftshift, ifftshift, ifft2
 
     vis = np.array([[[1.0 + 0.0j]]], dtype=np.complex128)
     uvw = np.zeros((1, 3), dtype=np.float64)

@@ -457,8 +457,6 @@ def wplanes(nwplanes, cell_size, support, maxw,
                     oversampling, cell_size, cell_size,
                     cu, cv)
 
-    return meta, wplanes, wplanes_conj
-
 
 if __name__ == "__main__":
     import argparse
