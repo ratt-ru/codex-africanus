@@ -29,10 +29,10 @@ def rc(*args, **kwargs):
 @pytest.mark.parametrize("maxw", [30000])
 @pytest.mark.parametrize("cell_size", [1.3])
 @pytest.mark.parametrize("oversampling", [11])
-@pytest.mark.parametrize("lm_shift", [(1e-8, 1e-8)])
+@pytest.mark.parametrize("lm", [(1e-8, 1e-8)])
 def test_degridder(support, spheroidal_support, npix,
                    wlayers, maxw, cell_size,
-                   oversampling, lm_shift):
+                   oversampling, lm):
 
     np.random.seed(42)
     nrow = 10
@@ -47,7 +47,7 @@ def test_degridder(support, spheroidal_support, npix,
 
     meta = wplanes(wlayers, cell_size, support, maxw,
                    npix, oversampling,
-                   lm_shift, freqs)
+                   lm, freqs)
 
     grid_ = rc((npix, npix, ncorr)).astype(np.complex128)
 
@@ -62,10 +62,10 @@ def test_degridder(support, spheroidal_support, npix,
 @pytest.mark.parametrize("maxw", [30000])
 @pytest.mark.parametrize("cell_size", [1.3])
 @pytest.mark.parametrize("oversampling", [11])
-@pytest.mark.parametrize("lm_shift", [(0.0, 0.0)])
+@pytest.mark.parametrize("lm", [(0.0, 0.0)])
 def test_gridder(support, spheroidal_support, npix,
                  wlayers, maxw, cell_size,
-                 oversampling, lm_shift):
+                 oversampling, lm):
 
     np.random.seed(42)
     nrow = 10
@@ -83,31 +83,27 @@ def test_gridder(support, spheroidal_support, npix,
 
     meta = wplanes(wlayers, cell_size, support, maxw,
                    npix, oversampling,
-                   lm_shift, freqs)
+                   lm, freqs)
 
     grid_ = grid(vis, uvw, flags, weights, freqs, meta, ny=npix, nx=npix)
 
     assert grid_.shape == (npix, npix, ncorr)
 
 
-@pytest.mark.xfail(reason="Dirty vs PSF scaling is off for some reason")
 @pytest.mark.parametrize("support", [11])
-@pytest.mark.parametrize("spheroidal_support", [111])
 @pytest.mark.parametrize("npix", [513])
 @pytest.mark.parametrize("wlayers", [7])
-@pytest.mark.parametrize("maxw", [30000])
 @pytest.mark.parametrize("oversampling", [11])
-@pytest.mark.parametrize("lm_shift", [(1e-8, 1e-8)])
+@pytest.mark.parametrize("lm", [(1e-8, 1e-8)])
 @pytest.mark.parametrize("plot", [True])
-def test_psf_subtraction(support, spheroidal_support,
-                         npix, wlayers, maxw,
-                         oversampling, lm_shift,
+def test_psf_subtraction(support, npix, wlayers,
+                         oversampling, lm,
                          plot):
 
     def _kernel_meta(cell_size, npix):
         return wplanes(wlayers, cell_size, support, maxw,
                        npix, oversampling,
-                       lm_shift, freqs)
+                       lm, freqs)
 
     from numpy.fft import fftshift, fft2, ifftshift, ifft2
 
@@ -124,6 +120,8 @@ def test_psf_subtraction(support, spheroidal_support,
     uvw = np.empty((nrow, 3), dtype=np.float64)
     uvw[:, :2] = (rf((nrow, 2)) - 0.5)*10000
     uvw[:, 2] = (rf((nrow,)) - 0.5)*10
+
+    maxw = uvw[:, 2].max()
 
     # Estimate cell size given UVW coordiantes and wavelengths
     cell_size = estimate_cell_size(uvw[:, 0], uvw[:, 1],
@@ -143,7 +141,7 @@ def test_psf_subtraction(support, spheroidal_support,
     unpad = slice(npad_psf, -npad_psf)
 
     # V = R(I)
-    # Pad the  image, FFT into the centre
+    # Pad the  image, FFT
     padding = ((npad_psf, npad_psf), (npad_psf, npad_psf))
     pad_image = np.pad(image, padding, mode='constant',
                        constant_values=np.complex128(0+0j))
@@ -200,28 +198,69 @@ def test_psf_subtraction(support, spheroidal_support,
     except (ImportError, ValueError):
         pass
     else:
-        plt.subplot(1, 4, 1)
+        plt.subplot(1, 3, 1)
         plt.imshow(dirty, cmap="cubehelix")
-        plt.title("CENTRE DIRTY")
+        plt.title("DIRTY")
         plt.colorbar()
 
-        plt.subplot(1, 4, 2)
-        plt.imshow(psf, cmap="cubehelix")
-        plt.title("CENTRE PSF")
-        plt.colorbar()
-
-        plt.subplot(1, 4, 3)
-        plt.imshow(psf - dirty, cmap="cubehelix")
-        plt.title("PSF - DIRTY")
-        plt.colorbar()
-
-        plt.subplot(1, 4, 4)
+        plt.subplot(1, 3, 2)
         plt.imshow(psf, cmap="cubehelix")
         plt.title("PSF")
         plt.colorbar()
 
+        plt.subplot(1, 3, 3)
+        plt.imshow(psf - dirty, cmap="cubehelix")
+        plt.title("PSF - DIRTY")
+        plt.colorbar()
+
         plt.show(True)
 
-    assert centre_psf.shape == centre_dirty.shape == (npix, npix)
+    assert psf.shape == dirty.shape == (npix, npix)
     # Should be very much the same
-    assert_array_almost_equal(centre_psf, centre_dirty)
+    assert_array_almost_equal(psf, dirty)
+
+
+@pytest.mark.parametrize("support", [11])
+@pytest.mark.parametrize("cell_size", [.1])
+@pytest.mark.parametrize("npix", [257])
+@pytest.mark.parametrize("wlayers", [7])
+@pytest.mark.parametrize("oversampling", [1])
+@pytest.mark.parametrize("lm", [(0.0, 0.0)])
+def test_landman(support, cell_size, npix, wlayers,
+                 oversampling, lm):
+    from numpy.fft import fftshift, fft2, ifftshift, ifft2
+
+    vis = np.array([[[1.0 + 0.0j]]], dtype=np.complex128)
+    uvw = np.zeros((1, 3), dtype=np.float64)
+    flag = np.zeros_like(vis, dtype=np.uint8)
+    weight = np.ones_like(flag, dtype=np.float64)
+    freqs = np.array([1.0], dtype=np.float64)
+    maxw = 30000
+
+    meta = wplanes(wlayers, cell_size, support, maxw,
+                   npix, oversampling,
+                   lm, freqs)
+
+    grid_vis = grid(vis, uvw, flag, weight, freqs, meta,
+                    ny=2*npix - 1, nx=2*npix - 1)
+
+    # assert_array_almost_equal(grid_vis, grid_vis.T)
+
+    try:
+        import matplotlib.pyplot as plt
+    except (ImportError, ValueError):
+        pass
+    else:
+        plt.imshow(np.abs(grid_vis[:, :, 0]))
+        plt.show()
+
+        dirty = fftshift(ifft2(ifftshift(grid_vis[:, :, 0]))).real
+
+        plt.imshow(dirty)
+        plt.show()
+
+        unpad = slice((npix // 2), -(npix // 2))
+        dirty = dirty[unpad, unpad]*meta.taper
+
+        plt.imshow(np.abs(dirty))
+        plt.show()
