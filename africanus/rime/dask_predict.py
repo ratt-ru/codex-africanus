@@ -141,6 +141,64 @@ class CoherencyStreamReduction(Mapping):
         return layers
 
 
+@requires_optional('dask.array', opt_import_error)
+class CoherencyFanReduction(Mapping):
+    def __init__(self, out_name, coherency_stream_reduction):
+        self.in_name = coherency_stream_reduction.out_name
+        self.blocks = coherency_stream_reduction.blocks
+        self.streams = coherency_stream_reduction.streams
+        self.out_name = out_name
+
+    @property
+    def _dict(self):
+        if hasattr(self, "_cached_dict"):
+            return self._cached_dict
+        else:
+            self._cached_dict = self._create_dict()
+            return self._cached_dict
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        (source, row, ant, chan, corr) = self.blocks
+        return reduce(mul, (source, row, chan) + corr, 1)
+
+    def _create_dict(self):
+        (source, row, ant, chan, corr) = self.blocks
+
+        # Iterator of block id's for row, channel and correlation blocks
+        # We don't reduce over these dimensions
+        block_ids = enumerate(product(range(row), range(chan),
+                                      *[range(cb) for cb in corr]))
+
+        source_block_chunks = _source_stream_blocks(source, self.streams)
+
+        layers = {}
+        last_block_keys = []
+
+        # This looping structure should match
+        for flat_bid, bid in block_ids:
+            rb, fb = bid[0:2]
+            cb = bid[2:]
+
+            last_stream_keys = []
+
+            for sb_start in range(0, source, source_block_chunks):
+                sb_end = min(sb_start + source_block_chunks, source)
+                key = (sb_end - 1, flat_bid)
+                last_stream_keys.append((self.in_name, sb_end - 1, flat_bid))
+
+            key = (self.out_name, rb, fb) + cb
+            task = (sum, last_stream_keys)
+            layers[key] = task
+
+        return layers
+
+
 def coherency_stream_reduction(time_index, antenna1, antenna2,
                                dde1_jones, source_coh, dde2_jones,
                                streams):
@@ -183,4 +241,15 @@ def coherency_stream_reduction(time_index, antenna1, antenna2,
     graph = HighLevelGraph.from_collections(name, layers, deps)
 
     chunks = ((1,) * src_blocks, (1,)*nblocks)
-    return da.Array(graph, name, chunks, dtype=np.complex128)
+    # This should never be directly computed, reported chunks
+    # and dtype don't match the actual data. We create it
+    # because it makes chaining HighLevelGraphs easier
+    stream_reduction = da.Array(graph, name, chunks, dtype=np.int8)
+
+    name = "coherency-reduction-" + tokenize(stream_reduction)
+    layers = CoherencyFanReduction(name, layers)
+    graph = HighLevelGraph.from_collections(name, layers, [stream_reduction])
+
+    # TODO(sjperkins)
+    # Infer the result type properly
+    return da.Array(graph, name, source_coh.chunks[1:], dtype=np.complex128)
