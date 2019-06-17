@@ -226,7 +226,8 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
 @requires_optional('dask.array', da_import_error)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
-                die1_jones=None, base_vis=None, die2_jones=None):
+                die1_jones=None, base_vis=None, die2_jones=None,
+                streams=None):
 
     tup = predict_checks(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
