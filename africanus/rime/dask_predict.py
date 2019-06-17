@@ -142,7 +142,7 @@ class CoherencyStreamReduction(Mapping):
 
 
 @requires_optional('dask.array', opt_import_error)
-class CoherencyFanReduction(Mapping):
+class CoherencyFinalReduction(Mapping):
     def __init__(self, out_name, coherency_stream_reduction):
         self.in_name = coherency_stream_reduction.out_name
         self.blocks = coherency_stream_reduction.blocks
@@ -247,7 +247,7 @@ def coherency_stream_reduction(time_index, antenna1, antenna2,
     stream_reduction = da.Array(graph, name, chunks, dtype=np.int8)
 
     name = "coherency-reduction-" + tokenize(stream_reduction)
-    layers = CoherencyFanReduction(name, layers)
+    layers = CoherencyFinalReduction(name, layers)
     graph = HighLevelGraph.from_collections(name, layers, [stream_reduction])
 
     # TODO(sjperkins)
