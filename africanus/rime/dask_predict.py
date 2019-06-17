@@ -34,7 +34,7 @@ def _extract_block_dims(time_index, antenna1, antenna2,
     # Number of dim blocks
     src_blocks = dde1_jones.numblocks[0]
     row_blocks = source_coh.numblocks[1]
-    ant_blocks = 0
+    ant_blocks = 1
     chan_blocks = source_coh.numblocks[2]
     corr_blocks = source_coh.numblocks[3:]
 
@@ -102,7 +102,7 @@ class CoherencyStreamReduction(Mapping):
         (source_blocks, row_blocks, ant_blocks,
          chan_blocks, corr_blocks) = self.blocks
 
-        assert ant_blocks == 0
+        assert ant_blocks == 1
         ab = 0
 
         # Subdivide number of source blocks by number of streams
@@ -115,13 +115,15 @@ class CoherencyStreamReduction(Mapping):
                                       *[range(cb) for cb in corr_blocks]))
 
         for flat_bid, bid in block_ids:
-            # Do the reduction proper, For a chunk, the base visibilities
-            # are set to the result of the previous chunk (last_key)
+            rb, fb = bid[0:2]
+            cb = bid[2:]
+
+            # Create the streamed reduction proper.
+            # For a stream, the base visibilities are set to the result
+            # of the previous result in the stream (last_key)
             for sb_start in range(0, source_blocks, source_block_chunks):
                 sb_end = min(sb_start + source_block_chunks, source_blocks)
                 last_key = None
-                rb, fb = bid[0:2]
-                cb = bid[2:]
 
                 for sb in range(sb_start, sb_end):
                     # Dask task object calling predict vis
