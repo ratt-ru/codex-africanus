@@ -256,10 +256,10 @@ flag : $(array_type)
 model : $(array_type)
     Model data values of shape :code:`(row, chan, dir, corr)`
     or :code:`(row, chan, dir, corr, corr)`.
+
 Returns
 -------
-
-residual: $(array_type)
+residual : $(array_type)
     Residual visibilities of shape
     :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
@@ -318,6 +318,7 @@ vis : $(array_type)
 flag : $(array_type)
     Flag data of shape :code:`(row, chan, corr)`
     or :code:`(row, chan, corr, corr)`.
+
 Returns
 -------
 corrected_vis : $(array_type)
