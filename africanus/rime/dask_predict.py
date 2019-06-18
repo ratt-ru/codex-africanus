@@ -603,6 +603,22 @@ def predict_vis(time_index, antenna1, antenna2,
                       predict_check_tup, out_dtype)
 
 
+EXTRA_DASK_ARGS = """
+streams : int, optional
+    Specifies the degree of parallelism along the source dimension.
+    By default, dask uses a tree style reduction algorithm which can
+    require large amounts of memory. Specifying this parameter
+    constrains the dask graph to serially sum coherencies in a
+    specified number of streams, reducing overall memory usage.
+
+    If ``None``, defaults to a standard, memory-intensive tree style
+    algorithm.
+
+    Defaults to 1, which means that the source coherencies for each
+    visibility chunk are serially summed, meaning that parallelism
+    will only exists along the row and chan dimensions.
+"""
+
 EXTRA_DASK_NOTES = """
 * The ``ant`` dimension should only contain a single chunk equal
   to the number of antenna. Since each ``row`` can contain
@@ -667,6 +683,7 @@ EXTRA_DASK_NOTES = """
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`dask.array.Array`",
+                                extra_args=EXTRA_DASK_ARGS,
                                 extra_notes=EXTRA_DASK_NOTES)
 except AttributeError:
     pass

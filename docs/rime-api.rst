@@ -44,7 +44,6 @@ Numpy
 .. currentmodule:: africanus.rime
 
 .. autosummary::
-    apply_gains
     predict_vis
     phase_delay
     parallactic_angles
@@ -53,7 +52,6 @@ Numpy
     beam_cube_dde
     zernike_dde
 
-.. autofunction:: apply_gains
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: parallactic_angles
@@ -68,12 +66,10 @@ Cuda
 .. currentmodule:: africanus.rime.cuda
 
 .. autosummary::
-    apply_gains
     predict_vis
     phase_delay
     feed_rotation
 
-.. autofunction:: apply_gains
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: feed_rotation
@@ -85,7 +81,6 @@ Dask
 .. currentmodule:: africanus.rime.dask
 
 .. autosummary::
-    apply_gains
     predict_vis
     phase_delay
     parallactic_angles
@@ -95,7 +90,6 @@ Dask
     zernike_dde
 
 
-.. autofunction:: apply_gains
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: parallactic_angles

@@ -574,6 +574,7 @@ die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     second antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
+$(extra_args)
 
 Returns
 -------
@@ -585,6 +586,7 @@ visibilities : $(array_type)
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                             array_type=":class:`numpy.ndarray`",
+                            extra_args="",
                             extra_notes="")
 except AttributeError:
     pass

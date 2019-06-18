@@ -2,9 +2,10 @@
 History
 =======
 
-0.1.9 (2019-06-04)
+0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Add streams parameter to dask `predict_vis` (:pr:`118`)
 * Implement the beam in numba (:pr:`112`)
 * Add residual_vis, correct_vis, phase_only_GN (:pr:`113`)
 
