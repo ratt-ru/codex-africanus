@@ -14,7 +14,7 @@ from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
 from africanus.rime.fast_beam_cubes import (beam_cube_dde as np_beam_cube_dde,
                                             BEAM_CUBE_DOCS)
-from africanus.rime.dask_predict import predict_vis
+from africanus.rime.dask_predict import predict_vis  # noqa
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
@@ -26,8 +26,6 @@ import numpy as np
 
 try:
     import dask.array as da
-    from dask.highlevelgraph import HighLevelGraph
-    from dask.blockwise import blockwise
 except ImportError as e:
     da_import_error = e
 else:

@@ -12,7 +12,6 @@ import numpy as np
 
 from africanus.compatibility import range, reduce
 from africanus.util.requirements import requires_optional
-from africanus.util.docs import format_docstring
 
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
@@ -114,7 +113,7 @@ class CoherencyStreamReduction(Mapping):
 
     def __len__(self):
         # Extract dimension blocks
-        (source, row, ant, chan), corr = self.blocks[:4], self.blocks[4:]
+        (source, row, _, chan), corr = self.blocks[:4], self.blocks[4:]
         return reduce(mul, (source, row, chan) + corr, 1)
 
     def _create_dict(self):
@@ -206,11 +205,11 @@ class CoherencyFinalReduction(Mapping):
         return iter(self._dict)
 
     def __len__(self):
-        (source, row, ant, chan), corrs = self.blocks[:4], self.blocks[4:]
+        (source, row, _, chan), corrs = self.blocks[:4], self.blocks[4:]
         return reduce(mul, (source, row, chan) + corrs, 1)
 
     def _create_dict(self):
-        (source, row, ant, chan), corrs = self.blocks[:4], self.blocks[4:]
+        (source, row, _, chan), corrs = self.blocks[:4], self.blocks[4:]
 
         # Iterator of block id's for row, channel and correlation blocks
         # We don't reduce over these dimensions
@@ -220,7 +219,6 @@ class CoherencyFinalReduction(Mapping):
         source_block_chunks = _source_stream_blocks(source, self.streams)
 
         layers = {}
-        last_block_keys = []
 
         # This looping structure should match
         for flat_bid, bid in block_ids:
@@ -302,11 +300,8 @@ def stream_reduction(time_index, antenna1, antenna2,
 
     # Number of dim blocks
     blocks = _extract_blocks(time_index, dde1_jones, source_coh, dde2_jones)
-    (src_blocks, row_blocks, ant_blocks,
+    (src_blocks, row_blocks, _,
      chan_blocks), corr_blocks = blocks[:4], blocks[4:]
-
-    # Subdivide number of source blocks by number of streams
-    src_block_chunks = (src_blocks + streams - 1) // streams
 
     # Total number of other dimension blocks
     nblocks = reduce(mul, (row_blocks, chan_blocks) + corr_blocks, 1)
