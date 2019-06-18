@@ -199,9 +199,9 @@ class CoherencyFinalReduction(Mapping):
         return layers
 
 
-def coherency_stream_reduction(time_index, antenna1, antenna2,
-                               dde1_jones, source_coh, dde2_jones,
-                               streams):
+def coherency_reduction(time_index, antenna1, antenna2,
+                        dde1_jones, source_coh, dde2_jones,
+                        streams):
     # Unique name and token for this operation
     token = tokenize(time_index, antenna1, antenna2,
                      dde1_jones, source_coh, dde2_jones,

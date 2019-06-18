@@ -7,7 +7,7 @@ from __future__ import print_function
 from operator import mul
 
 from africanus.compatibility import reduce
-from africanus.rime.dask_predict import coherency_stream_reduction
+from africanus.rime.dask_predict import coherency_reduction
 from africanus.rime.dask import predict_vis
 
 import numpy as np
@@ -24,7 +24,7 @@ def rc(*args, **kw):
 
 
 @pytest.mark.parametrize("streams", [1, 2, 3])
-def test_dask_coherency_stream_reduction(streams):
+def test_dask_coherency_reduction(streams):
     dask = pytest.importorskip('dask')
     da = pytest.importorskip('dask.array')
 
@@ -57,9 +57,9 @@ def test_dask_coherency_stream_reduction(streams):
     da_dde1 = da.from_array(dde1, chunks=(src, times, ants, chan) + corr)
     da_coh = da.from_array(coh, chunks=(src, row, chan) + corr)
 
-    stream_red = coherency_stream_reduction(da_time_index, da_ant1, da_ant2,
-                                            da_dde1, da_coh, da_dde1,
-                                            streams=streams)
+    stream_red = coherency_reduction(da_time_index, da_ant1, da_ant2,
+                                     da_dde1, da_coh, da_dde1,
+                                     streams=streams)
 
     fan_red = predict_vis(da_time_index, da_ant1, da_ant2,
                           da_dde1, da_coh, da_dde1)
