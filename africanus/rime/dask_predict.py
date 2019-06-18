@@ -41,7 +41,6 @@ def _extract_block_dims(time_index, antenna1, antenna2,
     return src_blocks, row_blocks, ant_blocks, chan_blocks, corr_blocks
 
 
-@requires_optional("dask.array", opt_import_error)
 class CoherencyStreamReduction(Mapping):
     """
     tl;dr this is a dictionary that is expanded in place when
@@ -141,7 +140,6 @@ class CoherencyStreamReduction(Mapping):
         return layers
 
 
-@requires_optional('dask.array', opt_import_error)
 class CoherencyFinalReduction(Mapping):
     def __init__(self, out_name, coherency_stream_reduction):
         self.in_name = coherency_stream_reduction.out_name
@@ -199,6 +197,7 @@ class CoherencyFinalReduction(Mapping):
         return layers
 
 
+@requires_optional("dask.array", opt_import_error)
 def coherency_reduction(time_index, antenna1, antenna2,
                         dde1_jones, source_coh, dde2_jones,
                         streams):
