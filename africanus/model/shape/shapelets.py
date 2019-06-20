@@ -2,6 +2,7 @@ import numba
 import numpy as np
 from numpy import sqrt, exp
 from africanus.constants import c as lightspeed
+from africanus.constants import minus_two_pi_over_c
 
 e = 2.7182818284590452353602874713527
 square_root_of_pi = 1.77245385091
@@ -13,7 +14,7 @@ def hermite(n, x):
     elif n==1:
         return 2*x
     else:
-        return 2*x*hermite(x,n-1)-2*(n-1)*hermite(x,n-2)
+        return 2*x*hermite(n-1,x)-2*(n-1)*hermite(n-2,x)
 
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
@@ -26,47 +27,114 @@ def factorial(n):
     return ans * n
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def basis_function(n, xx, beta):
-    basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
-    exponential_component = hermite(n, xx / beta) * np.exp((-0.5) * (xx**2) * (beta **(-2)))
-    return basis_component * exponential_component
+def basis_function(n, xx, beta, fourier=False, delta_x=None):
+    if fourier:
+        x = 2*np.pi*xx
+        scale = 1.0/beta
+    else:
+        x = xx
+        scale = beta
+    basis_component = 1.0/np.sqrt(2.0**n * np.sqrt(np.pi) * factorial(n) * scale)
+    exponential_component = hermite(n, x / scale) * np.exp(-x**2 / (2.0*scale**2))
+    if fourier:
+        return 1.0j**n * basis_component * exponential_component * np.sqrt(2*np.pi)/delta_x
+    else:
+        return basis_component * exponential_component
 
+def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
+    l0, m0 = lm_source_center
+    n0 = np.sqrt(1.0-l0**2-m0**2)
+    u, v, w = uvw
+    real_phase = minus_two_pi_over_c * frequency * (u*l0 + v*m0 + w*(n0-1))
+    return np.exp(1.0j*real_phase)
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet(coords, frequency, coeffs, beta):
+def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_l, delta_m, lm, dtype=np.complex128):
     """
-    shapelet: computes the shapelet model image in Fourier space
+    shapelet: outputs visibilities corresponding to that of a shapelet
     Inputs:
         coords: coordinates in (u,v) space with shape (nrow, 3)
         frequency: frequency values with shape (nchan,)
-        coeffs: shapelet coefficients with shape (nsrc, nmax1, nmax2)
+        coeffs_l: shapelet coefficients for the l axis with shape (nsrc, nmax1)
+        coeffs_m: shapelet coefficients for the m axis with shape (nsrc, nmax2)
         beta: characteristic shapelet size with shape (nsrc, 2)
+        delta_l: pixel size in l dim
+        delta_m: pixel size in m dim
+        lm: source center coordinates of shape (nsource, 2)
     Returns:
-        out_shapelets: Shapelet with shape (nsrc, nrow, nchan)
+        out_shapelets: Shapelet with shape (nrow, nchan, nsrc)
     """
-    
-    fwhmint = 1.0 / np.sqrt(np.log(256))
-    gauss_scale = fwhmint * np.sqrt(2.) * (np.pi / lightspeed)
-    nrow, _ = coords.shape
-    nsrc, nmax1, nmax2 = coeffs.shape
-    nchan = coeffs.shape[0]
-    out_shapelets = np.empty((nsrc, nrow, nchan), dtype=np.complex128)
+    nrow = coords.shape[0]
+    nsrc, nmax1 = coeffs_l.shape
+    nmax2 = coeffs_m.shape[1]
+    nchan = frequency.size
+    out_shapelets = np.empty((nrow, nchan, nsrc), dtype=np.complex128)
     for row in range(nrow):
         u, v, w = coords[row, :]
+        delta_l = 1.0/np.max(coords[:, 0])
+        delta_m = 1.0/np.max(coords[:, 1])
         for chan in range(nchan):
-            fu = u# * frequency[chan]# * gauss_scale
-            fv = v# * frequency[chan]# * gauss_scale
-            #print(fu, fv, frequency[chan])
-            #print(fu, fv)
+            fu = u * 2 * np.pi * frequency[chan] / lightspeed
+            fv = v * 2 * np.pi * frequency[chan] / lightspeed
             for src in range(nsrc):
-                beta_u, beta_v = beta[src, :] ** (-1)
-                tmp_shapelet = 0 + 0j
+                beta_u, beta_v = beta[src, :]
+                tmp_shapelet = np.zeros(1, dtype=dtype)
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
-                        tmp_shapelet += coeffs[src, n1, n2] * basis_function(n1, fu, beta_u) * basis_function(n2, fv, beta_v) if (n1 + n2 % 4) == 0\
-                            else -1 * coeffs[src, n1, n2] * basis_function(n1, fu, beta_u) * basis_function(n2, fv, beta_v) if (n1 + n2 % 4) == 2 \
-                            else 1j * coeffs[src, n1, n2] * basis_function(n1, fu, beta_u) * basis_function(n2, fv, beta_v)
-                        #print(tmp_shapelet)
+                        tmp_shapelet += coeffs_l[src, n1] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
+                            * coeffs_m[src, n2] * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                 #print("tmp_shapelet is %f" %tmp_shapelet)
-                out_shapelets[src, row, chan] = tmp_shapelet
+                wterm = phase_steer_and_w_correct((u, v, w), lm[src], frequency[chan])
+                out_shapelets[row, chan, src] = tmp_shapelet * wterm
     return out_shapelets
+
+def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
+    """
+    The one dimensional shapelet. Default is to return the
+    dimensionless version. 
+    Parameters
+    ----------
+    u : :class:`numpy.ndarray`
+        Array of coordinates at which to evaluate the shapelet
+        of shape (nrow)
+    coeffs : :class:`numpy.ndarray`
+        Array of shapelet coefficients of chape (ncoeff)
+    fourier : bool
+        Whether to evaluate the shapelet in Fourier space
+        or in signal space
+    beta : float, optional
+        The scale parameter for the shapelet. If fourier is
+        true the scale is 1/beta
+    Returns
+    -------
+    out : :class:`numpy.ndarray`
+        The shapelet evaluated at u of shape (nrow)
+    """
+    nrow = u.size
+    if fourier:
+        if delta_x is None:
+            raise ValueError("You have to pass in a value for delta_x in Fourier mode")
+        out = np.zeros(nrow, dtype=np.complex128)
+    else:
+        out = np.zeros(nrow, dtype=np.float64)
+    for row, ui in enumerate(u):
+        for n, c in enumerate(coeffs):
+            out[row] += c * basis_function(n, ui, beta, fourier=fourier, delta_x=delta_x)
+    return out 
+
+def shapelet_2d(u, v, coeffs_l, coeffs_m, fourier, delta_x=None, delta_y=None, beta=1.0):
+    nrow_u = u.size
+    nrow_v = v.size
+    if fourier:
+        if delta_x is None or delta_y is None:
+            raise ValueError("You have to pass in a value for delta_x and delta_y in Fourier mode")
+        out = np.zeros((nrow_u, nrow_v), dtype=np.complex128)
+    else:
+        out = np.zeros((nrow_u, nrow_v), dtype=np.float64)
+    for i, ui in enumerate(u):
+        for j, vj in enumerate(v):
+            for n1, c1 in enumerate(coeffs_l):
+                for n2, c2 in enumerate(coeffs_m):
+                    out[i, j] += c1 * basis_function(n1, ui, beta, fourier=fourier, delta_x=delta_x) \
+                        * c2 * basis_function(n2, vj, beta, fourier=fourier, delta_x=delta_y)
+    return out
