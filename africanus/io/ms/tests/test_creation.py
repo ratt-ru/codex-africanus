@@ -23,8 +23,11 @@ def test_empty_ms(nrow, nchan, ncorr, add_imaging_cols, tmpdir):
     imaging_cols = set(["MODEL_DATA", "CORRECTED_DATA", "IMAGING_WEIGHT"])
 
     with pt.table(ms, readonly=False, ack=False) as T:
+        # Add rows, get data, put data
         T.addrows(nrow)
-        T.putcol("STATE_ID", np.zeros(nrow, dtype=np.int32))
+        data = T.getcol("DATA")
+        assert data.shape == (nrow, nchan, ncorr)
+        T.putcol("DATA", np.zeros_like(data))
 
         table_cols = set(T.colnames())
 
