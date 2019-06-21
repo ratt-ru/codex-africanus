@@ -4,6 +4,7 @@
 """Tests for `codex-africanus` package."""
 
 import numpy as np
+from numpy.testing import assert_array_equal
 
 import pytest
 
@@ -44,6 +45,15 @@ def test_phase_delay():
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
     phase = minus_two_pi_over_c*(u*l + v*m + w*n)*freq
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
+
+    # Test that we can supply an out parameter
+    out = np.zeros_like(complex_phase)
+    complex_phase_2 = phase_delay(lm, uvw, frequency, out=out)
+
+    # Result matches first version
+    assert_array_equal(complex_phase, complex_phase_2)
+    # Check that the result is in the original variable we passed in
+    assert out is complex_phase_2
 
 
 def test_feed_rotation():
