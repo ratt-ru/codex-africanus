@@ -25,8 +25,8 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
         out_dtype = dtype.dtype
 
     def _im_to_vis_impl(image, uvw, lm, frequency, dtype=None):
-        vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0]),
-                             dtype=out_dtype)
+        vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0],
+                              image.shape[-1]), dtype=out_dtype)
 
         # For each uvw coordinate
         for row in range(uvw.shape[0]):
@@ -44,13 +44,11 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
                 for chan in range(frequency.shape[0]):
                     p = real_phase * frequency[chan] * 1.0j
 
-                    # Our phase input is purely imaginary
-                    # so we can can elide a call to exp
-                    # and just compute the cos and sin
-                    # @simon does this really make a difference?
-                    # I thought a complex exponential is evaluated
-                    # as a sum of sin and cos anyway
-                    vis_of_im[row, chan] += np.exp(p)*image[source, chan]
+                    for corr in range(image.shape[-1]):
+                        if image[source, chan, corr]:
+                            vis_of_im[row, chan,
+                                      corr] += np.exp(p)*image[source,
+                                                               chan, corr]
 
         return vis_of_im
 
@@ -58,7 +56,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def vis_to_im(vis, uvw, lm, frequency, dtype=None):
+def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
     # Infer output dtype if none provided
     if is_numba_type_none(dtype):
         # Support both real and complex visibilities...
@@ -76,9 +74,11 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
 
         out_dtype = dtype.dtype
 
-    def _vis_to_im_impl(vis, uvw, lm, frequency, dtype=None):
-        im_of_vis = np.zeros((lm.shape[0], frequency.shape[0]),
-                             dtype=out_dtype)
+    assert np.shape(vis) == np.shape(flags)
+
+    def _vis_to_im_impl(vis, uvw, lm, frequency, flags, dtype=None):
+        im_of_vis = np.zeros((lm.shape[0], frequency.shape[0],
+                              vis.shape[-1]), dtype=out_dtype)
 
         # For each source
         for source in range(lm.shape[0]):
@@ -95,11 +95,14 @@ def vis_to_im(vis, uvw, lm, frequency, dtype=None):
                 for chan in range(frequency.shape[0]):
                     p = real_phase * frequency[chan]
 
-                    im_of_vis[source,
-                              chan] += (np.cos(p) * vis[row, chan].real -
-                                        np.sin(p) * vis[row, chan].imag)
-                    # Note for the adjoint we don't need the imaginary part
-                    # and we can elide the call to exp
+                    # do not compute if any of the correlations
+                    # are flagged (complicates uncertainties)
+                    if not np.any(flags[row, chan]):
+                        for corr in range(vis.shape[-1]):
+                            im_of_vis[source, chan, corr] += \
+                                np.cos(p) * np.real(vis[row, chan, corr]) - \
+                                np.sin(p) * np.imag(vis[row, chan, corr])
+                            # elide the call to exp since result is real
 
         return im_of_vis
 
@@ -111,8 +114,8 @@ _DFT_DOCSTRING = namedtuple(
 
 im_to_vis_docs = _DFT_DOCSTRING(
     preamble="""
-    Computes the discrete image to visibility mapping of an ideal
-    unpolarised interferometer :
+    Computes the discrete image to visibility mapping
+    of an ideal interferometer:
 
     .. math::
 
@@ -125,14 +128,15 @@ im_to_vis_docs = _DFT_DOCSTRING(
     ----------
 
     image : :class:`numpy.ndarray`
-        image of shape :code:`(source, chan)`
-        The Stokes I intensity in each pixel (flatten 2D array per channel).
+        image of shape :code:`(source, chan, corr)`
+        The brighness matrix in each pixel (flatten 2D array
+        per channel and corr). Note not Stokes terms
     uvw : :class:`numpy.ndarray`
-        UVW coordinates of shape :code:`(row, 3)` with
-        U, V and W components in the last dimension.
+        uvw coordinates of shape :code:`(row, 3)` with
+        u, v and w components in the last dimension.
     lm : :class:`numpy.ndarray`
-        LM coordinates of shape :code:`(source, 2)` with
-        L and M components in the last dimension.
+        lm coordinates of shape :code:`(source, 2)` with
+        l and m components in the last dimension.
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional
@@ -145,7 +149,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
     Returns
     -------
     visibilties : :class:`numpy.ndarray`
-        complex of shape :code:`(row, chan)`
+        complex of shape :code:`(row, chan, corr)`
     """
 )
 
@@ -154,8 +158,8 @@ im_to_vis.__doc__ = doc_tuple_to_str(im_to_vis_docs)
 
 vis_to_im_docs = _DFT_DOCSTRING(
     preamble="""
-    Computes visibility to image mapping of an ideal
-    unpolarised interferometer:
+    Computes visibility to image mapping
+    of an ideal interferometer:
 
     .. math::
 
@@ -168,14 +172,16 @@ vis_to_im_docs = _DFT_DOCSTRING(
     ----------
 
     vis : :class:`numpy.ndarray`
-        visibilities of shape :code:`(row, chan)`
-        The Stokes I visibilities of which to compute a dirty image
+        visibilities of shape :code:`(row, chan, corr)`
+        Visibilities corresponding to brightness terms.
+        Note the dirty images produced do not necessarily
+        correspond to Stokes terms and need to be converted.
     uvw : :class:`numpy.ndarray`
-        UVW coordinates of shape :code:`(row, 3)` with
-        U, V and W components in the last dimension.
+        uvw coordinates of shape :code:`(row, 3)` with
+        u, v and w components in the last dimension.
     lm : :class:`numpy.ndarray`
-        LM coordinates of shape :code:`(source, 2)` with
-        L and M components in the last dimension.
+        lm coordinates of shape :code:`(source, 2)` with
+        l and m components in the last dimension.
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
     dtype : np.dtype, optional
@@ -188,7 +194,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
     Returns
     -------
     image : :class:`numpy.ndarray`
-        float of shape :code:`(source, chan)`
+        float of shape :code:`(source, chan, corr)`
     """
 )
 
