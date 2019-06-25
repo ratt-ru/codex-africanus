@@ -56,10 +56,9 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     # simulate model data (pure Stokes I)
     for dir in range(n_dir):
         this_lm = lm[dir].reshape(1, 2)
-        this_flux = np.tile(flux[dir], (n_chan)).reshape(1, n_chan)
+        this_flux = np.tile(flux[dir], (n_chan, n_cor)).reshape(1, n_chan, n_cor)
         model_tmp = im_to_vis(this_flux, uvw, this_lm, freq)
-        model_data[:, :, dir, 0] = model_tmp
-        model_data[:, :, dir, 1] = model_tmp
+        model_data[:, :, dir, :] = model_tmp
     assert not np.isnan(model_data).any()
     # simulate gains (just radnomly scattered around 1 for now)
     jones = np.ones((n_time, n_ant, n_chan, n_dir, n_cor), dtype=np.complex64)

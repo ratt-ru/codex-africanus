@@ -33,7 +33,8 @@ The discretised form of the DFT can be written as
         (u l_s + v m_s + w (n_s - 1))} \cdot B_s
 
 where :math:`s` labels the source (or pixel) location.
-This can be cast into a matrix equation as follows
+If only a single correlation is present :math:`B = I`,
+this can be cast into a matrix equation as follows
 
 .. math::
 
@@ -42,7 +43,8 @@ This can be cast into a matrix equation as follows
 where :math:`R` is the operator that maps an
 image to visibility space. This mapping is
 implemented by the :func:`~africanus.dft.im_to_vis`
-function.
+function. If multiple correlations are present then
+each one is mapped to its corresponding visibility.
 An imaging algorithm also requires the adjoint
 denoted :math:`R^\dagger` which is simply the
 complex conjugate transpose of :math:`R`.
