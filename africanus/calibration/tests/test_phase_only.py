@@ -56,7 +56,8 @@ def make_dual_pol_data(sigma_n, n_dir, sigma_f):
     # simulate model data (pure Stokes I)
     for dir in range(n_dir):
         this_lm = lm[dir].reshape(1, 2)
-        this_flux = np.tile(flux[dir], (n_chan, n_cor)).reshape(1, n_chan, n_cor)
+        this_flux = np.tile(flux[dir], (n_chan,
+                            n_cor)).reshape(1, n_chan, n_cor)
         model_tmp = im_to_vis(this_flux, uvw, this_lm, freq)
         model_data[:, :, dir, :] = model_tmp
     assert not np.isnan(model_data).any()
