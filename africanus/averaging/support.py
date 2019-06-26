@@ -16,6 +16,13 @@ def _unique_internal(data):
         raise ValueError("_unique_internal currently "
                          "only supports 1D arrays")
 
+    # Handle the empty array case
+    if data.shape[0] == 0:
+        return (data,
+                np.empty((0,), dtype=np.intp),
+                np.empty((0,), dtype=np.intp),
+                np.empty((0,), dtype=np.intp))
+
     # See numpy's unique1d
     perm = np.argsort(data, kind='mergesort')
 

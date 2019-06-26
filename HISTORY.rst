@@ -5,7 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
-* Added corelation axis and flags to DFT kernels (:pr:`118`)
+* Fixed segfault when using `_unique_internal` on empty ndarrays (:pr:`123`)
 * Removed `apply_gains`. Use `africanus.calibration.utils.correct_vis`
   instead (:pr:`118`)
 * Add streams parameter to dask `predict_vis` (:pr:`118`)
