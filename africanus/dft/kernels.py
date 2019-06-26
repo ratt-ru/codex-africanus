@@ -25,30 +25,31 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
         out_dtype = dtype.dtype
 
     def _im_to_vis_impl(image, uvw, lm, frequency, dtype=None):
-        vis_of_im = np.zeros((uvw.shape[0], frequency.shape[0],
-                              image.shape[-1]), dtype=out_dtype)
+        nrows = uvw.shape[0]
+        nsrc = lm.shape[0]
+        nchan = frequency.shape[0]
+        ncorr = image.shape[-1]
+        vis_of_im = np.zeros((nrows, nchan, ncorr), dtype=out_dtype)
 
         # For each uvw coordinate
-        for row in range(uvw.shape[0]):
-            u, v, w = uvw[row]
+        for r in range(nrows):
+            u, v, w = uvw[r]
 
             # For each source
-            for source in range(lm.shape[0]):
-                l, m = lm[source]
+            for s in range(nsrc):
+                l, m = lm[s]
                 n = np.sqrt(1.0 - l**2 - m**2) - 1.0
 
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
                 real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
-                for chan in range(frequency.shape[0]):
-                    p = real_phase * frequency[chan] * 1.0j
+                for nu in range(nchan):
+                    p = real_phase * frequency[nu] * 1.0j
 
-                    for corr in range(image.shape[-1]):
-                        if image[source, chan, corr]:
-                            vis_of_im[row, chan,
-                                      corr] += np.exp(p)*image[source,
-                                                               chan, corr]
+                    for c in range(ncorr):
+                        if image[s, nu, c]:
+                            vis_of_im[r, nu, c] += np.exp(p)*image[s, nu, c]
 
         return vis_of_im
 
@@ -77,31 +78,36 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
     assert np.shape(vis) == np.shape(flags)
 
     def _vis_to_im_impl(vis, uvw, lm, frequency, flags, dtype=None):
-        im_of_vis = np.zeros((lm.shape[0], frequency.shape[0],
-                              vis.shape[-1]), dtype=out_dtype)
+        nrows = uvw.shape[0]
+        nsrc = lm.shape[0]
+        nchan = frequency.shape[0]
+        ncorr = vis.shape[-1]
+
+        im_of_vis = np.zeros((nsrc, nchan, ncorr), dtype=out_dtype)
 
         # For each source
-        for source in range(lm.shape[0]):
-            l, m = lm[source]
+        for s in range(nsrc):
+            l, m = lm[s]
             n = np.sqrt(1.0 - l ** 2 - m ** 2) - 1.0
             # For each uvw coordinate
-            for row in range(uvw.shape[0]):
-                u, v, w = uvw[row]
+            for r in range(nrows):
+                u, v, w = uvw[r]
 
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
                 real_phase = -minus_two_pi_over_c * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
-                for chan in range(frequency.shape[0]):
-                    p = real_phase * frequency[chan]
+                for nu in range(nchan):
+                    p = real_phase * frequency[nu]
 
                     # do not compute if any of the correlations
                     # are flagged (complicates uncertainties)
-                    if not np.any(flags[row, chan]):
-                        for corr in range(vis.shape[-1]):
-                            im_of_vis[source, chan, corr] += \
-                                np.cos(p) * np.real(vis[row, chan, corr]) - \
-                                np.sin(p) * np.imag(vis[row, chan, corr])
+                    if not np.any(flags[r, nu]):
+                        for c in range(ncorr):
+                            im_of_vis[s, nu, c] += (np.cos(p) *
+                                                    vis[r, nu, c].real -
+                                                    np.sin(p) *
+                                                    vis[r, nu, c].imag)
                             # elide the call to exp since result is real
 
         return im_of_vis
@@ -184,6 +190,11 @@ vis_to_im_docs = _DFT_DOCSTRING(
         l and m components in the last dimension.
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
+    flags : :class:`numpy.ndarray`
+        Boolean array of shape :code:`(row, chan, corr)`
+        Note that if one correlation is flagged we discard
+        all of them otherwise we end up irretrievably
+        mixing Stokes terms.
     dtype : np.dtype, optional
         Datatype of result. Should be either np.float32 or np.float64.
         If ``None``, :func:`numpy.result_type` is used to infer the data type

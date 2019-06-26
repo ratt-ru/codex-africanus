@@ -305,12 +305,7 @@ def test_symmetric_covariance():
     point_source = np.ones((1, nchan, ncorr), dtype=np.float64)
     for source in range(nsource):
         lm_i = lm[source].reshape(1, 2)
-        # Ki = np.zeros([nrows, 1], dtype=np.complex128)
         Ki = im_to_vis(point_source, uvw, lm_i, freq)
-        # for row in range(nrows):
-        #     Ki[row] = np.exp(1j*minus_two_pi_over_c*freq[0] *
-        #                      (uvw[row, 0]*l + uvw[row, 1]*m) +
-        #                      uvw[row, 2]*(n - 1))
         psf_source[:, source] = vis_to_im(Ki, uvw, lm, freq, flags).squeeze()
 
     assert_array_almost_equal(psf_source, psf_source.T, decimal=14)

@@ -81,6 +81,7 @@ class CoherencyStreamReduction(Mapping):
     Produces graph serially summing coherencies in
     ``stream`` parallel streams.
     """
+
     def __init__(self, time_index, antenna1, antenna2,
                  dde1_jones, source_coh, dde2_jones,
                  out_name, streams):

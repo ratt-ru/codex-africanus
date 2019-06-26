@@ -10,12 +10,10 @@ import argparse
 
 import numpy as np
 from astropy.io import fits
-from astropy import wcs
 import dask
 import dask.array as da
 from dask.diagnostics import ProgressBar
 from africanus.dft.dask import im_to_vis
-from africanus.model.coherency.dask import convert
 import xarray as xr
 from xarrayms import xds_from_ms, xds_from_table, xds_to_table
 
@@ -29,18 +27,18 @@ def create_parser():
     p.add_argument("--colname", default="MODEL_DATA", type=str)
     return p
 
+
 args = create_parser().parse_args()
 
 if args.ncpu:
     ncpu = args.ncpu
-    import dask
     from multiprocessing.pool import ThreadPool
     dask.config.set(pool=ThreadPool(ncpu))
 else:
     import multiprocessing
     ncpu = multiprocessing.cpu_count()
 
-print("Using %i threads"%ncpu)
+print("Using %i threads" % ncpu)
 
 # Get MS frequencies
 spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
@@ -106,10 +104,10 @@ if ms_freqs.compute() != freqs:
             fitcube = model[:, corr, Ix, Iy].T.astype(np.float64)
             ncomps, _ = fitcube.shape
             model_cube = da.from_array(fitcube, chunks=(ncomps//ncpu, nband))
-            
+
             alpha, _, I0, _ = fit_spi_components(model_cube, weights_dask,
                                                  freqs_dask, ref_freq)
-            
+
             alphas[0, corr, Ix, Iy] = alpha
             I0s[0, corr, Ix, Iy] = I0
     else:
@@ -117,9 +115,9 @@ if ms_freqs.compute() != freqs:
               "Assuming spectral index of -0.7 to extrapolate")
         alphas = np.ones((1, ncorr, npix_l, npix_m), dtype=np.float64) * -0.7
         I0s = model
-    
+
     model_predict = I0s * (ms_freqs.reshape(nchan,
-                           1, 1, 1)/ref_freq) ** alphas
+                                            1, 1, 1)/ref_freq) ** alphas
 else:
     model_predict = model
 
@@ -135,8 +133,8 @@ model_predict = da.from_array(model_predict, chunks=(npix_tot, nchan, ncorr))
 # do the predict
 writes = []
 for xds in xds_from_ms(args.ms,
-                           columns=["UVW", args.colname],
-                           chunks={"row": args.row_chunks}):
+                       columns=["UVW", args.colname],
+                       chunks={"row": args.row_chunks}):
     uvw = xds.UVW
     vis = im_to_vis(model_predict, uvw, lm, ms_freqs)
 
@@ -145,7 +143,7 @@ for xds in xds_from_ms(args.ms,
         print("Assuming only Stokes I passed in")
         tmp_zero = da.zeros(vis.shape, chunks=(args.row_chunks, nchan, 1))
         vis = da.concatenate((vis, tmp_zero, tmp_zero, vis), axis=-1)
-        vis = vis.rechunk((args.row_chunks, nchan, data.shape[-1]))       
+        vis = vis.rechunk((args.row_chunks, nchan, data.shape[-1]))
 
     # Assign visibilities to MODEL_DATA array on the dataset
     model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])

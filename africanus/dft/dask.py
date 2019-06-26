@@ -43,7 +43,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
                          "match on first axis")
     if image.chunks[1] != frequency.chunks[0]:
         raise ValueError("Image chunks must match frequency "
-                         "frequency chunks on second axis")
+                         "chunks on second axis")
     return da.core.blockwise(_im_to_vis_wrapper, ("row", "chan", "corr"),
                              image, ("source", "chan", "corr"),
                              uvw, ("row", "(u,v,w)"),
@@ -69,7 +69,7 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=np.float64):
                          "match on first axis")
     if vis.chunks[1] != frequency.chunks[0]:
         raise ValueError("Vis chunks must match frequency "
-                         "frequency chunks on second axis")
+                         "chunks on second axis")
     if vis.chunks != flags.chunks:
         raise ValueError("Vis chunks must match flags "
                          "chunks on all axes")
