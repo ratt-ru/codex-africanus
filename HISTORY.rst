@@ -5,6 +5,8 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Upgraded DFT kernels to have a correlation axis and added flags
+  for vis_to_im. Added predict_from_fits example. (:pr:`122`)
 * Fixed segfault when using `_unique_internal` on empty ndarrays (:pr:`123`)
 * Removed `apply_gains`. Use `africanus.calibration.utils.correct_vis`
   instead (:pr:`118`)

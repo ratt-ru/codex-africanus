@@ -1,3 +1,3 @@
 # flake8: noqa
 
-from .component_spi import fit_spi_components
+from africanus.model.spi.component_spi import fit_spi_components
