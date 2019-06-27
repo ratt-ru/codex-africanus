@@ -22,9 +22,10 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", type=str)
     p.add_argument("--fitsmodel", type=str)
-    p.add_argument("--row_chunks", default=10000, type=int)
+    p.add_argument("--row_chunks", default=4000, type=int)
     p.add_argument("--ncpu", default=0, type=int)
     p.add_argument("--colname", default="MODEL_DATA", type=str)
+    p.add_argument('--field', default=0, type=int)
     return p
 
 
@@ -47,48 +48,62 @@ spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
 # Get frequencies in the measurement set
 # If these do not match those in the fits
 # file we need to interpolate
-ms_freqs = spw_ds.CHAN_FREQ.data
-nchan = ms_freqs.compute().size
+ms_freqs = spw_ds.CHAN_FREQ.data.compute()
+nchan = ms_freqs.size
 
 # load in the fits file
 model = fits.getdata(args.fitsmodel)
 # get header
 hdr = fits.getheader(args.fitsmodel)
 
+# TODO - check that PHASE_DIR in MS matches that in fits
 # get image coordinates
+if hdr['CUNIT1'] != "DEG" and hdr['CUNIT1'] != "deg":
+    raise ValueError("Image units must be in degrees")
 npix_l = hdr['NAXIS1']
 refpix_l = hdr['CRPIX1']
 delta_l = hdr['CDELT1'] * np.pi/180  # assumes untis are deg
-l_coord = np.arange(1 - refpix_l, 1 + npix_l - refpix_l)*delta_l
+l0 = hdr['CRVAL1'] * np.pi/180
+l_coord = l0 + np.arange(1 - refpix_l, 1 + npix_l - refpix_l)*delta_l
 
+if hdr['CUNIT2'] != "DEG" and hdr['CUNIT2'] != "deg":
+    raise ValueError("Image units must be in degrees")
 npix_m = hdr['NAXIS2']
 refpix_m = hdr['CRPIX2']
 delta_m = hdr['CDELT2'] * np.pi/180  # assumes untis are deg
-m_coord = np.arange(1 - refpix_m, 1 + npix_m - refpix_m)*delta_m
+m0 = hdr['CRVAL2'] * np.pi/180
+m_coord = m0 + np.arange(1 - refpix_m, 1 + npix_m - refpix_m)*delta_m
 
 npix_tot = npix_l * npix_m
 
 # get frequencies
-nband = hdr['NAXIS4']
-refpix_nu = hdr['CRPIX3']
-delta_nu = hdr['CDELT4']  # assumes units are Hz
-ref_freq = np.float(hdr['CRVAL4'])
+if hdr["CTYPE4"] == 'FREQ':
+    nband = hdr['NAXIS4']
+    refpix_nu = hdr['CRPIX4']
+    delta_nu = hdr['CDELT4']  # assumes units are Hz
+    ref_freq = hdr['CRVAL4']
+    ncorr = hdr['NAXIS3']
+elif hdr["CTYPE3"] == 'FREQ':
+    nband = hdr['NAXIS3']
+    refpix_nu = hdr['CRPIX3']
+    delta_nu = hdr['CDELT3']  # assumes units are Hz
+    ref_freq = hdr['CRVAL3']
+    ncorr = hdr['NAXIS4']
+else:
+    raise ValueError("Freq axis must be 3rd or 4th")
+
 freqs = ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
 
 print("Reference frequency is ", ref_freq)
 
 # TODO - need to use convert for this
-ncorr = hdr['NAXIS3']
 if ncorr > 1:
-    print("You will have to convert Stokes to corr for DFT to work properly")
+    raise ValueError("Currently only works on a single correlation")
 
 # if frequencies do not match we fit a power law and interpolate/extrapolatye
-if ms_freqs.compute() != freqs:
+if not (ms_freqs != freqs).all():
     print("Frequencies of fits cube do not match those of ms. "
           "Interpolating/extrapoling using power law")
-    # print("Fits frequencies are ", freqs)
-    # print("Interpolating to ", ms_freqs.compute())
-    model_predict = np.zeros((nchan, ncorr, npix_l, npix_m), dtype=np.float64)
     alphas = np.zeros((1, ncorr, npix_l, npix_m), dtype=np.float64)
     I0s = np.zeros((1, ncorr, npix_l, npix_m), dtype=np.float64)
     if nband > 1:
@@ -113,11 +128,10 @@ if ms_freqs.compute() != freqs:
     else:
         print("Single frequency fits file. "
               "Assuming spectral index of -0.7 to extrapolate")
-        alphas = np.ones((1, ncorr, npix_l, npix_m), dtype=np.float64) * -0.7
+        alphas = np.full((1, ncorr, npix_l, npix_m), -0.7, dtype=np.float64)
         I0s = model
 
-    model_predict = I0s * (ms_freqs.reshape(nchan,
-                                            1, 1, 1)/ref_freq) ** alphas
+    model_predict = I0s * (ms_freqs[:, None, None, None]/ref_freq) ** alphas
 else:
     model_predict = model
 
@@ -125,29 +139,34 @@ else:
 ll, mm = np.meshgrid(l_coord, m_coord)
 lm = np.vstack((ll.flatten(), mm.flatten())).T
 lm = da.from_array(lm, chunks=(npix_tot, 2))
-# ms_freqs = da.from_array(ms_freqs, chunks=nchan)
 model_predict = np.transpose(model_predict.reshape(nchan, ncorr, npix_tot),
                              [2, 0, 1])
 model_predict = da.from_array(model_predict, chunks=(npix_tot, nchan, ncorr))
+ms_freqs = spw_ds.CHAN_FREQ.data
 
 # do the predict
 writes = []
 for xds in xds_from_ms(args.ms,
                        columns=["UVW", args.colname],
                        chunks={"row": args.row_chunks}):
-    uvw = xds.UVW
+    uvw = xds.UVW.data
     vis = im_to_vis(model_predict, uvw, lm, ms_freqs)
 
     data = getattr(xds, args.colname)
     if data.shape != vis.shape:
         print("Assuming only Stokes I passed in")
-        tmp_zero = da.zeros(vis.shape, chunks=(args.row_chunks, nchan, 1))
-        vis = da.concatenate((vis, tmp_zero, tmp_zero, vis), axis=-1)
+        if vis.shape[-1] == 1 and data.shape[-1] == 4:
+            tmp_zero = da.zeros(vis.shape, chunks=(args.row_chunks, nchan, 1))
+            vis = da.concatenate((vis, tmp_zero, tmp_zero, vis), axis=-1)
+        elif vis.shape[-1] == 1 and data.shape[-1] == 2:
+            vis = da.concatenate((vis, vis), axis=-1)
+        else:
+            raise ValueError("Incompatible corr axes")
         vis = vis.rechunk((args.row_chunks, nchan, data.shape[-1]))
 
     # Assign visibilities to MODEL_DATA array on the dataset
     model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
-    xds = xds.assign(MODEL_DATA=model_data)
+    xds = xds.assign(**{args.colname: model_data})
     # Create a write to the table
     write = xds_to_table(xds, args.ms, [args.colname])
     # Add to the list of writes

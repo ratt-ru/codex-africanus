@@ -102,13 +102,15 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
 
                     # do not compute if any of the correlations
                     # are flagged (complicates uncertainties)
-                    if not np.any(flags[r, nu]):
-                        for c in range(ncorr):
-                            im_of_vis[s, nu, c] += (np.cos(p) *
-                                                    vis[r, nu, c].real -
-                                                    np.sin(p) *
-                                                    vis[r, nu, c].imag)
-                            # elide the call to exp since result is real
+                    if np.any(flags[r, nu]):
+                        continue
+
+                    for c in range(ncorr):
+                        # elide the call to exp since result is real
+                        im_of_vis[s, nu, c] += (np.cos(p) *
+                                                vis[r, nu, c].real -
+                                                np.sin(p) *
+                                                vis[r, nu, c].imag)
 
         return im_of_vis
 
