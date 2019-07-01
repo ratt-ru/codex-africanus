@@ -10,14 +10,13 @@ from operator import mul
 
 import numpy as np
 
-from africanus.compatibility import range, reduce
+from africanus.compatibility import range, reduce, Mapping
 from africanus.util.requirements import requires_optional
 
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 
 try:
-    from dask.compatibility import Mapping
     from dask.blockwise import blockwise
     from dask.base import tokenize
     import dask.array as da
