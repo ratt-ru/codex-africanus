@@ -5,7 +5,7 @@ ADD . /code
 WORKDIR /code
 # Test base install without optional installs works
 # Most of the tests will be skipped
-RUN pip3 install .
+RUN pip3 install .[testing]
 RUN py.test -s -vvv /code/africanus
 # Testing install
 RUN pip3 install .[astropy,dask,python-casacore,scipy,testing]
