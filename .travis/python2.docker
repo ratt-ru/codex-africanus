@@ -4,8 +4,8 @@ FROM kernsuite/base:3
 RUN docker-apt-install python-pip
 RUN pip install --upgrade pip setuptools
 ADD . /code
-
 WORKDIR /code
+
 # Test base install without optional installs works
 # Most of the tests will be skipped
 RUN pip install .[testing]
