@@ -32,7 +32,7 @@ extras_require = {
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0; python_version <= "2.7"',
                 'astropy >= 3.0; python_version >= "3.0"'],
-    'python-casacore': ['python-casacore >= 2.2.1, <= 3.0.0'],
+    'python-casacore': ['python-casacore == 3.0.0'],
     'testing': ['pytest', 'pytest-runner', 'flaky']
 }
 
