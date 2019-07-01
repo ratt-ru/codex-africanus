@@ -7,7 +7,6 @@ from __future__ import print_function
 
 import argparse
 
-from dask.diagnostics import ProgressBar
 import numpy as np
 
 
@@ -21,6 +20,7 @@ else:
 try:
     import dask
     import dask.array as da
+    from dask.diagnostics import ProgressBar
     import xarray as xr
     from xarrayms import xds_from_ms, xds_from_table, xds_to_table
 except ImportError as e:
