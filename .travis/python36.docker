@@ -1,14 +1,18 @@
 FROM kernsuite/base:dev
+
 # Install base requirements
 RUN docker-apt-install python3-pip
 RUN pip3 install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
+
 # Test base install without optional installs works
 # Most of the tests will be skipped
 RUN pip3 install .[testing]
 RUN py.test -s -vvv /code/africanus
+
 # Test most functionality
+# Install kern python-casacore to avoid build dependencies
 RUN apt install python3-casacore
 RUN pip3 install .[astropy,dask,python-casacore,scipy,testing]
 RUN py.test -s -vvv /code/africanus
