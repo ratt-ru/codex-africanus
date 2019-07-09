@@ -347,7 +347,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
 def _nifty_dirty(grid, grid_config):
     """ Wrapper function for creating a dirty image """
-    grids = [grid_config.grid2dirty_c(grid[:, :, c])
+    grids = [grid_config.grid2dirty(grid[:, :, c].real)
              for c in range(grid.shape[2])]
 
     return np.stack(grids, axis=2)
@@ -380,7 +380,7 @@ def dirty(grid, grid_config):
                         grid, ("nx", "ny", "corr"),
                         gc, None,
                         adjust_chunks={"nx": nx, "ny": ny},
-                        dtype=grid.dtype)
+                        dtype=grid.real.dtype)
 
 
 def _nifty_model(image, grid_config):
