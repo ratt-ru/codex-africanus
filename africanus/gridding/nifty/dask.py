@@ -16,6 +16,7 @@ except ImportError as e:
 else:
     import_error = None
 
+from africanus.compatibility import reduce
 from africanus.util.requirements import requires_optional
 
 
