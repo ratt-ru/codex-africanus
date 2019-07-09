@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Add dask wrappers for the nifty gridder (:pr:`116`)
 * Testing and requirement updates. (:pr:`124`)
 * Upgraded DFT kernels to have a correlation axis and added flags
   for vis_to_im. Added predict_from_fits example. (:pr:`122`)
