@@ -45,6 +45,7 @@ class GridderConfigWrapper(object):
                 (self.nx, self.ny, self.eps, self.csx, self.csy))
 
 
+@requires_optional("dask.array", "nifty_gridder", import_error)
 @normalize_token.register(GridderConfigWrapper)
 def normalize_gridder_config_wrapper(gc):
     return normalize_token((gc.nx, gc.ny, gc.csx, gc.csy, gc.eps))
