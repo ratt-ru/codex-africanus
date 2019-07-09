@@ -9,6 +9,7 @@ import numpy as np
 try:
     import dask
     import dask.array as da
+    from dask.base import normalize_token
     from dask.highlevelgraph import HighLevelGraph
     import nifty_gridder as ng
 except ImportError as e:
@@ -42,6 +43,11 @@ class GridderConfigWrapper(object):
     def __reduce__(self):
         return (GridderConfigWrapper,
                 (self.nx, self.ny, self.eps, self.csx, self.csy))
+
+
+@normalize_token.register(GridderConfigWrapper)
+def normalize_gridder_config_wrapper(gc):
+    return normalize_token((gc.nx, gc.ny, gc.csx, gc.csy, gc.eps))
 
 
 @requires_optional("dask.array", "nifty_gridder", import_error)
