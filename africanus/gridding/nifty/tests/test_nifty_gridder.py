@@ -77,6 +77,7 @@ def test_dask_nifty_gridder():
     assert g.shape == grid_shape
     assert d3.shape == dirty_shape == (nx, ny, ncorr)
 
+    # All three techniques produce similar results
     d1, d2, d3 = dask.compute(d1, d2, d3)
     assert_array_almost_equal(d1, d2)
     assert_array_almost_equal(d2, d3)
