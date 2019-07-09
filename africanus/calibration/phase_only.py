@@ -162,18 +162,18 @@ maxiter: int, optional
 
 Returns
 -------
-gains: $(array_type)
+gains : $(array_type)
     Gain solutions of shape :code:`(time, ant, chan, dir, corr)`
     or shape :code:`(time, ant, chan, dir, corr, corr)`
-jhj: $(array_type)
+jhj : $(array_type)
     The diagonal of the Hessian of shape
     :code:`(time, ant, chan, dir, corr)` or shape
     :code:`(time, ant, chan, dir, corr, corr)`
-jhr: $(array_type)
+jhr : $(array_type)
     Residuals projected into gain space
     of shape :code:`(time, ant, chan, dir, corr)`
     or shape :code:`(time, ant, chan, dir, corr, corr)`.
-k: int
+k : int
     Number of iterations (will equal maxiter if
     not converged)
 """)
@@ -219,11 +219,11 @@ flag : $(array_type)
 
 Returns
 -------
-jhj: $(array_type)
+jhj : $(array_type)
     The diagonal of the Hessian of
     shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
-jhr: $(array_type)
+jhr : $(array_type)
     Residuals projected into signal space
     of shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
