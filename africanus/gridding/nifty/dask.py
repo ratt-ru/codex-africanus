@@ -17,7 +17,7 @@ except ImportError as e:
 else:
     import_error = None
 
-from africanus.compatibility import reduce, Mapping
+from africanus.compatibility import Mapping
 from africanus.util.requirements import requires_optional
 
 
@@ -156,7 +156,6 @@ class GridStreamReduction(Mapping):
         layers = {}
 
         name = self.name
-        corr = self.corr
         gc = self.gc
         row_blocks = self.row_blocks
         streams = self.streams
