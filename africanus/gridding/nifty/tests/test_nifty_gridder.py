@@ -23,12 +23,13 @@ def rc(*a, **kw):
 
 def test_dask_nifty_gridder():
     """ Only tests that we can call it and create a dirty image """
+    dask = pytest.importorskip('dask')
     da = pytest.importorskip('dask.array')
     _ = pytest.importorskip('nifty_gridder')
 
     row = (16,)*8
     chan = (32,)
-    corr = (1,)
+    corr = (4,)
     nx = 1026
     ny = 1022
 
@@ -41,7 +42,8 @@ def test_dask_nifty_gridder():
     vis = rf(size=(nrow, nchan, ncorr)).astype(np.complex128)
     freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros(vis.shape, dtype=np.uint8)
-    weight = np.ones(vis.shape, dtype=np.float64)
+    flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8)
+    weight = rf(vis.shape).astype(np.float64)
 
     da_vis = da.from_array(vis, chunks=(row, chan, corr))
     da_uvw = da.from_array(uvw, chunks=(row, 3))
@@ -50,6 +52,8 @@ def test_dask_nifty_gridder():
     da_weight = da.from_array(weight, chunks=(row, chan, corr))
 
     gc = grid_config(nx, ny, 2e-13, 2.0, 2.0)
+
+    # Standard fan reduction
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc)
     d1 = dirty(g, gc)
 
@@ -59,57 +63,21 @@ def test_dask_nifty_gridder():
     assert g.shape == grid_shape
     assert d1.shape == dirty_shape == (nx, ny, ncorr)
 
+    # Stream reduction (single stream)
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=1)
     d2 = dirty(g, gc)
 
     assert g.shape == grid_shape
     assert d2.shape == dirty_shape == (nx, ny, ncorr)
 
+    # Stream reductino (three streams)
     g = grid(da_vis, da_uvw, da_flag, da_weight, da_freq, gc, streams=3)
     d3 = dirty(g, gc)
 
     assert g.shape == grid_shape
     assert d3.shape == dirty_shape == (nx, ny, ncorr)
 
-    from dask.diagnostics import Profiler
-
-    # d1.compute()
-    #d1, d2, d3 = da.compute(d1, d2, d3)
-    prof = Profiler()
-
-    with prof:
-        d1 = d1.compute()
-
-    prof.visualize()
-
-    prof = Profiler()
-
-    print("d1 done")
-    with prof:
-        d2 = d2.compute()
-
-    prof.visualize()
-
-    print("d2 done")
-
-    import dask
-    d3.visualize("graph_unoptimized.pdf")
-    d3, = dask.optimize(d3)
-    d3.visualize("graph_optimized.pdf")
-
-
-
-
-
-    prof = Profiler()
-
-    with prof:
-        d3 = d3.compute()
-
-
-    prof.visualize()
-
-    print("d3 done")
+    d1, d2, d3 = dask.compute(d1, d2, d3)
     assert_array_almost_equal(d1, d2)
     assert_array_almost_equal(d2, d3)
 
