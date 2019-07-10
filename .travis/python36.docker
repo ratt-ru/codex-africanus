@@ -2,7 +2,7 @@ FROM kernsuite/base:5
 
 # Install base requirements
 RUN DEBIAN_FRONTEND=noninteractive apt update -y
-RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip git
 RUN pip3 install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
@@ -16,4 +16,5 @@ RUN py.test -s -vvv /code/africanus
 # Install kern python-casacore to avoid build dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-casacore
 RUN pip3 install .[astropy,dask,scipy,testing]
+RUN pip3 install git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git
 RUN py.test -s -vvv /code/africanus
