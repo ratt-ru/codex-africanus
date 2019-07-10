@@ -194,6 +194,16 @@ class GridStreamReduction(Mapping):
 
 
 class FinalGridReduction(Mapping):
+    """
+    tl;dr this is a dictionary that is expanded in place when
+    first accessed. Saves memory when pickled for sending
+    to the dask scheduler.
+
+    See :class:`dask.blockwise.Blockwise` for further insight.
+
+    Produces graph serially summing coherencies in
+    ``stream`` parallel streams.
+    """
     def __init__(self, grid_stream_reduction):
         self.in_name = grid_stream_reduction.name
         token = dask.base.tokenize(grid_stream_reduction)
