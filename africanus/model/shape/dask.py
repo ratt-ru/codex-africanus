@@ -35,17 +35,21 @@ def gaussian(uvw, frequency, shape_params):
                         shape_params, ("source", "shape-comp"),
                         dtype=dtype)
 
-def _shapelet_wrapper(coords, frequency, coeffs, beta):
-    return nb_shapelet(coords[0], frequency, coeffs[0][0], beta[0])
+def _shapelet_wrapper(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm):
+    return nb_shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm)
 
 @requires_optional('dask.array', opt_import_error)
-def shapelet(coords, frequency, coeffs, beta):
+def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm):
     dtype = np.complex128
-    return da.blockwise(_shapelet_wrapper, ("source", "row", "chan" ),
-                        coords, ("row", "uvw-comp"),
+    return da.blockwise(_shapelet_wrapper, ("row", "chan", "source" ),
+                        coords, ("row", "coord-comp"),
                         frequency, ("chan",),
-                        coeffs, ("source", "nmax1", "nmax2"),
-                        beta, ("source", "beta-comp"), dtype=dtype)
+                        coeffs_l, ("source", "nmax1"),
+                        coeffs_m, ("source", "nmax2"),
+                        beta, ("source", "beta-comp"),
+                        delta_lm, ("delta_lm-comp",),
+                        lm, ("source", "lm-comp"),
+                        dtype=dtype)
 
 try:
     gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
