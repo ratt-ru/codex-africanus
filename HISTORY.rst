@@ -2,9 +2,18 @@
 History
 =======
 
-0.1.9 (2019-06-04)
+0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Add dask wrappers for the nifty gridder (:pr:`116`)
+* Testing and requirement updates. (:pr:`124`)
+* Upgraded DFT kernels to have a correlation axis and added flags
+  for vis_to_im. Added predict_from_fits example. (:pr:`122`)
+* Fixed segfault when using `_unique_internal` on empty ndarrays (:pr:`123`)
+* Removed `apply_gains`. Use `africanus.calibration.utils.correct_vis`
+  instead (:pr:`118`)
+* Add streams parameter to dask `predict_vis` (:pr:`118`)
+* Implement the beam in numba (:pr:`112`)
 * Add residual_vis, correct_vis, phase_only_GN (:pr:`113`)
 
 0.1.8 (2019-05-28)
