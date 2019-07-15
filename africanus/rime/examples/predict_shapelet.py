@@ -9,7 +9,6 @@ import argparse
 
 from dask.diagnostics import ProgressBar
 import numpy as np
-import shapelets as sl
 
 try:
     from astropy.coordinates import Angle
@@ -33,6 +32,7 @@ from africanus.rime.dask import phase_delay, predict_vis
 from africanus.model.coherency.dask import convert
 from africanus.util.requirements import requires_optional
 from africanus.model.shape.dask import shapelet as shapelet_fn
+#from africanus.model.shape import shapelet as shapelet_fn
 from numpy.testing import assert_array_almost_equal
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -173,6 +173,9 @@ def _verify_shapelets(shapelets, uv, beta_vals, coeffs):
 
 @requires_optional("dask.array", "xarray", "xarrayms", opt_import_error)
 def predict(args):
+    nsrc = 1
+    nmax1 = 1
+    nmax2 = 1
     # Numpy arrays
 
     # Convert source data into dask arrays
@@ -189,8 +192,18 @@ def predict(args):
     spw_ds = tables["SPECTRAL_WINDOW"]
     pol_ds = tables["POLARIZATION"]
 
-    shapelet_beta = np.array([[75., 75.]])
-    shapelet_coeffs = np.array([[[1.]]])
+    beta_l = .01
+    beta_m = .01
+
+    shapelet_beta = np.zeros((nsrc, 2), dtype=np.float64)
+    shapelet_beta[:, 0] = beta_l
+    shapelet_beta[:, 1] = beta_m
+    shapelet_coeffs_l = np.zeros((nsrc, nmax1), dtype=np.int32)
+    shapelet_coeffs_m = np.zeros((nsrc, nmax2), dtype=np.int32)
+    shapelet_coeffs_l[:, :] = 1
+    shapelet_coeffs_m[:, :] = 1
+    shapelet_coeffs_l = da.from_array(shapelet_coeffs_l, chunks=shapelet_coeffs_l.shape)
+    shapelet_coeffs_m = da.from_array(shapelet_coeffs_m, chunks=shapelet_coeffs_m.shape)
 
     # List of write operations
     writes = []
@@ -209,13 +222,16 @@ def predict(args):
         pol = pol_ds[ddid.POLARIZATION_ID.values]
         frequency = spw.CHAN_FREQ.data
 
-        print("frequency shape is")
-        print(frequency.shape)
 
         corrs = pol.NUM_CORR.values
 
         lm = radec_to_lm(radec, field.PHASE_DIR.data)
+        print("lm shape is ", lm.shape)
         uvw = -xds.UVW.data if args.invert_uvw else xds.UVW.data
+        print("frequency shape is")
+        print(uvw)
+        print("uvw shape is ", uvw.shape)
+        delta_lm = da.from_array(np.array(1/(10 * np.max(uvw.compute()[:, 0])), 1/(10 * np.max(uvw.compute()[:, 1]))), chunks=(2,))
         """
         nu = 90
         nv = 84
@@ -243,11 +259,15 @@ def predict(args):
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
         print("Starting shapelet function now")
+        """
         shapelets = shapelet_fn(da.from_array(uvw, chunks=uvw.shape),
             da.from_array(frequency, chunks=frequency.shape), 
             da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape), 
-            da.from_array(shapelet_beta, chunks=shapelet_beta.shape))
-        """
+            da.from_array(shapelet_beta, chunks=shapelet_beta.shape),
+            da.from_array(delta_l, chunks=(1,)),
+            da.from_array(delta_m, chunks=(1,)),
+            da.from_array(lm, chunks=lm.shape))
+        
         plt.figure()
         plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.real(shapelets.compute()[0, :]))
         plt.title("Shapelets vs Baseline Own UVW")
@@ -262,6 +282,24 @@ def predict(args):
         plt.savefig("ms_uvw.png")
         plt.close()
         """
+        print("UVW is ", uvw)
+
+        print("##########################")
+        print("LM is ", lm)
+        frequency = da.from_array(frequency, chunks=frequency.shape)
+        print("frequency is ", frequency)
+        print("shapelet_coeffs_l is ", shapelet_coeffs_l)
+        shapelet_beta = da.from_array(shapelet_beta, chunks=shapelet_beta.shape)
+        print("shapelet_beta is ", shapelet_beta)
+        print("delta_lm is ", delta_lm)
+        print("lm is ", lm)
+        shapelets=shapelet_fn(uvw,
+        frequency,
+        shapelet_coeffs_l,
+        shapelet_coeffs_m,
+        shapelet_beta,
+        delta_lm,
+        da.from_array(lm, chunks=lm.shape))
         #_verify_shapelets(shapelets, uvw.compute(), shapelet_beta[0], shapelet_coeffs)
         """
         print("Generating scatter plot")

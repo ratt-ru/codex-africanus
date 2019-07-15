@@ -49,7 +49,7 @@ def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     return np.exp(1.0j*real_phase)
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_l, delta_m, lm, dtype=np.complex128):
+def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np.complex128):
     """
     shapelet: outputs visibilities corresponding to that of a shapelet
     Inputs:
@@ -69,6 +69,7 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_l, delta_m, lm, 
     nmax2 = coeffs_m.shape[1]
     nchan = frequency.size
     out_shapelets = np.empty((nrow, nchan, nsrc), dtype=np.complex128)
+    delta_l, delta_m = delta_lm
     for row in range(nrow):
         u, v, w = coords[row, :]
         delta_l = 1.0/np.max(coords[:, 0])
