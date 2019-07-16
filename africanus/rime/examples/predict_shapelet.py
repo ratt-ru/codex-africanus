@@ -154,7 +154,7 @@ def einsum_schema(pol):
     corrs = pol.NUM_CORR.values
 
     if corrs == 4:
-        return "srf, snf, sij -> srfij"
+        return "srf, rfs, sij -> srfij"
     elif corrs in (2, 1):
         return "srf, si -> srfi"
     else:
@@ -257,26 +257,26 @@ def predict(args):
 
         uvw = da.from_array(uvw, chunks=uvw.shape)
         """
-        
+
         # (source, row, frequency)
         phase = phase_delay(lm, uvw, frequency)
         print("Starting shapelet function now")
         """
         shapelets = shapelet_fn(da.from_array(uvw, chunks=uvw.shape),
-            da.from_array(frequency, chunks=frequency.shape), 
-            da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape), 
+            da.from_array(frequency, chunks=frequency.shape),
+            da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape),
             da.from_array(shapelet_beta, chunks=shapelet_beta.shape),
             da.from_array(delta_l, chunks=(1,)),
             da.from_array(delta_m, chunks=(1,)),
             da.from_array(lm, chunks=lm.shape))
-        
+
         plt.figure()
         plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.real(shapelets.compute()[0, :]))
         plt.title("Shapelets vs Baseline Own UVW")
         plt.show()
         plt.savefig("shapelets_baseline_own_uvw.png")
         plt.close()
-        
+
         plt.figure()
         plt.scatter(uvw[:, 0], uvw[:, 1])
         plt.title("Measurement Set UVW")
@@ -341,6 +341,9 @@ def predict(args):
         plt.close()
         print("Created phase_shapelet_einsum image")
         """
+
+        print("Shapelets", shapelets)
+
         jones = da.einsum(einsum_schema(pol), phase, shapelets, brightness)
         print(jones)
         """
@@ -374,7 +377,7 @@ def predict(args):
         np.save("model_data_test.npy", model_data.compute())
         np_model = model_data.compute()
         print(np_model.compute().shape)
-        
+
         plt.figure()
         plt.scatter((np.sqrt(uvw[:, 0] **2 + uvw[:, 1] **2)), np.real(np_model[:, 0, 0]))
         plt.savefig('vis_vs_baseline.png')
@@ -400,7 +403,7 @@ def predict(args):
         plt.close()
         print("Created predict image")
         """
-        
+
     # Submit all graph computations in parallel
     with ProgressBar():
         print("dask.compute()")
