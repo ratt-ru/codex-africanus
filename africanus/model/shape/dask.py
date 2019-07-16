@@ -32,7 +32,7 @@ def gaussian(uvw, frequency, shape_params):
                         dtype=dtype)
 
 def _shapelet_wrapper(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm):
-    return nb_shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm)
+    return nb_shapelet(coords[0], frequency, coeffs_l[0], coeffs_m[0], beta[0], delta_lm[0], lm[0])
 
 @requires_optional('dask.array', opt_import_error)
 def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm):

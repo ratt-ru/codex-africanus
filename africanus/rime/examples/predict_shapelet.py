@@ -231,7 +231,9 @@ def predict(args):
         print("frequency shape is")
         print(uvw)
         print("uvw shape is ", uvw.shape)
-        delta_lm = da.from_array(np.array(1/(10 * np.max(uvw.compute()[:, 0])), 1/(10 * np.max(uvw.compute()[:, 1]))), chunks=(2,))
+        delta_lm = np.array((1/(10 * np.max(uvw.compute()[:, 0])), 1/(10 * np.max(uvw.compute()[:, 1]))))
+        print("delta_lm",delta_lm)
+        delta_lm = da.from_array(delta_lm, chunks=(2,))
         """
         nu = 90
         nv = 84
@@ -293,13 +295,13 @@ def predict(args):
         print("shapelet_beta is ", shapelet_beta)
         print("delta_lm is ", delta_lm)
         print("lm is ", lm)
-        shapelets=shapelet_fn(uvw,
-        frequency,
-        shapelet_coeffs_l,
-        shapelet_coeffs_m,
-        shapelet_beta,
-        delta_lm,
-        da.from_array(lm, chunks=lm.shape))
+        shapelets=shapelet_fn(uvw, \
+            frequency, \
+            shapelet_coeffs_l, \
+            shapelet_coeffs_m, \
+            shapelet_beta, \
+            delta_lm, \
+            da.from_array(lm, chunks=lm.shape))
         #_verify_shapelets(shapelets, uvw.compute(), shapelet_beta[0], shapelet_coeffs)
         """
         print("Generating scatter plot")
