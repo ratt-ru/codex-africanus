@@ -1,7 +1,20 @@
-FROM kernsuite/base:3
-RUN docker-apt-install python-pip python-casacore
+FROM kernsuite/base:5
+
+# Install base requirements
+RUN DEBIAN_FRONTEND=noninteractive apt update -y
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python-pip git
 RUN pip install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
-RUN pip install .[astropy,dask,python-casacore,scipy,testing]
+
+# Test base install without optional installs works
+# Most of the tests will be skipped
+RUN pip install .[testing]
+RUN py.test -s -vvv /code/africanus
+
+# Test most functionality
+# Install kern python-casacore to avoid build dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python-casacore
+RUN pip install .[astropy,dask,scipy,testing]
+RUN pip install git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git
 RUN py.test -s -vvv /code/africanus

@@ -7,7 +7,6 @@ from __future__ import print_function
 
 import argparse
 
-from dask.diagnostics import ProgressBar
 import numpy as np
 
 
@@ -21,6 +20,7 @@ else:
 try:
     import dask
     import dask.array as da
+    from dask.diagnostics import ProgressBar
     import xarray as xr
     from xarrayms import xds_from_ms, xds_from_table, xds_to_table
 except ImportError as e:
@@ -71,7 +71,7 @@ def parse_sky_model(filename):
         'names': ("ra", "dec", "I", "Q", "U", "V"),
         'formats': (np.float64,)*6}
 
-    data = np.loadtxt(filename, delimiter=",",
+    data = np.loadtxt(filename, delimiter=",", ndmin=1,
                       converters=converters, dtype=dtype)
 
     # Transpose
