@@ -189,6 +189,8 @@ def row_mapper(time, interval, antenna1, antenna2,
 
     def impl(time, interval, antenna1, antenna2,
              flag_row=None, time_bin_secs=1):
+        print("\n Inside row_mapper")
+        print ("time_bin_secs ", time_bin_secs)
         ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
         utime, _, time_inv, _ = unique_time(time)
 
@@ -198,14 +200,23 @@ def row_mapper(time, interval, antenna1, antenna2,
         sentinel = np.finfo(time.dtype).max
         out_rows = numba.uint32(0)
 
+        # Defining shapes of these arrays
         scratch = np.full(3*nbl*ntime, -1, dtype=np.int32)
+        print("scratch \n", scratch, scratch.shape)
         row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
+        print("scratch[:nbl*ntime] \n", scratch[:nbl*ntime])
+        print("row_lookup \n", row_lookup)
         bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
+        print("scratch[nbl*ntime:2*nbl*ntime] \n", scratch[nbl*ntime:2*nbl*ntime])
+        print("bin_lookup \n", bin_lookup)
         inv_argsort = scratch[2*nbl*ntime:]
+        print("inv_argsort \n", inv_argsort)
         time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
+        print("time_lookup \n", time_lookup)
         interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
-
+        print("interval_lookup \n", interval_lookup)
         bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
+        print("bin_flagged \n", bin_flagged)
 
         # Create a mapping from the full bl x time resolution back
         # to the original input rows
@@ -213,7 +224,9 @@ def row_mapper(time, interval, antenna1, antenna2,
             bl = bl_inv[r]
             t = time_inv[r]
             row_lookup[bl, t] = r
-
+        print("row_lookup \n", row_lookup)
+        
+        print("\n constructing bin_lookup and time_lookup \n")
         # Average times over each baseline and construct the
         # bin_lookup and time_lookup arrays
         for bl in range(ubl.shape[0]):
@@ -222,10 +235,11 @@ def row_mapper(time, interval, antenna1, antenna2,
             bin_flag_count = numba.int32(0)
             bin_low = time.dtype.type(0)
 
+            # range of unique time (utime)
             for t in range(utime.shape[0]):
                 # Lookup input row
                 r = row_lookup[bl, t]
-
+                print("bl : ", bl, "t : ", t, "r = ", r)
                 # Ignore if not present
                 if r == -1:
                     continue
@@ -235,14 +249,22 @@ def row_mapper(time, interval, antenna1, antenna2,
                 # the current sample to the current bin if
                 # high - low >= time_bin_secs
                 half_int = interval[r] * 0.5
+                print("interval[r]" ,interval[r], "half_int", half_int)
+                
+                print("tbin ", tbin)
+                print("bin_count", bin_count)
+                print("bin_flag_count", bin_flag_count)
+                print("bin_low", bin_low)
 
                 # We're starting a new bin anyway,
                 # just set the lower bin value
                 if bin_count == 0:
                     bin_low = time[r] - half_int
+                    print("bin_low", bin_low)
                 # If we exceed the seconds in the bin,
                 # normalise the time and start a new bin
                 elif time[r] + half_int - bin_low > time_bin_secs:
+                    print("time[r]", time[r], "half_int", half_int,"bin_low", bin_low, "time_bin_secs",time_bin_secs)
                     # Normalise and flag the bin
                     # if total counts match flagged counts
                     if bin_count > 0:
@@ -253,18 +275,28 @@ def row_mapper(time, interval, antenna1, antenna2,
                         time_lookup[bl, tbin] = sentinel
                         bin_flagged[bl, tbin] = False
 
+                    print("time_lookup\n", time_lookup)
+                    print("bin_flagged\n", bin_flagged)   
                     tbin += 1
                     bin_count = 0
                     bin_flag_count = 0
+                    print("tbin ", tbin)
+                    print("bin_count", bin_count)
+                    print("bin_flag_count", bin_flag_count)
 
                 # Record the output bin associated with the row
                 bin_lookup[bl, t] = tbin
+                print("bl : ", bl, "t : ", t, "tbin = ", tbin)
+                print("bin_lookup \n", bin_lookup)
 
                 # Time + Interval take unflagged + unflagged
                 # samples into account (nominal value)
                 time_lookup[bl, tbin] += time[r]
                 interval_lookup[bl, tbin] += interval[r]
                 bin_count += 1
+                print("time_lookup \n", time_lookup)
+                print("interval_lookup \n", interval_lookup)
+                print ("bin_count ", bin_count)
 
                 # Record flags
                 if is_flagged_fn(flag_row, r):
@@ -272,27 +304,40 @@ def row_mapper(time, interval, antenna1, antenna2,
 
             # Normalise the last bin if it has entries in it
             if bin_count > 0:
+                print("Normalise")
                 time_lookup[bl, tbin] /= bin_count
+                print("time_lookup \n", time_lookup)
                 bin_flagged[bl, tbin] = bin_count == bin_flag_count
+                print("bin_flagged \n", bin_flagged)
                 tbin += 1
+                print("tbin ", tbin)
 
             # Add this baseline's number of bins to the output rows
             out_rows += tbin
+            print("out_rows :", out_rows)
 
             # Set any remaining bins to sentinel value and unflagged
             for b in range(tbin, ntime):
                 time_lookup[bl, b] = sentinel
                 bin_flagged[bl, b] = False
+            print("Remaining bins \n")
+            print("time_lookup\n", time_lookup)
+            print("bin_flagged\n", bin_flagged)
 
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
+        print("flat_time ravel\n", flat_time)
         flat_int = interval_lookup.ravel()
+        print("flat_int ravel\n", flat_int)
         argsort = np.argsort(flat_time, kind='mergesort')
-
+        print("argsort (mergesort flat_time)\n", argsort)
+        
         # Generate lookup from flattened (bl, time) to output row
+        # reverse merge sort
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
-
+        
+        print("inv_argsort\n", inv_argsort)
         # Construct the final row map
         row_map = np.empty((time.shape[0]), dtype=np.uint32)
 
@@ -323,6 +368,11 @@ def row_mapper(time, interval, antenna1, antenna2,
         time_ret = flat_time[argsort[:out_rows]]
         int_ret = flat_int[argsort[:out_rows]]
 
+        print("row_map\n", row_map)
+        print("time_ret\n", time_ret)
+        print("int_ret\n", int_ret)
+        print("out_flag_row\n", out_flag_row)
+        
         return RowMapOutput(row_map, time_ret, int_ret, out_flag_row)
 
     return impl

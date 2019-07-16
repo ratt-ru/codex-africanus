@@ -129,7 +129,9 @@ def row_average(meta, ant1, ant2, flag_row=None,
         ant2_avg = np.empty(out_rows, ant2.dtype)
 
         # Possibly present outputs for possibly present inputs
+        print(out_rows, uvw.shape)
         uvw_avg = uvw_factory(out_rows, uvw)
+        print("uvw_avg (factory)", uvw_avg.shape)
         time_centroid_avg = time_centroid_factory(out_rows, time_centroid)
         exposure_avg = exposure_factory(out_rows, exposure)
         weight_avg = weight_factory(out_rows, weight)
@@ -164,6 +166,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
                 sigma_normaliser(sigma_avg, out_row, count)
                 time_centroid_normaliser(time_centroid_avg, out_row, count)
 
+        print("uvw_avg ", uvw_avg.shape)
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg, exposure_avg, uvw_avg,
                                 weight_avg, sigma_avg)
@@ -553,6 +556,8 @@ def time_and_channel(time, interval, antenna1, antenna2,
         row_data = row_average(row_meta, antenna1, antenna2, flag_row=flag_row,
                                time_centroid=time_centroid, exposure=exposure,
                                uvw=uvw, weight=weight, sigma=sigma)
+        print("UVW (time and channel)", uvw.shape)
+        print("row_data UVW (time and channel)", row_data.uvw.shape)
 
         # Average channel data
         chan_data = row_chan_average(row_meta, chan_meta,
