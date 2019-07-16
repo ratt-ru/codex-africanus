@@ -35,7 +35,7 @@ def gaussian(uvw, frequency, shape_params):
 
             el = emaj * np.sin(angle)
             em = emaj * np.cos(angle)
-            er = emaj / (1.0 if emin == 0.0 else emin)
+            er = emin / (1.0 if emaj == 0.0 else emaj)
 
             for r in range(uvw.shape[0]):
                 u, v, w = uvw[r]
@@ -60,7 +60,7 @@ Computes the Gaussian Shape Function.
 .. math::
 
     & \lambda^\prime = 2 \lambda \pi \\
-    & r = \frac{e_{maj}}{e_{min}} \\
+    & r = \frac{e_{min}}{e_{maj}} \\
     & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
       r \lambda^\prime \\
     & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))

@@ -19,7 +19,7 @@ def rc(*a, **kw):
 
 chunk_parametrization = pytest.mark.parametrize("chunks", [
     {
-        'source':  (2, 3, 4),
+        'source':  (2, 3, 4, 2, 2, 2, 2, 2, 2),
         'time': (2, 1, 1),
         'rows': (4, 4, 2),
         'antenna': (4,),
@@ -115,12 +115,15 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
+@pytest.mark.parametrize("streams", [1, 3])
 def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                           a1j, blj, a2j, g1j, bvis, g2j,
-                          chunks):
+                          chunks, streams):
 
     da = pytest.importorskip('dask.array')
     import numpy as np
+    import dask
+
     from africanus.rime.predict import predict_vis as np_predict_vis
     from africanus.rime.dask import predict_vis
 
@@ -171,22 +174,19 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     da_base_vis = da.from_array(base_vis, chunks=(rrc, cc) + corr_shape)
     da_g2_jones = da.from_array(g2_jones, chunks=(tc, ac, cc) + corr_shape)
 
-    model_vis = predict_vis(da_time_idx, da_ant1, da_ant2,
-                            da_a1_jones if a1j else None,
-                            da_bl_jones if blj else None,
-                            da_a2_jones if a2j else None,
-                            da_g1_jones if g1j else None,
-                            da_base_vis if bvis else None,
-                            da_g2_jones if g2j else None)
+    args = (da_time_idx, da_ant1, da_ant2,
+            da_a1_jones if a1j else None,
+            da_bl_jones if blj else None,
+            da_a2_jones if a2j else None,
+            da_g1_jones if g1j else None,
+            da_base_vis if bvis else None,
+            da_g2_jones if g2j else None)
 
-    model_vis = model_vis.compute()
+    stream_model_vis = predict_vis(*args, streams=streams)
+    fan_model_vis = predict_vis(*args, streams=None)
 
-    if not np.allclose(model_vis, np_model_vis):
-        diff = model_vis - np_model_vis
-        diff[np.abs(diff) < 1e-10] = 0.0
-        problems = np.array(np.nonzero(diff)).T
+    stream_model_vis, fan_model_vis = dask.compute(stream_model_vis,
+                                                   fan_model_vis)
 
-        for p in (tuple(p.tolist()) for p in problems):
-            print(p, model_vis[p], np_model_vis[p])
-
-    assert_array_almost_equal(model_vis, np_model_vis)
+    assert_array_almost_equal(fan_model_vis, np_model_vis)
+    assert_array_almost_equal(stream_model_vis, fan_model_vis)

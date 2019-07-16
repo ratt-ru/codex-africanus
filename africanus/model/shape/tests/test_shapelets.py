@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 #import pytest
-from shapelets import shapelet as sl
+from africanus.model.shape.shapelets import shapelet as sl
 from scipy.special import factorial, hermite
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -14,7 +14,7 @@ iFs = np.fft.ifftshift
 
 from scipy import fftpack
 fft = fftpack.fft
-ifft = fftpack.ifft  
+ifft = fftpack.ifft
 fft2 = fftpack.fft2
 ifft2 = fftpack.ifft2
 
@@ -51,7 +51,7 @@ def _test_1d_shapelet():
 
     plt.figure('diff')
     plt.plot(uv_shape.real - fft_shape.real, 'k')
-	
+
 
     plt.show()
 
@@ -107,7 +107,7 @@ def _test_image_space():
         nchan = 1
         ncoeffs = [1, 1]
         nsrc = 1
-        
+
         # Define the range of uv values
         u_range = [-3 * np.sqrt(2) * (beta[0] ** (-1)), 3 * np.sqrt(2) * (beta[0] ** (-1))]
         v_range = [-3 * np.sqrt(2) * (beta[1] ** (-1)), 3 * np.sqrt(2) * (beta[1] ** (-1))]
@@ -176,7 +176,7 @@ def _test_image_space():
                         shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
                         gf_shapelets[:] += c * shapelets_basis_func[:]
 
-                                
+
 
         plt.figure()
         plt.imshow(pt_shapelets.reshape((npix_x, npix_y)))
@@ -231,7 +231,7 @@ def _test_image_space():
         #print(np.average(ft_shapelets / ca_shapelets))
         print("******************************")
 
-   
+
 
         plt.figure()
         plt.imshow(ft_shapelets)
@@ -249,7 +249,7 @@ def _test_image_space():
         plt.savefig("./ca_shapelets.png")
         plt.close()
 
-        
+
         plt.figure()
         plt.imshow(ca_shapelets / ft_shapelets)
         plt.colorbar()
@@ -258,7 +258,7 @@ def _test_image_space():
         plt.savefig("./division.png")
         plt.close()
 
-        
+
         plt.figure()
         plt.imshow(ca_shapelets - ft_shapelets)
         plt.colorbar()
@@ -266,8 +266,8 @@ def _test_image_space():
         plt.show()
         plt.savefig("./difference.png")
         plt.close()
-        
-        
+
+
         assert np.allclose(ca_shapelets, ft_shapelets)
         #####################################################
         #####################################################
@@ -277,12 +277,12 @@ def _test_fourier_space_shapelets():
     # set overall scale
     beta_l = 1.0
     beta_m = 1.0
-    # only taking the zeroth order with 
+    # only taking the zeroth order with
     ncoeffs_l = 1
     ncoeffs_m = 1
     nsrc = 1
     coeffs_l = np.ones((nsrc, ncoeffs_l), dtype=np.float64)
-    coeffs_m = np.ones((nsrc, ncoeffs_m), dtype=np.float64)  
+    coeffs_m = np.ones((nsrc, ncoeffs_m), dtype=np.float64)
     # Define the range of lm values (these give 3 standard deviations for the 0th order shapelet in image space)
     scale_fact = 10
     l_min = -3 * np.sqrt(2) * beta_l * scale_fact
@@ -400,7 +400,7 @@ def _test_shapelet_vals():
     uu, vv = np.meshgrid(freqs_u, freqs_v)
     uv = np.vstack((uu.flatten(), vv.flatten())).T
 
-    
+
     coords = np.empty((nrow, 3), dtype=np.float)
     coeffs = np.empty((nsrc, nmax[0], nmax[1]), dtype=np.float)
     beta = np.empty((nsrc, 2), dtype=np.float)
@@ -417,7 +417,7 @@ def _test_shapelet_vals():
         for n2 in range(nmax[1]):
             gf_shapelets += coeffs[0, n1, n2] * sl.shapelet.computeBasis2d(sl.shapelet.dimBasis2d(n1, n2, beta=beta_vals, fourier=True), uv[:, 0], uv[:, 1])
     gf_shapelets = gf_shapelets.reshape((npix, npix))
-    
+
     fig = plt.figure()
     axis1 = fig.add_subplot(221)
     axis1.set_title("Test Data")
@@ -450,7 +450,7 @@ def _test_dask_shapelets():
 
         row_chunks = (2,2)
         source_chunks = (5,10,5,5)
-        
+
         row = sum(row_chunks)
         source = sum(source_chunks)
         nmax = [5, 5]
@@ -464,7 +464,7 @@ def _test_dask_shapelets():
         da_coords = da.from_array(np_coords, chunks=(row_chunks, 3))
         da_coeffs = da.from_array(np_coeffs, chunks=(source_chunks, nmax[0], nmax[1]))
         da_beta = da.from_array(np_beta, chunks=(source_chunks, 2))
-        
+
         np_shapelets = nb_shapelet(np_coords,
                                 np_coeffs,
                                 np_beta)
@@ -488,7 +488,7 @@ def _test_single_shapelet():
     uu, vv = np.meshgrid(freqs_u, freqs_v)
     uv = np.vstack((uu.flatten(), vv.flatten())).T
 
-    
+
     coords = np.empty((nrow, 3), dtype=np.float)
     coeffs = np.empty((nsrc, nmax[0], nmax[1]), dtype=np.float)
     beta = np.empty((nsrc, 2), dtype=np.float)
@@ -505,7 +505,7 @@ def _test_single_shapelet():
         for n2 in range(nmax[1]):
             gf_shapelets += coeffs[0, n1, n2] * sl.shapelet.computeBasis2d(sl.shapelet.dimBasis2d(n1, n2, beta=beta_vals, fourier=True), uv[:, 0], uv[:, 1])
     gf_shapelets = gf_shapelets.reshape((npix, npix))
-    
+
     fig = plt.figure()
     axis1 = fig.add_subplot(221)
     axis1.set_title("Test Data")

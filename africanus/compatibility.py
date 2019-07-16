@@ -11,6 +11,47 @@ import sys
 PY3 = sys.version_info[0] == 3
 PY2 = sys.version_info[0] == 2
 
+# From 3.8, Collections Abstract Base Classes will be visible only
+# from collections.abc.
+try:
+    from collections.abc import (
+        Container,
+        Hashable,
+        Iterable,
+        Iterator,
+        Sized,
+        Callable,
+        Sequence,
+        MutableSequence,
+        Set,
+        MutableSet,
+        Mapping,
+        MutableMapping,
+        MappingView,
+        ItemsView,
+        KeysView,
+        ValuesView,
+    )
+except ImportError:
+    from collections import (
+        Container,
+        Hashable,
+        Iterable,
+        Iterator,
+        Sized,
+        Callable,
+        Sequence,
+        MutableSequence,
+        Set,
+        MutableSet,
+        Mapping,
+        MutableMapping,
+        MappingView,
+        ItemsView,
+        KeysView,
+        ValuesView,
+    )
+
 if PY3:
     import builtins
     range = range

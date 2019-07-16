@@ -1,10 +1,20 @@
-# python-casacore package removed due to
-# https://github.com/casacore/python-casacore/pull/132
+FROM kernsuite/base:5
 
-FROM kernsuite/base:dev
-RUN docker-apt-install python3-pip # python3-casacore
+# Install base requirements
+RUN DEBIAN_FRONTEND=noninteractive apt update -y
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-pip git
 RUN pip3 install --upgrade pip setuptools
 ADD . /code
 WORKDIR /code
+
+# Test base install without optional installs works
+# Most of the tests will be skipped
+RUN pip3 install .[testing]
+RUN py.test -s -vvv /code/africanus
+
+# Test most functionality
+# Install kern python-casacore to avoid build dependencies
+RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-casacore
 RUN pip3 install .[astropy,dask,scipy,testing]
+RUN pip3 install git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git
 RUN py.test -s -vvv /code/africanus

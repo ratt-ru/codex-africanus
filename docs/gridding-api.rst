@@ -37,6 +37,32 @@ Dask
 .. autofunction:: grid
 .. autofunction:: degrid
 
+Nifty
+~~~~~
+
+Dask wrappers around
+`Nifty's Gridder <https://gitlab.mpcdf.mpg.de/ift/nifty_gridder>`_.
+
+Dask
+++++
+
+.. currentmodule:: africanus.gridding.nifty.dask
+
+.. autosummary::
+    grid_config
+    grid
+    dirty
+    degrid
+    model
+
+.. autofunction:: grid_config
+.. autofunction:: grid
+.. autofunction:: dirty
+.. autofunction:: degrid
+.. autofunction:: model
+
+
+
 W Stacking
 ~~~~~~~~~~
 
