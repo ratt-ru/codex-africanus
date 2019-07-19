@@ -5,12 +5,14 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+from numpy.random import normal
 import pytest
 from numpy.testing import assert_array_almost_equal
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration.utils import residual_vis, correct_vis, corrupt_vis
 from africanus.rime.predict import predict_vis
+
 
 def give_lm(n_dir):
     ls = 0.1*np.random.randn(n_dir)
@@ -28,14 +30,17 @@ def give_flux(n_dir, n_chan, cor_shape, alpha, freq, freq0):
             flux[d, v] = tmp_flux * w[v]**alpha
     return flux
 
+
 corr_shape_parametrization = pytest.mark.parametrize(
-    'corr_shape, jones_shape', 
+    'corr_shape, jones_shape',
     [((2,), (2,)),  # DIAG_DIAG
      ((2, 2), (2,)),  # DIAG
      ((2, 2), (2, 2)),  # FULL
-    ])
+     ])
 
-def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_shape):
+
+def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant,
+              n_dir, corr_shape, jones_shape):
     n_bl = n_ant*(n_ant-1)//2
     n_row = n_bl*n_time
     # make aux data
@@ -56,7 +61,8 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_
                 row += 1
     assert time.size == n_row
     # simulate visibilities
-    model_data = np.zeros((n_row, n_chan, n_dir) + corr_shape, dtype=np.complex128)
+    model_data = np.zeros((n_row, n_chan, n_dir) +
+                          corr_shape, dtype=np.complex128)
     # make up some sources
     lm = give_lm(n_dir)
     alpha = -0.7
@@ -67,13 +73,15 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_
         this_lm = lm[dir].reshape(1, 2)
         # Get flux for source (keep source axis, flatten cor axis)
         this_flux = flux[dir].reshape(1, n_chan, np.prod(corr_shape))
-        model_data[:, :, dir] = im_to_vis(this_flux, uvw, this_lm, freq).reshape((n_row, n_chan) + corr_shape)
+        tmp = im_to_vis(this_flux, uvw, this_lm, freq)
+        model_data[:, :, dir] = tmp.reshape((n_row, n_chan) + corr_shape)
     assert not np.isnan(model_data).any()
     # simulate gains (just radnomly scattered around 1 for now)
-    jones = np.ones((n_time, n_ant, n_chan, n_dir) + jones_shape, dtype=np.complex128)
+    jones = np.ones((n_time, n_ant, n_chan, n_dir) +
+                    jones_shape, dtype=np.complex128)
     if sigma_f:
-        jones += (np.random.normal(loc=0.0, scale=sigma_f, size=jones.shape) +
-                  1.0j*np.random.normal(loc=0.0, scale=sigma_f, size=jones.shape))
+        jones += (normal(loc=0.0, scale=sigma_f, size=jones.shape) +
+                  1.0j*normal(loc=0.0, scale=sigma_f, size=jones.shape))
         assert (np.abs(jones) > 1e-5).all()
         assert not np.isnan(jones).any()
     # get vis
@@ -84,8 +92,8 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_
     assert not np.isnan(vis).any()
     # add noise
     if sigma_n:
-        vis += (np.random.normal(loc=0.0, scale=sigma_n, size=vis.shape) +
-                1.0j*np.random.normal(loc=0.0, scale=sigma_n, size=vis.shape))
+        vis += (normal(loc=0.0, scale=sigma_n, size=vis.shape) +
+                1.0j*normal(loc=0.0, scale=sigma_n, size=vis.shape))
     weights = np.ones(vis.shape, dtype=np.float64)
     if sigma_n:
         weights /= sigma_n**2
@@ -100,6 +108,7 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_
     data_dict["FLAG"] = flag
     data_dict['JONES'] = jones
     return data_dict
+
 
 @corr_shape_parametrization
 def test_corrupt_vis(corr_shape, jones_shape):
@@ -116,7 +125,8 @@ def test_corrupt_vis(corr_shape, jones_shape):
     n_ant = 7
     sigma_n = 0.0
     sigma_f = 0.05
-    data_dict = make_data(sigma_n, sigma_f, n_time, n_chan, n_ant, n_dir, corr_shape, jones_shape)
+    data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
+                          n_ant, n_dir, corr_shape, jones_shape)
     # make_data uses corrupt_vis to produce the data so we only need to test
     # that predict vis gives the same thing on the reshaped arrays
     ant1 = data_dict['ANTENNA1']
@@ -125,17 +135,18 @@ def test_corrupt_vis(corr_shape, jones_shape):
     model = data_dict['MODEL_DATA']
     jones = data_dict['JONES']
     time = data_dict['TIME']
-    
-    # predict_vis expects (source, time, ant, chan, corr1, corr2) so 
+
+    # predict_vis expects (source, time, ant, chan, corr1, corr2) so
     # we need to transpose the axes while preserving corr_shape and jones_shape
-    if jones_shape != corr_shape:  
+    if jones_shape != corr_shape:
         # This only happens in DIAG mode and we need to broadcast jones_shape
         # to match corr_shape
-        tmp = np.zeros((n_time, n_ant, n_chan, n_dir) + corr_shape, dtype=np.complex128)
+        tmp = np.zeros((n_time, n_ant, n_chan, n_dir) +
+                       corr_shape, dtype=np.complex128)
         tmp[:, :, :, :, 0, 0] = jones[:, :, :, :, 0]
         tmp[:, :, :, :, 1, 1] = jones[:, :, :, :, 1]
-        jones = tmp 
-        
+        jones = tmp
+
     if len(corr_shape) == 2:
         jones = np.transpose(jones, [3, 0, 1, 2, 4, 5])
         model = np.transpose(model, [2, 0, 1, 3, 4])
@@ -150,9 +161,10 @@ def test_corrupt_vis(corr_shape, jones_shape):
     test_vis = predict_vis(time_index, ant1, ant2,
                            source_coh=model,
                            dde1_jones=jones,
-                           dde2_jones=jones)  
+                           dde2_jones=jones)
 
     assert_array_almost_equal(test_vis, vis, decimal=10)
+
 
 @corr_shape_parametrization
 def test_residual_vis(corr_shape, jones_shape):
@@ -171,7 +183,7 @@ def test_residual_vis(corr_shape, jones_shape):
     n_row = n_bl*n_time
     sigma_n = 0.0
     sigma_f = 0.05
-    data_dict = make_data(sigma_n, sigma_f, n_time, n_chan, 
+    data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
                           n_ant, n_dir, corr_shape, jones_shape)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
@@ -191,16 +203,17 @@ def test_residual_vis(corr_shape, jones_shape):
                             ant1, ant2, jones_subtract, vis,
                             flag, model_subtract)
     # apply gains to the unsubtracted direction
-    vis_unsubtracted = np.zeros((n_row, n_chan) + corr_shape, 
-                                 dtype=np.complex128)
-    vis_unsubtracted = corrupt_vis(time_bin_indices, 
-                                   time_bin_counts, 
-                                   ant1, ant2, 
-                                   jones_unsubtracted, 
-                                   model_unsubtracted, 
-                                   vis_unsubtracted)  
+    vis_unsubtracted = np.zeros((n_row, n_chan) + corr_shape,
+                                dtype=np.complex128)
+    vis_unsubtracted = corrupt_vis(time_bin_indices,
+                                   time_bin_counts,
+                                   ant1, ant2,
+                                   jones_unsubtracted,
+                                   model_unsubtracted,
+                                   vis_unsubtracted)
     # residual should now be equal to unsubtracted vis
     assert_array_almost_equal(residual, vis_unsubtracted, decimal=10)
+
 
 @corr_shape_parametrization
 def test_correct_vis(corr_shape, jones_shape):
@@ -216,7 +229,7 @@ def test_correct_vis(corr_shape, jones_shape):
     n_ant = 7
     sigma_n = 0.0
     sigma_f = 0.05
-    data_dict = make_data(sigma_n, sigma_f, n_time, 
+    data_dict = make_data(sigma_n, sigma_f, n_time,
                           n_chan, n_ant, n_dir, corr_shape, jones_shape)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)

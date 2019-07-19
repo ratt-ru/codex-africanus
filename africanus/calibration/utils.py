@@ -80,7 +80,7 @@ def jones_inverse_mul_factory(mode):
             b01 = -a2j[1, 0]/deta2j
             b10 = -a2j[0, 1]/deta2j
             b11 = a2j[0, 0]/deta2j
-            
+
             # precompute resuable terms
             t1 = a00*blj[0, 0]
             t2 = a01*blj[1, 0]
@@ -126,7 +126,7 @@ def correct_vis(time_bin_indices, time_bin_counts,
         n_dir = jones_shape[3]
         if n_dir > 1:
             raise ValueError("Jones has n_dir > 1.\
-                                Cannot correct for direction dependent gains")
+                              Cannot correct for direction dependent gains")
         n_chan = jones_shape[2]
         corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
         for t in range(n_tim):
@@ -175,25 +175,25 @@ def subtract_model_factory(mode):
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
                 out[0, 0] -= t1*tmp[0, 0] +\
-                             t2*tmp[0, 0] +\
-                             t3*tmp[1, 0] +\
-                             t4*tmp[1, 0]
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
                 out[0, 1] -= t1*tmp[0, 1] +\
-                             t2*tmp[0, 1] +\
-                             t3*tmp[1, 1] +\
-                             t4*tmp[1, 1]
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
                 t1 = a1j[s, 1, 0]*model[s, 0, 0]
                 t2 = a1j[s, 1, 1]*model[s, 1, 0]
                 t3 = a1j[s, 1, 0]*model[s, 0, 1]
                 t4 = a1j[s, 1, 1]*model[s, 1, 1]
                 out[1, 0] -= t1*tmp[0, 0] +\
-                             t2*tmp[0, 0] +\
-                             t3*tmp[1, 0] +\
-                             t4*tmp[1, 0]
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
                 out[1, 1] -= t1*tmp[0, 1] +\
-                             t2*tmp[0, 1] +\
-                             t3*tmp[1, 1] +\
-                             t4*tmp[1, 1]
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
     return njit(nogil=True)(subtract_model)
 
 
@@ -227,6 +227,7 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
 
     return _residual_vis_fn
 
+
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
         def jones_mul(a1j, model, a2j, out):
@@ -253,39 +254,39 @@ def jones_mul_factory(mode):
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
                 out[0, 0] += t1*tmp[0, 0] +\
-                             t2*tmp[0, 0] +\
-                             t3*tmp[1, 0] +\
-                             t4*tmp[1, 0]
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
                 out[0, 1] += t1*tmp[0, 1] +\
-                             t2*tmp[0, 1] +\
-                             t3*tmp[1, 1] +\
-                             t4*tmp[1, 1]
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
                 t1 = a1j[s, 1, 0]*model[s, 0, 0]
                 t2 = a1j[s, 1, 1]*model[s, 1, 0]
                 t3 = a1j[s, 1, 0]*model[s, 0, 1]
                 t4 = a1j[s, 1, 1]*model[s, 1, 1]
                 out[1, 0] += t1*tmp[0, 0] +\
-                             t2*tmp[0, 0] +\
-                             t3*tmp[1, 0] +\
-                             t4*tmp[1, 0]
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
                 out[1, 1] += t1*tmp[0, 1] +\
-                             t2*tmp[0, 1] +\
-                             t3*tmp[1, 1] +\
-                             t4*tmp[1, 1]
-        
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
+
     return njit(nogil=True)(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                 antenna2, jones, model, vis):
+                antenna2, jones, model, vis):
 
     mode = check_type(jones, vis)
     jones_mul = jones_mul_factory(mode)
 
     @wraps(corrupt_vis)
     def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, model, vis):
+                        antenna2, jones, model, vis):
         n_tim = np.shape(time_bin_indices)[0]
         vis_shape = np.shape(vis)
         n_chan = vis_shape[1]
@@ -300,7 +301,8 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                     jones_mul(gp[nu], model[row, nu], gq[nu], vis[row, nu])
         return vis
 
-    return _corrupt_vis_fn  #(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model)
+    # (time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model)
+    return _corrupt_vis_fn
 
 
 RESIDUAL_VIS_DOCS = DocstringTemplate("""
