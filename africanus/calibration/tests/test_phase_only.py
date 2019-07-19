@@ -6,11 +6,10 @@ from __future__ import print_function
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
-from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration import phase_only_gauss_newton
 from africanus.calibration.tests.test_utils import make_data
-from africanus.rime.predict import predict_vis
+
 
 def test_phase_only_diag_diag():
     """
@@ -41,7 +40,7 @@ def test_phase_only_diag_diag():
     weight = data_dict['WEIGHT_SPECTRUM']
     # calibrate the data
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir) + jones_shape,
-                      dtype=np.complex64)
+                     dtype=np.complex64)
     precision = 5
     gains, jhj, jhr, k = phase_only_gauss_newton(
         time_bin_indices, time_bin_counts,
