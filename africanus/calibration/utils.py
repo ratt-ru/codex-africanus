@@ -68,16 +68,19 @@ def jones_inverse_mul_factory(mode):
             deta1j = a1j[0, 0]*a1j[1, 1]-a1j[0, 1]*a1j[1, 0]
             # compute inverse
             a00 = a1j[1, 1]/deta1j
-            a01 = -a1j[1, 0]/deta1j
-            a10 = -a1j[0, 1]/deta1j
+            a01 = -a1j[0, 1]/deta1j
+            a10 = -a1j[1, 0]/deta1j
             a11 = a1j[0, 0]/deta1j
+
             # get determinant
+            a2j = np.conj(a2j)
             deta2j = a2j[0, 0]*a2j[1, 1]-a2j[0, 1]*a2j[1, 0]
             # get conjugate transpose inverse
-            b00 = np.conj(a2j[1, 1]/deta2j)
-            b01 = np.conj(-a2j[1, 0]/deta2j)
-            b10 = np.conj(-a2j[0, 1]/deta2j)
-            b11 = np.conj(a2j[0, 0]/deta2j)
+            b00 = a2j[1, 1]/deta2j
+            b01 = -a2j[1, 0]/deta2j
+            b10 = -a2j[0, 1]/deta2j
+            b11 = a2j[0, 0]/deta2j
+            
             # precompute resuable terms
             t1 = a00*blj[0, 0]
             t2 = a01*blj[1, 0]
@@ -105,60 +108,6 @@ def jones_inverse_mul_factory(mode):
                 t3*b11 +\
                 t4*b11
     return njit(nogil=True)(jones_inverse_mul)
-
-
-def subtract_model_factory(mode):
-    if mode == DIAG_DIAG:
-        def subtract_model(a1j, blj, a2j, model, out):
-            n_dir = np.shape(model)[0]
-            out[...] = blj
-            for s in range(n_dir):
-                out -= a1j[s]*model[s]*np.conj(a2j[s])
-    elif mode == DIAG:
-        def subtract_model(a1j, blj, a2j, model, out):
-            n_dir = np.shape(model)[0]
-            out[...] = blj
-            for s in range(n_dir):
-                out[0, 0] -= a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
-                out[0, 1] -= a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
-                out[1, 0] -= a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
-                out[1, 1] -= a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
-    elif mode == FULL:
-        def subtract_model(a1j, blj, a2j, model, out):
-            n_dir = np.shape(model)[0]
-            for s in range(n_dir):
-                # precompute resuable terms
-                t1 = a1j[s, 0, 0]*model[s, 0, 0]
-                t2 = a1j[s, 0, 1]*model[s, 1, 0]
-                t3 = a1j[s, 0, 0]*model[s, 0, 1]
-                t4 = a1j[s, 0, 1]*model[s, 1, 1]
-                tmp = np.conj(a2j[s].T)
-                # overwrite with result
-                out[0, 0] = blj[0, 0] -\
-                    t1*tmp[0, 0] +\
-                    t2*tmp[0, 0] +\
-                    t3*tmp[1, 0] +\
-                    t4*tmp[1, 0]
-                out[0, 1] = blj[0, 1] -\
-                    t1*tmp[0, 1] +\
-                    t2*tmp[0, 1] +\
-                    t3*tmp[1, 1] +\
-                    t4*tmp[1, 1]
-                t1 = a1j[s, 1, 0]*model[s, 0, 0]
-                t2 = a1j[s, 1, 1]*model[s, 1, 0]
-                t3 = a1j[s, 1, 0]*model[s, 0, 1]
-                t4 = a1j[s, 1, 1]*model[s, 1, 1]
-                out[1, 0] = blj[1, 0] -\
-                    t1*tmp[0, 0] +\
-                    t2*tmp[0, 0] +\
-                    t3*tmp[1, 0] +\
-                    t4*tmp[1, 0]
-                out[1, 1] = blj[1, 1] -\
-                    t1*tmp[0, 1] +\
-                    t2*tmp[0, 1] +\
-                    t3*tmp[1, 1] +\
-                    t4*tmp[1, 1]
-    return njit(nogil=True)(subtract_model)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -197,6 +146,57 @@ def correct_vis(time_bin_indices, time_bin_counts,
     return _correct_vis_fn
 
 
+def subtract_model_factory(mode):
+    if mode == DIAG_DIAG:
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            out[...] = blj
+            for s in range(n_dir):
+                out -= a1j[s]*model[s]*np.conj(a2j[s])
+    elif mode == DIAG:
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            out[...] = blj
+            for s in range(n_dir):
+                out[0, 0] -= a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
+                out[0, 1] -= a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
+                out[1, 0] -= a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
+                out[1, 1] -= a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
+    elif mode == FULL:
+        def subtract_model(a1j, blj, a2j, model, out):
+            n_dir = np.shape(model)[0]
+            out[...] = blj
+            for s in range(n_dir):
+                # precompute resuable terms
+                t1 = a1j[s, 0, 0]*model[s, 0, 0]
+                t2 = a1j[s, 0, 1]*model[s, 1, 0]
+                t3 = a1j[s, 0, 0]*model[s, 0, 1]
+                t4 = a1j[s, 0, 1]*model[s, 1, 1]
+                tmp = np.conj(a2j[s].T)
+                # overwrite with result
+                out[0, 0] -= t1*tmp[0, 0] +\
+                             t2*tmp[0, 0] +\
+                             t3*tmp[1, 0] +\
+                             t4*tmp[1, 0]
+                out[0, 1] -= t1*tmp[0, 1] +\
+                             t2*tmp[0, 1] +\
+                             t3*tmp[1, 1] +\
+                             t4*tmp[1, 1]
+                t1 = a1j[s, 1, 0]*model[s, 0, 0]
+                t2 = a1j[s, 1, 1]*model[s, 1, 0]
+                t3 = a1j[s, 1, 0]*model[s, 0, 1]
+                t4 = a1j[s, 1, 1]*model[s, 1, 1]
+                out[1, 0] -= t1*tmp[0, 0] +\
+                             t2*tmp[0, 0] +\
+                             t3*tmp[1, 0] +\
+                             t4*tmp[1, 0]
+                out[1, 1] -= t1*tmp[0, 1] +\
+                             t2*tmp[0, 1] +\
+                             t3*tmp[1, 1] +\
+                             t4*tmp[1, 1]
+    return njit(nogil=True)(subtract_model)
+
+
 @generated_jit(nopython=True, nogil=True, cache=True)
 def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                  antenna2, jones, vis, flag, model):
@@ -226,6 +226,81 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
         return residual
 
     return _residual_vis_fn
+
+def jones_mul_factory(mode):
+    if mode == DIAG_DIAG:
+        def jones_mul(a1j, model, a2j, out):
+            n_dir = np.shape(model)[0]
+            for s in range(n_dir):
+                out += a1j[s]*model[s]*np.conj(a2j[s])
+    elif mode == DIAG:
+        def jones_mul(a1j, model, a2j, out):
+            n_dir = np.shape(model)[0]
+            for s in range(n_dir):
+                out[0, 0] += a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
+                out[0, 1] += a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
+                out[1, 0] += a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
+                out[1, 1] += a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
+    elif mode == FULL:
+        def jones_mul(a1j, model, a2j, out):
+            n_dir = np.shape(model)[0]
+            for s in range(n_dir):
+                # precompute resuable terms
+                t1 = a1j[s, 0, 0]*model[s, 0, 0]
+                t2 = a1j[s, 0, 1]*model[s, 1, 0]
+                t3 = a1j[s, 0, 0]*model[s, 0, 1]
+                t4 = a1j[s, 0, 1]*model[s, 1, 1]
+                tmp = np.conj(a2j[s].T)
+                # overwrite with result
+                out[0, 0] += t1*tmp[0, 0] +\
+                             t2*tmp[0, 0] +\
+                             t3*tmp[1, 0] +\
+                             t4*tmp[1, 0]
+                out[0, 1] += t1*tmp[0, 1] +\
+                             t2*tmp[0, 1] +\
+                             t3*tmp[1, 1] +\
+                             t4*tmp[1, 1]
+                t1 = a1j[s, 1, 0]*model[s, 0, 0]
+                t2 = a1j[s, 1, 1]*model[s, 1, 0]
+                t3 = a1j[s, 1, 0]*model[s, 0, 1]
+                t4 = a1j[s, 1, 1]*model[s, 1, 1]
+                out[1, 0] += t1*tmp[0, 0] +\
+                             t2*tmp[0, 0] +\
+                             t3*tmp[1, 0] +\
+                             t4*tmp[1, 0]
+                out[1, 1] += t1*tmp[0, 1] +\
+                             t2*tmp[0, 1] +\
+                             t3*tmp[1, 1] +\
+                             t4*tmp[1, 1]
+        
+    return njit(nogil=True)(jones_mul)
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
+                 antenna2, jones, model, vis):
+
+    mode = check_type(jones, vis)
+    jones_mul = jones_mul_factory(mode)
+
+    @wraps(corrupt_vis)
+    def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
+                         antenna2, jones, model, vis):
+        n_tim = np.shape(time_bin_indices)[0]
+        vis_shape = np.shape(vis)
+        n_chan = vis_shape[1]
+        for t in range(n_tim):
+            for row in range(time_bin_indices[t],
+                             time_bin_indices[t] + time_bin_counts[t]):
+                p = int(antenna1[row])
+                q = int(antenna2[row])
+                gp = jones[t, p]
+                gq = jones[t, q]
+                for nu in range(n_chan):
+                    jones_mul(gp[nu], model[row, nu], gq[nu], vis[row, nu])
+        return vis
+
+    return _corrupt_vis_fn  #(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model)
 
 
 RESIDUAL_VIS_DOCS = DocstringTemplate("""
@@ -318,10 +393,6 @@ vis : $(array_type)
 flag : $(array_type)
     Flag data of shape :code:`(row, chan, corr)`
     or :code:`(row, chan, corr, corr)`.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 Returns
 -------
 corrected_vis : $(array_type)
@@ -331,5 +402,43 @@ corrected_vis : $(array_type)
 try:
     correct_vis.__doc__ = CORRECT_VIS_DOCS.substitute(
                         array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
+
+CORRUPT_VIS_DOCS = DocstringTemplate("""
+Corrupts model visibilities with arbitrary
+Jones terms.
+
+Parameters
+----------
+time_bin_indices : $(array_type)
+    The start indices of the time bins
+    of shape :code:`(utime)`
+time_bin_counts : $(array_type)
+    The counts of unique time in each
+    time bin of shape :code:`(utime)`
+antenna1 : $(array_type)
+    First antenna indices of shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Second antenna indices of shape :code:`(row,)`
+jones : $(array_type)
+    Gains of shape :code:`(time, ant, chan, dir, corr)`
+    or :code:`(time, ant, chan, dir, corr, corr)`.
+model : $(array_type)
+    Model data values of shape :code:`(row, chan, dir, corr)`
+    or :code:`(row, chan, dir, corr, corr)`.
+
+Returns
+-------
+vis : $(array_type)
+    visibilities of shape
+    :code:`(time, ant, chan, dir, corr)`
+    or :code:`(time, ant, chan, dir, corr, corr)`.
+""")
+
+
+try:
+    corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
+                                    array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
