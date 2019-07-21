@@ -7,7 +7,7 @@ from africanus.constants import minus_two_pi_over_c
 e = 2.7182818284590452353602874713527
 square_root_of_pi = 1.77245385091
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def hermite(n, x):
     if n==0:
         return 1
@@ -17,7 +17,7 @@ def hermite(n, x):
         return 2*x*hermite(n-1,x)-2*(n-1)*hermite(n-2,x)
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def factorial(n):
     if n <= 1:
         return 1
@@ -26,7 +26,7 @@ def factorial(n):
         ans *= i
     return ans * n
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, xx, beta, fourier=False, delta_x=None):
     if fourier:
         x = 2*np.pi*xx
@@ -41,7 +41,7 @@ def basis_function(n, xx, beta, fourier=False, delta_x=None):
     else:
         return basis_component * exponential_component
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     l0, m0 = lm_source_center
     n0 = np.sqrt(1.0-l0**2-m0**2)
@@ -49,7 +49,7 @@ def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     real_phase = minus_two_pi_over_c * frequency * (u*l0 + v*m0 + w*(n0-1))
     return np.exp(1.0j*real_phase)
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np.complex128):
     """
     shapelet: outputs visibilities corresponding to that of a shapelet
@@ -73,11 +73,12 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np
     delta_l, delta_m = delta_lm
     for row in range(nrow):
         u, v, w = coords[row, :]
-        delta_l = 1.0/np.max(coords[:, 0])
-        delta_m = 1.0/np.max(coords[:, 1])
+        # delta_l = 1.0/np.max(coords[:, 0])
+        # delta_m = 1.0/np.max(coords[:, 1])
         for chan in range(nchan):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
+            # print("fu - u = ", fu - u)
             for src in range(nsrc):
                 beta_u, beta_v = beta[src, :]
                 tmp_shapelet = np.zeros(1, dtype=dtype)
@@ -85,14 +86,12 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np
                     for n2 in range(nmax2):
                         tmp_shapelet += coeffs_l[src, n1] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * coeffs_m[src, n2] * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
-                #print("tmp_shapelet is %f" %tmp_shapelet)
                 wterm = phase_steer_and_w_correct((u, v, w), lm[src], frequency[chan])
                 tmp = tmp_shapelet * wterm
-                #tmp = out_shapelets[row, chan, src]
                 out_shapelets[row, chan, src] = tmp[0]
     return out_shapelets
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
     """
     The one dimensional shapelet. Default is to return the
@@ -127,7 +126,7 @@ def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
             out[row] += c * basis_function(n, ui, beta, fourier=fourier, delta_x=delta_x)
     return out 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet_2d(u, v, coeffs_l, coeffs_m, fourier, delta_x=None, delta_y=None, beta=1.0):
     nrow_u = u.size
     nrow_v = v.size
