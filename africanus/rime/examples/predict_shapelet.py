@@ -220,7 +220,7 @@ def predict(args):
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
         pol = pol_ds[ddid.POLARIZATION_ID.values]
-        frequency = spw.CHAN_FREQ.data
+        frequency = spw.CHAN_FREQ.data / 1000
 
 
         corrs = pol.NUM_CORR.values
@@ -345,7 +345,7 @@ def predict(args):
         print("Shapelets", shapelets)
 
         jones = da.einsum(einsum_schema(pol), phase, shapelets, brightness)
-        print(jones)
+        # print(jones)
         """
         plt.figure()
         plt.imshow(np.abs(jones.compute()[0, :, 0, 0, 0].reshape((90, 84))))

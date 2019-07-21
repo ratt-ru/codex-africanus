@@ -55,7 +55,83 @@ def _test_1d_shapelet():
 
     plt.show()
 
-def test_2d_shapelet():
+def test_shapelets_against_gaussian():
+        from africanus.model.shape import gaussian
+        beta=np.array([[1.0, 1.0]], dtype=np.float64)
+        npix=33
+        ncoeffs_l = 1
+        ncoeffs_m = 1
+        coeffs_l=np.ones((1, ncoeffs_l), dtype=np.float64)
+        coeffs_m = np.ones((1, ncoeffs_m), dtype=np.float64)
+        l_min = -15.0 * beta[0, 0]
+        l_max = 15.0 * beta[0, 0]
+        m_min = -15.0 * beta[0, 1]
+        m_max = 15.0 * beta[0, 1]
+        delta_l = (l_max - l_min) / (npix - 1)
+        delta_m = (m_max - m_min) / (npix - 1)
+        if npix%2:
+                l = l_min + np.arange(npix) * delta_l
+                m = m_min + np.arange(npix) * delta_m
+        else:
+                l = l_min + np.arange(npix - 1) * delta_l
+                m = m_min + np.arange(npix - 1) * delta_m
+        source_center = np.array([[l[len(l) // 2], m[len(m) // 2]]])
+        print(source_center)
+        
+        u = Fs(np.fft.fftfreq(npix, d=delta_l))
+        v = Fs(np.fft.fftfreq(npix, d=delta_m))
+        w = Fs(np.fft.fftfreq(npix, d=np.sqrt(delta_l**2 + delta_m**2)))
+        w[:] = 0
+        uu, vv = np.meshgrid(u, v)
+        uvw_vstack = np.vstack((uu.flatten(), vv.flatten()))
+        uvw = np.empty((npix ** 2, 3))
+        uvw[:, :2] = uvw_vstack.T
+        uvw[:, 2] = 0
+        print("uvw is ", uvw)
+
+        frequency_shapelets=np.array([lightspeed/ (2 * np.pi)], dtype=np.float64)
+        frequency_gaussian = np.array([(lightspeed * np.sqrt(np.log(256))) / (np.sqrt(2) * np.pi)], dtype=np.float64)
+        gaussian_params=np.array([[1., 1., 0.]], dtype=np.float64)
+
+        print("starting shapelets now")        
+        uv_shape = shapelet(uvw, frequency_shapelets, coeffs_l, coeffs_m, beta, (delta_l, delta_m),source_center) * (delta_l * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) ) * (delta_m * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) )# * (delta_l * delta_m *np.sqrt(np.pi)) / (2 * np.pi) #shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
+        print("finished shapelets")
+        gaussian_shape = gaussian(uvw, frequency_gaussian, gaussian_params)
+        print("gaussian shape = ", gaussian_shape.shape)
+
+        uv_shape_max = np.abs(uv_shape.real).max()
+        print("uv_shape_max = ", uv_shape_max)
+        gaussian_shape_max = np.abs(gaussian_shape).max()
+        print("gaussian_shape_max = ", gaussian_shape_max)
+
+        uv_shape = uv_shape / uv_shape_max
+        gaussian_shape = gaussian_shape / gaussian_shape_max
+        
+        print("ratio = ", uv_shape_max / gaussian_shape_max)
+        print("pi / dldm =", np.sqrt(np.pi) * delta_l * delta_m)
+        print("shape = ", np.allclose(uv_shape.real, gaussian_shape))
+
+        plt.figure('Shapelet')
+        plt.imshow(uv_shape[:, 0, 0].real.reshape(npix, npix))
+        plt.colorbar()
+        plt.savefig("./shapelet.png")
+        plt.close()
+
+        plt.figure('Gaussian')
+        plt.imshow(gaussian_shape[0, :, 0].reshape(npix, npix))
+        plt.colorbar()
+        plt.savefig("./gaussian.png")
+        plt.close()
+
+        plt.figure('Difference')
+        plt.imshow((uv_shape[:, 0, 0].real - gaussian_shape[0, :, 0]).reshape(npix, npix))
+        plt.colorbar()
+        plt.savefig("./difference.png")
+        plt.close()
+
+
+
+def _test_2d_shapelet():
 	beta=1.0
 	npix=129
 	ncoeffs_l = 1
