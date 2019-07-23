@@ -13,49 +13,6 @@ from africanus.constants import c as lightspeed
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def gaussian(uvw, frequency, shape_params):
-    fwhmint = 1.0 / np.sqrt(np.log(256))
-    gauss_scale = fwhmint*np.sqrt(2.0)*np.pi/lightspeed
-
-    dtype = np.result_type(*(np.dtype(a.dtype.name) for
-                             a in (uvw, frequency, shape_params)))
-
-    def impl(uvw, frequency, shape_params):
-        nsrc = shape_params.shape[0]
-        nrow = uvw.shape[0]
-        nchan = frequency.shape[0]
-
-        shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
-        scaled_freq = np.empty_like(frequency)
-
-        for f in range(frequency.shape[0]):
-            scaled_freq[f] = frequency[f] * gauss_scale
-
-        for s in range(shape_params.shape[0]):
-            emaj, emin, angle = shape_params[s]
-
-            el = emaj * np.sin(angle)
-            em = emaj * np.cos(angle)
-            er = emin / (1.0 if emaj == 0.0 else emaj)
-
-            for r in range(uvw.shape[0]):
-                u, v, w = uvw[r]
-
-                u1 = (u*em - v*el)*er
-                v1 = u*el + v*em
-
-                for f in range(scaled_freq.shape[0]):
-                    fu1 = u1*scaled_freq[f]
-                    fv1 = v1*scaled_freq[f]
-
-                    shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
-
-        return shape
-
-    return impl
-
-
-@generated_jit(nopython=True, nogil=True, cache=True)
-def gaussian2(uvw, frequency, shape_params):
     # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
     fwhminv = 1.0 / fwhm
@@ -76,7 +33,6 @@ def gaussian2(uvw, frequency, shape_params):
         for f in range(frequency.shape[0]):
             scaled_freq[f] = frequency[f] * gauss_scale
 
-        # Compute
         for s in range(shape_params.shape[0]):
             emaj, emin, angle = shape_params[s]
 
