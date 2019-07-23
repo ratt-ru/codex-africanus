@@ -71,15 +71,6 @@ def gaussian2(uvw, frequency, shape_params):
 
         shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
         scaled_freq = np.empty_like(frequency)
-        xformed_params = np.empty_like(shape_params)
-
-        # Convert to l-projection, m-projection, ratio
-        for s in range(shape_params.shape[0]):
-            emaj, emin, angle = shape_params[s]
-
-            xformed_params[s, 0] = emaj * np.sin(angle)
-            xformed_params[s, 1] = emaj * np.cos(angle)
-            xformed_params[s, 2] = emin / (1.0 if emaj == 0.0 else emaj)
 
         # Scale each frequency
         for f in range(frequency.shape[0]):
@@ -87,7 +78,12 @@ def gaussian2(uvw, frequency, shape_params):
 
         # Compute
         for s in range(shape_params.shape[0]):
-            el,  em, er = xformed_params[s]
+            emaj, emin, angle = shape_params[s]
+
+            # Convert to l-projection, m-projection, ratio
+            el = emaj * np.sin(angle)
+            em = emaj * np.cos(angle)
+            er = emin / (1.0 if emaj == 0.0 else emaj)
 
             for r in range(uvw.shape[0]):
                 u, v, w = uvw[r]
