@@ -9,6 +9,7 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.model.shape import gaussian as np_gaussian
+from africanus.model.shape.gaussian_shape import gaussian2 as np_gaussian2
 
 
 def test_gauss_shape():
@@ -21,8 +22,10 @@ def test_gauss_shape():
     freq = np.linspace(.856e9, 2*.856e9, chan)
 
     gauss_shape = np_gaussian(uvw, freq, shape_params)
+    gauss_shape2 = np_gaussian2(uvw, freq, shape_params)
 
     assert gauss_shape.shape == (shape_params.shape[0], row, chan)
+    assert_array_almost_equal(gauss_shape, gauss_shape)
 
 
 def test_dask_gauss_shape():

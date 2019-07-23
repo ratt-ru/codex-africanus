@@ -54,6 +54,58 @@ def gaussian(uvw, frequency, shape_params):
     return impl
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
+def gaussian2(uvw, frequency, shape_params):
+    # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
+    fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    fwhminv = 1.0 / fwhm
+    gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
+
+    dtype = np.result_type(*(np.dtype(a.dtype.name) for
+                             a in (uvw, frequency, shape_params)))
+
+    def impl(uvw, frequency, shape_params):
+        nsrc = shape_params.shape[0]
+        nrow = uvw.shape[0]
+        nchan = frequency.shape[0]
+
+        shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
+        scaled_freq = np.empty_like(frequency)
+        xformed_params = np.empty_like(shape_params)
+
+        # Convert to l-projection, m-projection, ratio
+        for s in range(shape_params.shape[0]):
+            emaj, emin, angle = shape_params[s]
+
+            xformed_params[s, 0] = emaj * np.sin(angle)
+            xformed_params[s, 1] = emaj * np.cos(angle)
+            xformed_params[s, 2] = emin / (1.0 if emaj == 0.0 else emaj)
+
+        # Scale each frequency
+        for f in range(frequency.shape[0]):
+            scaled_freq[f] = frequency[f] * gauss_scale
+
+        # Compute
+        for s in range(shape_params.shape[0]):
+            el,  em, er = xformed_params[s]
+
+            for r in range(uvw.shape[0]):
+                u, v, w = uvw[r]
+
+                u1 = (u*em - v*el)*er
+                v1 = u*el + v*em
+
+                for f in range(scaled_freq.shape[0]):
+                    fu1 = u1*scaled_freq[f]
+                    fv1 = v1*scaled_freq[f]
+
+                    shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
+
+        return shape
+
+    return impl
+
+
 GAUSSIAN_DOCS = DocstringTemplate(r"""
 Computes the Gaussian Shape Function.
 
