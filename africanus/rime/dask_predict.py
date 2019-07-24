@@ -683,6 +683,9 @@ EXTRA_DASK_NOTES = """
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`dask.array.Array`",
+                                get_time_index=":code:`time.map_blocks("
+                                               "lambda a: np.unique(a, "
+                                               "return_inverse=True)[1])`",
                                 extra_args=EXTRA_DASK_ARGS,
                                 extra_notes=EXTRA_DASK_NOTES)
 except AttributeError:

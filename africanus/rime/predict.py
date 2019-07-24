@@ -543,8 +543,8 @@ Parameters
 ----------
 time_index : $(array_type)
     Time index used to look up the antenna Jones index
-    for a particular baseline.
-    shape :code:`(row,)`.
+    for a particular baseline with shape :code:`(row,)`.
+    Obtainable via $(get_time_index).
 antenna1 : $(array_type)
     Antenna 1 index used to look up the antenna Jones
     for a particular baseline.
@@ -586,6 +586,8 @@ visibilities : $(array_type)
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                             array_type=":class:`numpy.ndarray`",
+                            get_time_index=":code:`np.unique(time, "
+                                           "return_inverse=True)[1]`",
                             extra_args="",
                             extra_notes="")
 except AttributeError:
