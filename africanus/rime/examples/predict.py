@@ -79,6 +79,9 @@ def create_parser():
     return p
 
 
+_empty_spectrum = object()
+
+
 def parse_sky_model(filename, chunks):
     """
     Parses a Tigger sky model
@@ -120,14 +123,20 @@ def parse_sky_model(filename, chunks):
         U = source.flux.U
         V = source.flux.V
 
+        spectrum = getattr(source, "spectrum", _empty_spectrum)
+
         try:
-            ref_freq = source.freq0
-        except AttributeError:
+            # Extract reference frequency
+            ref_freq = spectrum.freq0
+        except KeyError:
             ref_freq = sky_model.freq0
 
         try:
-            spi = source.spi
+            # Extract SPI for I.
+            # Zero Q, U and V to get 1 on the exponential
+            spi = [[spectrum.spi, 0, 0, 0]]
         except AttributeError:
+            # Default I SPI to -0.7
             spi = [[-0.7, 0, 0, 0]]
 
         if typecode == "gau":
