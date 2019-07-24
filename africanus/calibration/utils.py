@@ -9,6 +9,7 @@ from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
 from numba.types.misc import literal
+from numba.typed import List
 
 DIAG_DIAG = 0
 DIAG = 1
@@ -126,6 +127,9 @@ def correct_vis(time_bin_indices, time_bin_counts,
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
                         antenna1, antenna2, jones, vis, flag,
                         mode):
+        # for dask arrays we need to adjust the chunks to 
+        # start counting from zero
+        time_bin_indices -= time_bin_indices.min()
         jones_shape = np.shape(jones)
         n_tim = jones_shape[0]
         n_dir = jones_shape[3]
@@ -212,6 +216,9 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag, model, mode):
+        # for dask arrays we need to adjust the chunks to 
+        # start counting from zero
+        time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]
         vis_shape = np.shape(vis)
         n_chan = vis_shape[1]
@@ -284,20 +291,21 @@ def jones_mul_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, vis, model, mode):
+                antenna2, jones, model, mode):
 
     jones_mul = jones_mul_factory(mode.instance_type.literal_value)
 
     @wraps(corrupt_vis)
     def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                        antenna2, jones, vis, model, mode):
+                        antenna2, jones, model, mode):
         # for dask arrays we need to adjust the chunks to 
         # start counting from zero
-        time_bin_indices -= time_bin_indices[0]
+        time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]
-        vis_shape = np.shape(vis)
-        vis = np.zeros(vis_shape, dtype=vis.dtype)
-        n_chan = vis_shape[1]
+        model_shape = np.shape(model)
+        vis_shape = model.shape[:2] + model.shape[3:]
+        vis = np.zeros(vis_shape, dtype=model.dtype)
+        n_chan = model_shape[1]
         for t in range(n_tim):
             for row in range(time_bin_indices[t],
                              time_bin_indices[t] + time_bin_counts[t]):
@@ -433,9 +441,6 @@ antenna2 : $(array_type)
 jones : $(array_type)
     Gains of shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
-vis : $(array_type)
-    Data values of shape :code:`(row, chan, corr)`.
-    or :code:`(row, chan, corr, corr)`.
 model : $(array_type)
     Model data values of shape :code:`(row, chan, dir, corr)`
     or :code:`(row, chan, dir, corr, corr)`.
