@@ -8,7 +8,7 @@ import numpy as np
 import numba
 #import bd_averager
 
-from africanus.averaging.support import unique_time, unique_baselines
+from africanus.averaging.support import unique_time, unique_baselines, unique_uvw
 from africanus.averaging.time_and_channel_avg import time_and_channel
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
@@ -217,8 +217,9 @@ print("bl_uvw_dist_ratio \n", bl_dist_time_bins, bl_dist_time_bins.shape)
 
 
 #time_bin_secs = 6
-ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
+ubl, bl_idx, bl_inv, bl_count = unique_baselines(ant1, ant2)
 utime, _, time_inv, _ = unique_time(timestamps)
+uuvw, uvw_idx, uvw_inv, uvw_count = unique_uvw(uvw)
 
 # indeces to recostruct original arrays 
 for idx in bl_inv:
@@ -233,10 +234,16 @@ sentinel = np.finfo(timestamps.dtype).max
 out_rows = numba.uint32(0)
 
 
-print("ubl \n", ubl, ubl.shape[0])
-print("bl_inv \n", bl_inv)
-print("utime \n", utime, utime.shape[0])
-print("time_inv \n", time_inv)
+print("ubl \n", ubl, ubl.shape)
+print("bl_idx \n", bl_idx, bl_idx.shape)
+print("bl_inv \n", bl_inv, bl_inv.shape)
+print("bl_count \n", bl_count, bl_count.shape, bl_count[0])
+print("uuvw \n", uuvw, uuvw.shape)
+print("uvw_idx \n", uvw_idx, uvw_idx.shape)
+print("uvw_inv \n", uvw_inv, uvw_inv.shape)
+print("uvw_count \n", uvw_count, uvw_count.shape, uvw_count[0])
+# print("utime \n", utime, utime.shape[0])
+# print("time_inv \n", time_inv)
 
 scratch = np.full(3*nbl*ntime, -1, dtype=np.int32)
 print("scratch \n", scratch, scratch.shape)
@@ -255,13 +262,17 @@ print("interval_lookup \n", interval_lookup)
 bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
 print("bin_flagged \n", bin_flagged)
 
+uvw_lookup = np.zeros((nbl, ntime), dtype=uvw.dtype)
+print("uvw_lookup \n", uvw_lookup, uvw_lookup.shape)
+
 
 print("bl_inv \n", bl_inv)
 print("time_inv \n", time_inv)
-for r in range(timestamps.shape[0]):
+for r in range(uvw.shape[0]):
     bl = bl_inv[r]
     t = time_inv[r]
     row_lookup[bl, t] = r
+    #print("row_lookup \n", row_lookup)
 print("row_lookup \n", row_lookup)
 
 # How Do I use row_lookup for find original values ?
@@ -285,8 +296,13 @@ for bl in range(ubl.shape[0]):
     bin_flag_count = numba.int32(0)
     bin_low = timestamps.dtype.type(0)
 
-    # range of unique time (utime)
-    for t in range(utime.shape[0]):
+    print('tbin', tbin)
+    print('bin_count', bin_count)
+    print('bin_flag_count', bin_flag_count)
+    print('bin_low', bin_low)
+    
+    # range of baseline element count
+    for t in range(bl_count[0]):
         # Lookup input row
         r = row_lookup[bl, t]
         print("bl : ", bl, "t : ", t, "r = ", r)
@@ -317,12 +333,8 @@ for bl in range(ubl.shape[0]):
 #             bin_count = 0
 #             bin_flag_count = 0
 
-
-#          I need to code something that replaces this
-        if bin_count <= bl_dist_time_bins[bl]:
-            # increment the bin count (or just increment later on)
-            bin_count += 1
-        elif bin_count > bl_dist_time_bins[bl]
+#          I need to code something that replaces the above    
+        if bin_count >= bl_dist_time_bins[bl]:
             # Reset the bin_count
             # increase tbin counts
             bin_count = 0
@@ -333,18 +345,23 @@ for bl in range(ubl.shape[0]):
         time_lookup[bl, tbin] += timestamps[r]
         interval_lookup[bl, tbin] += interval[r]
         bin_count += 1
+        
+        print('tbin', tbin)
+        print('bin_count', bin_count)
     
     if bin_count > 0:
+        print("******** bin_count > 0 ************")
         time_lookup[bl, tbin] /= bin_count
         bin_flagged[bl, tbin] = bin_count == bin_flag_count
         tbin += 1
     
     out_rows += tbin
+    print("out_rows ", out_rows)
     
     for b in range(tbin, ntime):
         time_lookup[bl, b] = sentinel
         bin_flagged[bl, b] = False
-        
+    
     print("bin_lookup \n", bin_lookup)
     print("time_lookup \n", time_lookup)
     

@@ -556,6 +556,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
         row_data = row_average(row_meta, antenna1, antenna2, flag_row=flag_row,
                                time_centroid=time_centroid, exposure=exposure,
                                uvw=uvw, weight=weight, sigma=sigma)
+        
         print("UVW (time and channel)", uvw.shape)
         print("row_data UVW (time and channel)", row_data.uvw.shape)
 

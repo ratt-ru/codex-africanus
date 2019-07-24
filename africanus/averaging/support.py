@@ -80,10 +80,39 @@ def unique_baselines(ant1, ant2):
             bl_32bit[r, 0] = ant1[r]
             bl_32bit[r, 1] = ant2[r]
 
+        print("Unique baseline creation")
+        print(bl_32bit)
         # Cast to int64 for the unique operation
         bl = bl_32bit.view(np.int64).reshape(ant1.shape[0])
-
+        print("After view 64bits")
+        print(bl)
         ret, idx, inv, counts = _unique_internal(bl)
+
+        # Recast to int32 and reshape
+        ubl = ret.view(np.int32).reshape(ret.shape[0], 2)
+
+        return ubl, idx, inv, counts
+
+    return impl
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def unique_uvw(uvw):
+    """ Return unique baselines, inverse index and counts """
+    if uvw.dtype not in (numba.float32, numba.float64):
+        # Need these to be int32 for the bl_32bit.view(np.int64) trick
+        raise ValueError("uvw must be a floating point "
+                         "but received %s" %
+                         uvw.dtype)
+
+    def impl(uvw):
+
+        print("Unique baseline creation")
+        print(uvw)
+        # Cast to int64 for the unique operation
+        uvw_64 = uvw.view(np.int64).reshape(uvw.size)
+        print("After view 64bits")
+        print(uvw_64)
+        ret, idx, inv, counts = _unique_internal(uvw_64)
 
         # Recast to int32 and reshape
         ubl = ret.view(np.int32).reshape(ret.shape[0], 2)
