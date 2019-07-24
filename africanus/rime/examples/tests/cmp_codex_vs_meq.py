@@ -12,9 +12,7 @@ import sys
 
 import numpy as np
 
-from africanus.rime.examples.predict import (create_parser,
-                                             parse_sky_model,
-                                             predict)
+from africanus.rime.examples.predict import create_parser, predict
 from africanus.util.requirements import requires_optional
 
 try:
@@ -23,29 +21,6 @@ except ImportError as e:
     opt_import_error = e
 else:
     opt_import_error = None
-
-
-def create_meq_sky_model(filename, tigger_lsm):
-    radec, stokes = parse_sky_model(filename)
-
-    # Create the tigger sky model
-    with open(tigger_lsm, 'w') as f:
-        f.write('#format: ra_d dec_d i q u v spi freq0\n')
-
-        radec = np.rad2deg(radec)
-
-        for s in range(radec.shape[0]):
-            ra, dec = radec[s]
-            i, q, u, v = stokes[s]
-
-            # Format line
-            line = ('{ra:.20f} {dec:.20f} '
-                    '{i} {q} {u} {v} {spi} '
-                    '{rf:.20f}\n'.format(ra=ra, dec=dec,
-                                         i=i, q=q, u=u, v=v,
-                                         spi=0.0, rf=1.0))
-
-            f.write(line)
 
 
 @requires_optional('pyrap.tables', opt_import_error)
@@ -59,15 +34,11 @@ def run_meqtrees(args):
     # Meqtree profile and script
     cfg_file = pjoin(meq_dir, 'tdlconf.profiles')
     sim_script = pjoin(meq_dir, 'turbo-sim.py')
-    tigger_lsm = pjoin(meq_dir, 'tigger_lsm.txt')
 
     meqtrees_vis_column = "CORRECTED_DATA"
 
     # Find the location of the meqtree pipeliner script
     meqpipe_actual = subprocess.check_output(['which', meqpipe]).strip()
-
-    # Create the tigger sky model
-    create_meq_sky_model(args.sky_model, tigger_lsm)
 
     linear_corr_types = set([9, 10, 11, 12])
     circular_corr_types = set([5, 6, 7, 8])
@@ -102,7 +73,7 @@ def run_meqtrees(args):
         # Measurement Set
         'ms_sel.msname={ms}'.format(ms=args.ms),
         # Tigger sky file
-        'tiggerlsm.filename={sm}'.format(sm=tigger_lsm),
+        'tiggerlsm.filename={sm}'.format(sm=args.sky_model),
         # Output column
         'ms_sel.output_column={c}'.format(c=meqtrees_vis_column),
         # Imaging Column

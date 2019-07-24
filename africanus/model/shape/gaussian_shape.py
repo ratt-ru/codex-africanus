@@ -13,8 +13,10 @@ from africanus.constants import c as lightspeed
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def gaussian(uvw, frequency, shape_params):
-    fwhmint = 1.0 / np.sqrt(np.log(256))
-    gauss_scale = fwhmint*np.sqrt(2.0)*np.pi/lightspeed
+    # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
+    fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    fwhminv = 1.0 / fwhm
+    gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
     dtype = np.result_type(*(np.dtype(a.dtype.name) for
                              a in (uvw, frequency, shape_params)))
@@ -27,12 +29,14 @@ def gaussian(uvw, frequency, shape_params):
         shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
         scaled_freq = np.empty_like(frequency)
 
+        # Scale each frequency
         for f in range(frequency.shape[0]):
             scaled_freq[f] = frequency[f] * gauss_scale
 
         for s in range(shape_params.shape[0]):
             emaj, emin, angle = shape_params[s]
 
+            # Convert to l-projection, m-projection, ratio
             el = emaj * np.sin(angle)
             em = emaj * np.cos(angle)
             er = emin / (1.0 if emaj == 0.0 else emaj)
