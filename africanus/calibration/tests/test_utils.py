@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import dask.array as da
 import pytest
 from numpy.testing import assert_array_almost_equal
 from africanus.averaging.support import unique_time
@@ -157,6 +156,7 @@ def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
+    da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 3
     n_time = 32
@@ -200,6 +200,7 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
+    da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 1
     n_time = 32
@@ -245,6 +246,7 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_residual_vis_dask(data_factory, corr_shape, jones_shape, mode):
+    da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 3
     n_time = 32

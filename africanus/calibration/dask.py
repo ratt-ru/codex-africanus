@@ -14,7 +14,7 @@ from africanus.calibration.utils import residual_vis as np_residual_vis
 from africanus.util.requirements import requires_optional
 
 try:
-    import dask.array as da
+    from dask.array.core import blockwise
 except ImportError as e:
     dask_import_error = e
 else:
@@ -49,18 +49,18 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
         jones_shape = ("row", "ant", "chan", "dir", "corr1", "corr2")
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
-    return da.core.blockwise(_corrupt_vis_wrapper, out_shape,
-                             time_bin_indices, ("row",),
-                             time_bin_counts, ("row",),
-                             antenna1, ("row",),
-                             antenna2, ("row",),
-                             jones, jones_shape,
-                             model, model_shape,
-                             mode, None,
-                             adjust_chunks={"row": antenna1.chunks[0]},
-                             new_axes={"corr2": 2},  # why?
-                             dtype=model.dtype,
-                             align_arrays=False)
+    return blockwise(_corrupt_vis_wrapper, out_shape,
+                     time_bin_indices, ("row",),
+                     time_bin_counts, ("row",),
+                     antenna1, ("row",),
+                     antenna2, ("row",),
+                     jones, jones_shape,
+                     model, model_shape,
+                     mode, None,
+                     adjust_chunks={"row": antenna1.chunks[0]},
+                     new_axes={"corr2": 2},  # why?
+                     dtype=model.dtype,
+                     align_arrays=False)
 
 
 @wraps(np_correct_vis)
@@ -84,19 +84,19 @@ def correct_vis(time_bin_indices, time_bin_counts, antenna1,
         jones_shape = ("row", "ant", "chan", "dir", "corr1", "corr2")
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
-    return da.core.blockwise(_correct_vis_wrapper, out_shape,
-                             time_bin_indices, ("row",),
-                             time_bin_counts, ("row",),
-                             antenna1, ("row",),
-                             antenna2, ("row",),
-                             jones, jones_shape,
-                             vis, out_shape,
-                             flag, out_shape,
-                             mode, None,
-                             adjust_chunks={"row": antenna1.chunks[0]},
-                             new_axes={"corr2": 2},  # why?
-                             dtype=vis.dtype,
-                             align_arrays=False)
+    return blockwise(_correct_vis_wrapper, out_shape,
+                     time_bin_indices, ("row",),
+                     time_bin_counts, ("row",),
+                     antenna1, ("row",),
+                     antenna2, ("row",),
+                     jones, jones_shape,
+                     vis, out_shape,
+                     flag, out_shape,
+                     mode, None,
+                     adjust_chunks={"row": antenna1.chunks[0]},
+                     new_axes={"corr2": 2},  # why?
+                     dtype=vis.dtype,
+                     align_arrays=False)
 
 
 @wraps(np_residual_vis)
@@ -123,20 +123,20 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
         jones_shape = ("row", "ant", "chan", "dir", "corr1", "corr2")
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
-    return da.core.blockwise(_residual_vis_wrapper, out_shape,
-                             time_bin_indices, ("row",),
-                             time_bin_counts, ("row",),
-                             antenna1, ("row",),
-                             antenna2, ("row",),
-                             jones, jones_shape,
-                             vis, out_shape,
-                             flag, out_shape,
-                             model, model_shape,
-                             mode, None,
-                             adjust_chunks={"row": antenna1.chunks[0]},
-                             new_axes={"corr2": 2},  # why?
-                             dtype=vis.dtype,
-                             align_arrays=False)
+    return blockwise(_residual_vis_wrapper, out_shape,
+                     time_bin_indices, ("row",),
+                     time_bin_counts, ("row",),
+                     antenna1, ("row",),
+                     antenna2, ("row",),
+                     jones, jones_shape,
+                     vis, out_shape,
+                     flag, out_shape,
+                     model, model_shape,
+                     mode, None,
+                     adjust_chunks={"row": antenna1.chunks[0]},
+                     new_axes={"corr2": 2},  # why?
+                     dtype=vis.dtype,
+                     align_arrays=False)
 
 
 corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
