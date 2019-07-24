@@ -204,6 +204,8 @@ def predict_vis(time_index, antenna1, antenna2,
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`cupy.ndarray`",
+                                get_time_index=":code:`cp.unique(time, "
+                                               "return_inverse=True)[1]`",
                                 extra_args="",
                                 extra_notes="")
 except AttributeError:
