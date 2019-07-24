@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
 * Add dask wrappers for the nifty gridder (:pr:`116`)
 * Testing and requirement updates. (:pr:`124`)
 * Upgraded DFT kernels to have a correlation axis and added flags
