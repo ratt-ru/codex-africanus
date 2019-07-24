@@ -28,7 +28,6 @@ def test_corrupt_vis(data_factory, corr_shape, jones_shape, mode):
     the same thing but corrupt_vis adheres to the structure
     in the africanus.calibration module.
     """
-    np.random.seed(42)
     # simulate noise free data with random DDE's
     n_dir = 3
     n_time = 32
@@ -84,7 +83,6 @@ def test_residual_vis(data_factory, corr_shape, jones_shape, mode):
     direction from noise free simulated data and comparing
     the output to the unsubtracted direction.
     """
-    np.random.seed(42)
     from africanus.calibration.utils import residual_vis, corrupt_vis
     # simulate noise free data with random DDE's
     n_dir = 3
@@ -129,7 +127,6 @@ def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
     Tests correct_vis by correcting noise free simulation
     with random DIE gains
     """
-    np.random.seed(42)
     from africanus.calibration.utils import correct_vis
     # simulate noise free data with only DIE's
     n_dir = 1
@@ -160,7 +157,6 @@ def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
-    np.random.seed(42)
     # simulate noise free data with only DIE's
     n_dir = 3
     n_time = 32
@@ -204,7 +200,6 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
-    np.random.seed(42)
     # simulate noise free data with only DIE's
     n_dir = 1
     n_time = 32
@@ -250,7 +245,6 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
 @corr_shape_parametrization
 def test_residual_vis_dask(data_factory, corr_shape, jones_shape, mode):
-    np.random.seed(42)
     # simulate noise free data with only DIE's
     n_dir = 3
     n_time = 32

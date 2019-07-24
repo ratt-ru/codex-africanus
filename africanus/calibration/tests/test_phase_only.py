@@ -17,7 +17,6 @@ def test_phase_only_diag_diag(data_factory):
     we reconstruct the correct gains for a noise
     free simulation.
     """
-    np.random.seed(42)
     # simulate noise free data with random DDE's
     n_dir = 1
     n_time = 32
