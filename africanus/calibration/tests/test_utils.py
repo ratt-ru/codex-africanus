@@ -182,8 +182,6 @@ def test_residual_vis(corr_shape, jones_shape, mode):
     n_time = 32
     n_chan = 16
     n_ant = 7
-    n_bl = n_ant*(n_ant-1)//2
-    n_row = n_bl*n_time
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
@@ -250,6 +248,7 @@ def test_correct_vis(corr_shape, jones_shape, mode):
     model = model.squeeze()
     assert_array_almost_equal(corrected_vis, model, decimal=10)
 
+
 @corr_shape_parametrization
 def test_corrupt_vis_dask(corr_shape, jones_shape, mode):
     np.random.seed(42)
@@ -278,14 +277,18 @@ def test_corrupt_vis_dask(corr_shape, jones_shape, mode):
     # set up dask arrays
     _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk))
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
-    da_model = da.from_array(model, chunks=(row_chunks, (n_chan,), (n_dir,)) + (corr_shape))
-    da_jones = da.from_array(jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
+    da_model = da.from_array(model, chunks=(
+        row_chunks, (n_chan,), (n_dir,)) + (corr_shape))
+    da_jones = da.from_array(jones, chunks=(
+        utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
 
     from africanus.calibration.dask import corrupt_vis
-    da_vis = corrupt_vis(da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2, da_jones, da_model, mode)
+    da_vis = corrupt_vis(da_time_bin_idx, da_time_bin_counts,
+                         da_ant1, da_ant2, da_jones, da_model, mode)
     vis2 = da_vis.compute()
     assert_array_almost_equal(vis, vis2, decimal=10)
 
@@ -303,7 +306,7 @@ def test_correct_vis_dask(corr_shape, jones_shape, mode):
     data_dict = make_data(sigma_n, sigma_f, n_time,
                           n_chan, n_ant, n_dir, corr_shape,
                           jones_shape, mode)
-    vis = data_dict['DATA']  
+    vis = data_dict['DATA']
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']  # what we need to compare to
@@ -319,18 +322,22 @@ def test_correct_vis_dask(corr_shape, jones_shape, mode):
     # set up dask arrays
     _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk))
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_vis = da.from_array(vis, chunks=(row_chunks, (n_chan,)) + (corr_shape))
-    da_jones = da.from_array(jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
-    da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + (corr_shape))
+    da_jones = da.from_array(jones, chunks=(
+        utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
+    da_flag = da.from_array(flag, chunks=(
+        row_chunks, (n_chan,)) + (corr_shape))
 
     from africanus.calibration.dask import correct_vis
-    da_model = correct_vis(da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2,
-                           da_jones, da_vis, da_flag, mode)
+    da_model = correct_vis(da_time_bin_idx, da_time_bin_counts, da_ant1,
+                           da_ant2, da_jones, da_vis, da_flag, mode)
     model2 = da_model.compute()
     assert_array_almost_equal(model.squeeze(), model2, decimal=10)
+
 
 @corr_shape_parametrization
 def test_residual_vis_dask(corr_shape, jones_shape, mode):
@@ -345,7 +352,7 @@ def test_residual_vis_dask(corr_shape, jones_shape, mode):
     data_dict = make_data(sigma_n, sigma_f, n_time,
                           n_chan, n_ant, n_dir, corr_shape,
                           jones_shape, mode)
-    vis = data_dict['DATA']  
+    vis = data_dict['DATA']
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']  # what we need to compare to
@@ -361,20 +368,25 @@ def test_residual_vis_dask(corr_shape, jones_shape, mode):
     # set up dask arrays
     _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk))
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_vis = da.from_array(vis, chunks=(row_chunks, (n_chan,)) + (corr_shape))
-    da_model = da.from_array(model, chunks=(row_chunks, (n_chan,), (n_dir,)) + (corr_shape))
-    da_jones = da.from_array(jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
-    da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + (corr_shape))
+    da_model = da.from_array(model, chunks=(
+        row_chunks, (n_chan,), (n_dir,)) + (corr_shape))
+    da_jones = da.from_array(jones, chunks=(
+        utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
+    da_flag = da.from_array(flag, chunks=(
+        row_chunks, (n_chan,)) + (corr_shape))
 
     from africanus.calibration.utils import residual_vis as residual_vis_np
     residual = residual_vis_np(time_bin_idx, time_bin_counts, ant1, ant2,
                                jones, vis, flag, model, mode)
-    
+
     from africanus.calibration.dask import residual_vis
-    da_residual = residual_vis(da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2,
-                               da_jones, da_vis, da_flag, da_model, mode)
+    da_residual = residual_vis(da_time_bin_idx, da_time_bin_counts,
+                               da_ant1, da_ant2, da_jones, da_vis,
+                               da_flag, da_model, mode)
     residual2 = da_residual.compute()
     assert_array_almost_equal(residual, residual2, decimal=10)

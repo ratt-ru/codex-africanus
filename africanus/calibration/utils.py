@@ -9,11 +9,11 @@ from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
 from numba.types.misc import literal
-from numba.typed import List
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
+
 
 def check_type(jones, vis):
     """
@@ -52,11 +52,14 @@ def check_type(jones, vis):
 
     return mode
 
+
 def chunkify_rows(time, utimes_per_chunk):
     utimes, counts = np.unique(time, return_counts=True)
     n_time = len(utimes)
-    row_chunks = [np.sum(counts[i:i+utimes_per_chunk]) for i in range(0, n_time, utimes_per_chunk)]
+    row_chunks = [np.sum(counts[i:i+utimes_per_chunk])
+                  for i in range(0, n_time, utimes_per_chunk)]
     return tuple(row_chunks)
+
 
 def jones_inverse_mul_factory(mode):
     if mode == DIAG_DIAG:
@@ -121,13 +124,14 @@ def correct_vis(time_bin_indices, time_bin_counts,
                 antenna1, antenna2, jones, vis, flag,
                 mode):
 
-    jones_inverse_mul = jones_inverse_mul_factory(mode.instance_type.literal_value)
+    jones_inverse_mul = jones_inverse_mul_factory(
+        mode.instance_type.literal_value)
 
     @wraps(correct_vis)
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
                         antenna1, antenna2, jones, vis, flag,
                         mode):
-        # for dask arrays we need to adjust the chunks to 
+        # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
         jones_shape = np.shape(jones)
@@ -216,7 +220,7 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag, model, mode):
-        # for dask arrays we need to adjust the chunks to 
+        # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]
@@ -298,7 +302,7 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
     @wraps(corrupt_vis)
     def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, model, mode):
-        # for dask arrays we need to adjust the chunks to 
+        # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]

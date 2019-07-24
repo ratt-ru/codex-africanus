@@ -11,6 +11,7 @@ from africanus.calibration import phase_only_gauss_newton
 from africanus.calibration.tests.test_utils import make_data
 from numba.types.misc import literal
 
+
 def test_phase_only_diag_diag():
     """
     Test phase only calibration by checking that
@@ -27,7 +28,7 @@ def test_phase_only_diag_diag():
     sigma_f = 0.05
     corr_shape = (2,)
     jones_shape = (2,)
-    mode=literal(0)
+    mode = literal(0)
     data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
                           n_ant, n_dir, corr_shape, jones_shape, mode)
     time = data_dict['TIME']

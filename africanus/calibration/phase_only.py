@@ -9,11 +9,11 @@ from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis, check_type
 from africanus.util.numba import generated_jit, njit
-from numba.types.misc import literal
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
+
 
 def jacobian_factory(mode):
     if mode == DIAG_DIAG:
