@@ -231,18 +231,19 @@ def baseline_jones_multiply(corrs, *args):
 
     for name, array in zip(names, arrays):
         try:
-            fn = _rime_term_map[name]
+            # Obtain function for prescribing the input einsum schema
+            schema_fn = _rime_term_map[name]
         except KeyError:
             raise ValueError("Unknown RIME term '%s'" % name)
         else:
-            einsum_schema, corr_index = fn(corrs, corr_index)
+            # Extract it and the next corr index
+            einsum_schema, corr_index = schema_fn(corrs, corr_index)
             input_einsum_schemas.append(einsum_schema)
 
             if not len(einsum_schema) == array.ndim:
                 raise ValueError("%s len(%s) == %d != %s.ndim"
                                  % (name, einsum_schema,
                                     len(einsum_schema), array.shape))
-            assert len(einsum_schema) == array.ndim
 
     output_schema = _bl_jones_output_schema(corrs, corr_index)
     schema = ",".join(input_einsum_schemas) + output_schema
