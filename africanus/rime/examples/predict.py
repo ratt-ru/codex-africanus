@@ -93,10 +93,9 @@ def parse_sky_model(filename, chunks):
 
     Returns
     -------
-    radec : :class:`numpy.ndarray`
-        :code:`(source, 2)` array of source coordinates
-    stokes : :class:`numpy.ndarray`
-        :code:`(source, 4)` array of stokes parameters
+    source_data : dict
+        Dictionary of source data,
+        :code:`{'point': (...), 'gauss': (...) }`
     """
     sky_model = Tigger.load(filename, verbose=False)
 
