@@ -8,8 +8,6 @@ from __future__ import print_function
 import argparse
 from collections import namedtuple
 
-import numpy as np
-
 try:
     import dask
     import dask.array as da
@@ -118,7 +116,7 @@ def parse_sky_model(filename, chunks):
         dec = source.pos.dec
         typecode = source.typecode.lower()
 
-        I = source.flux.I
+        I = source.flux.I  # noqa
         Q = source.flux.Q
         U = source.flux.U
         V = source.flux.V
@@ -334,7 +332,6 @@ def predict(args):
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
         pol = pol_ds[ddid.POLARIZATION_ID.values]
-        frequency = spw.CHAN_FREQ.data
 
         corrs = pol.NUM_CORR.values
 

@@ -12,9 +12,7 @@ import sys
 
 import numpy as np
 
-from africanus.rime.examples.predict import (create_parser,
-                                             parse_sky_model,
-                                             predict)
+from africanus.rime.examples.predict import create_parser, predict
 from africanus.util.requirements import requires_optional
 
 try:
