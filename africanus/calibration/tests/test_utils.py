@@ -5,13 +5,16 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import dask.array as da
 from numpy.random import normal
 import pytest
 from numpy.testing import assert_array_almost_equal
 from africanus.dft import im_to_vis
 from africanus.averaging.support import unique_time
 from africanus.calibration.utils import residual_vis, correct_vis, corrupt_vis
+from africanus.calibration.utils import chunkify_rows
 from africanus.rime.predict import predict_vis
+from numba.types.misc import literal
 
 
 def give_lm(n_dir):
@@ -32,15 +35,15 @@ def give_flux(n_dir, n_chan, cor_shape, alpha, freq, freq0):
 
 
 corr_shape_parametrization = pytest.mark.parametrize(
-    'corr_shape, jones_shape',
-    [((2,), (2,)),  # DIAG_DIAG
-     ((2, 2), (2,)),  # DIAG
-     ((2, 2), (2, 2)),  # FULL
+    'corr_shape, jones_shape, mode',
+    [((2,), (2,), literal(0)),  # DIAG_DIAG
+     ((2, 2), (2,), literal(1)),  # DIAG
+     ((2, 2), (2, 2), literal(2)),  # FULL
      ])
 
 
 def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant,
-              n_dir, corr_shape, jones_shape):
+              n_dir, corr_shape, jones_shape, mode):
     n_bl = n_ant*(n_ant-1)//2
     n_row = n_bl*n_time
     # make aux data
@@ -70,13 +73,13 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant,
     flux = give_flux(n_dir, n_chan, corr_shape, alpha, freq, freq0)
     # simulate model data
     for dir in range(n_dir):
-        this_lm = lm[dir].reshape(1, 2)
+        dir_lm = lm[dir].reshape(1, 2)
         # Get flux for source (keep source axis, flatten cor axis)
-        this_flux = flux[dir].reshape(1, n_chan, np.prod(corr_shape))
-        tmp = im_to_vis(this_flux, uvw, this_lm, freq)
+        dir_flux = flux[dir].reshape(1, n_chan, np.prod(corr_shape))
+        tmp = im_to_vis(dir_flux, uvw, dir_lm, freq)
         model_data[:, :, dir] = tmp.reshape((n_row, n_chan) + corr_shape)
     assert not np.isnan(model_data).any()
-    # simulate gains (just radnomly scattered around 1 for now)
+    # simulate gains (just randomly scattered around 1 for now)
     jones = np.ones((n_time, n_ant, n_chan, n_dir) +
                     jones_shape, dtype=np.complex128)
     if sigma_f:
@@ -88,7 +91,7 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant,
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     vis = np.zeros((n_row, n_chan) + corr_shape, dtype=np.complex128)
     vis = corrupt_vis(time_bin_indices, time_bin_counts,
-                      antenna1, antenna2, jones, model_data, vis)
+                      antenna1, antenna2, jones, vis, model_data, mode)
     assert not np.isnan(vis).any()
     # add noise
     if sigma_n:
@@ -111,7 +114,7 @@ def make_data(sigma_n, sigma_f, n_time, n_chan, n_ant,
 
 
 @corr_shape_parametrization
-def test_corrupt_vis(corr_shape, jones_shape):
+def test_corrupt_vis(corr_shape, jones_shape, mode):
     """
     Tests corrupt vis against predict_vis. They should do
     the same thing but corrupt_vis adheres to the structure
@@ -126,7 +129,7 @@ def test_corrupt_vis(corr_shape, jones_shape):
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
-                          n_ant, n_dir, corr_shape, jones_shape)
+                          n_ant, n_dir, corr_shape, jones_shape, mode)
     # make_data uses corrupt_vis to produce the data so we only need to test
     # that predict vis gives the same thing on the reshaped arrays
     ant1 = data_dict['ANTENNA1']
@@ -167,7 +170,7 @@ def test_corrupt_vis(corr_shape, jones_shape):
 
 
 @corr_shape_parametrization
-def test_residual_vis(corr_shape, jones_shape):
+def test_residual_vis(corr_shape, jones_shape, mode):
     """
     Tests subtraction of model by subtracting all but one
     direction from noise free simulated data and comparing
@@ -184,7 +187,7 @@ def test_residual_vis(corr_shape, jones_shape):
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
-                          n_ant, n_dir, corr_shape, jones_shape)
+                          n_ant, n_dir, corr_shape, jones_shape, mode)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
@@ -201,7 +204,7 @@ def test_residual_vis(corr_shape, jones_shape):
     # subtract all but one direction
     residual = residual_vis(time_bin_indices, time_bin_counts,
                             ant1, ant2, jones_subtract, vis,
-                            flag, model_subtract)
+                            flag, model_subtract, mode)
     # apply gains to the unsubtracted direction
     vis_unsubtracted = np.zeros((n_row, n_chan) + corr_shape,
                                 dtype=np.complex128)
@@ -209,14 +212,15 @@ def test_residual_vis(corr_shape, jones_shape):
                                    time_bin_counts,
                                    ant1, ant2,
                                    jones_unsubtracted,
+                                   vis_unsubtracted,
                                    model_unsubtracted,
-                                   vis_unsubtracted)
+                                   mode)
     # residual should now be equal to unsubtracted vis
     assert_array_almost_equal(residual, vis_unsubtracted, decimal=10)
 
 
 @corr_shape_parametrization
-def test_correct_vis(corr_shape, jones_shape):
+def test_correct_vis(corr_shape, jones_shape, mode):
     """
     Tests correct_vis by correcting noise free simulation
     with random DIE gains
@@ -230,7 +234,8 @@ def test_correct_vis(corr_shape, jones_shape):
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = make_data(sigma_n, sigma_f, n_time,
-                          n_chan, n_ant, n_dir, corr_shape, jones_shape)
+                          n_chan, n_ant, n_dir, corr_shape,
+                          jones_shape, mode)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
@@ -242,7 +247,67 @@ def test_correct_vis(corr_shape, jones_shape):
     # correct vis
     corrected_vis = correct_vis(
         time_bin_indices, time_bin_counts,
-        ant1, ant2, jones, vis, flag)
+        ant1, ant2, jones, vis, flag, mode)
     # squeeze out dir axis to get expected model data
     model = model.squeeze()
     assert_array_almost_equal(corrected_vis, model, decimal=10)
+
+@corr_shape_parametrization
+def test_corrupt_vis_dask(corr_shape, jones_shape, mode):
+    np.random.seed(42)
+    # simulate noise free data with only DIE's
+    n_dir = 3
+    n_time = 32
+    n_chan = 16
+    n_ant = 7
+    sigma_n = 0.0
+    sigma_f = 0.05
+    data_dict = make_data(sigma_n, sigma_f, n_time,
+                          n_chan, n_ant, n_dir, corr_shape,
+                          jones_shape, mode)
+    vis = data_dict['DATA']  # what we need to compare to
+    ant1 = data_dict['ANTENNA1']
+    ant2 = data_dict['ANTENNA2']
+    model = data_dict['MODEL_DATA']
+    jones = data_dict['JONES']
+    time = data_dict['TIME']
+
+    # get chunking scheme
+    ncpu = 8
+    utimes_per_chunk = n_time//ncpu
+    row_chunks = chunkify_rows(time, utimes_per_chunk)
+
+    # set up dask arrays
+    _, time_bin_idx, _, time_bin_counts = unique_time(time)
+    # print(time_bin_idx)
+    # print(time_bin_counts)
+    da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    # print(da_time_bin_idx)
+    # print(da_time_bin_counts)
+    da_ant1 = da.from_array(ant1, chunks=row_chunks)
+    da_ant2 = da.from_array(ant2, chunks=row_chunks)
+    da_model = da.from_array(model, chunks=(row_chunks, (n_chan,), (n_dir,), corr_shape))
+    da_jones = da.from_array(jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
+    vis2 = np.zeros_like(vis, dtype=vis.dtype)
+    da_vis = da.from_array(vis2, chunks=(row_chunks, (n_chan,), corr_shape))
+
+    from africanus.calibration.dask import corrupt_vis
+    da_vis = corrupt_vis(da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2, da_jones, da_vis, da_model, mode)
+
+    vis2 = da_vis.compute()
+    import matplotlib.pyplot as plt
+    for i in range(2):
+        plt.figure('np')
+        plt.imshow(np.abs(vis[:, :, i] - vis2[:, :, i]))
+        plt.colorbar()
+        # plt.figure('dask')
+        # plt.imshow(np.abs(vis2[:, :, i]))
+        # plt.colorbar()
+        plt.show()
+    assert_array_almost_equal(vis, vis2, decimal=10)
+
+corr_shape=(2,)
+jones_shape=(2,)
+mode=literal(0)
+test_corrupt_vis_dask(corr_shape, jones_shape, mode)

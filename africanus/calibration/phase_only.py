@@ -6,15 +6,14 @@ from __future__ import print_function
 
 import numpy as np
 from functools import wraps
-from africanus.calibration.utils import check_type
 from africanus.util.docs import DocstringTemplate
-from africanus.calibration.utils import residual_vis
+from africanus.calibration.utils import residual_vis, check_type
 from africanus.util.numba import generated_jit, njit
+from numba.types.misc import literal
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
-
 
 def jacobian_factory(mode):
     if mode == DIAG_DIAG:
@@ -31,18 +30,16 @@ def jacobian_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, residual, model, flag):
+                antenna2, jones, residual, model, flag, mode):
 
-    mode = check_type(jones, residual)
-
-    if mode:
+    if mode.instance_type.literal_value != DIAG_DIAG:
         raise NotImplementedError("Only DIAG-DIAG case has been implemented")
 
-    jacobian = jacobian_factory(mode)
+    jacobian = jacobian_factory(mode.instance_type.literal_value)
 
     @wraps(jhj_and_jhr)
     def _jhj_and_jhr_fn(time_bin_indices, time_bin_counts, antenna1,
-                        antenna2, jones, residual, model, flag):
+                        antenna2, jones, residual, model, flag, mode):
         jones_shape = np.shape(jones)
         tmp_out_array = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
         n_tim = jones_shape[0]
@@ -97,6 +94,8 @@ def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
     vis *= sqrtweights
     model *= sqrtweights[:, :, None]
 
+    mode = check_type(jones, vis)
+
     eps = 1.0
     k = 0
     while eps > tol and k < maxiter:
@@ -105,11 +104,11 @@ def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
 
         # get residual
         residual = residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                                antenna2, jones, vis, flag, model)
+                                antenna2, jones, vis, flag, model, mode)
 
         # get diag(jhj) and jhr
         jhj, jhr = jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
-                               antenna2, jones, residual, model, flag)
+                               antenna2, jones, residual, model, flag, mode)
 
         # implement update
         phases_new = phases + (jhr/jhj).real

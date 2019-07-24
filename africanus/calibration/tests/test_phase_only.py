@@ -9,7 +9,7 @@ from numpy.testing import assert_array_almost_equal
 from africanus.averaging.support import unique_time
 from africanus.calibration import phase_only_gauss_newton
 from africanus.calibration.tests.test_utils import make_data
-
+from numba.types.misc import literal
 
 def test_phase_only_diag_diag():
     """
@@ -27,8 +27,9 @@ def test_phase_only_diag_diag():
     sigma_f = 0.05
     corr_shape = (2,)
     jones_shape = (2,)
+    mode=literal(0)
     data_dict = make_data(sigma_n, sigma_f, n_time, n_chan,
-                          n_ant, n_dir, corr_shape, jones_shape)
+                          n_ant, n_dir, corr_shape, jones_shape, mode)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']

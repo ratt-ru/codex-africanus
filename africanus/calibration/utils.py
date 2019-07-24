@@ -8,11 +8,11 @@ import numpy as np
 from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
+from numba.types.misc import literal
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
-
 
 def check_type(jones, vis):
     """
@@ -32,7 +32,7 @@ def check_type(jones, vis):
     vis_axes_count = vis.ndim
     jones_axes_count = jones.ndim
     if vis_axes_count == 3:
-        mode = DIAG_DIAG
+        mode = literal(DIAG_DIAG)
         if jones_axes_count != 5:
             raise RuntimeError("Jones axes not compatible with \
                                 visibility axes. Expected length \
@@ -40,10 +40,10 @@ def check_type(jones, vis):
 
     elif vis_axes_count == 4:
         if jones_axes_count == 5:
-            mode = DIAG
+            mode = literal(DIAG)
 
         elif jones_axes_count == 6:
-            mode = FULL
+            mode = literal(FULL)
         else:
             raise RuntimeError("Jones term has incorrect shape")
     else:
@@ -51,6 +51,11 @@ def check_type(jones, vis):
 
     return mode
 
+def chunkify_rows(time, utimes_per_chunk):
+    utimes, counts = np.unique(time, return_counts=True)
+    n_time = len(utimes)
+    row_chunks = [np.sum(counts[i:i+utimes_per_chunk]) for i in range(0, n_time, utimes_per_chunk)]
+    return tuple(row_chunks)
 
 def jones_inverse_mul_factory(mode):
     if mode == DIAG_DIAG:
@@ -112,21 +117,21 @@ def jones_inverse_mul_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def correct_vis(time_bin_indices, time_bin_counts,
-                antenna1, antenna2, jones, vis, flag):
+                antenna1, antenna2, jones, vis, flag,
+                mode):
 
-    mode = check_type(jones, vis)
-
-    jones_inverse_mul = jones_inverse_mul_factory(mode)
+    jones_inverse_mul = jones_inverse_mul_factory(mode.instance_type.literal_value)
 
     @wraps(correct_vis)
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
-                        antenna1, antenna2, jones, vis, flag):
+                        antenna1, antenna2, jones, vis, flag,
+                        mode):
         jones_shape = np.shape(jones)
         n_tim = jones_shape[0]
         n_dir = jones_shape[3]
         if n_dir > 1:
-            raise ValueError("Jones has n_dir > 1.\
-                              Cannot correct for direction dependent gains")
+            raise ValueError("Jones has n_dir > 1. Cannot correct "
+                             "for direction dependent gains")
         n_chan = jones_shape[2]
         corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
         for t in range(n_tim):
@@ -199,14 +204,14 @@ def subtract_model_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                 antenna2, jones, vis, flag, model):
+                 antenna2, jones, vis, flag, model,
+                 mode):
 
-    mode = check_type(jones, vis)
-    subtract_model = subtract_model_factory(mode)
+    subtract_model = subtract_model_factory(mode.instance_type.literal_value)
 
     @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, vis, flag, model):
+                         antenna2, jones, vis, flag, model, mode):
         n_tim = np.shape(time_bin_indices)[0]
         vis_shape = np.shape(vis)
         n_chan = vis_shape[1]
@@ -279,16 +284,19 @@ def jones_mul_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, model, vis):
+                antenna2, jones, vis, model, mode):
 
-    mode = check_type(jones, vis)
-    jones_mul = jones_mul_factory(mode)
+    jones_mul = jones_mul_factory(mode.instance_type.literal_value)
 
     @wraps(corrupt_vis)
     def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                        antenna2, jones, model, vis):
+                        antenna2, jones, vis, model, mode):
+        # for dask arrays we need to adjust the chunks to 
+        # start counting from zero
+        time_bin_indices -= time_bin_indices[0]
         n_tim = np.shape(time_bin_indices)[0]
         vis_shape = np.shape(vis)
+        vis = np.zeros(vis_shape, dtype=vis.dtype)
         n_chan = vis_shape[1]
         for t in range(n_tim):
             for row in range(time_bin_indices[t],
@@ -301,7 +309,6 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                     jones_mul(gp[nu], model[row, nu], gq[nu], vis[row, nu])
         return vis
 
-    # (time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model)
     return _corrupt_vis_fn
 
 
@@ -426,6 +433,9 @@ antenna2 : $(array_type)
 jones : $(array_type)
     Gains of shape :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
+vis : $(array_type)
+    Data values of shape :code:`(row, chan, corr)`.
+    or :code:`(row, chan, corr, corr)`.
 model : $(array_type)
     Model data values of shape :code:`(row, chan, dir, corr)`
     or :code:`(row, chan, dir, corr, corr)`.
