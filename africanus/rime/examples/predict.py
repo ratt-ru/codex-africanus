@@ -123,12 +123,13 @@ def parse_sky_model(filename, chunks):
         U = source.flux.U
         V = source.flux.V
 
-        spectrum = getattr(source, "spectrum", _empty_spectrum)
+        spectrum = (getattr(source, "spectrum", _empty_spectrum)
+                    or _empty_spectrum)
 
         try:
             # Extract reference frequency
             ref_freq = spectrum.freq0
-        except KeyError:
+        except AttributeError:
             ref_freq = sky_model.freq0
 
         try:
@@ -162,17 +163,27 @@ def parse_sky_model(filename, chunks):
     Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq",
                                  "shape"])
 
-    return {
-        'point': Point(da.from_array(point_radec, chunks=(chunks, -1)),
-                       da.from_array(point_stokes, chunks=(chunks, -1)),
-                       da.from_array(point_spi, chunks=(chunks, 1, -1)),
-                       da.from_array(point_ref_freq, chunks=chunks)),
-        'gauss': Gauss(da.from_array(gauss_radec, chunks=(chunks, -1)),
-                       da.from_array(gauss_stokes, chunks=(chunks, -1)),
-                       da.from_array(gauss_spi, chunks=(chunks, 1, -1)),
-                       da.from_array(gauss_ref_freq, chunks=chunks),
-                       da.from_array(gauss_shape, chunks=(chunks, -1)))
-    }
+    source_data = {}
+
+    if len(point_radec) > 0:
+        source_data['point'] = Point(
+                    da.from_array(point_radec, chunks=(chunks, -1)),
+                    da.from_array(point_stokes, chunks=(chunks, -1)),
+                    da.from_array(point_spi, chunks=(chunks, 1, -1)),
+                    da.from_array(point_ref_freq, chunks=chunks))
+
+    if len(gauss_radec) > 0:
+        source_data['gauss'] = Gauss(
+                    da.from_array(gauss_radec, chunks=(chunks, -1)),
+                    da.from_array(gauss_stokes, chunks=(chunks, -1)),
+                    da.from_array(gauss_spi, chunks=(chunks, 1, -1)),
+                    da.from_array(gauss_ref_freq, chunks=chunks),
+                    da.from_array(gauss_shape, chunks=(chunks, -1)))
+
+    from pprint import pprint
+    pprint(source_data)
+
+    return source_data
 
 
 def support_tables(args, tables):
@@ -273,7 +284,7 @@ def vis_factory(args, source_type, sky_model, time_index,
                             source.spi,
                             source.ref_freq,
                             frequency,
-                            base=0)
+                            base=[1, 0, 0, 0])
 
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
