@@ -11,7 +11,6 @@ from africanus.averaging.support import unique_time
 import pytest
 
 
-@pytest.fixture
 def lm_factory(n_dir, rs):
     ls = 0.1*rs.randn(n_dir)
     ms = 0.1*rs.randn(n_dir)
@@ -19,7 +18,6 @@ def lm_factory(n_dir, rs):
     return lm
 
 
-@pytest.fixture
 def flux_factory(n_dir, n_chan, cor_shape, alpha, freq, freq0, rs):
     w = freq/freq0
     flux = np.zeros((n_dir, n_chan) + cor_shape, dtype=np.float64)

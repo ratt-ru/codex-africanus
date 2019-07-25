@@ -68,20 +68,21 @@ def jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
                             raise ValueError(
                                 "Got impossible antenna number. This is a bug")
                         for nu in range(n_chan):
-                            if not np.any(flag[row, nu]):
-                                for s in range(n_dir):
-                                    jacobian(
-                                        jones[t, p, nu, s],
-                                        model[row, nu, s],
-                                        jones[t, q, nu, s],
-                                        sign,
-                                        tmp_out_array)
-                                    jhj[t, ant, nu,
-                                        s] += (np.conj(tmp_out_array) *
-                                               tmp_out_array).real
-                                    jhr[t, ant, nu,
-                                        s] += (np.conj(tmp_out_array) *
-                                               residual[row, nu])
+                            if np.any(flag[row, nu]):
+                                continue
+                            for s in range(n_dir):
+                                jacobian(
+                                    jones[t, p, nu, s],
+                                    model[row, nu, s],
+                                    jones[t, q, nu, s],
+                                    sign,
+                                    tmp_out_array)
+                                jhj[t, ant, nu,
+                                    s] += (np.conj(tmp_out_array) *
+                                            tmp_out_array).real
+                                jhr[t, ant, nu,
+                                    s] += (np.conj(tmp_out_array) *
+                                            residual[row, nu])
         return jhj, jhr
     return _jhj_and_jhr_fn
 
