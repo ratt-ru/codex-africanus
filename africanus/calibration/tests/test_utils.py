@@ -10,18 +10,17 @@ from numpy.testing import assert_array_almost_equal
 from africanus.averaging.support import unique_time
 from africanus.calibration.utils import chunkify_rows
 from africanus.rime.predict import predict_vis
-from numba.types.misc import literal
 
 corr_shape_parametrization = pytest.mark.parametrize(
-    'corr_shape, jones_shape, mode',
-    [((2,), (2,), literal(0)),  # DIAG_DIAG
-     ((2, 2), (2,), literal(1)),  # DIAG
-     ((2, 2), (2, 2), literal(2)),  # FULL
+    'corr_shape, jones_shape',
+    [((2,), (2,)),  # DIAG_DIAG
+     ((2, 2), (2,)),  # DIAG
+     ((2, 2), (2, 2)),  # FULL
      ])
 
 
 @corr_shape_parametrization
-def test_corrupt_vis(data_factory, corr_shape, jones_shape, mode):
+def test_corrupt_vis(data_factory, corr_shape, jones_shape):
     """
     Tests corrupt vis against predict_vis. They should do
     the same thing but corrupt_vis adheres to the structure
@@ -35,7 +34,7 @@ def test_corrupt_vis(data_factory, corr_shape, jones_shape, mode):
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time, n_chan,
-                             n_ant, n_dir, corr_shape, jones_shape, mode)
+                             n_ant, n_dir, corr_shape, jones_shape)
     # make_data uses corrupt_vis to produce the data so we only need to test
     # that predict vis gives the same thing on the reshaped arrays
     ant1 = data_dict['ANTENNA1']
@@ -76,7 +75,7 @@ def test_corrupt_vis(data_factory, corr_shape, jones_shape, mode):
 
 
 @corr_shape_parametrization
-def test_residual_vis(data_factory, corr_shape, jones_shape, mode):
+def test_residual_vis(data_factory, corr_shape, jones_shape):
     """
     Tests subtraction of model by subtracting all but one
     direction from noise free simulated data and comparing
@@ -91,7 +90,7 @@ def test_residual_vis(data_factory, corr_shape, jones_shape, mode):
     sigma_n = 0.0
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time, n_chan,
-                             n_ant, n_dir, corr_shape, jones_shape, mode)
+                             n_ant, n_dir, corr_shape, jones_shape)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
@@ -108,20 +107,19 @@ def test_residual_vis(data_factory, corr_shape, jones_shape, mode):
     # subtract all but one direction
     residual = residual_vis(time_bin_indices, time_bin_counts,
                             ant1, ant2, jones_subtract, vis,
-                            flag, model_subtract, mode)
+                            flag, model_subtract)
     # apply gains to the unsubtracted direction
     vis_unsubtracted = corrupt_vis(time_bin_indices,
                                    time_bin_counts,
                                    ant1, ant2,
                                    jones_unsubtracted,
-                                   model_unsubtracted,
-                                   mode)
+                                   model_unsubtracted)
     # residual should now be equal to unsubtracted vis
     assert_array_almost_equal(residual, vis_unsubtracted, decimal=10)
 
 
 @corr_shape_parametrization
-def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
+def test_correct_vis(data_factory, corr_shape, jones_shape):
     """
     Tests correct_vis by correcting noise free simulation
     with random DIE gains
@@ -136,7 +134,7 @@ def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time,
                              n_chan, n_ant, n_dir, corr_shape,
-                             jones_shape, mode)
+                             jones_shape)
     time = data_dict['TIME']
     _, time_bin_indices, _, time_bin_counts = unique_time(time)
     ant1 = data_dict['ANTENNA1']
@@ -148,14 +146,14 @@ def test_correct_vis(data_factory, corr_shape, jones_shape, mode):
     # correct vis
     corrected_vis = correct_vis(
         time_bin_indices, time_bin_counts,
-        ant1, ant2, jones, vis, flag, mode)
+        ant1, ant2, jones, vis, flag)
     # squeeze out dir axis to get expected model data
     model = model.squeeze()
     assert_array_almost_equal(corrected_vis, model, decimal=10)
 
 
 @corr_shape_parametrization
-def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
+def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape):
     da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 3
@@ -166,7 +164,7 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time,
                              n_chan, n_ant, n_dir, corr_shape,
-                             jones_shape, mode)
+                             jones_shape)
     vis = data_dict['DATA']  # what we need to compare to
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
@@ -193,13 +191,13 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
     from africanus.calibration.dask import corrupt_vis
     da_vis = corrupt_vis(da_time_bin_idx, da_time_bin_counts,
-                         da_ant1, da_ant2, da_jones, da_model, mode)
+                         da_ant1, da_ant2, da_jones, da_model)
     vis2 = da_vis.compute()
     assert_array_almost_equal(vis, vis2, decimal=10)
 
 
 @corr_shape_parametrization
-def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
+def test_correct_vis_dask(data_factory, corr_shape, jones_shape):
     da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 1
@@ -210,7 +208,7 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time,
                              n_chan, n_ant, n_dir, corr_shape,
-                             jones_shape, mode)
+                             jones_shape)
     vis = data_dict['DATA']
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
@@ -239,13 +237,13 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
     from africanus.calibration.dask import correct_vis
     da_model = correct_vis(da_time_bin_idx, da_time_bin_counts, da_ant1,
-                           da_ant2, da_jones, da_vis, da_flag, mode)
+                           da_ant2, da_jones, da_vis, da_flag)
     model2 = da_model.compute()
     assert_array_almost_equal(model.squeeze(), model2, decimal=10)
 
 
 @corr_shape_parametrization
-def test_residual_vis_dask(data_factory, corr_shape, jones_shape, mode):
+def test_residual_vis_dask(data_factory, corr_shape, jones_shape):
     da = pytest.importorskip("dask.array")
     # simulate noise free data with only DIE's
     n_dir = 3
@@ -256,7 +254,7 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape, mode):
     sigma_f = 0.05
     data_dict = data_factory(sigma_n, sigma_f, n_time,
                              n_chan, n_ant, n_dir, corr_shape,
-                             jones_shape, mode)
+                             jones_shape)
     vis = data_dict['DATA']
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
@@ -287,11 +285,11 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape, mode):
 
     from africanus.calibration.utils import residual_vis as residual_vis_np
     residual = residual_vis_np(time_bin_idx, time_bin_counts, ant1, ant2,
-                               jones, vis, flag, model, mode)
+                               jones, vis, flag, model)
 
     from africanus.calibration.dask import residual_vis
     da_residual = residual_vis(da_time_bin_idx, da_time_bin_counts,
                                da_ant1, da_ant2, da_jones, da_vis,
-                               da_flag, da_model, mode)
+                               da_flag, da_model)
     residual2 = da_residual.compute()
     assert_array_almost_equal(residual, residual2, decimal=10)

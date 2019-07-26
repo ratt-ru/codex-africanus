@@ -8,14 +8,13 @@ import numpy as np
 from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
-from numba.types.misc import literal
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
 
-def check_type(jones, vis):
+def check_type(jones, vis, vis_type='vis'):
     """
     Determines which calibration scenario to apply i.e.
     DIAG_DIAG, DIAG or COMPLEX2x2.
@@ -28,23 +27,33 @@ def check_type(jones, vis):
     vis : $(array_type)
         Visibility data of shape :code:`(row, chan, corr)`
         or :code:`(row, chan, corr, corr)`
+    vis_type : str
+        String specifying what kind of visibility we are checking
+        against. Options are 'vis' or 'model'
 
     """
+    if vis_type == 'vis':
+        vis_ndim = (3, 4)
+    elif vis_type == 'model':
+        vis_ndim = (4, 5)
+    else:
+        raise ValueError("Unknown vis_type")
+
     vis_axes_count = vis.ndim
     jones_axes_count = jones.ndim
-    if vis_axes_count == 3:
-        mode = literal(DIAG_DIAG)
+    if vis_axes_count == vis_ndim[0]:
+        mode = DIAG_DIAG
         if jones_axes_count != 5:
             raise RuntimeError("Jones axes not compatible with \
                                 visibility axes. Expected length \
                                 5 but got length %d" % jones_axes_count)
 
-    elif vis_axes_count == 4:
+    elif vis_axes_count == vis_ndim[1]:
         if jones_axes_count == 5:
-            mode = literal(DIAG)
+            mode = DIAG
 
         elif jones_axes_count == 6:
-            mode = literal(FULL)
+            mode = FULL
         else:
             raise RuntimeError("Jones term has incorrect shape")
     else:
@@ -54,6 +63,24 @@ def check_type(jones, vis):
 
 
 def chunkify_rows(time, utimes_per_chunk):
+    """
+    Divides rows into chunks containing integer
+    numbers of times.
+
+    Parameters:
+    -----------
+
+    time : $(array_type)
+        TIME column of MS
+    utimes_per_chunk : integer
+        The number of unique times to place in each chunk
+
+    Returns
+    -------
+    row_chunks : tuple
+        A tuple of row chunks that can be used to initialise
+        an xds with chunks={'row': row_chunks} for example.
+    """
     utimes, counts = np.unique(time, return_counts=True)
     n_time = len(utimes)
     row_chunks = [np.sum(counts[i:i+utimes_per_chunk])
@@ -121,16 +148,14 @@ def jones_inverse_mul_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def correct_vis(time_bin_indices, time_bin_counts,
-                antenna1, antenna2, jones, vis, flag,
-                mode):
+                antenna1, antenna2, jones, vis, flag):
 
-    jones_inverse_mul = jones_inverse_mul_factory(
-        mode.instance_type.literal_value)
+    mode = check_type(jones, vis)
+    jones_inverse_mul = jones_inverse_mul_factory(mode)
 
     @wraps(correct_vis)
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
-                        antenna1, antenna2, jones, vis, flag,
-                        mode):
+                        antenna1, antenna2, jones, vis, flag):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
@@ -212,14 +237,14 @@ def subtract_model_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                 antenna2, jones, vis, flag, model,
-                 mode):
+                 antenna2, jones, vis, flag, model):
 
-    subtract_model = subtract_model_factory(mode.instance_type.literal_value)
+    mode = check_type(jones, vis)
+    subtract_model = subtract_model_factory(mode)
 
     @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, vis, flag, model, mode):
+                         antenna2, jones, vis, flag, model):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
@@ -295,13 +320,14 @@ def jones_mul_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, model, mode):
+                antenna2, jones, model):
 
-    jones_mul = jones_mul_factory(mode.instance_type.literal_value)
+    mode = check_type(jones, model, vis_type='model')
+    jones_mul = jones_mul_factory(mode)
 
     @wraps(corrupt_vis)
     def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
-                        antenna2, jones, model, mode):
+                        antenna2, jones, model):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()

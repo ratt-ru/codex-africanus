@@ -31,7 +31,7 @@ def flux_factory(n_dir, n_chan, cor_shape, alpha, freq, freq0, rs):
 @pytest.fixture
 def data_factory():
     def impl(sigma_n, sigma_f, n_time, n_chan, n_ant,
-             n_dir, corr_shape, jones_shape, mode):
+             n_dir, corr_shape, jones_shape):
         rs = np.random.RandomState(42)
         n_bl = n_ant*(n_ant-1)//2
         n_row = n_bl*n_time
@@ -79,7 +79,7 @@ def data_factory():
         # get vis
         _, time_bin_indices, _, time_bin_counts = unique_time(time)
         vis = corrupt_vis(time_bin_indices, time_bin_counts,
-                          antenna1, antenna2, jones, model_data, mode)
+                          antenna1, antenna2, jones, model_data)
         assert not np.isnan(vis).any()
         # add noise
         if sigma_n:
