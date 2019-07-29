@@ -89,7 +89,7 @@ def test_shapelets_against_gaussian():
         uvw[:, 2] = 0
         print("uvw is ", uvw)
 
-        frequency_shapelets=np.array([lightspeed/ (2 * np.pi)], dtype=np.float64)
+        frequency_shapelets=np.array([lightspeed * (np.sqrt(2))/ (4 * np.pi**2)], dtype=np.float64)
         frequency_gaussian = np.array([(lightspeed * np.sqrt(np.log(256))) / (np.sqrt(2) * np.pi)], dtype=np.float64)
         gaussian_params=np.array([[1., 1., 0.]], dtype=np.float64)
 
@@ -104,12 +104,13 @@ def test_shapelets_against_gaussian():
         gaussian_shape_max = np.abs(gaussian_shape).max()
         print("gaussian_shape_max = ", gaussian_shape_max)
 
-        uv_shape = uv_shape / uv_shape_max
-        gaussian_shape = gaussian_shape / gaussian_shape_max
+        uv_shape = uv_shape# / uv_shape_max
+        gaussian_shape = gaussian_shape# / gaussian_shape_max
         
+        print("maximum_gauss, maximum shapelet = ", uv_shape_max, gaussian_shape_max)
         print("ratio = ", uv_shape_max / gaussian_shape_max)
-        print("pi / dldm =", np.sqrt(np.pi) * delta_l * delta_m)
         print("shape = ", np.allclose(uv_shape.real, gaussian_shape))
+        print("max diff = ", np.max(uv_shape.real - gaussian_shape))
 
         plt.figure('Shapelet')
         plt.imshow(uv_shape[:, 0, 0].real.reshape(npix, npix))
