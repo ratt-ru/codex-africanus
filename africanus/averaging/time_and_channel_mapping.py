@@ -8,8 +8,9 @@ from collections import namedtuple
 
 import numpy as np
 import numba
-
-from africanus.averaging.support import unique_time, unique_baselines
+import sys
+sys.path.insert(0, '/Users/smasoka/Varsity/codex-africanus/africanus/averaging/')
+from support import unique_time, unique_baselines
 from africanus.util.numba import is_numba_type_none, generated_jit, njit, jit
 
 

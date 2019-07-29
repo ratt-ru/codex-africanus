@@ -8,10 +8,11 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from africanus.averaging.support import unique_time, unique_baselines
-from africanus.averaging.time_and_channel_avg import time_and_channel
-from africanus.averaging.time_and_channel_mapping import (row_mapper,
-                                                          channel_mapper)
+import sys
+sys.path.insert(0, '/Users/smasoka/Varsity/codex-africanus/africanus/averaging/')
+from support import unique_time, unique_baselines
+from baseline_time_and_channel_mapping import baseline_row_mapper
+from baseline_time_and_channel_avg import baseline_time_and_channel
 
 nchan = 16
 ncorr = 4

@@ -64,8 +64,9 @@ def test_row_mapper(time, interval, ant1, ant2,
     np.add.at(new_interval, ret.map, interval)
     np.add.at(counts, ret.map, 1)
     print("\n After Mapping \n")
+    print("ret.time \n", ret.time)
     print("new_time \n", new_time)
-    print("new_interval \n", new_interval)
+#     print("new_interval \n", new_interval)
     print("counts", counts)
 
     assert_array_equal(ret.time, new_time / counts)

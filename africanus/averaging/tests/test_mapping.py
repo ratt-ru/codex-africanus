@@ -8,8 +8,10 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
-from africanus.averaging.support import unique_time, unique_baselines
-from africanus.averaging.time_and_channel_mapping import (row_mapper,
+import sys
+sys.path.insert(0, '/Users/smasoka/Varsity/codex-africanus/africanus/averaging/')
+from support import unique_time, unique_baselines
+from time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 
 
@@ -69,7 +71,7 @@ def test_row_mapper(time, interval, ant1, ant2,
     np.add.at(new_time, ret.map, time)
     np.add.at(new_interval, ret.map, interval)
     np.add.at(counts, ret.map, 1)
-
+    
     assert_array_equal(ret.time, new_time / counts)
     assert_array_equal(ret.interval, new_interval)
 
