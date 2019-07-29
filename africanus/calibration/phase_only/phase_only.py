@@ -196,7 +196,7 @@ def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
             #                                residual, model, flag)
 
         # implement update
-        phases_new = phases + (jhr/jhj).real
+        phases_new = phases + 0.5 * (jhr/jhj).real
         jones = np.exp(1.0j * phases_new)
 
         # check convergence/iteration control

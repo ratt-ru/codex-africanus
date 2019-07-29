@@ -1,0 +1,88 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+from functools import wraps
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import generated_jit, njit
+
+DIAG_DIAG = 0
+DIAG = 1
+FULL = 2
+
+
+def check_type(jones, vis, vis_type='vis'):
+    """
+    Determines which calibration scenario to apply i.e.
+    DIAG_DIAG, DIAG or COMPLEX2x2.
+
+    Parameters
+    ----------
+    jones : $(array_type)
+        Jones term of shape :code:`(time, ant, chan, dir, corr)`
+        or :code:`(time, ant, chan, dir, corr, corr)`
+    vis : $(array_type)
+        Visibility data of shape :code:`(row, chan, corr)`
+        or :code:`(row, chan, corr, corr)`
+    vis_type : str
+        String specifying what kind of visibility we are checking
+        against. Options are 'vis' or 'model'
+
+    """
+    if vis_type == 'vis':
+        vis_ndim = (3, 4)
+    elif vis_type == 'model':
+        vis_ndim = (4, 5)
+    else:
+        raise ValueError("Unknown vis_type")
+
+    vis_axes_count = vis.ndim
+    jones_axes_count = jones.ndim
+    if vis_axes_count == vis_ndim[0]:
+        mode = DIAG_DIAG
+        if jones_axes_count != 5:
+            raise RuntimeError("Jones axes not compatible with \
+                                visibility axes. Expected length \
+                                5 but got length %d" % jones_axes_count)
+
+    elif vis_axes_count == vis_ndim[1]:
+        if jones_axes_count == 5:
+            mode = DIAG
+
+        elif jones_axes_count == 6:
+            mode = FULL
+        else:
+            raise RuntimeError("Jones term has incorrect shape")
+    else:
+        raise RuntimeError("Visibility data has incorrect shape")
+
+    return mode
+
+
+def chunkify_rows(time, utimes_per_chunk):
+    """
+    Divides rows into chunks containing integer
+    numbers of times.
+
+    Parameters:
+    -----------
+
+    time : $(array_type)
+        TIME column of MS
+    utimes_per_chunk : integer
+        The number of unique times to place in each chunk
+
+    Returns
+    -------
+    row_chunks : tuple
+        A tuple of row chunks that can be used to initialise
+        an xds with chunks={'row': row_chunks} for example.
+    """
+    utimes, counts = np.unique(time, return_counts=True)
+    n_time = len(utimes)
+    row_chunks = [np.sum(counts[i:i+utimes_per_chunk])
+                  for i in range(0, n_time, utimes_per_chunk)]
+    return tuple(row_chunks)

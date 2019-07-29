@@ -13,7 +13,8 @@ from africanus.rime.predict import predict_vis
 
 corr_shape_parametrization = pytest.mark.parametrize(
     'corr_shape, jones_shape',
-    [((2,), (2,)),  # DIAG_DIAG
+    [((1,), (1,)),  # DIAG_DIAG
+     ((2,), (2,)),  # DIAG_DIAG
      ((2, 2), (2,)),  # DIAG
      ((2, 2), (2, 2)),  # FULL
      ])
@@ -148,7 +149,7 @@ def test_correct_vis(data_factory, corr_shape, jones_shape):
         time_bin_indices, time_bin_counts,
         ant1, ant2, jones, vis, flag)
     # squeeze out dir axis to get expected model data
-    model = model.squeeze()
+    model = model.reshape(vis.shape)
     assert_array_almost_equal(corrected_vis, model, decimal=10)
 
 
@@ -239,7 +240,7 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape):
     da_model = correct_vis(da_time_bin_idx, da_time_bin_counts, da_ant1,
                            da_ant2, da_jones, da_vis, da_flag)
     model2 = da_model.compute()
-    assert_array_almost_equal(model.squeeze(), model2, decimal=10)
+    assert_array_almost_equal(model.reshape(model2.shape), model2, decimal=10)
 
 
 @corr_shape_parametrization
