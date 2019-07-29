@@ -9,8 +9,10 @@ from functools import wraps
 from africanus.calibration.phase_only.phase_only import COMPUTE_JHJ_DOCS
 from africanus.calibration.phase_only.phase_only import COMPUTE_JHR_DOCS
 from africanus.calibration.utils import check_type
-from africanus.calibration.phase_only.phase_only import compute_jhj as np_compute_jhj
-from africanus.calibration.phase_only.phase_only import compute_jhr as np_compute_jhr
+from africanus.calibration.phase_only.phase_only import (compute_jhj
+                                                         as np_compute_jhj)
+from africanus.calibration.phase_only.phase_only import (compute_jhr
+                                                         as np_compute_jhr)
 from africanus.util.requirements import requires_optional
 
 try:
@@ -92,12 +94,8 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
                      align_arrays=False)
 
 
-
-
 compute_jhj.__doc__ = COMPUTE_JHJ_DOCS.substitute(
                         array_type=":class:`dask.array.Array`")
 
 compute_jhr.__doc__ = COMPUTE_JHR_DOCS.substitute(
                         array_type=":class:`dask.array.Array`")
-
-

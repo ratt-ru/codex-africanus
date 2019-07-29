@@ -14,6 +14,7 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
+
 def subtract_model_factory(mode):
     if mode == DIAG_DIAG:
         def subtract_model(a1j, blj, a2j, model, out):

@@ -5,9 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from functools import wraps
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit, njit
 
 DIAG_DIAG = 0
 DIAG = 1
@@ -81,8 +79,10 @@ def chunkify_rows(time, utimes_per_chunk):
         A tuple of row chunks that can be used to initialise
         an xds with chunks={'row': row_chunks} for example.
     """
-    utimes, counts = np.unique(time, return_counts=True)
+    utimes, time_bin_counts = np.unique(time, return_counts=True)
     n_time = len(utimes)
-    row_chunks = [np.sum(counts[i:i+utimes_per_chunk])
+    row_chunks = [np.sum(time_bin_counts[i:i+utimes_per_chunk])
                   for i in range(0, n_time, utimes_per_chunk)]
-    return tuple(row_chunks)
+    time_bin_indices = np.zeros(n_time, dtype=np.uint16)
+    time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
+    return tuple(row_chunks), time_bin_indices, time_bin_counts

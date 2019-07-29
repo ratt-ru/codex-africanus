@@ -6,7 +6,7 @@ from __future__ import print_function
 
 from functools import wraps
 
-from africanus.calibration.utils.correct_vis import CORRECT_VIS_DOCS 
+from africanus.calibration.utils.correct_vis import CORRECT_VIS_DOCS
 from africanus.calibration.utils.corrupt_vis import CORRUPT_VIS_DOCS
 from africanus.calibration.utils.residual_vis import RESIDUAL_VIS_DOCS
 from africanus.calibration.utils import correct_vis as np_correct_vis
@@ -26,6 +26,7 @@ else:
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
+
 
 @wraps(np_corrupt_vis)
 def _corrupt_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
@@ -147,6 +148,7 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                      new_axes={"corr2": 2},  # why?
                      dtype=vis.dtype,
                      align_arrays=False)
+
 
 corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
                         array_type=":class:`dask.array.Array`")

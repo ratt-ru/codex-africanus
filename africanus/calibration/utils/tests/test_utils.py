@@ -176,10 +176,9 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
 
     # set up dask arrays
-    _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
     da_time_bin_counts = da.from_array(
         time_bin_counts, chunks=(utimes_per_chunk))
@@ -221,10 +220,9 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
 
     # set up dask arrays
-    _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
     da_time_bin_counts = da.from_array(
         time_bin_counts, chunks=(utimes_per_chunk))
@@ -267,10 +265,9 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
 
     # set up dask arrays
-    _, time_bin_idx, _, time_bin_counts = unique_time(time)
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
     da_time_bin_counts = da.from_array(
         time_bin_counts, chunks=(utimes_per_chunk))

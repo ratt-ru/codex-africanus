@@ -10,6 +10,10 @@ import pytest
 from africanus.averaging.support import unique_time
 from africanus.calibration.phase_only import phase_only_gauss_newton
 from africanus.calibration.utils import chunkify_rows
+from africanus.calibration.phase_only.phase_only import (compute_jhj
+                                                         as np_compute_jhj)
+from africanus.calibration.phase_only.phase_only import (compute_jhr
+                                                         as np_compute_jhr)
 
 
 def test_compute_jhj_and_jhr(data_factory):
@@ -66,8 +70,7 @@ def test_compute_jhj_dask(data_factory):
     time = data_dict['TIME']
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks = chunkify_rows(time, utimes_per_chunk)
-    _, time_bin_idx, _, time_bin_counts = unique_time(time)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']
@@ -75,7 +78,6 @@ def test_compute_jhj_dask(data_factory):
     flag = data_dict['FLAG']
 
     # get the numpy result
-    from africanus.calibration.phase_only.phase_only import compute_jhj as np_compute_jhj
     jhj = np_compute_jhj(time_bin_idx, time_bin_counts, ant1, ant2,
                          jones, model, flag)
 
@@ -116,8 +118,7 @@ def test_compute_jhr_dask(data_factory):
     time = data_dict['TIME']
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks = chunkify_rows(time, utimes_per_chunk)
-    _, time_bin_idx, _, time_bin_counts = unique_time(time)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']
@@ -126,7 +127,6 @@ def test_compute_jhr_dask(data_factory):
     flag = data_dict['FLAG']
 
     # get the numpy result
-    from africanus.calibration.phase_only.phase_only import compute_jhr as np_compute_jhr
     jhr = np_compute_jhr(time_bin_idx, time_bin_counts, ant1, ant2,
                          jones, vis, model, flag)
 

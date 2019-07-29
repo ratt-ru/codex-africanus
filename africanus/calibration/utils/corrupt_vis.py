@@ -14,6 +14,7 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
+
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
         def jones_mul(a1j, model, a2j, out):
@@ -93,6 +94,7 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
         return vis
 
     return _corrupt_vis_fn
+
 
 CORRUPT_VIS_DOCS = DocstringTemplate("""
 Corrupts model visibilities with arbitrary
