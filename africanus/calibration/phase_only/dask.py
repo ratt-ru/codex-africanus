@@ -6,11 +6,11 @@ from __future__ import print_function
 
 from functools import wraps
 
-from africanus.calibration.phase_only import COMPUTE_JHJ_DOCS
-from africanus.calibration.phase_only import COMPUTE_JHR_DOCS
+from africanus.calibration.phase_only.phase_only import COMPUTE_JHJ_DOCS
+from africanus.calibration.phase_only.phase_only import COMPUTE_JHR_DOCS
 from africanus.calibration.utils import check_type
-from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
-from africanus.calibration.phase_only import compute_jhr as np_compute_jhr
+from africanus.calibration.phase_only.phase_only import compute_jhj as np_compute_jhj
+from africanus.calibration.phase_only.phase_only import compute_jhr as np_compute_jhr
 from africanus.util.requirements import requires_optional
 
 try:

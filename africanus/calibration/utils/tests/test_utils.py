@@ -190,7 +190,7 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape):
     da_jones = da.from_array(jones, chunks=(
         utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
 
-    from africanus.calibration.dask import corrupt_vis
+    from africanus.calibration.utils.dask import corrupt_vis
     da_vis = corrupt_vis(da_time_bin_idx, da_time_bin_counts,
                          da_ant1, da_ant2, da_jones, da_model)
     vis2 = da_vis.compute()
@@ -236,7 +236,7 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape):
     da_flag = da.from_array(flag, chunks=(
         row_chunks, (n_chan,)) + (corr_shape))
 
-    from africanus.calibration.dask import correct_vis
+    from africanus.calibration.utils.dask import correct_vis
     da_model = correct_vis(da_time_bin_idx, da_time_bin_counts, da_ant1,
                            da_ant2, da_jones, da_vis, da_flag)
     model2 = da_model.compute()
@@ -288,7 +288,7 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape):
     residual = residual_vis_np(time_bin_idx, time_bin_counts, ant1, ant2,
                                jones, vis, flag, model)
 
-    from africanus.calibration.dask import residual_vis
+    from africanus.calibration.utils.dask import residual_vis
     da_residual = residual_vis(da_time_bin_idx, da_time_bin_counts,
                                da_ant1, da_ant2, da_jones, da_vis,
                                da_flag, da_model)

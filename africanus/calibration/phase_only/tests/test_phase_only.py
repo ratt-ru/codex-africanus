@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 from africanus.averaging.support import unique_time
-from africanus.calibration import phase_only_gauss_newton
+from africanus.calibration.phase_only import phase_only_gauss_newton
 from africanus.calibration.utils import chunkify_rows
 
 
@@ -34,8 +34,9 @@ def test_compute_jhj_and_jhr(data_factory):
     jones = data_dict['JONES']
     flag = data_dict['FLAG']
 
-    from africanus.calibration.phase_only import compute_jhj, compute_jhr
-    from africanus.calibration.phase_only import compute_jhj_and_jhr
+    from africanus.calibration.phase_only.phase_only import compute_jhj
+    from africanus.calibration.phase_only.phase_only import compute_jhr
+    from africanus.calibration.phase_only.phase_only import compute_jhj_and_jhr
     jhj1, jhr1 = compute_jhj_and_jhr(time_bin_indices, time_bin_counts,
                                      ant1, ant2, jones, vis, model, flag)
     jhj2 = compute_jhj(time_bin_indices, time_bin_counts,
@@ -74,7 +75,7 @@ def test_compute_jhj_dask(data_factory):
     flag = data_dict['FLAG']
 
     # get the numpy result
-    from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
+    from africanus.calibration.phase_only.phase_only import compute_jhj as np_compute_jhj
     jhj = np_compute_jhj(time_bin_idx, time_bin_counts, ant1, ant2,
                          jones, model, flag)
 
@@ -90,7 +91,7 @@ def test_compute_jhj_dask(data_factory):
         utimes_per_chunk, n_ant, n_chan, n_dir)+jones_shape)
     da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + corr_shape)
 
-    from africanus.calibration.dask import compute_jhj
+    from africanus.calibration.phase_only.dask import compute_jhj
 
     da_jhj = compute_jhj(da_time_bin_idx, da_time_bin_counts,
                          da_ant1, da_ant2, da_jones, da_model, da_flag)
@@ -125,7 +126,7 @@ def test_compute_jhr_dask(data_factory):
     flag = data_dict['FLAG']
 
     # get the numpy result
-    from africanus.calibration.phase_only import compute_jhr as np_compute_jhr
+    from africanus.calibration.phase_only.phase_only import compute_jhr as np_compute_jhr
     jhr = np_compute_jhr(time_bin_idx, time_bin_counts, ant1, ant2,
                          jones, vis, model, flag)
 
@@ -142,7 +143,7 @@ def test_compute_jhr_dask(data_factory):
     da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + corr_shape)
     da_vis = da.from_array(vis, chunks=(row_chunks, (n_chan,)) + corr_shape)
 
-    from africanus.calibration.dask import compute_jhr
+    from africanus.calibration.phase_only.dask import compute_jhr
 
     da_jhr = compute_jhr(da_time_bin_idx, da_time_bin_counts,
                          da_ant1, da_ant2, da_jones, da_vis, da_model, da_flag)
