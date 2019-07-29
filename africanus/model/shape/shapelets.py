@@ -40,7 +40,7 @@ def basis_function(n, xx, beta, fourier=False, delta_x=None):
         return 1.0j**n * basis_component * exponential_component * np.sqrt(2*np.pi)/delta_x
     else:
         return basis_component * exponential_component
-
+"""
 #@numba.jit(nogil=True, nopython=True, cache=True)
 def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     l0, m0 = lm_source_center
@@ -48,9 +48,10 @@ def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     u, v, w = uvw
     real_phase = minus_two_pi_over_c * frequency * (u*l0 + v*m0 + w*(n0-1))
     return np.exp(1.0j*real_phase)
+"""
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np.complex128):
+def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, dtype=np.complex128):
     """
     shapelet: outputs visibilities corresponding to that of a shapelet
     Inputs:
@@ -78,7 +79,6 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np
         for chan in range(nchan):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
-            # print("fu - u = ", fu - u)
             for src in range(nsrc):
                 beta_u, beta_v = beta[src, :]
                 tmp_shapelet = np.zeros(1, dtype=dtype)
@@ -86,9 +86,7 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, lm, dtype=np
                     for n2 in range(nmax2):
                         tmp_shapelet += coeffs_l[src, n1] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * coeffs_m[src, n2] * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
-                wterm = phase_steer_and_w_correct((u, v, w), lm[src], frequency[chan])
-                tmp = tmp_shapelet * wterm
-                out_shapelets[row, chan, src] = tmp[0]
+                out_shapelets[row, chan, src] = tmp_shapelet[0]
     return out_shapelets
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
