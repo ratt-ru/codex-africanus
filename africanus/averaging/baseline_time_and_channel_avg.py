@@ -99,7 +99,7 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_ce
     have_sigma = not is_numba_type_none(sigma)
     
     # Make sure about the flags
-    flags_match = matching_flag_flactory(have_flag_row)
+    flags_match = matching_flag_factory(have_flag_row)
     
     # Factory functions 
     interval_factory = output_factory(have_interval)
@@ -151,7 +151,7 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_ce
                 time_centroid_adder(time_centroid_avg, out_row, time_centroid, in_row)
                 exposure_adder(exposure_avg, out_row, exposure, in_row)
                 
-                count[out_row] += 1
+                counts[out_row] += 1
             
             ant1_avg[out_row] = ant1[in_row]
             ant2_avg[out_row] = ant2[in_row]
@@ -159,7 +159,7 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_ce
         
         # Normalise
         for out_row in range(out_rows):
-            count = count[out_row]
+            count = counts[out_row]
             
             if count > 0:
                 uvw_normaliser(uvw_avg, out_row, count)
@@ -275,7 +275,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
         flag_row = merge_flags(flag_row, flag)
     
         # Get the baseline row mapper data
-        row_meta = baselibe_row_mapper(uvw, time, antenna1, antenna2, flag_row=flag_row, bins_for_longest_baseline=bins_for_longest_baseline)
+        row_meta = baseline_row_mapper(uvw, time, antenna1, antenna2, flag_row=flag_row, bins_for_longest_baseline=bins_for_longest_baseline)
     
     
         # Average the rows according to the meta data
