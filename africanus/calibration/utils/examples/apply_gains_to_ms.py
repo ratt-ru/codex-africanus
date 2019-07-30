@@ -57,7 +57,6 @@ time_bin_counts = da.from_array(time_bin_counts, chunks=(args.utimes_per_chunk))
 
 # get model column names
 model_cols = args.model_cols.split(',')
-print(model_cols)
 n_dir = len(model_cols)
 
 # append antenna columns
@@ -81,9 +80,15 @@ for xds in xds_from_ms(args.ms,
     ant1 = xds.ANTENNA1.data
     ant2 = xds.ANTENNA2.data
     model_shape = vis.shape[0:2] + (n_dir,) + vis.shape[2:]
-    model = da.empty(model_shape, vis.dtype)
-    for d, col in enumerate(model_cols):
-        model[:, :, d] = getattr(xds, col).data
+    model = []
+    for col in model_cols:
+        model.append(getattr(xds, col).data)
+    
+    # concatenate along dir axis
+    model = da.stack(model, axis=2)
+    chunks = list(model.chunks)
+    chunks[2] = (n_dir,)
+    model.rechunk(tuple(chunks))
     
     # apply gains
     corrupted_data = corrupt_vis(time_bin_idx, time_bin_counts, ant1, ant2,
