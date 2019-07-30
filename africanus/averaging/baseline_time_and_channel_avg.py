@@ -86,7 +86,7 @@ RowAverageOutput = namedtuple("RowAverageOutput", _row_output_fields)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None,time_centroid=None, 
+def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_centroid=None, 
                          exposure=None, uvw=None, weight=None, sigma=None):
     
     # Verify Data Types
@@ -124,7 +124,7 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None,time_cen
     weight_normaliser = normaliser_factory(have_weight)
     sigma_normaliser = normaliser_factory(have_sigma)
     
-    def impl(meta, ant1, ant2, interval=None, flag_row=None,time_centroid=None, 
+    def impl(meta, ant1, ant2, interval=None, flag_row=None, time_centroid=None, 
             exposure=None, uvw=None, weight=None, sigma=None):
         
         out_rows = meta.time.shape[0]
@@ -275,7 +275,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
         flag_row = merge_flags(flag_row, flag)
     
         # Get the baseline row mapper data
-        row_meta = baselibe_row_mapper(uvw, time, antenna1, antenna2,                                                          flag_row=flag_row, bins_for_longest_baseline=bins_for_longest_baseline)
+        row_meta = baselibe_row_mapper(uvw, time, antenna1, antenna2, flag_row=flag_row, bins_for_longest_baseline=bins_for_longest_baseline)
     
     
         # Average the rows according to the meta data

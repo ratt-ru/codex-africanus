@@ -39,18 +39,19 @@ sigma = np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 shape = (time.shape[0], nchan, ncorr)
 weight_spectrum = np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 sigma_spectrum = np.arange(np.product(shape), dtype=np.float64).reshape(shape)
-vis = (np.arange(row*chan*fcorrs, dtype=np.float32) +
-      np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
-vis = flat_vis.reshape(row, chan, fcorrs)
-flag = np.random.randint(0, 2, (row, chan, fcorrs))
+row = time.shape[0]
+vis = (np.arange(row*nchan*ncorr, dtype=np.float32) +
+      np.arange(1, row*nchan*ncorr+1, dtype=np.float32)*1j)
+vis = vis.reshape(row, nchan, ncorr)
+flag = np.random.randint(0, 2, (row, nchan, ncorr))
 flag_row = np.zeros(time.shape, dtype=np.uint8)
 flagged_rows = None #, [0, 1], [2, 4], range(10)])
 flag_row[flagged_rows] = 1
 
 print("Running test_baseline_time_and_channel")
 avg = baseline_time_and_channel(time, interval, ant1, ant2,
-                     time_centroid=time, exposure=interval, flag_row,
-                     uvw, weight, sigma,vis, flag,weight_spectrum, sigma_spectrum,
+                     time_centroid=time, exposure=interval, flag_row=flag_row,
+                     uvw=uvw, weight=weight, sigma=sigma,vis=vis, flag=flag, weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
                      bins_for_longest_baseline=1.0)
 
 print("avg.time \n", avg.time)
