@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 This example show how to apply gains to an ms in a chunked up way.
@@ -26,9 +27,10 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", type=str)
     p.add_argument("--model_cols", default='MODEL_DATA', type=str)
+    p.add_argument("--data_col", default='DATA', type=str)
     p.add_argument("--out_col", default='CORRUPTED_DATA', type=str)
     p.add_argument("--gain_file", type=str)
-    p.add_argument("--utime_per_chunk", default=32, type=int)
+    p.add_argument("--utimes_per_chunk", default=32, type=int)
     p.add_argument("--ncpu", default=0, type=int)
     p.add_argument('--field', default=0, type=int)
     return p
@@ -55,18 +57,20 @@ time_bin_counts = da.from_array(time_bin_counts, chunks=(args.utimes_per_chunk))
 
 # get model column names
 model_cols = args.model_cols.split(',')
+print(model_cols)
 n_dir = len(model_cols)
 
 # append antenna columns
 cols = model_cols
 cols.append('ANTENNA1')
 cols.append('ANTENNA2')
+cols.append(args.data_col)
 
 # load in gains
-jones = np.load(args.gains_file)
+jones = np.load(args.gain_file)
 jones_shape = jones.shape
 ndims = len(jones_shape)
-jones = da.from_array(jones, chunks=(args.utime_per_chunk,) + jones_shape[1:])
+jones = da.from_array(jones, chunks=(args.utimes_per_chunk,) + jones_shape[1:])
 
 # load data in in chunks and apply gains to each chunk
 writes = []
@@ -86,7 +90,7 @@ for xds in xds_from_ms(args.ms,
                                  jones, model)
     
     # Assign visibilities to args.out_col and write to ms
-    mode = check_type(jones, vis)
+    mode = check_type(jones, model, vis_type='model')
     if mode == 0:
         data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr"])
     else:
@@ -96,6 +100,8 @@ for xds in xds_from_ms(args.ms,
     write = xds_to_table(xds, args.ms, [args.out_col])
     # Add to the list of writes
     writes.append(write)
+
+writes.visualize("graph.pdf")
 
 # Submit all graph computations in parallel
 with ProgressBar():
