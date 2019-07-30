@@ -42,7 +42,7 @@ def flag_row_factory(nrows, flagged_rows):
 bins_for_longest_baseline = 1 # , 0.2, 1, 2, 4])
 flagged_rows = None #, [0, 1], [2, 4], range(10)])
 
-def test_baseline_row_mapper(uvw, time, ant1, ant2, bins_for_longest_baseline):
+def test_baseline_row_mapper(uvw, time, ant1, ant2, flagged_rows, bins_for_longest_baseline):
     
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
@@ -52,7 +52,7 @@ def test_baseline_row_mapper(uvw, time, ant1, ant2, bins_for_longest_baseline):
 
     flag_row = flag_row_factory(time.size, flagged_rows)
 
-    ret = baseline_row_mapper(uvw, time, ant1, ant2, bins_for_longest_baseline)
+    ret = baseline_row_mapper(uvw, time, ant1, ant2, flag_row, bins_for_longest_baseline)
 
     # For TIME AND INTERVAL, flagged inputs can
     # contribute to unflagged outputs
@@ -67,33 +67,33 @@ def test_baseline_row_mapper(uvw, time, ant1, ant2, bins_for_longest_baseline):
     assert_array_equal(ret.time, new_time / counts)
 
     # Now recalculate time_avg using the row_map
-#     new_tc = np.zeros_like(ret.time)
-#     counts = np.zeros(ret.time.shape, dtype=np.uint32)
+    new_tc = np.zeros_like(ret.time)
+    counts = np.zeros(ret.time.shape, dtype=np.uint32)
 
-#     sel = flag_row == ret.flag_row[ret.map]
-#     np.add.at(new_tc, ret.map[sel], time[sel])
-#     np.add.at(counts, ret.map[sel], 1)
+    sel = flag_row == ret.flag_row[ret.map]
+    np.add.at(new_tc, ret.map[sel], time[sel])
+    np.add.at(counts, ret.map[sel], 1)
 
-#     ant1_avg = np.empty(ret.time.shape, dtype=ant1.dtype)
-#     ant2_avg = np.empty(ret.time.shape, dtype=ant2.dtype)
-#     ant1_avg[ret.map[sel]] = ant1[sel]
-#     ant2_avg[ret.map[sel]] = ant2[sel]
+    ant1_avg = np.empty(ret.time.shape, dtype=ant1.dtype)
+    ant2_avg = np.empty(ret.time.shape, dtype=ant2.dtype)
+    ant1_avg[ret.map[sel]] = ant1[sel]
+    ant2_avg[ret.map[sel]] = ant2[sel]
 
     # Do it a different way
-#     new_tc2 = np.zeros_like(ret.time)
-#     counts2 = np.zeros(ret.time.shape, dtype=np.uint32)
+    new_tc2 = np.zeros_like(ret.time)
+    counts2 = np.zeros(ret.time.shape, dtype=np.uint32)
 
-#     for ri, ro in enumerate(ret.map):
-#         if flag_row[ri] == 1 and ret.flag_row[ro] == 1:
-#             new_tc2[ro] += time[ri]
-#             counts2[ro] += 1
-#         elif flag_row[ri] == 0 and ret.flag_row[ro] == 0:
-#             new_tc2[ro] += time[ri]
-#             counts2[ro] += 1
+    for ri, ro in enumerate(ret.map):
+        if flag_row[ri] == 1 and ret.flag_row[ro] == 1:
+            new_tc2[ro] += time[ri]
+            counts2[ro] += 1
+        elif flag_row[ri] == 0 and ret.flag_row[ro] == 0:
+            new_tc2[ro] += time[ri]
+            counts2[ro] += 1
 
 
-#     assert_array_almost_equal(new_tc / counts, new_tc2 / counts2)
+    assert_array_almost_equal(new_tc / counts, new_tc2 / counts2)
 
 # Call test_baseline_row_mapper
-test_baseline_row_mapper(uvw, time, ant1, ant2, bins_for_longest_baseline)
+test_baseline_row_mapper(uvw, time, ant1, ant2, flagged_rows, bins_for_longest_baseline)
 

@@ -47,6 +47,7 @@ flag_row = np.zeros(time.shape, dtype=np.uint8)
 flagged_rows = None #, [0, 1], [2, 4], range(10)])
 flag_row[flagged_rows] = 1
 
+print("Running test_baseline_time_and_channel")
 avg = baseline_time_and_channel(time, interval, ant1, ant2,
                      time_centroid=time, exposure=interval, flag_row,
                      uvw, weight, sigma,vis, flag,weight_spectrum, sigma_spectrum,
