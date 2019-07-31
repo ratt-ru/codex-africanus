@@ -70,7 +70,8 @@ def test_compute_jhj_dask(data_factory):
     time = data_dict['TIME']
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']
@@ -118,7 +119,8 @@ def test_compute_jhr_dask(data_factory):
     time = data_dict['TIME']
     ncpu = 8
     utimes_per_chunk = n_time//ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     model = data_dict['MODEL_DATA']

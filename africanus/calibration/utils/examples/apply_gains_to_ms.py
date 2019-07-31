@@ -3,7 +3,7 @@
 """
 This example show how to apply gains to an ms in a chunked up way.
 The gains should be stored in a .npy file and have the shape
-expected by the corrupt_vis function. 
+expected by the corrupt_vis function.
 It is assumed that the direction axis is ordered in the same way as
 model_cols where model_cols is a comma separated string
 """
@@ -15,25 +15,26 @@ import numpy as np
 from africanus.calibration.utils.dask import corrupt_vis
 from africanus.calibration.utils import chunkify_rows
 import xarray as xr
-from xarrayms import xds_from_ms, xds_from_table, xds_to_table
+from xarrayms import xds_from_ms, xds_to_table
 from pyrap.tables import table
 import dask.array as da
 from dask.diagnostics import ProgressBar
-from africanus.calibration.utils import check_type
 
 import argparse
+
 
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", type=str)
     p.add_argument("--model_cols", default='MODEL_DATA', type=str)
     p.add_argument("--data_col", default='DATA', type=str)
-    p.add_argument("--out_col", default='CORRUPTED_DATA', type=str)
+    p.add_argument("--out_col", default='CORRECTED_DATA', type=str)
     p.add_argument("--gain_file", type=str)
     p.add_argument("--utimes_per_chunk", default=32, type=int)
     p.add_argument("--ncpu", default=0, type=int)
     p.add_argument('--field', default=0, type=int)
     return p
+
 
 args = create_parser().parse_args()
 
@@ -50,64 +51,63 @@ print("Using %i threads" % ncpu)
 
 # get full time column and compute row chunks
 time = table(args.ms).getcol('TIME')
-row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, args.utimes_per_chunk)
+row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
 # convert to dask arrays
-time_bin_idx = da.from_array(time_bin_idx, chunks=(args.utimes_per_chunk))
-time_bin_counts = da.from_array(time_bin_counts, chunks=(args.utimes_per_chunk))
+tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
+tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
 
 # get model column names
 model_cols = args.model_cols.split(',')
 n_dir = len(model_cols)
 
 # append antenna columns
-cols = model_cols
+cols = []
 cols.append('ANTENNA1')
 cols.append('ANTENNA2')
 cols.append(args.data_col)
+for col in model_cols:
+    cols.append(col)
 
 # load in gains
 jones = np.load(args.gain_file)
+jones = jones.astype(np.complex64)
 jones_shape = jones.shape
 ndims = len(jones_shape)
-jones = da.from_array(jones, chunks=(args.utimes_per_chunk,) + jones_shape[1:])
+jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
+                      + jones_shape[1:])
 
 # load data in in chunks and apply gains to each chunk
-writes = []
-for xds in xds_from_ms(args.ms,
-                       columns=cols,
-                       chunks={"row": row_chunks}):
-    vis = getattr(xds, args.data_col).data
-    ant1 = xds.ANTENNA1.data
-    ant2 = xds.ANTENNA2.data
-    model_shape = vis.shape[0:2] + (n_dir,) + vis.shape[2:]
-    model = []
-    for col in model_cols:
-        model.append(getattr(xds, col).data)
-    
-    # concatenate along dir axis
-    model = da.stack(model, axis=2)
-    chunks = list(model.chunks)
-    chunks[2] = (n_dir,)
-    model.rechunk(tuple(chunks))
-    
-    # apply gains
-    corrupted_data = corrupt_vis(time_bin_idx, time_bin_counts, ant1, ant2,
-                                 jones, model)
-    
-    # Assign visibilities to args.out_col and write to ms
-    mode = check_type(jones, model, vis_type='model')
-    if mode == 0:
-        data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr"])
-    else:
-        data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr", "corr"])
-    xds = xds.assign(**{args.out_col: data})
-    # Create a write to the table
-    write = xds_to_table(xds, args.ms, [args.out_col])
-    # Add to the list of writes
-    writes.append(write)
+xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
+vis = getattr(xds, args.data_col).data
+ant1 = xds.ANTENNA1.data
+ant2 = xds.ANTENNA2.data
 
-writes.visualize("graph.pdf")
+model = []
+for col in model_cols:
+    model.append(getattr(xds, col).data)
+model = da.stack(model, axis=2).rechunk({2: 3})
+
+# reshape the correlation axis
+if model.shape[-1] > 2:
+    n_row, n_chan, n_dir, n_corr = model.shape
+    model = model.reshape(n_row, n_chan, n_dir, 2, 2)
+    reshape_vis = True
+
+# apply gains
+corrupted_data = corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
+                             jones, model)
+
+if reshape_vis:
+    corrupted_data = corrupted_data.reshape(n_row, n_chan, n_corr)
+
+# Assign visibilities to args.out_col and write to ms
+data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr"])
+
+xds = xds.assign(**{args.out_col: data})
+
+# Create a write to the table
+write = xds_to_table(xds, args.ms, [args.out_col])
 
 # Submit all graph computations in parallel
 with ProgressBar():
-    dask.compute(writes)
+    write.compute()

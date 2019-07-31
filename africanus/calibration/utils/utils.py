@@ -13,23 +13,6 @@ FULL = 2
 
 
 def check_type(jones, vis, vis_type='vis'):
-    """
-    Determines which calibration scenario to apply i.e.
-    DIAG_DIAG, DIAG or COMPLEX2x2.
-
-    Parameters
-    ----------
-    jones : $(array_type)
-        Jones term of shape :code:`(time, ant, chan, dir, corr)`
-        or :code:`(time, ant, chan, dir, corr, corr)`
-    vis : $(array_type)
-        Visibility data of shape :code:`(row, chan, corr)`
-        or :code:`(row, chan, corr, corr)`
-    vis_type : str
-        String specifying what kind of visibility we are checking
-        against. Options are 'vis' or 'model'
-
-    """
     if vis_type == 'vis':
         vis_ndim = (3, 4)
     elif vis_type == 'model':
@@ -61,9 +44,52 @@ def check_type(jones, vis, vis_type='vis'):
 
 
 def chunkify_rows(time, utimes_per_chunk):
-    """
+    utimes, time_bin_counts = np.unique(time, return_counts=True)
+    n_time = len(utimes)
+    row_chunks = [np.sum(time_bin_counts[i:i+utimes_per_chunk])
+                  for i in range(0, n_time, utimes_per_chunk)]
+    time_bin_indices = np.zeros(n_time, dtype=np.int32)
+    time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
+    time_bin_indices = time_bin_indices.astype(np.int32)
+    time_bin_counts = time_bin_counts.astype(np.int32)
+    return tuple(row_chunks), time_bin_indices, time_bin_counts
+
+
+CHECK_TYPE_DOCS = DocstringTemplate("""
+    Determines which calibration scenario to apply i.e.
+    DIAG_DIAG, DIAG or COMPLEX2x2.
+
+    Parameters
+    ----------
+    jones : $(array_type)
+        Jones term of shape :code:`(time, ant, chan, dir, corr)`
+        or :code:`(time, ant, chan, dir, corr, corr)`
+    vis : $(array_type)
+        Visibility data of shape :code:`(row, chan, corr)`
+        or :code:`(row, chan, corr, corr)`
+    vis_type : str
+        String specifying what kind of visibility we are checking
+        against. Options are 'vis' or 'model'
+
+    Returns
+    -------
+    mode : integer
+        An integer representing the calibration mode.
+        Options are 0 -> DIAG_DIAG, 1 -> DIAG, 2 -> FULL
+
+""")
+
+try:
+    check_type.__doc__ = CHECK_TYPE_DOCS.substitute(
+                                    array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
+
+CHUNKIFY_ROWS_DOCS = DocstringTemplate("""
     Divides rows into chunks containing integer
-    numbers of times.
+    numbers of times keeping track of the indices
+    at which the unique time changes and the number
+    of times per unique time.
 
     Parameters:
     -----------
@@ -78,11 +104,15 @@ def chunkify_rows(time, utimes_per_chunk):
     row_chunks : tuple
         A tuple of row chunks that can be used to initialise
         an xds with chunks={'row': row_chunks} for example.
-    """
-    utimes, time_bin_counts = np.unique(time, return_counts=True)
-    n_time = len(utimes)
-    row_chunks = [np.sum(time_bin_counts[i:i+utimes_per_chunk])
-                  for i in range(0, n_time, utimes_per_chunk)]
-    time_bin_indices = np.zeros(n_time, dtype=np.uint16)
-    time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
-    return tuple(row_chunks), time_bin_indices, time_bin_counts
+    time_bin_indices : $(array_type)
+        Array containing the indices at which unique time
+        changes
+    times_bin_counts : $(array_type)
+        Array containing the number of times per unique time.
+""")
+
+try:
+    chunkify_rows.__doc__ = CHUNKIFY_ROWS_DOCS.substitute(
+                                    array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
