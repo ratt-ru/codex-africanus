@@ -19,7 +19,7 @@ import argparse
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", type=str)
-    p.add_argument("--lsm", default='CORRUPTED_DATA', type=str)
+    p.add_argument("--lsm", type=str)
     p.add_argument("--gain_file", type=str)
     return p
 
