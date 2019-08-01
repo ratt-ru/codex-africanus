@@ -5,14 +5,15 @@ from __future__ import division
 from __future__ import print_function
 
 
-from collections import namedtuple
 import os
 import re
 from string import Template
 
+_on_rtd = bool(os.environ.get("READTHEDOCS"))
+
 
 def on_rtd():
-    return bool(os.environ.get("READTHEDOCS"))
+    return _on_rtd
 
 
 def mod_docs(docstring, replacements):

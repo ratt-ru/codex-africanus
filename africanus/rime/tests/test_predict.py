@@ -3,8 +3,8 @@
 
 """Tests for `codex-africanus` package."""
 
-import numba
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
 import pytest
 
@@ -17,31 +17,51 @@ def rc(*a, **kw):
     return rf(*a, **kw) + 1j*rf(*a, **kw)
 
 
-@pytest.mark.parametrize('corr_shape, idm, einsum_sig1, einsum_sig2', [
-    ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
-])
-@pytest.mark.parametrize('a1j,blj,a2j', [
+chunk_parametrization = pytest.mark.parametrize("chunks", [
+    {
+        'source':  (2, 3, 4, 2, 2, 2, 2, 2, 2),
+        'time': (2, 1, 1),
+        'rows': (4, 4, 2),
+        'antenna': (4,),
+        'channels': (3, 2),
+    }])
+
+corr_shape_parametrization = pytest.mark.parametrize(
+    'corr_shape, idm, einsum_sig1, einsum_sig2', [
+        ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+        ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
+        ((2, 2), ((1, 0), (0, 1)),
+            "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil")
+    ])
+
+
+dde_presence_parametrization = pytest.mark.parametrize('a1j,blj,a2j', [
     [True, True, True],
     [True, False, True],
     [False, True, False],
 ])
-@pytest.mark.parametrize('g1j,bvis,g2j', [
+
+die_presence_parametrization = pytest.mark.parametrize('g1j,bvis,g2j', [
     [True, True, True],
     [True, False, True],
     [False, True, False],
 ])
+
+
+@corr_shape_parametrization
+@dde_presence_parametrization
+@die_presence_parametrization
+@chunk_parametrization
 def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
-                     a1j, blj, a2j, g1j, bvis, g2j):
+                     a1j, blj, a2j, g1j, bvis, g2j,
+                     chunks):
     from africanus.rime.predict import predict_vis
 
-    s = 2       # sources
-    t = 4       # times
-    a = 4       # antennas
-    c = 5       # channels
-    r = 10      # rows
+    s = sum(chunks['source'])
+    t = sum(chunks['time'])
+    a = sum(chunks['antenna'])
+    c = sum(chunks['channels'])
+    r = sum(chunks['rows'])
 
     a1_jones = rc((s, t, a, c) + corr_shape)
     bl_jones = rc((s, r, c) + corr_shape)
@@ -88,39 +108,31 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 
     v = np.einsum(einsum_sig2, g1_jones, v, g2_jones)
 
-    assert np.allclose(v, model_vis)
+    assert_array_almost_equal(v, model_vis)
 
 
-@pytest.mark.parametrize('corr_shape, idm, einsum_sig1, einsum_sig2', [
-    ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-    ((2, 2), ((1, 0), (0, 1)),
-     "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
-])
-@pytest.mark.parametrize('a1j,blj,a2j', [
-    [True, True, True],
-    [True, False, True],
-    [False, True, False],
-])
-@pytest.mark.parametrize('g1j,bvis,g2j', [
-    [True, True, True],
-    [True, False, True],
-    [False, True, False],
-])
+@corr_shape_parametrization
+@dde_presence_parametrization
+@die_presence_parametrization
+@chunk_parametrization
+@pytest.mark.parametrize("streams", [1, 3])
 def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
-                          a1j, blj, a2j, g1j, bvis, g2j):
+                          a1j, blj, a2j, g1j, bvis, g2j,
+                          chunks, streams):
 
     da = pytest.importorskip('dask.array')
     import numpy as np
+    import dask
+
     from africanus.rime.predict import predict_vis as np_predict_vis
     from africanus.rime.dask import predict_vis
 
     # chunk sizes
-    sc = (2, 3, 4)    # sources
-    tc = (2, 1, 1)    # times
-    rrc = (4, 4, 2)   # rows
-    ac = (4,)         # antennas
-    cc = (3, 2)       # channels
+    sc = chunks['source']
+    tc = chunks['time']
+    rrc = chunks['rows']
+    ac = chunks['antenna']
+    cc = chunks['channels']
 
     # dimension sizes
     s = sum(sc)       # sources
@@ -162,22 +174,19 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     da_base_vis = da.from_array(base_vis, chunks=(rrc, cc) + corr_shape)
     da_g2_jones = da.from_array(g2_jones, chunks=(tc, ac, cc) + corr_shape)
 
-    model_vis = predict_vis(da_time_idx, da_ant1, da_ant2,
-                            da_a1_jones if a1j else None,
-                            da_bl_jones if blj else None,
-                            da_a2_jones if a2j else None,
-                            da_g1_jones if g1j else None,
-                            da_base_vis if bvis else None,
-                            da_g2_jones if g2j else None)
+    args = (da_time_idx, da_ant1, da_ant2,
+            da_a1_jones if a1j else None,
+            da_bl_jones if blj else None,
+            da_a2_jones if a2j else None,
+            da_g1_jones if g1j else None,
+            da_base_vis if bvis else None,
+            da_g2_jones if g2j else None)
 
-    model_vis = model_vis.compute()
+    stream_model_vis = predict_vis(*args, streams=streams)
+    fan_model_vis = predict_vis(*args, streams=None)
 
-    if not np.allclose(model_vis, np_model_vis):
-        diff = model_vis - np_model_vis
-        diff[np.abs(diff) < 1e-10] = 0.0
-        problems = np.array(np.nonzero(diff)).T
+    stream_model_vis, fan_model_vis = dask.compute(stream_model_vis,
+                                                   fan_model_vis)
 
-        for p in (tuple(p.tolist()) for p in problems):
-            print(p, model_vis[p], np_model_vis[p])
-
-    assert np.allclose(model_vis, np_model_vis)
+    assert_array_almost_equal(fan_model_vis, np_model_vis)
+    assert_array_almost_equal(stream_model_vis, fan_model_vis)

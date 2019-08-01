@@ -1,52 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 """The setup script."""
 
 import os
-import sys
 from setuptools import setup, find_packages
 
-PY2 = sys.version_info[0] == 2
+# Import requirements
+from africanus.install.requirements import (requirements,
+                                            extras_require,
+                                            setup_requirements,
+                                            test_requirements)
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
-
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
-
-# requirements
-on_rtd = os.environ.get('READTHEDOCS') == 'True'
-
-# Basic requirements that contain no C extensions.
-# This is necessary for building on RTD
-requirements = ['decorator']
-
-if not on_rtd:
-    requirements += [
-        # astropy breaks with numpy 1.15.3
-        # https://github.com/astropy/astropy/issues/7943
-        'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.38.0']
-
-extras_require = {
-    'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
-    'dask': ['dask[array] >= 1.1.0'],
-    'jax': ['jax == 0.1.16', 'jaxlib == 0.1.6'],
-    'scipy': ['scipy >= 1.0.0'],
-    'astropy': ['astropy >= 2.0.0, < 3.0.0' if PY2 else 'astropy >= 3.0.0'],
-    'python-casacore': ['python-casacore >= 2.2.1'],
-    'testing': ['pytest', 'pytest-runner']
-}
-
-extras_require['complete'] = sorted(set(sum(extras_require.values(), [])))
-
-setup_requirements = ['pytest-runner', ]
-test_requirements = (['pytest'] +
-                     extras_require['astropy'] +
-                     extras_require['python-casacore'] +
-                     extras_require['dask'] +
-                     extras_require['scipy'])
 
 setup(
     author="Simon Perkins",
@@ -71,7 +42,8 @@ setup(
     extras_require=extras_require,
     install_requires=requirements,
     license="GNU General Public License v2",
-    long_description=readme + '\n\n' + history,
+    long_description=readme,
+    long_description_content_type='text/x-rst',
     include_package_data=True,
     keywords='codex-africanus',
     name='codex-africanus',
@@ -80,6 +52,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.1.2',
+    version='0.1.8',
     zip_safe=False,
 )

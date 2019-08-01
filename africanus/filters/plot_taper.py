@@ -19,8 +19,8 @@ try:
     from matplotlib import cm
     from matplotlib.ticker import LinearLocator, FormatStrFormatter
     from mpl_toolkits.mplot3d import Axes3D  # noqa
-except ImportError as mpl_ie:
-    pass
+except ImportError as e:
+    mpl_ie = e
 else:
     mpl_ie = None
 

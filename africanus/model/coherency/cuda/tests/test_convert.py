@@ -29,7 +29,7 @@ def test_stokes_schemas(in_type, input_schema,
 
 
 @pytest.mark.parametrize("in_type, input_schema, out_type, output_schema",
-                         stokes_corr_cases)
+                         stokes_corr_cases + stokes_corr_int_cases)
 @pytest.mark.parametrize("vis_shape", vis_shape)
 def test_cuda_convert(in_type, input_schema,
                       out_type, output_schema,
@@ -37,7 +37,6 @@ def test_cuda_convert(in_type, input_schema,
     cp = pytest.importorskip('cupy')
 
     input_shape = np.asarray(input_schema).shape
-    output_shape = np.asarray(output_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type)
 
     cp_out = convert(cp.asarray(vis), input_schema, output_schema)

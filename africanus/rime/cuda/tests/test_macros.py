@@ -19,7 +19,6 @@ from africanus.util.jinja2 import jinja_env
 @pytest.mark.parametrize("nvis", [9, 10, 11, 32, 1025])
 @pytest.mark.parametrize("debug", ["false"])
 def test_cuda_inplace_warp_transpose(ncorrs, dtype, nvis, debug):
-    j2 = pytest.importorskip('jinja2')
     cp = pytest.importorskip('cupy')
 
     path = pjoin("rime", "cuda", "tests", "test_warp_transpose.cu.j2")

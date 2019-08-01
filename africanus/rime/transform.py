@@ -7,11 +7,12 @@ from __future__ import print_function
 
 import math
 
-import numba
 import numpy as np
 
+from africanus.util.numba import jit
 
-@numba.jit(nopython=True, nogil=True, cache=True)
+
+@jit(nopython=True, nogil=True, cache=True)
 def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
                           antenna_scaling, frequency, coords):
     """
@@ -29,11 +30,11 @@ def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
                 l, m = lm[s]
 
                 # Rotate source coordinate by parallactic angle
-                l = l*pa_cos - m*pa_sin
+                l = l*pa_cos - m*pa_sin  # noqa
                 m = l*pa_sin + m*pa_cos
 
                 # Add pointing errors
-                l += pointing_errors[t, a, 0]
+                l += pointing_errors[t, a, 0]  # noqa
                 m += pointing_errors[t, a, 1]
 
                 # Scale by antenna scaling factors
