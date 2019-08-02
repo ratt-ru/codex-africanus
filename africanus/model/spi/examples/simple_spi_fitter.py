@@ -36,100 +36,21 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--fitsmodel", type=str)
     p.add_argument("--fitsresidual", type=str)
-    p.add_argument('--emaj', type=float)
-    p.add_argument('--emin', type=float)
-    p.add_argument('--pa', type=float)
-    p.add_argument('--threshold', default=25, type=float)
-    p.add_argument('--channelweights', type=float)
-    p.add_argument('--ncpu', type=int)
+    p.add_argument("--fitsrestored", type=str)
+    p.add_argument('--outfile', type=str, help="Path to output directory." 
+                                               "Placed next to input model "
+                                               "if outfile not provided.")
+    p.add_argument('--emaj', default=None, type=float, help="Major axis of restoring beam ellipse in degrees. By default will try to pinch this from the header.")
+    p.add_argument('--emin', default=None, type=float, help="Minor axis of restoring beam ellipse in degrees. By default will try to pinch this from the header.")
+    p.add_argument('--pa', default=None, type=float, help="Position angle of restoring beam ellipse in degrees. By default will try to pinch this from the header.")
+    p.add_argument('--threshold', default=25, type=float, help="Multiple of the rms in the residual to threshold on. Only components above threshols*rms will be fitted")
+    p.add_argument('--maxDR', default=100, type=float, help="Maximum dynamic range used to determine the threshold above which components need to be fit."
+                                                            "Only used if residual is not passed in")
+    p.add_argument('--channelweights', default=None, type=float, help='The sum of the weights in each imaging band')
+    p.add_argument('--ncpu', default=0, type=int, help='Number of threads to use. Default of zero means use all threads')
     return p
 
 args = create_parser().parse_args()
-
-GD = vars(args)
-for key in GD.keys():
-    print(key, " = ", GD[key])
-
-beampars = (args.emaj*ARCSEC2RAD, args.emin*ARCSEC2RAD, args.pa)
-
-print(beampars)
-
-# load images
-modelhdu = fits.open(args.fitsmodel)
-
-# get frequencies
-deltanu = modelhdu[0].header['CDELT4']
-refnu = modelhdu[0].header['CRVAL4']
-nfreq = modelhdu[0].header['NAXIS4']
-deltal = modelhdu[0].header['CDELT1'] * DEG2RAD
-deltam = modelhdu[0].header['CDELT2'] * DEG2RAD
-
-freqinterval = nfreq*deltanu
-freqs = (refnu - freqinterval/2) + np.arange(0,nfreq)*deltanu
-
-ModelCube = np.asarray(modelhdu[0].data, dtype=np.float64).squeeze()
-if args.fitsresidual:
-    residhdu = fits.open(args.fitsresidual)
-    ResidCube = np.asarray(residhdu[0].data, dtype=np.float64).squeeze()
-    rms = np.std(ResidCube.flatten())
-    Threshold = rms * args.threshold
-    assert ModelCube.shape == ResidCube.shape
-else:
-    ResidCube = None
-    print("This works better with a residual. Ignoring!")
-    Threshold = 0.1 * ModelCube.max()
-
-image_shape = ModelCube.shape
-
-# get the Gaussian kernel
-nchan, nx, ny = image_shape
-if nx % 2:
-    xlower = -nx//2 + 1
-else:
-    xlower = nx//2
-xupper = nx//2 +1
-if ny % 2:
-    ylower = -ny//2 + 1
-else:
-    ylower = ny//2
-yupper = ny//2 +1
-
-x = deltal * np.arange(xlower, xupper)
-y = deltam * np.arange(ylower, yupper)
-xx, yy = np.meshgrid(x, y)
-
-
-GaussKern = Gaussian2D(xx, yy, beampars)
-
-import matplotlib.pyplot as plt
-plt.imshow(GaussKern)
-plt.show()
-
-GaussKernhat = fftpack.fft2(iFs(GaussKern))
-
-# Convolve model with Gaussian kernel
-ConvModel = np.zeros_like(ModelCube)
-for ch in range(nchan):
-    tmp = fftpack.fft2(iFs(ModelCube[ch]))
-    ConvModel[ch] = Fs(fftpack.ifft2(tmp * GaussKernhat)).real
-
-# add in residuals if they exist
-if ResidCube is not None:
-    ConvModel += ResidCube
-
-# for ch in range(nchan):
-#     plt.imshow(ConvModel[ch])
-#     plt.show()
-
-# get pixels above threshold
-MinImage = np.amin(ConvModel, axis=0)
-MaskIndices = np.argwhere(MinImage > Threshold)
-FitCube = ConvModel[:, MaskIndices[:, 0], MaskIndices[:, 1]]
-
-if args.channelweights:
-    weights = args.channelweights
-else:
-    weights = np.ones(nchan)
 
 if args.ncpu:
     ncpu = args.ncpu
@@ -139,28 +60,133 @@ else:
     import multiprocessing
     ncpu = multiprocessing.cpu_count()
 
-_, ncomps = FitCube.shape
-FitCubeDask = da.from_array(FitCube.T.astype(np.float64), chunks=(ncomps//ncpu, nchan))
-weightsDask = da.from_array(weights.astype(np.float64), chunks=(nchan))
-freqsDask = da.from_array(freqs, chunks=(nchan))
+print("Using %i threads" % ncpu)
 
-alpha, varalpha, Iref, varIref = fit_spi_components(FitCubeDask, weightsDask,
-                                                    freqsDask, refnu,
-                                                    dtype=np.float64).compute()
+if args.emaj is None:
+    print("Attempting to take beampars from fits")
+    restoredhdu = fits.getheader(args.fitsrestored)
+    emaj = restoredhdu['BMAJ0']
+    emin = restoredhdu['BMIN0']
+    pa = restoredhdu['BPA0']
+    print(emaj, emin, pa)
+else:
+    emaj = args.emaj
+    emin = args.emin
+    pa = args.pa
 
-alphamap = np.zeros([nx, ny])
-Irefmap = np.zeros([nx, ny])
-alphastdmap = np.zeros([nx, ny])
-Irefstdmap = np.zeros([nx, ny])
 
-alphamap[MaskIndices[:, 0], MaskIndices[:, 1]] = alpha
-Irefmap[MaskIndices[:, 0], MaskIndices[:, 1]] = Iref
-alphastdmap[MaskIndices[:, 0], MaskIndices[:, 1]] = np.sqrt(varalpha)
-Irefstdmap[MaskIndices[:, 0], MaskIndices[:, 1]] = np.sqrt(varIref)
+# load images
+model = fits.getdata(args.fitsmodel).squeeze().astype(np.float64)
+mhdr = fits.getheader(args.fitsmodel)  # going to pinch this header
 
-plt.imshow(alphamap)
-plt.colorbar()
-plt.show()
-plt.imshow(Irefmap)
-plt.colorbar()
-plt.show()
+if mhdr['CUNIT1'] != "DEG" and mhdr['CUNIT1'] != "deg":
+    raise ValueError("Image units must be in degrees")
+npix_l = mhdr['NAXIS1']
+refpix_l = mhdr['CRPIX1']
+delta_l = mhdr['CDELT1'] 
+l_coord = np.arange(1 - refpix_l, 1 + npix_l - refpix_l)*delta_l
+
+if mhdr['CUNIT2'] != "DEG" and mhdr['CUNIT2'] != "deg":
+    raise ValueError("Image units must be in degrees")
+npix_m = mhdr['NAXIS2']
+refpix_m = mhdr['CRPIX2']
+delta_m = mhdr['CDELT2'] 
+m_coord = np.arange(1 - refpix_m, 1 + npix_m - refpix_m)*delta_m
+
+# get frequencies
+if mhdr["CTYPE4"] == 'FREQ':
+    nband = mhdr['NAXIS4']
+    refpix_nu = mhdr['CRPIX4']
+    delta_nu = mhdr['CDELT4']  # assumes units are Hz
+    ref_freq = mhdr['CRVAL4']
+    ncorr = mhdr['NAXIS3']
+elif mhdr["CTYPE3"] == 'FREQ':
+    nband = mhdr['NAXIS3']
+    refpix_nu = mhdr['CRPIX3']
+    delta_nu = mhdr['CDELT3']  # assumes units are Hz
+    ref_freq = mhdr['CRVAL3']
+    ncorr = mhdr['NAXIS4']
+else:
+    raise ValueError("Freq axis must be 3rd or 4th")
+
+freqs = ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
+
+print("Reference frequency is ", ref_freq)
+
+# get the Gaussian kernel
+xx, yy = np.meshgrid(l_coord, m_coord)
+
+
+gausskern = Gaussian2D(xx, yy, (emaj, emin, pa)).astype(np.float64)
+
+import matplotlib.pyplot as plt
+# plt.imshow(GaussKern)
+# plt.show()
+
+gausskernhat = fftpack.fft2(iFs(gausskern))
+
+# Convolve model with Gaussian kernel
+convmodel = np.zeros_like(model)
+for ch in range(nband):
+    tmp = fftpack.fft2(iFs(model[ch]))
+    convmodel[ch] = Fs(fftpack.ifft2(tmp * gausskernhat)).real
+
+# add in residuals if they exist
+if args.fitsresidual is not None:
+    resid = fits.getdata(args.fitsresidual).squeeze().astype(np.float64)
+    rms = np.std(resid)
+    threshold = args.threshold * rms
+    convmodel += resid
+else:
+    print("No residual provided. Setting  threshold i.t.o dynamic range")
+    threshold = model.max()/args.maxDR
+
+# get pixels above threshold
+minimage = np.amin(convmodel, axis=0)
+maskindices = np.argwhere(minimage > threshold)
+fitcube = convmodel[:, maskindices[:, 0], maskindices[:, 1]]
+fitcube = np.ascontiguousarray(fitcube.T.astype(np.float64))
+
+if args.channelweights:
+    weights = args.channelweights.astype(np.float64)
+else:
+    weights = np.ones(nband, dtype=np.float64)
+
+ncomps, _ = fitcube.shape
+fitcubedask = da.from_array(fitcube, chunks=(ncomps//ncpu, nband))
+weightsdask = da.from_array(weights, chunks=(nband))
+freqsdask = da.from_array(freqs.astype(np.float64), chunks=(nband))
+
+alpha, varalpha, Iref, varIref = fit_spi_components(fitcubedask, weightsdask,
+                                                    freqsdask, ref_freq).compute()
+
+alphamap = np.zeros([npix_l, npix_m])
+i0map = np.zeros([npix_l, npix_m])
+alphastdmap = np.zeros([npix_l, npix_m])
+i0stdmap = np.zeros([npix_l, npix_m])
+
+alphamap[maskindices[:, 0], maskindices[:, 1]] = alpha
+i0map[maskindices[:, 0], maskindices[:, 1]] = Iref
+alphastdmap[maskindices[:, 0], maskindices[:, 1]] = np.sqrt(varalpha)
+i0stdmap[maskindices[:, 0], maskindices[:, 1]] = np.sqrt(varIref)
+
+if args.outfile is None:
+    # find last /
+    tmp = args.fitsmodel[::-1]
+    idx = tmp.find('/')
+    outfile = args.fitsmodel[0:-idx]
+else:
+    outfile = args.outfile
+
+# save alpha map
+if not outfile.endswith('/'):
+    outfile = args.outfile
+    
+hdu = fits.PrimaryHDU(header=mhdr)
+hdu.data = alphamap
+hdu.writeto(outfile + 'alpha.fits', overwrite=True)
+
+# save I0 map
+hdu = fits.PrimaryHDU(header=mhdr)
+hdu.data = i0map
+hdu.writeto(outfile + 'I0.fits', overwrite=True)

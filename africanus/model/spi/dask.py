@@ -24,24 +24,21 @@ else:
 
 @wraps(np_fit_spi_components)
 def _fit_spi_components_wrapper(data, weights, freqs, freq0,
-                                alphai, I0i, tol_, maxiter_,
-                                dtype_):
+                                alphai, I0i, tol, maxiter):
     return np_fit_spi_components(data[0],
                                  weights[0],
                                  freqs[0],
                                  freq0,
                                  alphai[0] if alphai is not None else alphai,
                                  I0i[0] if I0i is not None else I0i,
-                                 tol=tol_,
-                                 maxiter=maxiter_,
-                                 dtype=dtype_)
+                                 tol=tol,
+                                 maxiter=maxiter)
 
 
 @requires_optional('dask.array', opt_import_error)
 def fit_spi_components(data, weights, freqs, freq0,
                        alphai=None, I0i=None,
-                       tol=1e-6, maxiter=100,
-                       dtype=np.float64):
+                       tol=1e-5, maxiter=100):
     """ Dask wrapper fit_spi_components function """
     return blockwise(_fit_spi_components_wrapper, ("vars", "comps"),
                      data, ("comps", "chan"),
@@ -52,9 +49,8 @@ def fit_spi_components(data, weights, freqs, freq0,
                      I0i, ("comps",) if I0i is not None else None,
                      tol, None,
                      maxiter, None,
-                     dtype, None,
                      new_axes={"vars": 4},
-                     dtype=dtype)
+                     dtype=data.dtype)
 
 
 fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
