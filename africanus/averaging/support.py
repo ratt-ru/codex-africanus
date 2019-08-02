@@ -80,12 +80,8 @@ def unique_baselines(ant1, ant2):
             bl_32bit[r, 0] = ant1[r]
             bl_32bit[r, 1] = ant2[r]
 
-        print("Unique baseline creation")
-        print(bl_32bit)
         # Cast to int64 for the unique operation
         bl = bl_32bit.view(np.int64).reshape(ant1.shape[0])
-        print("After view 64bits")
-        print(bl)
         ret, idx, inv, counts = _unique_internal(bl)
 
         # Recast to int32 and reshape

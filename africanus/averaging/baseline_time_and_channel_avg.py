@@ -144,7 +144,7 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_ce
         # 
         for in_row, out_row in enumerate(meta.map):
             if flags_match(flag_row, in_row, meta.flag_row, out_row):
-                uvw_adder(interval_avg, out_row, interval, in_row)
+                interval_adder(interval_avg, out_row, interval, in_row)
                 uvw_adder(uvw_avg, out_row, uvw, in_row)
                 weight_adder(weight_avg, out_row, weight, in_row)
                 sigma_adder(sigma_avg, out_row, sigma, in_row)
@@ -252,7 +252,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                    types.scalars.Integer)
 
     if not isinstance(bins_for_longest_baseline, valid_types):
-        raise TypeError("time_bin_secs must be a scalar float")
+        raise TypeError("bins_for_longest_baseline must be a scalar float")
 
 #     valid_types = (types.misc.Omitted, types.scalars.Integer)
 
@@ -272,6 +272,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                      weight_spectrum=None, sigma_spectrum=None,
                      bins_for_longest_baseline=1.0):
         
+        print("In baseline time and channel averaging")
         flag_row = merge_flags(flag_row, flag)
     
         # Get the baseline row mapper data

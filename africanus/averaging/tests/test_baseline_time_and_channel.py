@@ -46,7 +46,19 @@ vis = vis.reshape(row, nchan, ncorr)
 flag = np.random.randint(0, 2, (row, nchan, ncorr))
 flag_row = np.zeros(time.shape, dtype=np.uint8)
 flagged_rows = None #, [0, 1], [2, 4], range(10)])
+
 flag_row[flagged_rows] = 1
+flag_row = np.all(flag, axis=(1, 2))
+
+
+
+print("Original time \n", time)
+print("Orginal interval \n", interval)
+print("Orginal antenna1 \n", ant1)
+print("Orginal antenna2", ant2)
+print("Orginal uvw \n", uvw)
+print("Orginal weight \n", weight)
+print("Orginal sigma \n", sigma)
 
 print("Running test_baseline_time_and_channel")
 avg = baseline_time_and_channel(time, interval, ant1, ant2,
@@ -58,11 +70,8 @@ print("avg.time \n", avg.time)
 print("avg.interval \n", avg.interval)
 print("avg.antenna1 \n", avg.antenna1)
 print("avg.antenna2", avg.antenna2)
-print("avg.time_centroid", avg)
-print("avg.exposure \n", avg.exposure)
 print("avg.uvw \n", avg.uvw)
 print("avg.weight \n", avg.weight)
 print("avg.sigma \n", avg.sigma)
 
-# I need channel averaging
 
