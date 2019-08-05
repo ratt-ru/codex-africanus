@@ -103,7 +103,7 @@ def parse_sky_model(filename, chunks):
     stokes : :class:`numpy.ndarray`
         :code:`(source, 4)` array of stokes parameters
     """
-    sky_model = Tigger.load(filename, verbose=True)
+    sky_model = Tigger.load(filename, verbose=False)
     
 
     point_radec = []
@@ -122,8 +122,7 @@ def parse_sky_model(filename, chunks):
     shapelet_spi = []
     shapelet_ref_freq = []
     shapelet_beta = []
-    shapelet_coeff_l = []
-    shapelet_coeff_m = []
+    shapelet_coeffs = []
 
     for source in sky_model.sources:
         ra = source.pos.ra
@@ -164,23 +163,21 @@ def parse_sky_model(filename, chunks):
         elif typecode == "sha":
             beta_l = source.shape.sbetal
             beta_m = source.shape.sbetam
-            coeffs_l = source.shape.scoeffsl
-            coeffs_m = source.shape.scoeffsm
+            coeffs = source.shape.shapelet_coeffs
 
             shapelet_radec.append([ra,dec])
             shapelet_stokes.append([I,Q,U,V])
             shapelet_spi.append(spi)
             shapelet_ref_freq.append(ref_freq)
             shapelet_beta.append([beta_l, beta_m])
-            shapelet_coeff_l.append([coeffs_l])
-            shapelet_coeff_m.append([coeffs_m])
+            shapelet_coeffs.append(coeffs)
         else:
             raise ValueError("Unknown source morphology %s" % typecode)
 
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
     Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq",
                                  "shape"])
-    Shapelet = namedtuple("Shapelet", ["radec", "stokes", "spi", "ref_freq", "beta", "coeff_l", "coeff_m"])
+    Shapelet = namedtuple("Shapelet", ["radec", "stokes", "spi", "ref_freq", "beta", "coeffs"])
 
     return {
         'shapelet': Shapelet(da.from_array(shapelet_radec, chunks=(chunks, -1)),
@@ -188,8 +185,7 @@ def parse_sky_model(filename, chunks):
                              da.from_array(shapelet_spi, chunks=(chunks, 1, -1)),
                              da.from_array(shapelet_ref_freq, chunks=chunks),
                              da.from_array(shapelet_beta, chunks=(chunks, -1)),
-                             da.from_array(shapelet_coeff_l, chunks=(chunks)),
-                             da.from_array(shapelet_coeff_m, chunks=(chunks)))
+                             da.from_array(shapelet_coeffs, chunks=(chunks)))
     }
 
 
@@ -303,7 +299,13 @@ def vis_factory(args, source_type, sky_model, time_index,
         delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
         delta_lm = da.from_array(delta_lm, chunks=delta_lm.shape)
         args.append("shapelet_shape")
-        args.append(shapelet_fn(uvw, frequency, source.coeff_l, source.coeff_m, source.beta, delta_lm))
+        print(uvw.shape, frequency.shape, source.coeffs.shape, source.beta.shape, delta_lm.shape)
+        print("coeffs is ", source.coeffs)
+        print("uvw is ", uvw)
+        print("frequency is ", frequency)
+        print("beta is ", source.beta)
+        print("delta_lm is ", delta_lm)
+        args.append(shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm))
 
     args.extend(["brightness", brightness])
 
