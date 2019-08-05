@@ -51,14 +51,13 @@ def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
 """
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, dtype=np.complex128):
+def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     """
     shapelet: outputs visibilities corresponding to that of a shapelet
     Inputs:
         coords: coordinates in (u,v) space with shape (nrow, 3)
         frequency: frequency values with shape (nchan,)
-        coeffs_l: shapelet coefficients for the l axis with shape (nsrc, nmax1)
-        coeffs_m: shapelet coefficients for the m axis with shape (nsrc, nmax2)
+        coeffs: shapelet coefficients with shape, where coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
         beta: characteristic shapelet size with shape (nsrc, 2)
         delta_l: pixel size in l dim
         delta_m: pixel size in m dim
@@ -67,8 +66,7 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, dtype=np.com
         out_shapelets: Shapelet with shape (nrow, nchan, nsrc)
     """
     nrow = coords.shape[0]
-    nsrc, nmax1 = coeffs_l.shape
-    nmax2 = coeffs_m.shape[1]
+    nsrc, nmax1, nmax2 = coeffs.shape
     nchan = frequency.size
     out_shapelets = np.empty((nrow, nchan, nsrc), dtype=np.complex128)
     delta_l, delta_m = delta_lm
@@ -84,8 +82,8 @@ def shapelet(coords, frequency, coeffs_l, coeffs_m, beta, delta_lm, dtype=np.com
                 tmp_shapelet = np.zeros(1, dtype=dtype)
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
-                        tmp_shapelet += coeffs_l[src, n1] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
-                            * coeffs_m[src, n2] * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
+                        tmp_shapelet += coeffs[src, n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
+                            * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                 out_shapelets[row, chan, src] = tmp_shapelet[0]
     return out_shapelets
 
