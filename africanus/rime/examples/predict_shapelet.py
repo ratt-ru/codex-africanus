@@ -123,6 +123,9 @@ def parse_sky_model(filename, chunks):
     shapelet_ref_freq = []
     shapelet_beta = []
     shapelet_coeffs = []
+    max_shapelet_coeffs = 0
+
+    print(sky_model.sources)
 
     for source in sky_model.sources:
         ra = source.pos.ra
@@ -170,7 +173,7 @@ def parse_sky_model(filename, chunks):
             shapelet_spi.append(spi)
             shapelet_ref_freq.append(ref_freq)
             shapelet_beta.append([beta_l, beta_m])
-            shapelet_coeffs.append(coeffs)
+            shapelet_coeffs.append(np.array(coeffs))
         else:
             raise ValueError("Unknown source morphology %s" % typecode)
 
@@ -180,7 +183,7 @@ def parse_sky_model(filename, chunks):
     Shapelet = namedtuple("Shapelet", ["radec", "stokes", "spi", "ref_freq", "beta", "coeffs"])
 
     return {
-        'shapelet': Shapelet(da.from_array(shapelet_radec, chunks=(chunks, -1)),
+        'shapelet': Shapelet(da.from_array(shapelet_radec, chunks=(chunks)),
                              da.from_array(shapelet_stokes, chunks=(chunks, -1)),
                              da.from_array(shapelet_spi, chunks=(chunks, 1, -1)),
                              da.from_array(shapelet_ref_freq, chunks=chunks),
@@ -298,9 +301,10 @@ def vis_factory(args, source_type, sky_model, time_index,
     if source_type == "shapelet":
         delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
         delta_lm = da.from_array(delta_lm, chunks=delta_lm.shape)
+        frequency = da.from_array(frequency, chunks=frequency.size)
         args.append("shapelet_shape")
         print(uvw.shape, frequency.shape, source.coeffs.shape, source.beta.shape, delta_lm.shape)
-        print("coeffs is ", source.coeffs)
+        print("coeffs is ", np.array(source.coeffs.compute()).shape)
         print("uvw is ", uvw)
         print("frequency is ", frequency)
         print("beta is ", source.beta)

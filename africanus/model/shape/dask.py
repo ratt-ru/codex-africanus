@@ -41,10 +41,15 @@ def _shapelet_wrapper(coords, frequency, coeffs, beta, delta_lm):
 @requires_optional('dask.array', opt_import_error)
 def shapelet(coords, frequency, coeffs, beta, delta_lm):
     dtype = np.complex128
+    print("coeff dask shape : ", coeffs.dtype)
+    print("uvw dask shape is : ", coords)
+    print("frequency dask shape is : ", frequency)
+    print("beta dask shape is : ", beta)
+    print("delta lm dask shape is : ", delta_lm)
     return da.blockwise(_shapelet_wrapper, ("row", "chan", "source" ),
                         coords, ("row", "coord-comp"),
                         frequency, ("chan",),
-                        coeffs, ("source", "nmax1", "nmax2"),
+                        coeffs, ("source","nmax1", "nmax2"),
                         beta, ("source", "beta-comp"),
                         delta_lm, ("delta_lm-comp",),
                         dtype=dtype)
