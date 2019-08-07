@@ -83,7 +83,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
                 tmp_shapelet = np.zeros(1, dtype=dtype)
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
-                        tmp_shapelet += coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
+                        tmp_shapelet += 0 if coeffs[src][n1,n2] == 0 else coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                 out_shapelets[row, chan, src] = tmp_shapelet[0]
     return out_shapelets
