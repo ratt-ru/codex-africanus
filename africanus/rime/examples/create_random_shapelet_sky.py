@@ -50,16 +50,14 @@ I = sky_model.sources[0].flux.I
 spi = sky_model.sources[0].spectrum.spi
 freq0 = sky_model.sources[0].spectrum.freq0
 print(I)
-for i in range(5):
+for i in range(20):
     # Calculate size
     b1 = sbeta1 + (0.5 * sbeta1) * (np.random.random() - 0.5)
     b2 = sbeta2 + (0.5 * sbeta2) * (np.random.random() - 0.5)
 
     # Generate random coefficients
-    ncoeffs = 2
-    coeffs_l = 10 * np.random.random(ncoeffs)
-    coeffs_m = 10 * np.random.random(ncoeffs)
-    coeffs_lm = coeffs_l * coeffs_m.reshape((ncoeffs,1))
+    ncoeffs = 8
+    coeffs_lm = 10 * np.random.random(ncoeffs)
         
     # Random position
     r = ra + (0.2 * (np.random.uniform(0,1) - 0.5))
@@ -67,5 +65,5 @@ for i in range(5):
     print(r, d)
     # print(as_csv(coeffs_lm.flatten()))
 
-    r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm.flatten())))   
+    r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm)))   
     
