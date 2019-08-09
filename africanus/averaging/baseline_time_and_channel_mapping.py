@@ -140,7 +140,7 @@ def baseline_row_mapper(uvw, time, antenna1, antenna2, flag_row=None, bins_for_l
                 if r == -1:
                     continue
 
-                if bin_count >= bl_dist_time_bins[bl]:
+                if bin_count >= bl_dist_time_bins[bl] * bins_for_longest_baseline:
                     # Normalise
                     if bin_count > 0:
                         time_lookup[bl, tbin] /= bin_count
@@ -231,5 +231,40 @@ def baseline_row_mapper(uvw, time, antenna1, antenna2, flag_row=None, bins_for_l
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def baseline_channel_mapper():
-    pass
+def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=1):
+    chan_map = np.empty(nchan, dtype=np.uint32)
+    
+    chan_bin = 0
+    bin_count = 0
+    
+    bl_uvw_dist = []
+    longest_baseline = np.sqrt((uvw**2).sum(axis=1)).max()
+        
+    # Unique baseline and time 
+    ubl, bl_idx, bl_inv, bl_count = unique_baselines(antenna1, antenna2)
+        
+    # Calculate distances of the unique baselines
+    # Bin the channels according to the baseline distance
+    # NB: ********I should seperate this nested for loop somehow *************
+    for i in range(ubl.shape[0]): 
+        p,q = ubl[i,0],ubl[i,1]
+        uvwpq = uvw[(antenna1 == p) & (antenna2 == q)] 
+        baseline_dist = np.sqrt((uvwpq**2).sum(axis=1))[0]
+        bl_uvw_dist.append(baseline_dist)
+    
+        for c in range(nchan):
+            chan_map[c] = chan_bin
+            bin_count += 1
+
+            if bin_count == bl_uvw_dist[i] * baseline_chan_bin_size:
+                chan_bin += 1
+                bin_count = 0
+
+        if bin_count > 0:
+            chan_bin += 1
+    
+    # Return values
+    return chan_map, chan_bin
+    
+    
+    

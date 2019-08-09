@@ -12,7 +12,7 @@ import numpy as np
 import sys
 sys.path.insert(0, '/Users/smasoka/Varsity/codex-africanus/africanus/averaging/')
 from support import unique_time, unique_baselines
-from baseline_time_and_channel_mapping import baseline_row_mapper
+from baseline_time_and_channel_mapping import baseline_row_mapper, baseline_chan_mapper
 
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
@@ -172,10 +172,24 @@ def baseline_row_average(meta, ant1, ant2, interval=None, flag_row=None, time_ce
                                 weight_avg, sigma_avg)
     return impl
 
+_rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
+RowChanAverageOutput = namedtuple("RowChanAverageOutput",
+                                  _rowchan_output_fields)
+
+class RowChannelAverageException(Exception):
+    pass
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def baseline_row_chan_average():
-    pass
+def baseline_row_chan_average(row_meta, chan_meta,flag_row=None, vis=None, flag=None, weight_spectrum=None,sigma_spectrum=None,baseline_chan_bin_size=1):
+    
+    def impl(row_meta, chan_meta,flag_row=None, vis=None, flag=None, weight_spectrum=None,sigma_spectrum=None,baseline_chan_bin_size=1):
+        
+        pass
+        
+        return RowChanAverageOutput(vis_avg, flag_avg, weight_spectrum_avg, sigma_spectrum_avg)
+    
+    return impl
+
 
 
 AverageOutput = namedtuple("AverageOutput",
@@ -245,7 +259,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                      uvw=None, weight=None, sigma=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
-                     bins_for_longest_baseline=1.0):
+                     bins_for_longest_baseline=1.0, baseline_chan_bin_size=1.0):
     
     # Verify data types
     valid_types = (types.misc.Omitted, types.scalars.Float,
@@ -270,7 +284,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                      uvw=None, weight=None, sigma=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
-                     bins_for_longest_baseline=1.0):
+                     bins_for_longest_baseline=1.0, baseline_chan_bin_size=1.0):
         
         print("In baseline time and channel averaging")
         flag_row = merge_flags(flag_row, flag)
@@ -280,7 +294,10 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
     
     
         # Average the rows according to the meta data
-        row_data = baseline_row_average(row_meta, antenna1, antenna2, interval, flag_row=flag_row,                                                  time_centroid=time_centroid, exposure=exposure, uvw=uvw, weight=weight, sigma=sigma)
+        row_data = baseline_row_average(row_meta, antenna1, antenna2, interval, flag_row=flag_row,time_centroid=time_centroid, exposure=exposure, uvw=uvw,weight=weight, sigma=sigma)
+        
+        chan_meta = baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=baseline_chan_bin_size)
+        chan_data = baseline_chan_average(row_meta, chan_meta,flag_row=flag_row, vis=vis, flag=flag, weight_spectrum=weight_spectrum,sigma_spectrum=sigma_spectrum,baseline_chan_bin_size=baseline_chan_bin_size)
         
         return AverageOutput(row_meta.time,row_meta.flag_row, row_data.interval, row_data.antenna1, row_data.antenna2,row_data.time_centroid, row_data.exposure, row_data.uvw, row_data.weight, row_data.sigma)
     
