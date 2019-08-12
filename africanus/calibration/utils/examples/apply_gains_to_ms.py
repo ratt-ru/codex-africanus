@@ -25,7 +25,7 @@ import argparse
 
 def create_parser():
     p = argparse.ArgumentParser()
-    p.add_argument("--ms", help="Name of measurement set" type=str)
+    p.add_argument("--ms", help="Name of measurement set", type=str)
     p.add_argument("--model_cols", help="Comma separated string of merasuturement set columns containing data for each source", default='MODEL_DATA', type=str)
     p.add_argument("--data_col", help="Column where data lives. Only used to get shape of data at this stage", default='DATA', type=str)
     p.add_argument("--out_col", help="Where to write the corrupted data to. Must exist in MS before writing to it.", default='CORRECTED_DATA', type=str)
