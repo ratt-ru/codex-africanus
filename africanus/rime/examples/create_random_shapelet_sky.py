@@ -50,7 +50,7 @@ I = sky_model.sources[0].flux.I
 spi = sky_model.sources[0].spectrum.spi
 freq0 = sky_model.sources[0].spectrum.freq0
 print(I)
-for i in range(20):
+for i in range(36):
     # Calculate size
     b1 = sbeta1 + (0.5 * sbeta1) * (np.random.random() - 0.5)
     b2 = sbeta2 + (0.5 * sbeta2) * (np.random.random() - 0.5)
