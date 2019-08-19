@@ -28,6 +28,7 @@ from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
 from africanus.model.shape.dask import shapelet as shapelet_fn
+from africanus.rime.dask import zernike_dde
 from africanus.util.requirements import requires_optional
 
 # Testing stuff
@@ -238,6 +239,30 @@ def corr_schema(pol):
     else:
         raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
 
+def generate_primary_beam(filename, ant, chan, ntime, lm):
+    npoly = 8
+    coeffs_file = np.load(filename, allow_pickle=True).all()
+    print(coeffs_file)
+    noll_indices = np.zeros((ant, chan, 2, 2, npoly))
+    zernike_coeffs = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
+    corr_letters = ['x','y']
+    nsrc = lm.shape[0]
+    coords = np.empty((3, nsrc, ntime, ant, chan))
+    lm = lm.compute().T
+
+    for a in range(ant):
+        for c in range(chan):
+            for t in range(ntime):
+                coords[:2, :, t, a, c] = lm[:,:]
+            for corr1 in range(2):
+                for corr2 in range(2):
+                    corr_index = corr_letters[corr1] + corr_letters[corr2]
+                    noll_indices[a,c,corr1, corr2, :] = coeffs_file['noll_index'][corr_index][:npoly] 
+                    zernike_coeffs[a,c,corr1,corr2, :] = coeffs_file['coeff'][corr_index][:npoly]
+    print(zernike_coeffs)
+    return zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), da.from_array(noll_indices, chunks=noll_indices.shape))
+
+
 def baseline_jones_multiply(corrs, *args):
     names = args[::2]
     arrays = args[1::2]
@@ -292,6 +317,8 @@ def vis_factory(args, source_type, sky_model, time_index,
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
 
+
+
     args = ["phase_delay", phase]
 
     # Add any visibility amplitude terms
@@ -315,8 +342,24 @@ def vis_factory(args, source_type, sky_model, time_index,
 
     jones = baseline_jones_multiply(corrs, *args)
 
-    return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
+    ntime = np.max(time_index.compute()) + 1
+    print("lm array before primary beam is : ", lm.compute())
+    delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
+    print("time index : ", ntime)
+
+    generate_zernikes = True
+    if generate_zernikes:
+        print("GENERATING ZERNIKE PRIMARY BEAM")
+        print("source.radec is ", source.radec)
+        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", np.max(ms.ANTENNA1.data.compute()) + 1, len(frequency),ntime, source.radec)
+        print(dde_primary_beam.compute())
+        return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
+                       dde_primary_beam, jones, dde_primary_beam, None, None, None)
+    else:
+        print("SKIPPING PRIMARY BEAM")
+        return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        None, jones, None, None, None, None)
+      
 
 
 @requires_optional("dask.array", "Tigger",
@@ -358,6 +401,7 @@ def predict(args):
         source_vis = [vis_factory(args, stype, sky_model, time_index,
                                   xds, field, spw, pol)
                       for stype in sky_model.keys()]
+
 
         # Sum visibilities together
         vis = sum(source_vis)
