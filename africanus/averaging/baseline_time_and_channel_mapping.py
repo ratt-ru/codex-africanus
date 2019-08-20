@@ -195,21 +195,18 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
     chan_bin = 0
     bin_count = 0
     
-    bl_uvw_dist = []
     longest_baseline = np.abs(uvw[:, 0]).sum(axis=0)
-    print('longest_baseline',longest_baseline)
         
     # Unique baseline and time 
     ubl, bl_idx, bl_inv, bl_count = unique_baselines(antenna1, antenna2)
-    print('unique baseline shape', ubl.shape)
-    print('unique baseline \n', ubl)
     
     # channel map for each unique baseline
     # matrix (ubl * nchan)
     # chan_map = np.empty(nchan, dtype=np.uint32)
     bl_chan_map = np.empty((ubl.shape[0], nchan), dtype=np.uint32)
-    print('bl chan_map', bl_chan_map.shape)
     bl_chan_count = np.empty(ubl.shape[0],dtype=np.uint32)
+    bl_uvw_dist = np.empty(ubl.shape[0], dtype=np.float64)
+    bl_dist_chan_bins = np.empty(ubl.shape[0], dtype=np.float64)
         
     # Calculate distances of the unique baselines
     # Bin the channels according to the baseline distance
@@ -218,9 +215,10 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
         p,q = ubl[i,0],ubl[i,1]
         uvwpq = uvw[(antenna1 == p) & (antenna2 == q)] 
         baseline_dist = np.abs(uvwpq[:, 0]).sum(axis=0)
-        bl_uvw_dist.append(baseline_dist)
-        print('bl_uvw_dist', bl_uvw_dist[i])
-    
+        bl_uvw_dist[i] = baseline_dist
+
+    bl_dist_chan_bins = longest_baseline//bl_uvw_dist
+        
     for i in range(ubl.shape[0]):
         chan_bin = 0
         bin_count = 0
@@ -229,19 +227,18 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
             bl_chan_map[i, c] = chan_bin
             bin_count += 1
 
-            if bin_count == bl_uvw_dist[i] * baseline_chan_bin_size:
+            if bin_count == bl_dist_chan_bins[i] * baseline_chan_bin_size:
                 chan_bin += 1
                 bin_count = 0
-                
-        print('chan_map', bl_chan_map)
         
         if bin_count > 0:
-            print('bin_count > 0')
+#             print('bin_count > 0')
             chan_bin += 1
             bl_chan_count[i] = chan_bin
         else:
             bl_chan_count[i] = chan_bin
     
+    print('chan_map', bl_chan_map)
     # Return values
     return bl_chan_map, bl_chan_count
     
