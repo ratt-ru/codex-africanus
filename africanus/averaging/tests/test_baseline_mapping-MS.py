@@ -41,7 +41,7 @@ time_centroid = tab.getcol("TIME_CENTROID")
 vis_data = tab.getcol("DATA")
 weight = tab.getcol("WEIGHT")
 scan = tab.getcol("SCAN_NUMBER")
-
+tab.close()
 
 def flag_row_factory(nrows, flagged_rows):
     flag_row = np.zeros(nrows, dtype=np.uint8)
@@ -110,4 +110,13 @@ def test_baseline_row_mapper(uvw, time, ant1, ant2, flag_row, bins_for_longest_b
 # Call test_baseline_row_mapper
 test_baseline_row_mapper(uvw, time, ant1, ant2, flag_row, bins_for_longest_baseline)
 
-tab.close()
+baseline_chan_bin_size = 1
+nchan = ??? # real Number of Channels
+
+def test_baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size):
+    bl_chan_map, bl_chan_count = baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size)
+    
+    print(bl_chan_map.shape)
+    print(bl_chan_count)
+
+test_baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size)

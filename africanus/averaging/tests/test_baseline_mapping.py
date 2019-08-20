@@ -11,7 +11,7 @@ import pytest
 import sys
 sys.path.insert(0, '/Users/smasoka/Varsity/codex-africanus/africanus/averaging/')
 from support import unique_time, unique_baselines
-from baseline_time_and_channel_mapping import baseline_row_mapper
+from baseline_time_and_channel_mapping import (baseline_row_mapper,baseline_chan_mapper)
 
 time = np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])
 ant1 = np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1], dtype=np.int32)
@@ -95,5 +95,16 @@ def test_baseline_row_mapper(uvw, time, ant1, ant2, flagged_rows, bins_for_longe
     assert_array_almost_equal(new_tc / counts, new_tc2 / counts2)
 
 # Call test_baseline_row_mapper
-test_baseline_row_mapper(uvw, time, ant1, ant2, flagged_rows, bins_for_longest_baseline)
+#test_baseline_row_mapper(uvw, time, ant1, ant2, flagged_rows, bins_for_longest_baseline)
+
+
+baseline_chan_bin_size = 1
+nchan = 64
+def test_baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size):
+    bl_chan_map, bl_chan_count = baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size)
+    
+    print(bl_chan_map.shape)
+    print(bl_chan_count)
+
+test_baseline_chan_mapper(uvw, ant1, ant2, nchan, baseline_chan_bin_size)
 
