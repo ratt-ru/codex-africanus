@@ -561,6 +561,9 @@ source_coh : $(array_type), optional
     with shape :code:`(source,row,chan,corr_1,corr_2)`
 dde2_jones : $(array_type), optional
     :math:`A_{qs}` Direction-Dependent Jones terms for the second antenna.
+    This is usually the same array as ``dde1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 die1_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
@@ -573,7 +576,10 @@ base_vis : $(array_type), optional
 die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     second antenna of the baseline.
-    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+    This is usually the same array as ``die1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
+    shape :code:`(time,ant,chan,corr_1,corr_2)`
 $(extra_args)
 
 Returns

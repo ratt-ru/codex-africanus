@@ -4,6 +4,8 @@ History
 
 0.1.9 (YYYY-MM-DD)
 ------------------
+
+* Clarify die2_jones/dde2_jones in predict_vis documentation (:pr:`135`)
 * Explain how to obtain predict_vis time_index argument (:pr:`130`)
 * Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
 * Add dask wrappers for the nifty gridder (:pr:`116`, :pr:`136`)
