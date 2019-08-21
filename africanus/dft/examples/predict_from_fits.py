@@ -14,17 +14,16 @@ import dask
 import dask.array as da
 from dask.diagnostics import ProgressBar
 from africanus.dft.dask import im_to_vis
-import xarray as xr
-from xarrayms import xds_from_ms, xds_from_table, xds_to_table
+from daskms import xds_from_ms, xds_from_table, xds_to_table
 
 
 def create_parser():
     p = argparse.ArgumentParser()
-    p.add_argument("--ms", type=str)
-    p.add_argument("--fitsmodel", type=str)
+    p.add_argument("ms")
+    p.add_argument("--fitsmodel")
     p.add_argument("--row_chunks", default=4000, type=int)
     p.add_argument("--ncpu", default=0, type=int)
-    p.add_argument("--colname", default="MODEL_DATA", type=str)
+    p.add_argument("--colname", default="MODEL_DATA")
     p.add_argument('--field', default=0, type=int)
     return p
 
@@ -165,8 +164,7 @@ for xds in xds_from_ms(args.ms,
         vis = vis.rechunk((args.row_chunks, nchan, data.shape[-1]))
 
     # Assign visibilities to MODEL_DATA array on the dataset
-    model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
-    xds = xds.assign(**{args.colname: model_data})
+    xds = xds.assign(**{args.colname: (("row", "chan", "corr"), vis)})
     # Create a write to the table
     write = xds_to_table(xds, args.ms, [args.colname])
     # Add to the list of writes
