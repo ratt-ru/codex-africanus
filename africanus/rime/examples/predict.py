@@ -190,7 +190,7 @@ def support_tables(args, tables):
 
     Returns
     -------
-    table_map : dict of :class:`xarray.Dataset`
+    table_map : dict of Dataset
         {name: dataset}
     """
     return {t: [ds.compute() for ds in
@@ -203,7 +203,7 @@ def corr_schema(pol):
     """
     Parameters
     ----------
-    pol : :class:`xarray.Dataset`
+    pol : Dataset
 
     Returns
     -------
