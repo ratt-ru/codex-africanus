@@ -13,8 +13,7 @@ try:
     import dask.array as da
     from dask.diagnostics import ProgressBar
     import Tigger
-    import xarray as xr
-    from xarrayms import xds_from_ms, xds_from_table, xds_to_table
+    from daskms import xds_from_ms, xds_from_table, xds_to_table
 except ImportError as e:
     opt_import_error = e
 else:
@@ -177,9 +176,6 @@ def parse_sky_model(filename, chunks):
                     da.from_array(gauss_ref_freq, chunks=chunks),
                     da.from_array(gauss_shape, chunks=(chunks, -1)))
 
-    from pprint import pprint
-    pprint(source_data)
-
     return source_data
 
 
@@ -194,7 +190,7 @@ def support_tables(args, tables):
 
     Returns
     -------
-    table_map : dict of :class:`xarray.Dataset`
+    table_map : dict of Dataset
         {name: dataset}
     """
     return {t: [ds.compute() for ds in
@@ -207,7 +203,7 @@ def corr_schema(pol):
     """
     Parameters
     ----------
-    pol : :class:`xarray.Dataset`
+    pol : Dataset
 
     Returns
     -------
@@ -268,7 +264,7 @@ def vis_factory(args, source_type, sky_model, time_index,
 
     corrs = pol.NUM_CORR.values
 
-    lm = radec_to_lm(source.radec, field.PHASE_DIR.data)
+    lm = radec_to_lm(source.radec, field.PHASE_DIR.data[0])
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
     frequency = spw.CHAN_FREQ.data
 
@@ -302,7 +298,7 @@ def vis_factory(args, source_type, sky_model, time_index,
 
 
 @requires_optional("dask.array", "Tigger",
-                   "xarray", "xarrayms", opt_import_error)
+                   "daskms", opt_import_error)
 def predict(args):
     # Convert source data into dask arrays
     sky_model = parse_sky_model(args.sky_model, args.model_chunks)
@@ -349,8 +345,7 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        model_data = xr.DataArray(vis, dims=["row", "chan", "corr"])
-        xds = xds.assign(MODEL_DATA=model_data)
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
         # Create a write to the table
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
