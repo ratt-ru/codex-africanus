@@ -112,11 +112,11 @@ if np.any(ms_freqs != freqs):
     from scipy.interpolate import RegularGridInterpolator
     # interpolate fits cube
     fits_interp = RegularGridInterpolator((freqs, l_coord, m_coord),
-                                          model.squeeze(), 
+                                          model.squeeze(),
                                           bounds_error=False,
                                           fill_value=None)
     # reevaluate at ms freqs
-    vv, ll, mm = np.meshgrid(ms_freqs, l_coord, m_coord, 
+    vv, ll, mm = np.meshgrid(ms_freqs, l_coord, m_coord,
                              indexing='ij')
     vlm = np.vstack((vv.flatten(), ll.flatten(), mm.flatten())).T
     model_cube = fits_interp(vlm).reshape(nchan, npix_l, npix_m)

@@ -25,6 +25,7 @@ class GridderConfigWrapper(object):
     """
     Wraps a nifty GridderConfiguration for pickling purposes.
     """
+
     def __init__(self, nx=1024, ny=1024, eps=2e-13,
                  cell_size_x=2.0, cell_size_y=2.0):
         self.nx = nx
@@ -117,6 +118,7 @@ class GridStreamReduction(Mapping):
     Produces graph serially summing coherencies in
     ``stream`` parallel streams.
     """
+
     def __init__(self, baselines, indices, gc,
                  corr_vis, corr_weights,
                  corr, streams):
@@ -204,6 +206,7 @@ class FinalGridReduction(Mapping):
     Produces graph serially summing coherencies in
     ``stream`` parallel streams.
     """
+
     def __init__(self, grid_stream_reduction):
         self.in_name = grid_stream_reduction.name
         token = dask.base.tokenize(grid_stream_reduction)
