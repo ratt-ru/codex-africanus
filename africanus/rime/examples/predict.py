@@ -212,8 +212,9 @@ def corr_schema(pol):
         `[[9, 10], [11, 12]]` for example
     """
 
-    corrs = pol.NUM_CORR.values
-    corr_types = pol.CORR_TYPE.values
+    # Select the single row out
+    corrs = pol.NUM_CORR.data[0]
+    corr_types = pol.CORR_TYPE.data[0]
 
     if corrs == 4:
         return [[corr_types[0], corr_types[1]],
@@ -262,11 +263,13 @@ def vis_factory(args, source_type, sky_model, time_index,
     except KeyError:
         raise ValueError("Source type '%s' unsupported" % source_type)
 
-    corrs = pol.NUM_CORR.values
+    # Select single dataset rows
+    corrs = pol.NUM_CORR.data[0]
+    frequency = spw.CHAN_FREQ.data[0]
+    phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
 
-    lm = radec_to_lm(source.radec, field.PHASE_DIR.data[0])
+    lm = radec_to_lm(source.radec, phase_dir)
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
-    frequency = spw.CHAN_FREQ.data
 
     # (source, row, frequency)
     phase = phase_delay(lm, uvw, frequency)
@@ -325,10 +328,11 @@ def predict(args):
         # with this data descriptor id
         field = field_ds[xds.attrs['FIELD_ID']]
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
-        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.values]
-        pol = pol_ds[ddid.POLARIZATION_ID.values]
+        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
+        pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
 
-        corrs = pol.NUM_CORR.values
+        # Select single dataset row out
+        corrs = pol.NUM_CORR.data[0]
 
         _, time_index = da.unique(xds.TIME.data, return_inverse=True)
 

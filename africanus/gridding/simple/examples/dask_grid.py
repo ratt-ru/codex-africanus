@@ -52,7 +52,7 @@ with pt.taql(query) as Q:
 xds = list(xds_from_ms(args.ms, chunks={"row": args.chunks}))[0]
 spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
                              group_cols="__row__"))[0]
-wavelength = (lightspeed / spw_ds.CHAN_FREQ.data).compute()
+wavelength = (lightspeed / spw_ds.CHAN_FREQ.data[0]).compute()
 
 
 if args.cell_size:
