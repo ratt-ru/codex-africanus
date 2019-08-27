@@ -51,7 +51,7 @@ spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
 # Get frequencies in the measurement set
 # If these do not match those in the fits
 # file we need to interpolate
-ms_freqs = spw_ds.CHAN_FREQ.data.compute()
+ms_freqs = spw_ds.CHAN_FREQ.data[0].compute()
 nchan = ms_freqs.size
 
 # load in the fits file
