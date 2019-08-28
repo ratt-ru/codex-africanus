@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 from africanus.model.spi.component_spi import SPI_DOCSTRING
 from africanus.model.spi.component_spi import (
                                 fit_spi_components as np_fit_spi_components)
@@ -16,13 +14,14 @@ import numpy as np
 
 try:
     from dask.array.core import blockwise
+    from dask.array.utils import safe_wraps
 except ImportError as e:
     opt_import_error = e
 else:
     opt_import_error = None
 
 
-@wraps(np_fit_spi_components)
+@safe_wraps(np_fit_spi_components)
 def _fit_spi_components_wrapper(data, weights, freqs, freq0,
                                 alphai, I0i, tol_, maxiter_,
                                 dtype_):

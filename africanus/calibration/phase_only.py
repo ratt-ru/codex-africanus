@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from functools import wraps
 from africanus.calibration.utils import check_type
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis
@@ -40,7 +39,6 @@ def jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
 
     jacobian = jacobian_factory(mode)
 
-    @wraps(jhj_and_jhr)
     def _jhj_and_jhr_fn(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, residual, model, flag):
         jones_shape = np.shape(jones)

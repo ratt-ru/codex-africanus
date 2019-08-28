@@ -5,7 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
 
@@ -169,7 +168,6 @@ def correct_vis(time_bin_indices, time_bin_counts,
 
     jones_inverse_mul = jones_inverse_mul_factory(mode)
 
-    @wraps(correct_vis)
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
                         antenna1, antenna2, jones, vis, flag):
         jones_shape = np.shape(jones)
@@ -204,7 +202,6 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     mode = check_type(jones, vis)
     subtract_model = subtract_model_factory(mode)
 
-    @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag, model):
         n_tim = np.shape(time_bin_indices)[0]
