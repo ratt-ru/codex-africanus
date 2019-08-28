@@ -804,11 +804,6 @@ def time_and_channel(time, interval, antenna1, antenna2,
     if not isinstance(chan_bin_size, valid_types):
         raise TypeError("chan_bin_size must be a scalar integer")
 
-    have_vis = not is_numba_type_none(vis)
-    have_flag = not is_numba_type_none(flag)
-    have_weight_spectrum = not is_numba_type_none(weight_spectrum)
-    have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
-
     def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
