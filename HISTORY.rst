@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Set row chunks to nan in dask averaging code. (:pr:`139`)
 * Clarify die2_jones/dde2_jones in predict_vis documentation (:pr:`135`)
 * Upgrade to dask-ms in the examples (:pr:`134`, :pr:`138`)
 * Explain how to obtain predict_vis time_index argument (:pr:`130`)
