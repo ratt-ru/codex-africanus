@@ -304,7 +304,7 @@ class RowChannelAverageException(Exception):
     pass
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def baseline_row_chan_average(row_meta, chan_meta,flag_row=None, vis=None, flag=None, 
+def baseline_chan_average(row_meta, chan_meta,flag_row=None, vis=None, flag=None, 
                               weight_spectrum=None, sigma_spectrum=None, baseline_chan_bin_size=1):
     
     have_flag_row = not is_numba_type_none(flag_row)

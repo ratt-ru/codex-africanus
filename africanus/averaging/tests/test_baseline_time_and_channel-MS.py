@@ -17,7 +17,7 @@ from baseline_time_and_channel_avg import baseline_time_and_channel
 import argparse
 from pyrap.tables import table
 
-import ms_manipulator
+#import .ms_manipulator
 
 
 parser = argparse.ArgumentParser()
@@ -55,9 +55,14 @@ print("Original time \n", time.shape)
 print("Orginal interval \n", interval.shape)
 print("Orginal antenna1 \n", ant1.shape)
 print("Orginal antenna2", ant2.shape)
+print("Orginal time_centroid \n", time_centroid.shape)
+print("Orginal exposure \n", exposure.shape)
+print("Orginal flag_row \n", flag_row.shape)
 print("Orginal uvw \n", uvw.shape)
 print("Orginal weight \n", weight.shape)
 print("Orginal sigma \n", sigma.shape)
+print("Orginal vis \n", vis.shape)
+print("Orginal flag \n", flag.shape)
 
 print("Running test_baseline_time_and_channel")
 avg = baseline_time_and_channel(time, interval, ant1, ant2, time_centroid, exposure,
@@ -80,13 +85,13 @@ print("avg.weight_spectrum \n", avg.weight_spectrum.shape)
 print("avg.sigma_spectrum \n", avg.sigma_spectrum.shape)
 
 
-na = np.max(A0) + 1
-nbl = na * (na - 1) / 2
-table_desc, dm_info = ms_manipulator.kat_ms_desc_and_dminfo(nbl=nbl, model_data=True)
+# na = np.max(A0) + 1
+# nbl = na * (na - 1) / 2
+# table_desc, dm_info = ms_manipulator.kat_ms_desc_and_dminfo(nbl=nbl, model_data=True)
 
-ms_manipulator.create_ms(outputMS, table_desc, dminfo)
+# ms_manipulator.create_ms(outputMS, table_desc, dminfo)
 
-ms_dict = ms_manipulator.populate_main_dict_time(inputMS, avg.scan, avg.desc, avg.uvw, avg.flag_row, avg.flag, avg.antenna1, avg.antenna2, avg.interval, avg.exposure, avg.time, avg.time_centroid, avg.vis, avg.weight)
+# ms_dict = ms_manipulator.populate_main_dict_time(inputMS, avg.scan, avg.desc, avg.uvw, avg.flag_row, avg.flag, avg.antenna1, avg.antenna2, avg.interval, avg.exposure, avg.time, avg.time_centroid, avg.vis, avg.weight)
 
-ms_manipulator.write_dict(ms_dict, outputMS)
+# ms_manipulator.write_dict(ms_dict, outputMS)
 

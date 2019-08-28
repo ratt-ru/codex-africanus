@@ -218,11 +218,16 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
         bl_uvw_dist[i] = baseline_dist
 
     bl_dist_chan_bins = longest_baseline//bl_uvw_dist
+    print(longest_baseline)
+    print(bl_uvw_dist)
+    print(bl_dist_chan_bins)
         
     for i in range(ubl.shape[0]):
         chan_bin = 0
         bin_count = 0
         
+        # At the moment I'm assuming channels don't vary across different baselines
+        # This ofcourse is not true (but its a story for another day)
         for c in range(nchan):
             bl_chan_map[i, c] = chan_bin
             bin_count += 1
@@ -238,7 +243,7 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
         else:
             bl_chan_count[i] = chan_bin
     
-    print('chan_map', bl_chan_map)
+#     print('chan_map', bl_chan_map)
     # Return values
     return bl_chan_map, bl_chan_count
     
