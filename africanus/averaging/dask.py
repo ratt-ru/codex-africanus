@@ -17,6 +17,7 @@ from africanus.averaging.time_and_channel_avg import (row_average,
                                                       ChannelAverageOutput,
                                                       RowAverageOutput,
                                                       RowChanAverageOutput)
+from africanus.compatibility import PY3
 from africanus.util.requirements import requires_optional
 
 import numpy as np
@@ -55,6 +56,10 @@ def _row_chan_metadata(arrays, chan_bin_size):
 def _dask_row_mapper(time, interval, antenna1, antenna2,
                      flag_row=None, time_bin_secs=1.0):
     """ Create a dask row mapping structure for each row chunk """
+
+    # dask py2 doesn't understand meta
+    kw = {'meta': np.empty((0,), dtype=np.object)} if PY3 else {}
+
     return da.blockwise(row_mapper, ("row",),
                         time, ("row",),
                         interval, ("row",),
@@ -63,18 +68,26 @@ def _dask_row_mapper(time, interval, antenna1, antenna2,
                         flag_row, None if flag_row is None else ("row",),
                         adjust_chunks={"row": lambda x: np.nan},
                         time_bin_secs=time_bin_secs,
-                        dtype=np.object)
+                        dtype=np.object,
+                        **kw)
 
 
-def _getitem_row(avg, idx, dtype):
+def _getitem_row(avg, idx, array, dims):
     """ Extract row-like arrays from a dask array of tuples """
+    assert dims[0] == "row"
+
     name = ("row-average-getitem-%d-" % idx) + tokenize(avg, idx)
-    layers = db.blockwise(getitem, name, ("row",),
+    layers = db.blockwise(getitem, name, dims,
                           avg.name, ("row",),
                           idx, None,
+                          new_axes=dict(zip(dims[1:], array.shape[1:])),
                           numblocks={avg.name: avg.numblocks})
     graph = HighLevelGraph.from_collections(name, layers, (avg,))
-    return da.Array(graph, name, avg.chunks, dtype=dtype)
+    chunks = avg.chunks + tuple((s,) for s in array.shape[1:])
+
+    # dask py2 doesn't understand meta
+    kw = {'meta': np.empty((0,)*len(dims), dtype=np.object)} if PY3 else {}
+    return da.Array(graph, name, chunks, dtype=array.dtype, **kw)
 
 
 @safe_wraps(row_average)
@@ -95,24 +108,32 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
 
     rd = ("row",)
     rcd = ("row", "corr")
+    # dask py2 doesn't understand meta
+    kw = {'meta': np.empty((0,)*len(rd), dtype=np.object)} if PY3 else {}
+
+    # (output, array, dims)
+    args = [(False, row_meta, rd),
+            (True, ant1, rd),
+            (True, ant2, rd),
+            (False, flag_row, None if flag_row is None else rd),
+            (True, time_centroid, None if time_centroid is None else rd),
+            (True, exposure, None if exposure is None else rd),
+            (True, uvw, None if uvw is None else ("row", "uvw")),
+            (True, weight, None if weight is None else rcd),
+            (True, sigma, None if sigma is None else rcd)]
 
     avg = da.blockwise(_row_average_wrapper, rd,
-                       row_meta, rd,
-                       ant1, rd,
-                       ant2, rd,
-                       flag_row, None if flag_row is None else rd,
-                       time_centroid, None if time_centroid is None else rd,
-                       exposure, None if exposure is None else rd,
-                       uvw, None if uvw is None else ("row", "uvw"),
-                       weight, None if weight is None else rcd,
-                       sigma, None if sigma is None else rcd,
+                       *(v for pair in args for v in pair[1:]),
                        align_arrays=False,
                        adjust_chunks={"row": lambda x: np.nan},
-                       dtype=np.object)
+                       dtype=np.object,
+                       **kw)
 
-    tuple_gets = (None if a is None else _getitem_row(avg, i, a.dtype)
-                  for i, a in enumerate([ant1, ant2, time_centroid, exposure,
-                                         uvw, weight, sigma]))
+    # ant1, ant2, time_centroid, exposure, uvw, weight, sigma
+    out_args = [(a, dims) for out, a, dims in args if out is True]
+
+    tuple_gets = [None if a is None else _getitem_row(avg, i, a, dims)
+                  for i, (a, dims) in enumerate(out_args)]
 
     return RowAverageOutput(*tuple_gets)
 
@@ -128,7 +149,8 @@ def _getitem_row_chan(avg, idx, dtype):
                           numblocks={avg.name: avg.numblocks})
 
     graph = HighLevelGraph.from_collections(name, layers, (avg,))
-    return da.Array(graph, name, avg.chunks, dtype=dtype)
+    kw = {'meta': np.empty((0,)*len(dim), dtype=np.object)} if PY3 else {}
+    return da.Array(graph, name, avg.chunks, dtype=dtype, **kw)
 
 
 _row_chan_avg_dims = ("row", "chan", "corr")
@@ -157,6 +179,11 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
     ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
     ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
 
+    # Lie just enough about the returned object (a namedtuple)
+    # so that the blockwise passes
+    kw = ({"meta": np.empty((0,)*len(_row_chan_avg_dims), dtype=np.object)}
+          if PY3 else {})
+
     avg = da.blockwise(row_chan_average, _row_chan_avg_dims,
                        row_meta, ("row",),
                        chan_meta, ("chan",),
@@ -168,7 +195,8 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                        sigma_spectrum, ss_dims,
                        align_arrays=False,
                        adjust_chunks=adjust_chunks,
-                       dtype=np.object)
+                       dtype=np.object,
+                       **kw)
 
     tuple_gets = (None if a is None else _getitem_row_chan(avg, i, a.dtype)
                   for i, a in enumerate([vis, flag,
@@ -186,7 +214,8 @@ def _getitem_chan(avg, idx, dtype):
                           idx, None,
                           numblocks={avg.name: avg.numblocks})
     graph = HighLevelGraph.from_collections(name, layers, (avg,))
-    return da.Array(graph, name, avg.chunks, dtype=dtype)
+    kw = {'meta': np.empty((0,), dtype=dtype)} if PY3 else {}
+    return da.Array(graph, name, avg.chunks, dtype=dtype, **kw)
 
 
 def _dask_chan_average(chan_meta, chan_freq=None, chan_width=None,
@@ -199,12 +228,15 @@ def _dask_chan_average(chan_meta, chan_freq=None, chan_width=None,
         "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
     }
 
+    kw = {"meta": np.empty((0,), dtype=np.object)} if PY3 else {}
+
     avg = da.blockwise(chan_average, ("chan",),
                        chan_meta, ("chan",),
                        chan_freq, None if chan_freq is None else ("chan",),
                        chan_width, None if chan_width is None else ("chan",),
                        adjust_chunks=adjust_chunks,
-                       dtype=np.object)
+                       dtype=np.object,
+                       **kw)
 
     tuple_gets = (None if a is None else _getitem_chan(avg, i, a.dtype)
                   for i, a in enumerate([chan_freq, chan_width]))
@@ -280,9 +312,9 @@ def time_and_channel(time, interval, antenna1, antenna2,
                                    chan_width=chan_width)
 
     # Merge output tuples
-    return AverageOutput(_getitem_row(row_meta, 1, time.dtype),
-                         _getitem_row(row_meta, 2, interval.dtype),
-                         (_getitem_row(row_meta, 3, flag_row.dtype)
+    return AverageOutput(_getitem_row(row_meta, 1, time, ("row",)),
+                         _getitem_row(row_meta, 2, interval, ("row",)),
+                         (_getitem_row(row_meta, 3, flag_row, ("row",))
                           if flag_row is not None else None),
                          row_data.antenna1,
                          row_data.antenna2,
