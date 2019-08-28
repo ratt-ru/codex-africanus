@@ -508,7 +508,7 @@ to the following formula:
 
 
     V_{pq} = G_{p} \left(
-        B_{pq} + \sum_{s} A_{ps} X_{pqs} A_{qs}^H
+        B_{pq} + \sum_{s} E_{ps} X_{pqs} E_{qs}^H
         \right) G_{q}^H
 
 where for antenna :math:`p` and :math:`q`, and source :math:`s`:
@@ -554,13 +554,13 @@ antenna2 : $(array_type)
     for a particular baseline.
     with shape :code:`(row,)`.
 dde1_jones : $(array_type), optional
-    :math:`A_{ps}` Direction-Dependent Jones terms for the first antenna.
+    :math:`E_{ps}` Direction-Dependent Jones terms for the first antenna.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 source_coh : $(array_type), optional
     :math:`X_{pqs}` Direction-Dependent Coherency matrix for the baseline.
     with shape :code:`(source,row,chan,corr_1,corr_2)`
 dde2_jones : $(array_type), optional
-    :math:`A_{qs}` Direction-Dependent Jones terms for the second antenna.
+    :math:`E_{qs}` Direction-Dependent Jones terms for the second antenna.
     This is usually the same array as ``dde1_jones`` as this
     preserves the symmetry of the RIME. ``predict_vis`` will
     perform the conjugate transpose internally.
@@ -570,7 +570,7 @@ die1_jones : $(array_type), optional
     first antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
 base_vis : $(array_type), optional
-    :math:`B_{pq}` base visibilities, added to source coherency summation
+    :math:`B_{pq}` base coherencies, added to source coherency summation
     *before* multiplication with `die1_jones` and `die2_jones`.
     shape :code:`(row,chan,corr_1,corr_2)`.
 die2_jones : $(array_type), optional
