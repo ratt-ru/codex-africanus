@@ -4,9 +4,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 try:
     from dask.utils import SerializableLock as Lock
-    from dask.array.utils import safe_wraps
 except ImportError:
     from threading import Lock
 
@@ -105,7 +106,7 @@ class memoize_on_key(object):
         self._cache = {}
 
     def __call__(self, fn):
-        @safe_wraps(fn)
+        @wraps(fn)
         def wrapper(*args, **kwargs):
             key = self._key_fn(*args, **kwargs)
 
