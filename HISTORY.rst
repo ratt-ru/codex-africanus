@@ -5,7 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
-* Clarify die2_jones/dde2_jones in predict_vis documentation (:pr:`135`)
+* predict_vis documentation improvements (:pr:`135`, :pr:`140`)
 * Upgrade to dask-ms in the examples (:pr:`134`, :pr:`138`)
 * Explain how to obtain predict_vis time_index argument (:pr:`130`)
 * Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
