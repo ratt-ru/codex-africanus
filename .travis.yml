@@ -4,7 +4,6 @@ matrix:
   - env: TARGET=python2
   - env: TARGET=python35
   - env: TARGET=python36
-  - env: TARGET=pep8
 sudo: required
 services:
 - docker
