@@ -24,6 +24,7 @@ import numpy as np
 try:
     from dask.base import tokenize
     import dask.array as da
+    from dask.array.utils import safe_wraps
     import dask.blockwise as db
     from dask.highlevelgraph import HighLevelGraph
 except ImportError as e:
@@ -76,6 +77,17 @@ def _getitem_row(avg, idx, dtype):
     return da.Array(graph, name, avg.chunks, dtype=dtype)
 
 
+@safe_wraps(row_average)
+def _row_average_wrapper(row_meta, ant1, ant2, flag_row,
+                         time_centroid, exposure, uvw,
+                         weight, sigma):
+    return row_average(row_meta, ant1, ant2, flag_row,
+                       time_centroid, exposure,
+                       uvw[0] if uvw is not None else None,
+                       weight[0] if weight is not None else None,
+                       sigma[0] if sigma is not None else None)
+
+
 def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
                       time_centroid=None, exposure=None, uvw=None,
                       weight=None, sigma=None):
@@ -84,14 +96,14 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
     rd = ("row",)
     rcd = ("row", "corr")
 
-    avg = da.blockwise(row_average, rd,
+    avg = da.blockwise(_row_average_wrapper, rd,
                        row_meta, rd,
                        ant1, rd,
                        ant2, rd,
                        flag_row, None if flag_row is None else rd,
                        time_centroid, None if time_centroid is None else rd,
                        exposure, None if exposure is None else rd,
-                       uvw, None if uvw is None else ("row", "3"),
+                       uvw, None if uvw is None else ("row", "uvw"),
                        weight, None if weight is None else rcd,
                        sigma, None if sigma is None else rcd,
                        align_arrays=False,
