@@ -60,6 +60,7 @@ def _dask_row_mapper(time, interval, antenna1, antenna2,
                         antenna1, ("row",),
                         antenna2, ("row",),
                         flag_row, None if flag_row is None else ("row",),
+                        adjust_chunks={"row": lambda x: np.nan},
                         time_bin_secs=time_bin_secs,
                         dtype=np.object)
 
@@ -93,6 +94,7 @@ def _dask_row_average(row_meta, ant1, ant2, flag_row=None,
                        uvw, None if uvw is None else ("row", "3"),
                        weight, None if weight is None else rcd,
                        sigma, None if sigma is None else rcd,
+                       align_arrays=False,
                        adjust_chunks={"row": lambda x: np.nan},
                        dtype=np.object)
 
@@ -126,6 +128,9 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                            chan_bin_size=1):
     """ Average (row,chan,corr)-based dask arrays """
 
+    if chan_meta is None:
+        return RowChanAverageOutput(None, None, None, None)
+
     # We don't know how many rows are in each row chunk,
     # but we can simply divide each channel chunk size by the bin size
     adjust_chunks = {
@@ -149,6 +154,7 @@ def _dask_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                        flag, flag_dims,
                        weight_spectrum, ws_dims,
                        sigma_spectrum, ss_dims,
+                       align_arrays=False,
                        adjust_chunks=adjust_chunks,
                        dtype=np.object)
 
@@ -173,6 +179,10 @@ def _getitem_chan(avg, idx, dtype):
 
 def _dask_chan_average(chan_meta, chan_freq=None, chan_width=None,
                        chan_bin_size=1):
+
+    if chan_meta is None:
+        return ChannelAverageOutput(None, None)
+
     adjust_chunks = {
         "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
     }
