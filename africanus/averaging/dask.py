@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
 from operator import getitem
 
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
@@ -90,7 +89,6 @@ def _getitem_row(avg, idx, array, dims):
     return da.Array(graph, name, chunks, dtype=array.dtype, **kw)
 
 
-@wraps(row_average)
 def _row_average_wrapper(row_meta, ant1, ant2, flag_row,
                          time_centroid, exposure, uvw,
                          weight, sigma):

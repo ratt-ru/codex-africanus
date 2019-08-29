@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 from africanus.rime.phase import (phase_delay as np_phase_delay,
                                   PHASE_DELAY_DOCS)
 from africanus.rime.parangles import parallactic_angles as np_parangles
@@ -32,7 +30,6 @@ else:
     da_import_error = None
 
 
-@wraps(np_phase_delay)
 def _phase_delay_wrap(lm, uvw, frequency):
     return np_phase_delay(lm[0], uvw[0], frequency)
 
@@ -47,7 +44,6 @@ def phase_delay(lm, uvw, frequency):
                              dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
-@wraps(np_parangles)
 def _parangle_wrapper(t, ap, fc, **kw):
     return np_parangles(t, ap[0], fc[0], **kw)
 
@@ -83,7 +79,6 @@ def feed_rotation(parallactic_angles, feed_type):
                              dtype=dtype)
 
 
-@wraps(np_transform_sources)
 def _xform_wrap(lm, parallactic_angles, pointing_errors,
                 antenna_scaling, frequency, dtype_):
     return np_transform_sources(lm[0], parallactic_angles,
@@ -111,7 +106,6 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
                              dtype_=dtype)
 
 
-@wraps(np_beam_cube_dde)
 def _beam_cube_dde_wrapper(beam, beam_lm_extents, beam_freq_map,
                            lm, parallactic_angles,
                            point_errors, antenna_scaling,
@@ -155,7 +149,6 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                              dtype=beam.dtype)
 
 
-@wraps(np_zernike_dde)
 def _zernike_wrapper(coords, coeffs, noll_index):
     # coords loses "three" dim
     # coeffs loses "poly" dim

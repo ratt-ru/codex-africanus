@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 from africanus.dft.kernels import im_to_vis_docs, vis_to_im_docs
 from africanus.dft.kernels import im_to_vis as np_im_to_vis
 from africanus.dft.kernels import vis_to_im as np_vis_to_im
@@ -23,7 +21,6 @@ else:
     dask_import_error = None
 
 
-@wraps(np_im_to_vis)
 def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
     return np_im_to_vis(image[0], uvw[0], lm[0][0],
                         frequency, dtype=dtype_)
@@ -53,7 +50,6 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
                              dtype_=dtype)
 
 
-@wraps(np_vis_to_im)
 def _vis_to_im_wrapper(vis, uvw, lm, frequency, flags, dtype_):
     return np_vis_to_im(vis, uvw[0], lm[0],
                         frequency, flags,
