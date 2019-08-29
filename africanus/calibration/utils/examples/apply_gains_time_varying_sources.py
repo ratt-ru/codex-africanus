@@ -27,10 +27,10 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", help="Name of measurement set", type=str)
     p.add_argument("--model_file", help=".npy file containing the 
-                   "time variable model in format [time, flux, chan, corr].",
+                   "time variable model in format [time, chan, source, corr].",
                    type=str)
     p.add_argument("--coord_file", type=str, help="file containing source "
-                   "coordinates in format [time, l, m].")
+                   "coordinates in format [time, source, l, m].")
     p.add_argument("--data_col", help="Column where data lives. "
                    "Only used to get shape of data at this stage",
                    default='DATA', type=str)
@@ -40,7 +40,7 @@ def create_parser():
     p.add_argument("--gain_file", help=".npy file containing gains in format "
                    "(time, antenna, freq, source, corr). "
                    "See corrupt_vis docs.", type=str)
-    p.add_argument("--utimes_per_chunk",  default=1, type=int,
+    p.add_argument("--utimes_per_chunk",  default=32, type=int,
                    help="Number of unique times in each chunk.")
     p.add_argument("--ncpu", help="The number of threads to use. "
                    "Default of zero means all", default=10, type=int)
@@ -82,10 +82,10 @@ assert lm.shape[0] == n_time
 model = np.load(args.model_file)
 
 assert model.shape[0] == n_time
-assert model.shape[2] == n_freq
+assert model.shape[1] == n_freq
 
 # get number of sources
-n_dir = model.shape[1]
+n_dir = model.shape[2]
 assert lm.shape[1] == n_dir
 
 lm = da.from_array(lm, chunks=(args.utimes_per_chunk, n_dir, 2))
@@ -103,11 +103,11 @@ jones = jones.astype(np.complex64)
 jones_shape = jones.shape
 ndims = len(jones_shape)
 jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
-                      + jones_shape[1:])
+                      + jones_shape[1::])
 
 # change model to dask array
 model = da.from_array(model, chunks=(args.utimes_per_chunk,)
-                            + model.shape[1:])
+                      + model.shape[1::])
 
 # load data in in chunks and apply gains to each chunk
 xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
