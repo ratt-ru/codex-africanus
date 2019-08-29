@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 from africanus.model.spectral.spec_model import (
                                         spectral_model as np_spectral_model,
                                         SPECTRAL_MODEL_DOC)
@@ -19,7 +17,6 @@ else:
     opt_import_error = None
 
 
-@wraps(np_spectral_model)
 def _wrapper(stokes, spi, ref_freq, frequencies, base=None):
     return np_spectral_model(stokes, spi[0], ref_freq, frequencies, base=base)
 

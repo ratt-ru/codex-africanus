@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 from africanus.model.spi.component_spi import SPI_DOCSTRING
 from africanus.model.spi.component_spi import (
                                 fit_spi_components as np_fit_spi_components)
@@ -22,7 +20,6 @@ else:
     opt_import_error = None
 
 
-@wraps(np_fit_spi_components)
 def _fit_spi_components_wrapper(data, weights, freqs, freq0,
                                 alphai, I0i, tol_, maxiter_,
                                 dtype_):
