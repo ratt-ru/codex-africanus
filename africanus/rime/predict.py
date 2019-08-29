@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from functools import wraps
-
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
@@ -456,7 +454,6 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
-    @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
