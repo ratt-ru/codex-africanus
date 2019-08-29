@@ -214,11 +214,21 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                                   out[r, f])
 
     elif not have_ddes and have_coh:
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-            for s in range(blj.shape[0]):
-                for r in range(blj.shape[1]):
-                    for f in range(blj.shape[2]):
-                        out[r, f] += blj[s, r, f]
+        if jones_type == JONES_2X2:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c1 in range(blj.shape[3]):
+                                for c2 in range(blj.shape[4]):
+                                    out[r, f, c1, c2] += blj[s, r, f, c1, c2]
+        else:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c in range(blj.shape[3]):
+                                out[r, f, c] += blj[s, r, f, c]
     else:
         # noop
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):

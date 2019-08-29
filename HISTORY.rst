@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Optimise predict_vis jones coherency summation (:pr:`143`)
 * Remove use of @wraps (:pr:`141`, :pr:`142`)
 * Set row chunks to nan in dask averaging code. (:pr:`139`)
 * predict_vis documentation improvements (:pr:`135`, :pr:`140`)
