@@ -4,9 +4,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 try:
     import dask.array as da
-    from dask.array.utils import safe_wraps
 except ImportError as e:
     dask_import_error = e
 else:
@@ -22,7 +23,7 @@ from africanus.coordinates.coordinates import (radec_to_lmn as np_radec_to_lmn,
                                                LMN_TO_RADEC_DOCS)
 
 
-@safe_wraps(np_radec_to_lmn)
+@wraps(np_radec_to_lmn)
 def _radec_to_lmn(radec, phase_centre):
     return np_radec_to_lmn(radec[0], phase_centre[0] if phase_centre else None)
 
@@ -38,7 +39,7 @@ def radec_to_lmn(radec, phase_centre=None):
                              dtype=radec.dtype)
 
 
-@safe_wraps(np_lmn_to_radec)
+@wraps(np_lmn_to_radec)
 def _lmn_to_radec(lmn, phase_centre):
     return np_lmn_to_radec(lmn[0], phase_centre)
 
@@ -54,7 +55,7 @@ def lmn_to_radec(lmn, phase_centre=None):
                              dtype=lmn.dtype)
 
 
-@safe_wraps(np_radec_to_lm)
+@wraps(np_radec_to_lm)
 def _radec_to_lm(radec, phase_centre):
     return np_radec_to_lm(radec[0], phase_centre[0] if phase_centre else None)
 
@@ -70,7 +71,7 @@ def radec_to_lm(radec, phase_centre=None):
                              dtype=radec.dtype)
 
 
-@safe_wraps(np_lm_to_radec)
+@wraps(np_lm_to_radec)
 def _lm_to_radec(lm, phase_centre):
     return np_lm_to_radec(lm[0], phase_centre)
 

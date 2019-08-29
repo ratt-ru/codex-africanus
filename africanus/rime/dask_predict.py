@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
 from itertools import product
 from operator import mul
 
@@ -19,7 +20,6 @@ try:
     from dask.blockwise import blockwise
     from dask.base import tokenize
     import dask.array as da
-    from dask.array.utils import safe_wraps
     from dask.highlevelgraph import HighLevelGraph
 except ImportError as e:
     opt_import_error = e
@@ -239,7 +239,7 @@ class CoherencyFinalReduction(Mapping):
         return layers
 
 
-@safe_wraps(np_predict_vis)
+@wraps(np_predict_vis)
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
                          die1_jones, base_vis, die2_jones):
@@ -260,7 +260,7 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
             [None, ...])
 
 
-@safe_wraps(np_predict_vis)
+@wraps(np_predict_vis)
 def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           dde1_jones, source_coh, dde2_jones,
                           die1_jones, base_vis, die2_jones):

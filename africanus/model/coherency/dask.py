@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from functools import wraps
+
 from africanus.compatibility import range
 
 from africanus.model.coherency.conversion import (convert_setup,
@@ -15,7 +17,6 @@ from africanus.util.requirements import requires_optional
 
 try:
     import dask.array as da
-    from dask.array.utils import safe_wraps
 except ImportError as e:
     da_import_error = e
 else:
@@ -23,7 +24,7 @@ else:
 
 
 # This wraps is a https://en.wikipedia.org/wiki/Noble_lie
-@safe_wraps(np_stokes_convert)
+@wraps(np_stokes_convert)
 def _wrapper(np_input, mapping=None, in_shape=None,
              out_shape=None, dtype_=None):
     result = convert_impl(np_input, mapping, in_shape,
