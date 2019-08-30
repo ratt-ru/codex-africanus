@@ -70,16 +70,16 @@ tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
 n_time = tbin_idx.size
 
 # get freqs
-freqs = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0]
+freqs = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
 n_freq = freqs.size
 freqs = da.from_array(freqs, chunks=(n_freq))
 
 # get source coordinates
-lm = np.load(args.coord_file)
+lm = np.load(args.coord_file).astype(np.float64)
 assert lm.shape[0] == n_time
 
 # load in the model file
-model = np.load(args.model_file)
+model = np.load(args.model_file).astype(np.float64)
 
 assert model.shape[0] == n_time
 assert model.shape[1] == n_freq
@@ -95,11 +95,10 @@ cols = []
 cols.append('ANTENNA1')
 cols.append('ANTENNA2')
 cols.append('UVW')
-cols.append(args.data_col)
 
 # load in gains
 jones = np.load(args.gain_file)
-jones = jones.astype(np.complex64)
+jones = jones.astype(np.complex128)
 jones_shape = jones.shape
 ndims = len(jones_shape)
 jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
@@ -111,7 +110,6 @@ model = da.from_array(model, chunks=(args.utimes_per_chunk,)
 
 # load data in in chunks and apply gains to each chunk
 xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
-vis = getattr(xds, args.data_col).data
 ant1 = xds.ANTENNA1.data
 ant2 = xds.ANTENNA2.data
 uvw = xds.UVW.data
