@@ -96,7 +96,8 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
         time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]
         model_shape = np.shape(model)
-        vis_shape = model.shape[:2] + model.shape[3:]
+        vis_shape = (antenna1.shape,) + (freq.shape,) + (model.shape[-1],)
+        print(vis_shape)
         vis = np.zeros(vis_shape, dtype=jones.dtype)
         n_chan = model_shape[1]
         for t in range(n_tim):
