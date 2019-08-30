@@ -111,7 +111,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
                      freq, ("chan",),
                      lm, ("row", "dir", "two"),
                      adjust_chunks={"row": antenna1.chunks[0]},
-                     new_axes={"corr2": 2},  # why?
+                     # new_axes={"corr2": 2},  # why?
                      dtype=model.dtype,
                      align_arrays=False)
 
