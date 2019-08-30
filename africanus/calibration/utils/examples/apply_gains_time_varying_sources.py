@@ -117,6 +117,11 @@ ant2 = xds.ANTENNA2.data
 uvw = xds.UVW.data
 
 # apply gains
+print(jones.shape)
+print(model.shape)
+print(uvw.shape)
+print(freqs.shape)
+print(lm.shape)
 corrupted_data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
                                          jones, model, uvw, freqs, lm)
 
