@@ -70,7 +70,7 @@ tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
 n_time = tbin_idx.size
 
 # get freqs
-freqs = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')
+freqs = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0]
 n_freq = freqs.size
 freqs = da.from_array(freqs, chunks=(n_freq))
 
