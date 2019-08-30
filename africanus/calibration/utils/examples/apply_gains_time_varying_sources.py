@@ -122,11 +122,9 @@ print(model.shape)
 print(uvw.shape)
 print(freqs.shape)
 print(lm.shape)
+print(data.shape)
 corrupted_data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
                                          jones, model, uvw, freqs, lm)
-
-if reshape_vis:
-    corrupted_data = corrupted_data.reshape(n_row, n_chan, n_corr)
 
 # Assign visibilities to args.out_col and write to ms
 data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr"])
