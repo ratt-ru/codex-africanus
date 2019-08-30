@@ -100,7 +100,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
-    return blockwise(_corrupt_vis_wrapper, out_shape,
+    return blockwise(_compute_and_corrupt_vis_wrapper, out_shape,
                      time_bin_indices, ("row",),
                      time_bin_counts, ("row",),
                      antenna1, ("row",),
