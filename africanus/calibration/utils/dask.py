@@ -9,6 +9,7 @@ from functools import wraps
 from africanus.calibration.utils.correct_vis import CORRECT_VIS_DOCS
 from africanus.calibration.utils.corrupt_vis import CORRUPT_VIS_DOCS
 from africanus.calibration.utils.residual_vis import RESIDUAL_VIS_DOCS
+from africanus.calibration.utils.compute_and_corrupt_vis import COMPUTE_AND_CORRUPT_VIS_DOCS
 from africanus.calibration.utils import correct_vis as np_correct_vis
 from africanus.calibration.utils import compute_and_corrupt_vis as np_compute_and_corrupt_vis
 from africanus.calibration.utils import corrupt_vis as np_corrupt_vis
@@ -29,7 +30,6 @@ DIAG = 1
 FULL = 2
 
 
-@wraps(np_corrupt_vis)
 def _corrupt_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, model):
     return np_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
@@ -70,7 +70,6 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                      align_arrays=False)
 
 
-@wraps(np_compute_and_corrupt_vis)
 def _compute_and_corrupt_vis_wrapper(time_bin_indices, time_bin_counts,
                                      antenna1, antenna2, jones, model,
                                      uvw, freq, lm):
@@ -108,15 +107,14 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
                      antenna2, ("row",),
                      jones, jones_shape,
                      model, model_shape,
-                     uvw, ("row", "three")
+                     uvw, ("row", "three"),
                      freq, ("chan",),
-                     lm, ("row", "dir", "two")
+                     lm, ("row", "dir", "two"),
                      adjust_chunks={"row": antenna1.chunks[0]},
                      new_axes={"corr2": 2},  # why?
                      dtype=model.dtype,
                      align_arrays=False)
 
-@wraps(np_correct_vis)
 def _correct_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag):
     return np_correct_vis(time_bin_indices, time_bin_counts, antenna1,
@@ -154,8 +152,6 @@ def correct_vis(time_bin_indices, time_bin_counts, antenna1,
                      dtype=vis.dtype,
                      align_arrays=False)
 
-
-@wraps(np_residual_vis)
 def _residual_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
                           antenna2, jones, vis, flag, model):
     return np_residual_vis(time_bin_indices, time_bin_counts, antenna1,
@@ -196,6 +192,8 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                      dtype=vis.dtype,
                      align_arrays=False)
 
+compute_and_corrupt_vis.__doc__ = COMPUTE_AND_CORRUPT_VIS_DOCS.substitute(
+                                        array_type=":class:`dask.array.Array`")
 
 corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
                         array_type=":class:`dask.array.Array`")

@@ -26,7 +26,7 @@ import argparse
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", help="Name of measurement set", type=str)
-    p.add_argument("--model_file", help=".npy file containing the 
+    p.add_argument("--model_file", help=".npy file containing the "
                    "time variable model in format [time, chan, source, corr].",
                    type=str)
     p.add_argument("--coord_file", type=str, help="file containing source "

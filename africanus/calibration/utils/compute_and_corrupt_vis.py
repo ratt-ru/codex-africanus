@@ -152,7 +152,7 @@ vis : $(array_type)
 
 
 try:
-    compute_and_corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
+    compute_and_corrupt_vis.__doc__ = COMPUTE_AND_CORRUPT_VIS_DOCS.substitute(
                                     array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
