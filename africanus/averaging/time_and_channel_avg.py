@@ -259,7 +259,7 @@ def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
                  weight, weight_spectrum,
                  orow, ochan, irow, ichan, corr):
 
-            wt = weight[irow]
+            wt = weight[irow, corr]
             iv = in_vis[irow, ichan, corr] * wt
             out_vis[orow, ochan, corr] += iv
             out_weight_sum[orow, ochan, corr] += wt
@@ -303,7 +303,7 @@ def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
                  orow, ochan, irow, ichan, corr):
 
             # sum(sigma**2 * weight**2)
-            wt = weight[irow]
+            wt = weight[irow, corr]
             is_ = in_sigma[irow, ichan, corr]**2 * wt**2
             out_sigma[orow, ochan, corr] += is_
             out_weight_sum[orow, ochan, corr] += wt
