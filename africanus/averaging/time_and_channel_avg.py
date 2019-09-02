@@ -259,7 +259,7 @@ def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
                  weight, weight_spectrum,
                  orow, ochan, irow, ichan, corr):
 
-            wt = weight[irow]
+            wt = weight[irow, corr]
             iv = in_vis[irow, ichan, corr] * wt
             out_vis[orow, ochan, corr] += iv
             out_weight_sum[orow, ochan, corr] += wt
@@ -303,7 +303,7 @@ def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
                  orow, ochan, irow, ichan, corr):
 
             # sum(sigma**2 * weight**2)
-            wt = weight[irow]
+            wt = weight[irow, corr]
             is_ = in_sigma[irow, ichan, corr]**2 * wt**2
             out_sigma[orow, ochan, corr] += is_
             out_weight_sum[orow, ochan, corr] += wt
@@ -468,7 +468,8 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
 @njit(nogil=True, cache=True)
 def chan_corrs(vis, flag,
                weight_spectrum, sigma_spectrum,
-               chan_freq, chan_width):
+               chan_freq, chan_width,
+               effective_bw, resolution):
     """
     Infer channel and correlation size from input dimensions
 
@@ -485,6 +486,8 @@ def chan_corrs(vis, flag,
     sigma_spectrum_shape = shape_or_invalid_shape(sigma_spectrum, 3)
     chan_freq_shape = shape_or_invalid_shape(chan_freq, 1)
     chan_width_shape = shape_or_invalid_shape(chan_width, 1)
+    effective_bw_shape = shape_or_invalid_shape(effective_bw, 1)
+    resolution_shape = shape_or_invalid_shape(resolution, 1)
 
     chan = 0
     corr = 0
@@ -495,6 +498,8 @@ def chan_corrs(vis, flag,
     chan, corr = find_chan_corr(chan, corr, sigma_spectrum_shape, 1, 2)
     chan, corr = find_chan_corr(chan, corr, chan_freq_shape, 0, -1)
     chan, corr = find_chan_corr(chan, corr, chan_width_shape, 0, -1)
+    chan, corr = find_chan_corr(chan, corr, effective_bw_shape, 0, -1)
+    chan, corr = find_chan_corr(chan, corr, resolution_shape, 0, -1)
 
     return chan, corr
 
@@ -576,7 +581,8 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
         out_rows = row_meta.time.shape[0]
         nchan, ncorrs = chan_corrs(vis, flag,
                                    weight_spectrum, sigma_spectrum,
-                                   dummy_chan_freq, dummy_chan_width)
+                                   dummy_chan_freq, dummy_chan_width,
+                                   dummy_chan_width, dummy_chan_width)
 
         chan_map, out_chans = chan_meta
 
@@ -682,39 +688,54 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
     return impl
 
 
-_chan_output_fields = ["chan_freq", "chan_width"]
+_chan_output_fields = ["chan_freq", "chan_width", "effective_bw", "resolution"]
 ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def chan_average(chan_meta, chan_freq=None, chan_width=None):
+def chan_average(chan_meta, chan_freq=None, chan_width=None,
+                 effective_bw=None, resolution=None):
     have_chan_freq = not is_numba_type_none(chan_freq)
     have_chan_width = not is_numba_type_none(chan_width)
+    have_effective_bw = not is_numba_type_none(effective_bw)
+    have_resolution = not is_numba_type_none(resolution)
 
     chan_freq_output = chan_output_factory(have_chan_freq)
     chan_width_output = chan_output_factory(have_chan_width)
+    effective_bw_output = chan_output_factory(have_effective_bw)
+    resolution_output = chan_output_factory(have_resolution)
 
     chan_freq_normaliser = normaliser_factory(have_chan_freq)
 
     chan_freq_adder = add_factory(have_chan_freq)
     chan_width_adder = add_factory(have_chan_width)
+    effective_bw_adder = add_factory(have_effective_bw)
+    resolution_adder = add_factory(have_resolution)
 
-    def impl(chan_meta, chan_freq=None, chan_width=None):
+    def impl(chan_meta, chan_freq=None, chan_width=None,
+             effective_bw=None, resolution=None):
         chan_map, out_chans = chan_meta
 
         chan_freq_avg = chan_freq_output(out_chans, chan_freq)
         chan_width_avg = chan_width_output(out_chans, chan_width)
+        effective_bw_avg = effective_bw_output(out_chans, effective_bw)
+        resolution_avg = resolution_output(out_chans, resolution)
         counts = np.zeros(out_chans, dtype=np.uint32)
 
         for in_chan, out_chan in enumerate(chan_map):
             counts[out_chan] += 1
             chan_freq_adder(chan_freq_avg, out_chan, chan_freq, in_chan)
             chan_width_adder(chan_width_avg, out_chan, chan_width, in_chan)
+            effective_bw_adder(effective_bw_avg, out_chan,
+                               effective_bw, in_chan)
+            resolution_adder(resolution_avg, out_chan,
+                             resolution, in_chan)
 
         for out_chan in range(out_chans):
             chan_freq_normaliser(chan_freq_avg, out_chan, counts[out_chan])
 
-        return ChannelAverageOutput(chan_freq_avg, chan_width_avg)
+        return ChannelAverageOutput(chan_freq_avg, chan_width_avg,
+                                    effective_bw_avg, resolution_avg)
 
     return impl
 
@@ -789,6 +810,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
                      time_centroid=None, exposure=None, flag_row=None,
                      uvw=None, weight=None, sigma=None,
                      chan_freq=None, chan_width=None,
+                     effective_bw=None, resolution=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
@@ -808,13 +830,15 @@ def time_and_channel(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
              chan_freq=None, chan_width=None,
+             effective_bw=None, resolution=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
              time_bin_secs=1.0, chan_bin_size=1):
 
         nchan, ncorrs = chan_corrs(vis, flag,
                                    weight_spectrum, sigma_spectrum,
-                                   chan_freq, chan_width)
+                                   chan_freq, chan_width,
+                                   effective_bw, resolution)
 
         # Merge flag_row and flag arrays
         flag_row = merge_flags(flag_row, flag)
@@ -833,7 +857,9 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
         # Average channel data
         chan_data = chan_average(chan_meta, chan_freq=chan_freq,
-                                 chan_width=chan_width)
+                                 chan_width=chan_width,
+                                 effective_bw=effective_bw,
+                                 resolution=resolution)
 
         # Average row and channel data
         row_chan_data = row_chan_average(row_meta, chan_meta,
@@ -856,6 +882,8 @@ def time_and_channel(time, interval, antenna1, antenna2,
                              row_data.sigma,
                              chan_data.chan_freq,
                              chan_data.chan_width,
+                             chan_data.effective_bw,
+                             chan_data.resolution,
                              row_chan_data.vis,
                              row_chan_data.flag,
                              row_chan_data.weight_spectrum,
@@ -893,6 +921,10 @@ chan_freq : $(array_type), optional
     Channel frequencies of shape :code:`(chan,)`.
 chan_width : $(array_type), optional
     Channel widths of shape :code:`(chan,)`.
+effective_bw : $(array_type), optional
+    Effective channel bandwidth of shape :code:`(chan,)`.
+resolution : $(array_type), optional
+    Effective channel resolution of shape :code:`(chan,)`.
 vis : $(array_type), optional
     Visibility data of shape :code:`(row, chan, corr)`.
 flag : $(array_type), optional
@@ -912,7 +944,7 @@ Returns
 -------
 namedtuple
     A namedtuple whose entries correspond to the input arrays.
-    Output arrays will generally be ``None`` if the inputs were ``None``.
+    Output arrays will be ``None`` if the inputs were ``None``.
 """)
 
 
