@@ -242,26 +242,56 @@ def corr_schema(pol):
 def generate_primary_beam(filename, ant, chan, ntime, lm):
     npoly = 8
     coeffs_file = np.load(filename, allow_pickle=True).all()
-    print(coeffs_file)
+    # print(coeffs_file)
     noll_indices = np.zeros((ant, chan, 2, 2, npoly))
     zernike_coeffs = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
     corr_letters = ['x','y']
     nsrc = lm.shape[0]
     coords = np.empty((3, nsrc, ntime, ant, chan))
-    lm = lm.compute().T
+    lm = lm.compute()
 
     for a in range(ant):
         for c in range(chan):
             for t in range(ntime):
-                coords[:2, :, t, a, c] = lm[:,:]
+                coords[0, :, t, a, c] = lm[:,0]
+                coords[1, :, t, a, c] = lm[:,1]
             for corr1 in range(2):
                 for corr2 in range(2):
                     corr_index = corr_letters[corr1] + corr_letters[corr2]
                     noll_indices[a,c,corr1, corr2, :] = coeffs_file['noll_index'][corr_index][:npoly] 
                     zernike_coeffs[a,c,corr1,corr2, :] = coeffs_file['coeff'][corr_index][:npoly]
-    print(zernike_coeffs)
-    return zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), da.from_array(noll_indices, chunks=noll_indices.shape))
+    # print(zernike_coeffs)
+    z =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), da.from_array(noll_indices, chunks=noll_indices.shape))
+    """
+    plt.figure("Zernike Beam")
+    plt.imshow(np.abs(z.compute()[:, 0,0,0,0,0]).reshape((6,6)))
+    plt.colorbar()
+    plt.savefig("./partial_beam.png")
+    plt.close()
+    """
+    return z
 
+def generate_fov_primary_beam(lm_center, npix, l_range, m_range):
+    print("lm center ", lm_center)
+    l_max = 0 + (l_range / 2)#lm_center[0, 0] + (l_range / 2)
+    l_min = 0 - (l_range / 2) # lm_center[0, 0] - (l_range / 2)
+    m_max = 0 + (m_range / 2) #lm_center[0, 1] + (m_range / 2)
+    m_min = 0 - (m_range / 2) #lm_center[0, 1] - (m_range / 2)
+    print("l_center, l_max, l_min, m_max, m_min is ", lm_center, l_max, l_min, m_max, m_min)
+    l_grid = np.linspace(l_min, l_max, npix )
+    m_grid = np.linspace(m_min, m_max, npix )
+    ll, mm = np.meshgrid(l_grid, m_grid)
+    lm = np.vstack((ll.flatten(), mm.flatten())).T
+
+    p_beam = generate_primary_beam("./zernike_coeffs.npy", 1,1,1,da.from_array(lm))[:,0,0,0,0,0]
+    print("test primary beam ", p_beam.shape)
+    p_beam = p_beam.reshape((npix,npix))
+
+    fig1 = plt.figure('Primary Beam')
+    plt.imshow(np.abs(p_beam))
+    plt.colorbar()
+    plt.savefig("./zernike_primary_beam.png")
+    plt.close()
 
 def baseline_jones_multiply(corrs, *args):
     names = args[::2]
@@ -347,12 +377,13 @@ def vis_factory(args, source_type, sky_model, time_index,
     delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
     print("time index : ", ntime)
 
-    generate_zernikes = True
+    generate_zernikes = False
     if generate_zernikes:
         print("GENERATING ZERNIKE PRIMARY BEAM")
-        print("source.radec is ", source.radec)
-        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", np.max(ms.ANTENNA1.data.compute()) + 1, len(frequency),ntime, source.radec)
-        print(dde_primary_beam.compute())
+        print("lm from source.radec is  ", lm)
+        #generate_fov_primary_beam(radec_to_lm(source.radec).compute(), 32, 1, 1)
+        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", np.max(ms.ANTENNA1.data.compute()) + 1, len(frequency),ntime, lm)
+        # print(dde_primary_beam.compute())
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde_primary_beam, jones, dde_primary_beam, None, None, None)
     else:

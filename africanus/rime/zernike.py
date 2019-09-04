@@ -35,8 +35,8 @@ def zernike_rad(m, n, rho):
 
 @jit(nogil=True, nopython=True, cache=True)
 def zernike(j, rho, phi):
-    # if rho > 1:
-    #     return 0 + 0j
+    if rho > 1:
+        return 0 + 0j
     j += 1
     n = 0
     j1 = j-1

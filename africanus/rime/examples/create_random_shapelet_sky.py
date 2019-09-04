@@ -46,7 +46,7 @@ sbeta1 = sky_model.sources[0].shape.sbetal
 sbeta2 = sky_model.sources[0].shape.sbetam
 ra = np.rad2deg(sky_model.sources[0].pos.ra)
 dec = np.rad2deg(sky_model.sources[0].pos.dec)
-I = sky_model.sources[0].flux.I
+I = sky_model.sources[0].flux.I * 0.0001
 spi = sky_model.sources[0].spectrum.spi
 freq0 = sky_model.sources[0].spectrum.freq0
 print(I)
