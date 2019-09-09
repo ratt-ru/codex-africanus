@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from africanus.model.coherency.conversion import (
-    convert as np_convert,
-    STOKES_TYPE_MAP as smap)
+    convert as np_convert)
+from africanus.util.casa_types import STOKES_TYPE_MAP as smap
 
 stokes_corr_cases = [
     ("complex", [['XX'], ['YY']],
