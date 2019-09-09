@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Support the beam in the predict example (:pr:`145`)
 * Fix weight indexing in averaging (:pr:`144`)
 * Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
 * Optimise predict_vis jones coherency summation (:pr:`143`)
