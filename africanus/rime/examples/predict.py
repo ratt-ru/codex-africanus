@@ -7,8 +7,13 @@ from __future__ import print_function
 
 import argparse
 from collections import namedtuple
+from functools import lru_cache
+from operator import getitem
+
+import numpy as np
 
 try:
+    from astropy.io import fits
     import dask
     import dask.array as da
     from dask.diagnostics import ProgressBar
@@ -19,8 +24,10 @@ except ImportError as e:
 else:
     opt_import_error = None
 
+from africanus.util.beams import beam_filenames, beam_grids
 from africanus.coordinates.dask import radec_to_lm
-from africanus.rime.dask import phase_delay, predict_vis
+from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
+                                 beam_cube_dde, feed_rotation)
 from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
@@ -64,12 +71,70 @@ _rime_term_map = {
 }
 
 
+def corr_schema(pol):
+    """
+    Parameters
+    ----------
+    pol : Dataset
+
+    Returns
+    -------
+    corr_schema : list of list
+        correlation schema from the POLARIZATION table,
+        `[[9, 10], [11, 12]]` for example
+    """
+
+    # Select the single row out
+    corrs = pol.NUM_CORR.data[0]
+    corr_types = pol.CORR_TYPE.data[0]
+
+    if corrs == 4:
+        return [[corr_types[0], corr_types[1]],
+                [corr_types[2], corr_types[3]]]  # (2, 2) shape
+    elif corrs == 2:
+        return [corr_types[0], corr_types[1]]    # (2, ) shape
+    elif corrs == 1:
+        return [corr_types[0]]                   # (1, ) shape
+    else:
+        raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
+
+
+def baseline_jones_multiply(corrs, *args):
+    names = args[::2]
+    arrays = args[1::2]
+
+    input_einsum_schemas = []
+    corr_index = 0
+
+    for name, array in zip(names, arrays):
+        try:
+            # Obtain function for prescribing the input einsum schema
+            schema_fn = _rime_term_map[name]
+        except KeyError:
+            raise ValueError("Unknown RIME term '%s'" % name)
+        else:
+            # Extract it and the next corr index
+            einsum_schema, corr_index = schema_fn(corrs, corr_index)
+            input_einsum_schemas.append(einsum_schema)
+
+            if not len(einsum_schema) == array.ndim:
+                raise ValueError("%s len(%s) == %d != %s.ndim"
+                                 % (name, einsum_schema,
+                                    len(einsum_schema), array.shape))
+
+    output_schema = _bl_jones_output_schema(corrs, corr_index)
+    schema = ",".join(input_einsum_schemas) + output_schema
+
+    return da.einsum(schema, *arrays)
+
+
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("ms")
     p.add_argument("-sm", "--sky-model", default="sky-model.txt")
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-mc", "--model-chunks", type=int, default=10000)
+    p.add_argument("-b", "--beam", default=None)
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
@@ -77,6 +142,73 @@ def create_parser():
 
 
 _empty_spectrum = object()
+
+
+@lru_cache(maxsize=16)
+@requires_optional("astropy.io.fits", opt_import_error)
+def load_beams(beam_file_schema, corr_types):
+    beam_files = []
+    headers = []
+
+    for corr, filenames in beam_filenames(args.beam, corr_types).items():
+        file_list = []
+        header_list = []
+        beam_files.append((corr, file_list))
+        headers.append((corr, header_list))
+
+        for filename in filenames:
+            hdul = fits.open(filename)
+            assert len(hdul) == 1
+            file_list.append(hdul)
+            header_list.append(hdul[0].header)
+
+    # All FITS headers should agree
+    flat_headers = [d for k, v in headers for d in v]
+
+    if not all(flat_headers[0] == h for h in flat_headers[1:]):
+        raise ValueError("BEAM FITS Header Files differ")
+
+    #  Map FITS header type to NumPy type
+    BITPIX_MAP = {8: np.dtype('uint8').type, 16: np.dtype('int16').type,
+                  32: np.dtype('int32').type, -32: np.dtype('float32').type,
+                  -64: np.dtype('float64').type}
+
+    header = flat_headers[0]
+    bitpix = header['BITPIX']
+
+    try:
+        dtype = BITPIX_MAP[bitpix]
+    except KeyError:
+        raise ValueError("No mapping from BITPIX %s to a numpy type" % bitpix)
+    else:
+        dtype = np.result_type(dtype, np.complex64)
+
+    if not header['NAXIS'] == 3:
+        raise ValueError("FITS must have exactly three axes. NAXIS != 3")
+
+    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
+
+    shape = (l_grid.shape[0], m_grid.shape[0],
+             nu_grid.shape[0], len(beam_files))
+    beam = np.empty(shape, dtype=dtype)
+
+    # Transpose axes, FITS is FORTRAN ordered
+    ax = (nu_ax - 1, m_ax - 1, l_ax - 1)
+
+    # Read real and imaginary for each correlation
+    for c, (corr, files) in enumerate(beam_files):
+        re, im = files
+        beam[:, :, :, c] = (re[0].data.transpose(ax) +
+                            im[0].data.transpose(ax)*1j)
+        re.close()
+        im.close()
+
+    beam = da.from_array(beam, chunks=beam.shape)
+    beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
+    beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
+    beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
+
+    return beam, beam_lm_ext, beam_freq_grid
 
 
 def parse_sky_model(filename, chunks):
@@ -179,85 +311,44 @@ def parse_sky_model(filename, chunks):
     return source_data
 
 
-def support_tables(args, tables):
+def support_tables(args):
     """
     Parameters
     ----------
     args : object
         Script argument objects
-    tables : list of str
-        List of support tables to open
 
     Returns
     -------
     table_map : dict of Dataset
         {name: dataset}
     """
-    return {t: [ds.compute() for ds in
-                xds_from_table("::".join((args.ms, t)),
-                               group_cols="__row__")]
-            for t in tables}
+
+    n = {k: '::'.join((args.ms, k)) for k
+         in ("ANTENNA", "DATA_DESCRIPTION", "FIELD",
+             "SPECTRAL_WINDOW", "POLARIZATION")}
+
+    # All rows at once
+    lazy_tables = {"ANTENNA": xds_from_table(n["ANTENNA"])}
+
+    compute_tables = {
+        # Fixed shape rows
+        "DATA_DESCRIPTION": xds_from_table(n["DATA_DESCRIPTION"]),
+        # Variably shaped, need a dataset per row
+        "FIELD": xds_from_table(n["FIELD"],
+                                group_cols="__row__"),
+        "SPECTRAL_WINDOW": xds_from_table(n["SPECTRAL_WINDOW"],
+                                          group_cols="__row__"),
+        "POLARIZATION": xds_from_table(n["POLARIZATION"],
+                                       group_cols="__row__"),
+    }
+
+    lazy_tables.update(dask.compute(compute_tables)[0])
+    return lazy_tables
 
 
-def corr_schema(pol):
-    """
-    Parameters
-    ----------
-    pol : Dataset
-
-    Returns
-    -------
-    corr_schema : list of list
-        correlation schema from the POLARIZATION table,
-        `[[9, 10], [11, 12]]` for example
-    """
-
-    # Select the single row out
-    corrs = pol.NUM_CORR.data[0]
-    corr_types = pol.CORR_TYPE.data[0]
-
-    if corrs == 4:
-        return [[corr_types[0], corr_types[1]],
-                [corr_types[2], corr_types[3]]]  # (2, 2) shape
-    elif corrs == 2:
-        return [corr_types[0], corr_types[1]]    # (2, ) shape
-    elif corrs == 1:
-        return [corr_types[0]]                   # (1, ) shape
-    else:
-        raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
-
-
-def baseline_jones_multiply(corrs, *args):
-    names = args[::2]
-    arrays = args[1::2]
-
-    input_einsum_schemas = []
-    corr_index = 0
-
-    for name, array in zip(names, arrays):
-        try:
-            # Obtain function for prescribing the input einsum schema
-            schema_fn = _rime_term_map[name]
-        except KeyError:
-            raise ValueError("Unknown RIME term '%s'" % name)
-        else:
-            # Extract it and the next corr index
-            einsum_schema, corr_index = schema_fn(corrs, corr_index)
-            input_einsum_schemas.append(einsum_schema)
-
-            if not len(einsum_schema) == array.ndim:
-                raise ValueError("%s len(%s) == %d != %s.ndim"
-                                 % (name, einsum_schema,
-                                    len(einsum_schema), array.shape))
-
-    output_schema = _bl_jones_output_schema(corrs, corr_index)
-    schema = ",".join(input_einsum_schemas) + output_schema
-
-    return da.einsum(schema, *arrays)
-
-
-def vis_factory(args, source_type, sky_model, time_index,
-                ms, field, spw, pol):
+def vis_factory(args, source_type, sky_model,
+                ms, ant, field, spw, pol):
     try:
         source = sky_model[source_type]
     except KeyError:
@@ -285,19 +376,100 @@ def vis_factory(args, source_type, sky_model, time_index,
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
 
-    args = ["phase_delay", phase]
+    bl_jones_args = ["phase_delay", phase]
 
     # Add any visibility amplitude terms
     if source_type == "gauss":
-        args.append("gauss_shape")
-        args.append(gaussian_shape(uvw, frequency, source.shape))
+        bl_jones_args.append("gauss_shape")
+        bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
 
-    args.extend(["brightness", brightness])
+    bl_jones_args.extend(["brightness", brightness])
 
-    jones = baseline_jones_multiply(corrs, *args)
+    # Unique times and time index for each row chunk
+    # The index is not global
+    meta = np.empty((0,), dtype=ms.TIME.dtype)
+    utime_inv = ms.TIME.data.map_blocks(np.unique, return_inverse=True,
+                                        meta=meta, dtype=ms.TIME.dtype)
 
-    return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
-                       None, jones, None, None, None, None)
+    time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
+
+    # Beam is requested
+    if args.beam is not None:
+        corr_type = tuple(pol.CORR_TYPE.data[0])
+
+        if not len(corr_type) == 4:
+            raise ValueError("Need four correlations for DDEs")
+
+        # Need unique times for parallactic angles
+        utime = utime_inv.map_blocks(getitem, 0,
+                                     chunks=(np.nan,),
+                                     dtype=utime_inv.dtype)
+
+        parangles = parallactic_angles(utime, ant.POSITION.data,
+                                       field.PHASE_DIR.data[0][0])
+
+        corr_type_set = set(corr_type)
+
+        if corr_type_set.issubset(set([9, 10, 11, 12])):
+            pol_type = 'linear'
+        elif corr_type_set.issubset(set([5, 6, 7, 8])):
+            pol_type = 'circular'
+        else:
+            raise ValueError("Cannot determine polarisation type "
+                             "from correlations %s. Constructing "
+                             "a feed rotation matrix will not be "
+                             "possible." % (corr_type,))
+
+        # Construct feed rotation
+        feed_rot = feed_rotation(parangles, pol_type)
+
+        def _zero_pes(parangles, frequency, dtype_):
+            ntime, na = parangles.shape
+            nchan = frequency.shape[0]
+            return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
+
+        def _zero_ant_scales(parangles, frequency, dtype_):
+            _, na = parangles[0].shape
+            nchan = frequency.shape[0]
+            return np.zeros((na, nchan, 2), dtype=dtype_)
+
+        dtype = np.result_type(parangles, frequency)
+
+        # Create zeroed pointing errors
+        zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
+                           parangles, ("time", "ant"),
+                           frequency, ("chan",),
+                           dtype, None,
+                           new_axes={"comp": 2},
+                           dtype=dtype)
+
+        # Created zeroed antenna scaling factors
+        zas = da.blockwise(_zero_ant_scales, ("ant", "chan", "comp"),
+                           parangles, ("time", "ant"),
+                           frequency, ("chan",),
+                           dtype, None,
+                           new_axes={"comp": 2},
+                           dtype=dtype)
+
+        # Load the beam information
+        beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
+
+        # Introduce the correlation axis
+        beam = beam.reshape(beam.shape[:3] + (2, 2))
+
+        beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
+                                 zpe, zas,
+                                 frequency)
+
+        # Multiply the beam by the feed rotation to form the DDE term
+        dde = da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
+    else:
+        dde = None
+
+    jones = baseline_jones_multiply(corrs, *bl_jones_args)
+
+    return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
+                       dde, jones, dde, None, None, None)
 
 
 @requires_optional("dask.array", "Tigger",
@@ -307,9 +479,9 @@ def predict(args):
     sky_model = parse_sky_model(args.sky_model, args.model_chunks)
 
     # Get the support tables
-    tables = support_tables(args, ["FIELD", "DATA_DESCRIPTION",
-                                   "SPECTRAL_WINDOW", "POLARIZATION"])
+    tables = support_tables(args)
 
+    ant_ds = tables["ANTENNA"]
     field_ds = tables["FIELD"]
     ddid_ds = tables["DATA_DESCRIPTION"]
     spw_ds = tables["SPECTRAL_WINDOW"]
@@ -324,8 +496,8 @@ def predict(args):
                            group_cols=["FIELD_ID", "DATA_DESC_ID"],
                            chunks={"row": args.row_chunks}):
 
-        # Extract frequencies from the spectral window associated
-        # with this data descriptor id
+        # Perform subtable joins
+        ant = ant_ds[0]
         field = field_ds[xds.attrs['FIELD_ID']]
         ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
         spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
@@ -334,11 +506,9 @@ def predict(args):
         # Select single dataset row out
         corrs = pol.NUM_CORR.data[0]
 
-        _, time_index = da.unique(xds.TIME.data, return_inverse=True)
-
         # Generate visibility expressions for each source type
-        source_vis = [vis_factory(args, stype, sky_model, time_index,
-                                  xds, field, spw, pol)
+        source_vis = [vis_factory(args, stype, sky_model,
+                                  xds, ant, field, spw, pol)
                       for stype in sky_model.keys()]
 
         # Sum visibilities together
