@@ -387,9 +387,9 @@ def vis_factory(args, source_type, sky_model,
 
     # Unique times and time index for each row chunk
     # The index is not global
-    meta = np.empty((0,), dtype=ms.TIME.dtype)
+    meta = np.empty((0,), dtype=tuple)
     utime_inv = ms.TIME.data.map_blocks(np.unique, return_inverse=True,
-                                        meta=meta, dtype=ms.TIME.dtype)
+                                        meta=meta, dtype=tuple)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
@@ -403,7 +403,7 @@ def vis_factory(args, source_type, sky_model,
         # Need unique times for parallactic angles
         utime = utime_inv.map_blocks(getitem, 0,
                                      chunks=(np.nan,),
-                                     dtype=utime_inv.dtype)
+                                     dtype=ms.TIME.dtype)
 
         parangles = parallactic_angles(utime, ant.POSITION.data,
                                        field.PHASE_DIR.data[0][0])
