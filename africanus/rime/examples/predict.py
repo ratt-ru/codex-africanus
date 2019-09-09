@@ -347,6 +347,80 @@ def support_tables(args):
     return lazy_tables
 
 
+def _zero_pes(parangles, frequency, dtype_):
+    """ Create zeroed pointing errors """
+    ntime, na = parangles.shape
+    nchan = frequency.shape[0]
+    return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
+
+
+def _zero_ant_scales(parangles, frequency, dtype_):
+    """ Create zeroed antenna scalings """
+    _, na = parangles[0].shape
+    nchan = frequency.shape[0]
+    return np.zeros((na, nchan, 2), dtype=dtype_)
+
+
+def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
+    if args.beam is None:
+        return None
+
+    # Beam is requested
+    corr_type = tuple(pol.CORR_TYPE.data[0])
+
+    if not len(corr_type) == 4:
+        raise ValueError("Need four correlations for DDEs")
+
+    parangles = parallactic_angles(utime, ant.POSITION.data,
+                                   field.PHASE_DIR.data[0][0])
+
+    corr_type_set = set(corr_type)
+
+    if corr_type_set.issubset(set([9, 10, 11, 12])):
+        pol_type = 'linear'
+    elif corr_type_set.issubset(set([5, 6, 7, 8])):
+        pol_type = 'circular'
+    else:
+        raise ValueError("Cannot determine polarisation type "
+                         "from correlations %s. Constructing "
+                         "a feed rotation matrix will not be "
+                         "possible." % (corr_type,))
+
+    # Construct feed rotation
+    feed_rot = feed_rotation(parangles, pol_type)
+
+    dtype = np.result_type(parangles, frequency)
+
+    # Create zeroed pointing errors
+    zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
+                       parangles, ("time", "ant"),
+                       frequency, ("chan",),
+                       dtype, None,
+                       new_axes={"comp": 2},
+                       dtype=dtype)
+
+    # Created zeroed antenna scaling factors
+    zas = da.blockwise(_zero_ant_scales, ("ant", "chan", "comp"),
+                       parangles, ("time", "ant"),
+                       frequency, ("chan",),
+                       dtype, None,
+                       new_axes={"comp": 2},
+                       dtype=dtype)
+
+    # Load the beam information
+    beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
+
+    # Introduce the correlation axis
+    beam = beam.reshape(beam.shape[:3] + (2, 2))
+
+    beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
+                             zpe, zas,
+                             frequency)
+
+    # Multiply the beam by the feed rotation to form the DDE term
+    return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
+
+
 def vis_factory(args, source_type, sky_model,
                 ms, ant, field, spw, pol):
     try:
@@ -391,82 +465,15 @@ def vis_factory(args, source_type, sky_model,
     utime_inv = ms.TIME.data.map_blocks(np.unique, return_inverse=True,
                                         meta=meta, dtype=tuple)
 
+    # Need unique times for parallactic angles
+    utime = utime_inv.map_blocks(getitem, 0,
+                                 chunks=(np.nan,),
+                                 dtype=ms.TIME.dtype)
+
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
-    # Beam is requested
-    if args.beam is not None:
-        corr_type = tuple(pol.CORR_TYPE.data[0])
-
-        if not len(corr_type) == 4:
-            raise ValueError("Need four correlations for DDEs")
-
-        # Need unique times for parallactic angles
-        utime = utime_inv.map_blocks(getitem, 0,
-                                     chunks=(np.nan,),
-                                     dtype=ms.TIME.dtype)
-
-        parangles = parallactic_angles(utime, ant.POSITION.data,
-                                       field.PHASE_DIR.data[0][0])
-
-        corr_type_set = set(corr_type)
-
-        if corr_type_set.issubset(set([9, 10, 11, 12])):
-            pol_type = 'linear'
-        elif corr_type_set.issubset(set([5, 6, 7, 8])):
-            pol_type = 'circular'
-        else:
-            raise ValueError("Cannot determine polarisation type "
-                             "from correlations %s. Constructing "
-                             "a feed rotation matrix will not be "
-                             "possible." % (corr_type,))
-
-        # Construct feed rotation
-        feed_rot = feed_rotation(parangles, pol_type)
-
-        def _zero_pes(parangles, frequency, dtype_):
-            ntime, na = parangles.shape
-            nchan = frequency.shape[0]
-            return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
-
-        def _zero_ant_scales(parangles, frequency, dtype_):
-            _, na = parangles[0].shape
-            nchan = frequency.shape[0]
-            return np.zeros((na, nchan, 2), dtype=dtype_)
-
-        dtype = np.result_type(parangles, frequency)
-
-        # Create zeroed pointing errors
-        zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
-                           parangles, ("time", "ant"),
-                           frequency, ("chan",),
-                           dtype, None,
-                           new_axes={"comp": 2},
-                           dtype=dtype)
-
-        # Created zeroed antenna scaling factors
-        zas = da.blockwise(_zero_ant_scales, ("ant", "chan", "comp"),
-                           parangles, ("time", "ant"),
-                           frequency, ("chan",),
-                           dtype, None,
-                           new_axes={"comp": 2},
-                           dtype=dtype)
-
-        # Load the beam information
-        beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
-
-        # Introduce the correlation axis
-        beam = beam.reshape(beam.shape[:3] + (2, 2))
-
-        beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
-                                 zpe, zas,
-                                 frequency)
-
-        # Multiply the beam by the feed rotation to form the DDE term
-        dde = da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
-    else:
-        dde = None
-
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
+    dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
