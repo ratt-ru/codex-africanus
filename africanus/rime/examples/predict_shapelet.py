@@ -8,6 +8,7 @@ from __future__ import print_function
 import argparse
 from collections import namedtuple
 
+from operator import getitem
 import numpy as np
 
 try:
@@ -29,6 +30,7 @@ from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
 from africanus.model.shape.dask import shapelet as shapelet_fn
 from africanus.rime.dask import zernike_dde
+from africanus.rime.dask import parallactic_angles
 from africanus.util.requirements import requires_optional
 
 # Testing stuff
@@ -126,7 +128,6 @@ def parse_sky_model(filename, chunks):
     shapelet_coeffs = []
     max_shapelet_coeffs = 0
 
-    print(sky_model.sources)
 
     for source in sky_model.sources:
         ra = source.pos.ra
@@ -239,13 +240,12 @@ def corr_schema(pol):
     else:
         raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
 
-def generate_primary_beam(filename, ant, chan, ntime, lm):
+def generate_primary_beam(filename, ant, chan, ntime, lm, pa, frequency_scaling, antenna_scaling):
     npoly = 8
-    coeffs_file = np.load(filename, allow_pickle=True).all()
-    # print(coeffs_file)
+    coeffs_file = np.load(filename, allow_pickle=True, encoding="bytes").all()
     noll_indices = np.zeros((ant, chan, 2, 2, npoly))
     zernike_coeffs = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
-    corr_letters = ['x','y']
+    corr_letters = [b'x',b'y']
     nsrc = lm.shape[0]
     coords = np.empty((3, nsrc, ntime, ant, chan))
     lm = lm.compute()
@@ -258,10 +258,14 @@ def generate_primary_beam(filename, ant, chan, ntime, lm):
             for corr1 in range(2):
                 for corr2 in range(2):
                     corr_index = corr_letters[corr1] + corr_letters[corr2]
-                    noll_indices[a,c,corr1, corr2, :] = coeffs_file['noll_index'][corr_index][:npoly] 
-                    zernike_coeffs[a,c,corr1,corr2, :] = coeffs_file['coeff'][corr_index][:npoly]
-    # print(zernike_coeffs)
-    z =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), da.from_array(noll_indices, chunks=noll_indices.shape))
+                    noll_indices[a,c,corr1, corr2, :] = coeffs_file[b'noll_index'][corr_index][:npoly] 
+                    zernike_coeffs[a,c,corr1,corr2, :] = coeffs_file[b'coeff'][corr_index][:npoly]
+    z =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), \
+        da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), \
+            da.from_array(noll_indices, chunks=noll_indices.shape), \
+            pa, \
+            frequency_scaling, \
+            antenna_scaling)
     """
     plt.figure("Zernike Beam")
     plt.imshow(np.abs(z.compute()[:, 0,0,0,0,0]).reshape((6,6)))
@@ -272,19 +276,16 @@ def generate_primary_beam(filename, ant, chan, ntime, lm):
     return z
 
 def generate_fov_primary_beam(lm_center, npix, l_range, m_range):
-    print("lm center ", lm_center)
     l_max = 0 + (l_range / 2)#lm_center[0, 0] + (l_range / 2)
     l_min = 0 - (l_range / 2) # lm_center[0, 0] - (l_range / 2)
     m_max = 0 + (m_range / 2) #lm_center[0, 1] + (m_range / 2)
     m_min = 0 - (m_range / 2) #lm_center[0, 1] - (m_range / 2)
-    print("l_center, l_max, l_min, m_max, m_min is ", lm_center, l_max, l_min, m_max, m_min)
     l_grid = np.linspace(l_min, l_max, npix )
     m_grid = np.linspace(m_min, m_max, npix )
     ll, mm = np.meshgrid(l_grid, m_grid)
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     p_beam = generate_primary_beam("./zernike_coeffs.npy", 1,1,1,da.from_array(lm))[:,0,0,0,0,0]
-    print("test primary beam ", p_beam.shape)
     p_beam = p_beam.reshape((npix,npix))
 
     fig1 = plt.figure('Primary Beam')
@@ -321,7 +322,7 @@ def baseline_jones_multiply(corrs, *args):
     return da.einsum(schema, *arrays)
 
 def vis_factory(args, source_type, sky_model, time_index,
-                ms, field, spw, pol):
+                ms, field, spw, pol, antenna_positions, utime):
     try:
         source = sky_model[source_type]
     except KeyError:
@@ -360,30 +361,30 @@ def vis_factory(args, source_type, sky_model, time_index,
         delta_lm = da.from_array(delta_lm, chunks=delta_lm.shape)
         frequency = da.from_array(frequency, chunks=frequency.size)
         args.append("shapelet_shape")
-        print(uvw.shape, frequency.shape, source.coeffs.shape, source.beta.shape, delta_lm.shape)
-        print("coeffs is ", np.array(source.coeffs.compute()).shape)
-        print("uvw is ", uvw)
-        print("frequency is ", frequency)
-        print("beta is ", source.beta)
-        print("delta_lm is ", delta_lm)
         args.append(shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm))
 
     args.extend(["brightness", brightness])
 
     jones = baseline_jones_multiply(corrs, *args)
 
-    ntime = np.max(time_index.compute()) + 1
-    print("lm array before primary beam is : ", lm.compute())
+    ntime = len(utime)
+    nchan = len(frequency)
+    na = len(antenna_positions)
     delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
-    print("time index : ", ntime)
 
-    generate_zernikes = False
+    generate_zernikes = True
     if generate_zernikes:
         print("GENERATING ZERNIKE PRIMARY BEAM")
-        print("lm from source.radec is  ", lm)
-        #generate_fov_primary_beam(radec_to_lm(source.radec).compute(), 32, 1, 1)
-        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", np.max(ms.ANTENNA1.data.compute()) + 1, len(frequency),ntime, lm)
-        # print(dde_primary_beam.compute())
+
+        # Create frequency_scaling and antenna_scaling for primary beam
+        frequency_scaling = np.ones((nchan,), dtype=np.float64)
+        antenna_scaling = np.ones((na, nchan, 2), dtype=np.float64)
+
+        # Compute parallactic_angle
+        pa = parallactic_angles(utime, da.from_array(antenna_positions), da.from_array(field.PHASE_DIR.data))
+
+        # Create primary beam
+        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", na, nchan, ntime, lm, pa, frequency_scaling, antenna_scaling)
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde_primary_beam, jones, dde_primary_beam, None, None, None)
     else:
@@ -401,12 +402,16 @@ def predict(args):
 
     # Get the support tables
     tables = support_tables(args, ["FIELD", "DATA_DESCRIPTION",
-                                   "SPECTRAL_WINDOW", "POLARIZATION"])
+                                   "SPECTRAL_WINDOW", "POLARIZATION", "ANTENNA"])
 
     field_ds = tables["FIELD"]
     ddid_ds = tables["DATA_DESCRIPTION"]
     spw_ds = tables["SPECTRAL_WINDOW"]
     pol_ds = tables["POLARIZATION"] 
+    ant_ds = tables["ANTENNA"]
+    antenna_positions = []
+    for a in range(len(ant_ds)):
+        antenna_positions.append(ant_ds[a].POSITION.data)
 
     # List of write operations
     writes = []
@@ -426,11 +431,21 @@ def predict(args):
         frequency = spw.CHAN_FREQ.data
 
         corrs = pol.NUM_CORR.values
+        time = xds.TIME.data
+        intermediate = time.map_blocks(lambda t: np.unique(t, return_inverse=True),
+                                        meta=np.empty((0,), dtype=tuple),
+                                        dtype=tuple)
+        utime = intermediate.map_blocks(lambda i: getitem(i, 0),
+                                        chunks=(np.nan,),
+                                        dtype=time.dtype)
+        time_index = intermediate.map_blocks(lambda i: getitem(i, 1),
+                                        dtype=np.int32)
+                                    
+        utime = da.from_array(utime.compute())
 
-        _, time_index = da.unique(xds.TIME.data, return_inverse=True)
         # Generate visibility expressions for each source type
         source_vis = [vis_factory(args, stype, sky_model, time_index,
-                                  xds, field, spw, pol)
+                                  xds, field, spw, pol, antenna_positions, utime)
                       for stype in sky_model.keys()]
 
 

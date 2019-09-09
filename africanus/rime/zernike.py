@@ -2,6 +2,7 @@ import numpy as np
 
 
 from africanus.util.numba import jit
+from math import sin, cos
 
 
 @jit(nogil=True, nopython=True, cache=True)
@@ -58,16 +59,29 @@ def _convert_coords(l, m):
 
 
 @jit(nogil=True, nopython=True, cache=True)
-def nb_zernike_dde(coords, coeffs, noll_index, out):
+def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequency_scaling, antenna_scaling):
     sources, times, ants, chans, corrs = out.shape
     npoly = coeffs.shape[-1]
 
     for s in range(sources):
         for t in range(times):
             for a in range(ants):
+                sin_pa = np.sin(parallactic_angles[t, a])
+                cos_pa = np.cos(parallactic_angles[t, a])
+
                 for c in range(chans):
                     l, m, freq = coords[:, s, t, a, c]
-                    rho, phi = _convert_coords(l, m)
+
+                    l = l * frequency_scaling[c] 
+                    m = m * frequency_scaling[c]
+
+                    vl = l * cos_pa - l * sin_pa
+                    vm = m * sin_pa + m * cos_pa
+
+                    vl *= antenna_scaling[a, c, 0]
+                    vm *= antenna_scaling[a, c, 1]
+
+                    rho, phi = _convert_coords(vl, vm)
 
                     for co in range(corrs):
                         zernike_sum = 0
@@ -82,7 +96,7 @@ def nb_zernike_dde(coords, coeffs, noll_index, out):
     return out
 
 
-def zernike_dde(coords, coeffs, noll_index):
+def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling):
     """ Wrapper for :func:`nb_zernike_dde` """
     _, sources, times, ants, chans = coords.shape
     # ant, chan, corr_1, ..., corr_n, poly
@@ -96,7 +110,7 @@ def zernike_dde(coords, coeffs, noll_index):
     coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))
     noll_index = noll_index.reshape((ants, chans, fcorrs, npoly))
 
-    result = nb_zernike_dde(coords, coeffs, noll_index, ddes)
+    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles, frequency_scaling, antenna_scaling)
 
     # Reshape to full correlation size
     return result.reshape((sources, times, ants, chans) + corr_shape)
