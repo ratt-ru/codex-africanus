@@ -143,7 +143,6 @@ def create_parser():
 
 
 @lru_cache(maxsize=16)
-@requires_optional("astropy.io.fits", opt_import_error)
 def load_beams(beam_file_schema, corr_types):
 
     class FITSFile(object):
