@@ -62,27 +62,29 @@ print("Orginal uvw \n", uvw.shape)
 print("Orginal weight \n", weight.shape)
 print("Orginal sigma \n", sigma.shape)
 print("Orginal vis \n", vis.shape)
+print("Orginal vis dtype \n", vis.dtype)
 print("Orginal flag \n", flag.shape)
 
 print("Running test_baseline_time_and_channel")
-avg = baseline_time_and_channel(time, interval, ant1, ant2, time_centroid, exposure,
-                                flag_row, uvw, weight, sigma, vis, flag, weight_spectrum=None,
-                                sigma_spectrum=None, bins_for_longest_baseline=1.0, baseline_chan_bin_size=1)
+avg = baseline_time_and_channel(time, interval, ant1, ant2, time_centroid=time_centroid, exposure=exposure,
+                                flag_row=flag_row, uvw=uvw, weight=weight, sigma=sigma, vis=vis, flag=flag, 
+                                weight_spectrum=None,sigma_spectrum=None, bins_for_longest_baseline=1.0, 
+                                baseline_chan_bin_size=1)
 
-print("avg.time \n", avg.time.shape)
-print("avg.flag_row \n", avg.flag_row.shape)
-print("avg.interval \n", avg.interval.shape)
-print("avg.antenna1 \n", avg.antenna1.shape)
-print("avg.antenna2", avg.antenna2.shape)
-print("avg.time_centroid \n", avg.time_centroid.shape)
-print("avg.exposure \n", avg.exposure.shape)
-print("avg.uvw \n", avg.uvw.shape)
-print("avg.weight \n", avg.weight.shape)
-print("avg.sigma \n", avg.sigma.shape)
-print("avg.vis \n", avg.vis.shape)
-print("avg.flag \n", avg.flag.shape)
-print("avg.weight_spectrum \n", avg.weight_spectrum.shape)
-print("avg.sigma_spectrum \n", avg.sigma_spectrum.shape)
+# print("avg.time \n", avg.time.shape)
+# print("avg.flag_row \n", avg.flag_row.shape)
+# print("avg.interval \n", avg.interval.shape)
+# print("avg.antenna1 \n", avg.antenna1.shape)
+# print("avg.antenna2", avg.antenna2.shape)
+# print("avg.time_centroid \n", avg.time_centroid.shape)
+# print("avg.exposure \n", avg.exposure.shape)
+# print("avg.uvw \n", avg.uvw.shape)
+# print("avg.weight \n", avg.weight.shape)
+# print("avg.sigma \n", avg.sigma.shape)
+# print("avg.vis \n", avg.vis.shape)
+# print("avg.flag \n", avg.flag.shape)
+# print("avg.weight_spectrum \n", avg.weight_spectrum.shape)
+# print("avg.sigma_spectrum \n", avg.sigma_spectrum.shape)
 
 
 # na = np.max(A0) + 1

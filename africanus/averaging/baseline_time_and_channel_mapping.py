@@ -204,7 +204,7 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
     # matrix (ubl * nchan)
     # chan_map = np.empty(nchan, dtype=np.uint32)
     bl_chan_map = np.empty((ubl.shape[0], nchan), dtype=np.uint32)
-    bl_chan_count = np.empty(ubl.shape[0],dtype=np.uint32)
+    bl_chan_bin_count = np.empty(ubl.shape[0],dtype=np.uint32)
     bl_uvw_dist = np.empty(ubl.shape[0], dtype=np.float64)
     bl_dist_chan_bins = np.empty(ubl.shape[0], dtype=np.float64)
         
@@ -239,13 +239,13 @@ def baseline_chan_mapper(uvw, antenna1, antenna2, nchan, baseline_chan_bin_size=
         if bin_count > 0:
 #             print('bin_count > 0')
             chan_bin += 1
-            bl_chan_count[i] = chan_bin
+            bl_chan_bin_count[i] = chan_bin
         else:
-            bl_chan_count[i] = chan_bin
+            bl_chan_bin_count[i] = chan_bin
     
 #     print('chan_map', bl_chan_map)
     # Return values
-    return bl_chan_map, bl_chan_count
+    return bl_chan_map, bl_chan_bin_count
     
     
     

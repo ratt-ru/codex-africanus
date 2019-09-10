@@ -19,6 +19,7 @@ nchan = 16
 ncorr = 4
 
 time = np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])
+time_centroid = time
 ant1 = np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1], dtype=np.int32)
 ant2 = np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2], dtype=np.int32)
 uvw = np.asarray([[1.0,   1.0,  1.0],
@@ -33,6 +34,7 @@ uvw = np.asarray([[1.0,   1.0,  1.0],
                   [3.0,   3.0,  3.0]])
 
 interval = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9]) * 0.1
+exposure = interval
 shape = (time.shape[0], ncorr)
 weight = np.arange(np.product(shape), dtype=np.float64).reshape(shape)
 sigma = np.arange(np.product(shape), dtype=np.float64).reshape(shape)
@@ -52,26 +54,38 @@ flag_row = np.all(flag, axis=(1, 2))
 
 
 
-print("Original time \n", time)
-print("Orginal interval \n", interval)
-print("Orginal antenna1 \n", ant1)
-print("Orginal antenna2", ant2)
-print("Orginal uvw \n", uvw)
-print("Orginal weight \n", weight)
-print("Orginal sigma \n", sigma)
+# print("time \n", time)
+# print("flag_row \n", flag_row)
+# print("interval \n", interval)
+# print("antenna1 \n", ant1)
+# print("antenna2", ant2)
+# print("time_centroid \n", time_centroid)
+# print("exposure \n", exposure)
+# print("uvw \n", uvw)
+# print("weight \n", weight)
+# print("sigma \n", sigma)
+print("vis \n", vis.shape, vis.dtype)
+print("flag \n", flag.shape)
+# print("weight_spectrum \n", weight_spectrum)
+# print("sigma_spectrum \n", sigma_spectrum)
 
 print("Running test_baseline_time_and_channel")
 avg = baseline_time_and_channel(time, interval, ant1, ant2,
-                     time_centroid=time, exposure=interval, flag_row=flag_row,
+                     time_centroid=time_centroid, exposure=exposure, flag_row=flag_row,
                      uvw=uvw, weight=weight, sigma=sigma,vis=vis, flag=flag, weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
-                     bins_for_longest_baseline=1.0)
+                     bins_for_longest_baseline=1.0, baseline_chan_bin_size=1)
 
 print("avg.time \n", avg.time)
+print("avg.flag_row \n", avg.flag_row)
 print("avg.interval \n", avg.interval)
 print("avg.antenna1 \n", avg.antenna1)
 print("avg.antenna2", avg.antenna2)
+print("avg.time_centroid \n", avg.time_centroid)
+print("avg.exposure \n", avg.exposure)
 print("avg.uvw \n", avg.uvw)
 print("avg.weight \n", avg.weight)
 print("avg.sigma \n", avg.sigma)
-
-
+print("avg.vis \n", avg.vis)
+print("avg.flag \n", avg.flag)
+print("avg.weight_spectrum \n", avg.weight_spectrum)
+print("avg.sigma_spectrum \n", avg.sigma_spectrum)

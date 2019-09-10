@@ -340,11 +340,15 @@ def baseline_chan_average(row_meta, chan_meta,flag_row=None, vis=None, flag=None
              weight_spectrum=None, sigma_spectrum=None, baseline_chan_bin_size=1):
         
         out_rows = row_meta.time.shape[0]
+        
+        # NB: out_chan is array
         chan_map, out_chans = chan_meta
-        _, ncorrs = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
+        
+        nchan, ncorrs = chan_corrs(vis, flag, weight_spectrum, sigma_spectrum)
 
         out_shape = (out_rows, out_chans, ncorrs)
 
+        print(out_shape)
         vis_avg = vis_factory(out_shape, vis)
         vis_ampl_avg = vis_ampl_factory(out_shape, vis)
         weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
@@ -533,7 +537,7 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                      uvw=None, weight=None, sigma=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
-                     bins_for_longest_baseline=1.0, baseline_chan_bin_size=1.0):
+                     bins_for_longest_baseline=1.0, baseline_chan_bin_size=1):
         
         print("In baseline time and channel averaging")
         
@@ -554,8 +558,8 @@ def baseline_time_and_channel(time, interval, antenna1, antenna2,
                                         weight=weight, sigma=sigma)
         
         chan_data = baseline_chan_average(row_meta, chan_meta, flag_row=flag_row, vis=vis, 
-                                          flag=flag, weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
-                                          baseline_chan_bin_size=baseline_chan_bin_size)
+                                          flag=flag, weight_spectrum=weight_spectrum, 
+                                          sigma_spectrum=sigma_spectrum, baseline_chan_bin_size=baseline_chan_bin_size)
         
         return AverageOutput(row_meta.time,
                              row_meta.flag_row, 
