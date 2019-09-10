@@ -157,16 +157,11 @@ def load_beams(beam_file_schema, corr_types):
     beam_files = []
     headers = []
 
-    for corr, filenames in beam_filenames(args.beam, corr_types).items():
-        file_list = []
-        header_list = []
-        beam_files.append((corr, file_list))
-        headers.append((corr, header_list))
-
-        for filename in filenames:
-            f = FITSFile(filename)
-            file_list.append(f)
-            header_list.append(f.hdul[0].header)
+    for corr, (re, im) in beam_filenames(args.beam, corr_types).items():
+        re_f = FITSFile(re)
+        im_f = FITSFile(im)
+        beam_files.append((corr, (re_f, im_f)))
+        headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
 
     # All FITS headers should agree
     flat_headers = [d for k, v in headers for d in v]
