@@ -9,6 +9,7 @@ import argparse
 from collections import namedtuple
 from functools import lru_cache
 from operator import getitem
+import weakref
 
 import numpy as np
 
@@ -141,12 +142,18 @@ def create_parser():
     return p
 
 
-_empty_spectrum = object()
-
-
 @lru_cache(maxsize=16)
 @requires_optional("astropy.io.fits", opt_import_error)
 def load_beams(beam_file_schema, corr_types):
+
+    class FITSFile(object):
+        """ Exists so that fits file is closed when last ref is gc'd """
+        def __init__(self, filename):
+            self.hdul = hdul = fits.open(filename)
+            assert len(hdul) == 1
+            self.__del_ref = weakref.ref(self, lambda r: hdul.close())
+
+    # Open files and get headers
     beam_files = []
     headers = []
 
@@ -157,10 +164,9 @@ def load_beams(beam_file_schema, corr_types):
         headers.append((corr, header_list))
 
         for filename in filenames:
-            hdul = fits.open(filename)
-            assert len(hdul) == 1
-            file_list.append(hdul)
-            header_list.append(hdul[0].header)
+            f = FITSFile(filename)
+            file_list.append(f)
+            header_list.append(f.hdul[0].header)
 
     # All FITS headers should agree
     flat_headers = [d for k, v in headers for d in v]
@@ -184,26 +190,35 @@ def load_beams(beam_file_schema, corr_types):
         dtype = np.result_type(dtype, np.complex64)
 
     if not header['NAXIS'] == 3:
-        raise ValueError("FITS must have exactly three axes. NAXIS != 3")
+        raise ValueError("FITS must have exactly three axes. "
+                         "L or X, M or Y and FREQ. NAXIS != 3")
 
     (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
 
-    shape = (l_grid.shape[0], m_grid.shape[0],
-             nu_grid.shape[0], len(beam_files))
-    beam = np.empty(shape, dtype=dtype)
+    # Shape of each correlation
+    shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
 
-    # Transpose axes, FITS is FORTRAN ordered
+    # Axis tranpose, FITS is FORTRAN ordered
     ax = (nu_ax - 1, m_ax - 1, l_ax - 1)
 
-    # Read real and imaginary for each correlation
-    for c, (corr, files) in enumerate(beam_files):
-        re, im = files
-        beam[:, :, :, c] = (re[0].data.transpose(ax) +
-                            im[0].data.transpose(ax)*1j)
-        re.close()
-        im.close()
+    def _load_correlation(re, im, ax):
+        # Read real and imaginary for each correlation
+        return (re.hdul[0].data.transpose(ax) +
+                im.hdul[0].data.transpose(ax)*1j)
 
-    beam = da.from_array(beam, chunks=beam.shape)
+    # Create delayed loads of the beam
+    beam_loader = dask.delayed(_load_correlation)
+
+    beam_corrs = [beam_loader(re, im, ax)
+                  for c, (corr, (re, im)) in enumerate(beam_files)]
+    beam_corrs = [da.from_delayed(bc, shape=shape, dtype=dtype)
+                  for bc in beam_corrs]
+
+    # Stack correlations and rechunk to one great big block
+    beam = da.stack(beam_corrs, axis=3)
+    beam = beam.rechunk(shape + (len(corr_types),))
+
+    # Dask arrays for the beam extents and beam frequency grid
     beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
     beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
     beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
@@ -229,6 +244,8 @@ def parse_sky_model(filename, chunks):
         :code:`{'point': (...), 'gauss': (...) }`
     """
     sky_model = Tigger.load(filename, verbose=False)
+
+    _empty_spectrum = object()
 
     point_radec = []
     point_stokes = []
