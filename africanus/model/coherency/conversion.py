@@ -10,7 +10,6 @@ from textwrap import fill
 
 import numpy as np
 
-from africanus.compatibility import string_types
 from africanus.util.casa_types import (STOKES_TYPES,
                                        STOKES_ID_MAP)
 from africanus.util.docs import DocstringTemplate
