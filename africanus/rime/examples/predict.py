@@ -134,7 +134,7 @@ def create_parser():
     p.add_argument("ms")
     p.add_argument("-sm", "--sky-model", default="sky-model.txt")
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
-    p.add_argument("-mc", "--model-chunks", type=int, default=10000)
+    p.add_argument("-mc", "--model-chunks", type=int, default=10)
     p.add_argument("-b", "--beam", default=None)
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
@@ -156,7 +156,7 @@ def load_beams(beam_file_schema, corr_types):
     beam_files = []
     headers = []
 
-    for corr, (re, im) in beam_filenames(args.beam, corr_types).items():
+    for corr, (re, im) in beam_filenames(beam_file_schema, corr_types).items():
         re_f = FITSFile(re)
         im_f = FITSFile(im)
         beam_files.append((corr, (re_f, im_f)))
@@ -365,11 +365,11 @@ def _zero_pes(parangles, frequency, dtype_):
     return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
 
 
-def _zero_ant_scales(parangles, frequency, dtype_):
+def _unity_ant_scales(parangles, frequency, dtype_):
     """ Create zeroed antenna scalings """
     _, na = parangles[0].shape
     nchan = frequency.shape[0]
-    return np.zeros((na, nchan, 2), dtype=dtype_)
+    return np.ones((na, nchan, 2), dtype=dtype_)
 
 
 def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
@@ -411,7 +411,7 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
                        dtype=dtype)
 
     # Created zeroed antenna scaling factors
-    zas = da.blockwise(_zero_ant_scales, ("ant", "chan", "comp"),
+    zas = da.blockwise(_unity_ant_scales, ("ant", "chan", "comp"),
                        parangles, ("time", "ant"),
                        frequency, ("chan",),
                        dtype, None,
