@@ -15,7 +15,7 @@ History
 * Upgrade to dask-ms in the examples (:pr:`134`, :pr:`138`)
 * Explain how to obtain predict_vis time_index argument (:pr:`130`)
 * Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
-* Add dask wrappers for the nifty gridder (:pr:`116`, :pr:`136`)
+* Add dask wrappers for the nifty gridder (:pr:`116`, :pr:`136`, :pr:`146`)
 * Testing and requirement updates. (:pr:`124`)
 * Upgraded DFT kernels to have a correlation axis and added flags
   for vis_to_im. Added predict_from_fits example. (:pr:`122`)
