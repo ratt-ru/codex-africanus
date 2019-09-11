@@ -11,7 +11,7 @@ services:
 before_install:
 - true
 install:
-- docker build . -t ${TARGET}-{REQUIREMENTS} -f .travis/${TARGET}-{REQUIREMENTS}.docker
+- docker build . -t ${TARGET}-${REQUIREMENTS} -f .travis/${TARGET}-${REQUIREMENTS}.docker
 before_script:
 - true
 script:
