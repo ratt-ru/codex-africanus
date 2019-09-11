@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Drop Python 2 support (:pr:`146`)
 * Fix weight indexing in averaging (:pr:`144`)
 * Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
 * Optimise predict_vis jones coherency summation (:pr:`143`)
