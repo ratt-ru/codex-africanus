@@ -488,7 +488,8 @@ def degrid(grid, uvw, flags, weights, frequencies,
     vis_chunks = []
 
     for corr in range(grid.shape[2]):
-        corr_flags = flags[:, :, corr]
+        corr_flags = flags[:, :, corr].map_blocks(np.require, requirements="C")
+        corr_grid = grid[:, :, corr].map_blocks(np.require, requirements="C")
 
         indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
@@ -501,7 +502,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
                                dtype=np.int32)
 
         vis = da.blockwise(_nifty_degrid, ("row", "chan"),
-                           grid[:, :, corr], ("ny", "nx"),
+                           corr_grid, ("ny", "nx"),
                            baselines, ("row",),
                            indices, ("row",),
                            grid_config, None,
