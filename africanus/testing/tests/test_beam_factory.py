@@ -4,9 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.testing.beam_factory import (beam_factory,
-                                            LINEAR_CORRELATIONS,
-                                            CIRCULAR_CORRELATIONS)
+from africanus.testing.beam_factory import beam_factory
 
 import pytest
 

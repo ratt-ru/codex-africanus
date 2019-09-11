@@ -6,12 +6,9 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
-from contextlib import contextmanager
 import itertools
 from os.path import join as pjoin
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 import tempfile
 

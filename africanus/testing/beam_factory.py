@@ -108,14 +108,6 @@ def beam_factory(polarisation_type='linear',
         ("CRVAL", (gfrequency[0], "reference frequency")),
         ("CDELT", (bandwidth_delta, "frequency step in Hz"))]
 
-    axis4 = [
-        ("CTYPE", ('STOKES', )),
-        ("CUNIT", None),
-        ("NAXIS", (1, "number of STOKES")),
-        ("CRPIX", (1, "reference stokes index")),
-        ("CRVAL", (1, "first stokes index")),
-        ("CDELT", (-5,))]
-
     axes = [axis1, axis2, axis3]
 
     metadata = [
