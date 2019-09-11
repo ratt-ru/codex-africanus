@@ -4,6 +4,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
 import numpy as np
 
 try:
@@ -17,7 +22,6 @@ except ImportError as e:
 else:
     import_error = None
 
-from africanus.compatibility import Mapping
 from africanus.util.requirements import requires_optional
 
 

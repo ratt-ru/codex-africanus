@@ -10,7 +10,6 @@ from os.path import join as pjoin
 
 import numpy as np
 
-from africanus.compatibility import reduce
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks)
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_type, grids
