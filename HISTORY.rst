@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Expand travis build matrix (:pr:`147`)
 * Drop Python 2 support (:pr:`146`)
 * Fix weight indexing in averaging (:pr:`144`)
 * Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
