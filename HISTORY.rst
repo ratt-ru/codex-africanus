@@ -7,6 +7,7 @@ History
 
 * Expand travis build matrix (:pr:`147`)
 * Drop Python 2 support (:pr:`146`)
+* Support the beam in the predict example (:pr:`145`)
 * Fix weight indexing in averaging (:pr:`144`)
 * Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
 * Optimise predict_vis jones coherency summation (:pr:`143`)
