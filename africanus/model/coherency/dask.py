@@ -5,8 +5,6 @@ from __future__ import division
 from __future__ import print_function
 
 
-from africanus.compatibility import range
-
 from africanus.model.coherency.conversion import (convert_setup,
                                                   convert_impl,
                                                   CONVERT_DOCS)

@@ -4,12 +4,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
+from functools import reduce
 from itertools import product
 from operator import mul
 
 import numpy as np
 
-from africanus.compatibility import range, reduce, Mapping
 from africanus.util.requirements import requires_optional
 
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,

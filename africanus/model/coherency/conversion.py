@@ -10,7 +10,6 @@ from textwrap import fill
 
 import numpy as np
 
-from africanus.compatibility import string_types
 from africanus.util.docs import DocstringTemplate
 
 STOKES_TYPES = [
@@ -128,7 +127,7 @@ def _element_indices_and_shape(data):
             if isinstance(e, (tuple, list)):
                 queue.append((e, current_idx + (i, ), depth + 1))
             # String
-            elif isinstance(e, string_types):
+            elif isinstance(e, str):
                 if e in result:
                     raise ValueError("'%s' defined multiple times" % e)
 

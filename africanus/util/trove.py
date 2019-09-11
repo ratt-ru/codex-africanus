@@ -9,6 +9,7 @@ import os
 from os.path import join as pjoin
 import shutil
 import tempfile
+from urllib.request import urlopen
 from zipfile import ZipFile
 
 try:
@@ -16,7 +17,6 @@ try:
 except ImportError:
     from threading import Lock
 
-from africanus.compatibility import urlopen
 from africanus.util.appdirs import downloads_dir, include_dir
 from africanus.util.files import sha_hash_file
 

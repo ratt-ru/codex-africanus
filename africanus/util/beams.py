@@ -10,8 +10,6 @@ import re
 
 import numpy as np
 
-from africanus.compatibility import range
-
 
 class FitsAxes(object):
     """
