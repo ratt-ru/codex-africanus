@@ -107,8 +107,8 @@ def meqtrees_command_factory(args, pol_type):
         # Beam FITS file pattern
         'pybeams_fits.filename_pattern="{p}"'.format(p=beam_pattern),
         # FITS L and M AXIS
-        'pybeams_fits.l_axis={l}'.format(l='X'),
-        'pybeams_fits.m_axis={m}'.format(m='Y'),
+        'pybeams_fits.l_axis={lax}'.format(lax='X'),
+        'pybeams_fits.m_axis={max}'.format(max='Y'),
         sim_script,
         '=simulate'
     ]
