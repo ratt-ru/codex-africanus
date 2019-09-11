@@ -20,9 +20,6 @@ else:
 
 
 DEFAULT_SCHEMA = Path("test_beam_$(corr)_$(reim).fits")
-LINEAR_CORRELATIONS = ['XX', 'XY', 'YX', 'YY']
-CIRCULAR_CORRELATIONS = ['RR', 'RL', 'LR', 'LL']
-
 LINEAR_CORRELATIONS = [9, 10, 11, 12]
 CIRCULAR_CORRELATIONS = [5, 6, 7, 8]
 
