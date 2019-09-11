@@ -3,11 +3,11 @@ from __future__ import division
 from __future__ import print_function
 
 
+from functools import reduce
 from operator import mul
 
 import numpy as np
 
-from africanus.compatibility import reduce
 from africanus.util.numba import jit
 from africanus.gridding.simple.gridding import (
                 numba_grid as simple_numba_grid,

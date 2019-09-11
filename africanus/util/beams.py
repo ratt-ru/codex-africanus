@@ -10,7 +10,6 @@ import re
 
 import numpy as np
 
-from africanus.compatibility import range
 from africanus.util.casa_types import STOKES_ID_MAP
 
 

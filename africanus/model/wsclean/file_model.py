@@ -8,9 +8,6 @@ from ast import literal_eval
 import math
 import re
 
-from africanus.compatibility import string_types
-
-
 hour_re = re.compile(r"(?P<sign>[+-]*)"
                      r"(?P<hours>\d+):"
                      r"(?P<mins>\d+):"
@@ -173,7 +170,7 @@ def load(filename):
         list of column (name, value) tuples
     """
 
-    if isinstance(filename, string_types):
+    if isinstance(filename, str):
         fh = open(filename, "r")
         fh = iter(fh)
         close_filename = True

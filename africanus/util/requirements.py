@@ -8,7 +8,6 @@ import importlib
 
 from decorator import decorate
 
-from africanus.compatibility import string_types
 from africanus.util.docs import on_rtd
 from africanus.util.testing import in_pytest, force_missing_pkg_exception
 
@@ -91,7 +90,7 @@ def requires_optional(*requirements):
         elif isinstance(requirement, ImportError):
             import_errors.append(requirement)
         # An actual package, try to import it
-        elif isinstance(requirement, string_types):
+        elif isinstance(requirement, str):
             try:
                 importlib.import_module(requirement)
             except ImportError:
