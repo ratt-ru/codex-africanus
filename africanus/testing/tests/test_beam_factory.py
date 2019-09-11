@@ -4,17 +4,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from africanus.testing.beam_factory import beam_factory
+from africanus.testing.beam_factory import (beam_factory,
+                                            LINEAR_CORRELATIONS,
+                                            CIRCULAR_CORRELATIONS)
 
 import pytest
 
 
-def test_beam_factory(tmp_path):
+@pytest.mark.parametrize("pol_type", ["linear", "circular"])
+def test_beam_factory(tmp_path, pol_type):
     fits = pytest.importorskip('astropy.io.fits')
     schema = tmp_path / "test_beam_$(corr)_$(reim).fits"
 
-    filenames = beam_factory(schema=schema)
+    filenames = beam_factory(schema=schema,
+                             npix=15,
+                             polarisation_type=pol_type)
 
-    for corr, (re, im) in filenames.items():
-        with fits.open(re), fits.open(im):
+    for corr, (re_file, im_file) in filenames.items():
+        with fits.open(re_file), fits.open(im_file):
             pass
