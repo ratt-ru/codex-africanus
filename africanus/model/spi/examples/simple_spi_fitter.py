@@ -10,7 +10,6 @@ import dask
 import dask.array as da
 import numpy as np
 from astropy.io import fits
-from scipy import fftpack
 from africanus.constants.consts import DEG2RAD, ARCSEC2RAD
 from africanus.model.spi.dask import fit_spi_components
 iFs = np.fft.ifftshift
@@ -36,7 +35,6 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--fitsmodel", type=str)
     p.add_argument("--fitsresidual", type=str)
-    p.add_argument("--fitsrestored", type=str)
     p.add_argument('--outfile', type=str, help="Path to output directory." 
                                                "Placed next to input model "
                                                "if outfile not provided.")
@@ -62,13 +60,13 @@ else:
 
 print("Using %i threads" % ncpu)
 
+ref_hdr = fits.getheader(args.fitsresidual)
 if args.emaj is None:
     print("Attempting to take beampars from fits")
-    restoredhdu = fits.getheader(args.fitsrestored)
-    emaj = restoredhdu['BMAJ0']
-    emin = restoredhdu['BMIN0']
-    pa = restoredhdu['BPA0']
-    print(emaj, emin, pa)
+    emaj = ref_hdr['BMAJ']
+    emin = ref_hdr['BMIN']
+    pa = ref_hdr['BPA']
+    print("Success! Using emaj = %f, emin = %f, PA = %f "%(emaj, emin, pa))
 else:
     emaj = args.emaj
     emin = args.emin
@@ -111,25 +109,20 @@ else:
 
 freqs = ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
 
-print("Reference frequency is ", ref_freq)
+print("Reference frequency is %f Hz "%ref_freq)
 
 # get the Gaussian kernel
+print("Gausskern and FT's")
 xx, yy = np.meshgrid(l_coord, m_coord)
-
-
 gausskern = Gaussian2D(xx, yy, (emaj, emin, pa)).astype(np.float64)
 
-import matplotlib.pyplot as plt
-# plt.imshow(GaussKern)
-# plt.show()
-
-gausskernhat = fftpack.fft2(iFs(gausskern))
+gausskernhat = np.fft.fft2(iFs(gausskern))
 
 # Convolve model with Gaussian kernel
 convmodel = np.zeros_like(model)
 for ch in range(nband):
-    tmp = fftpack.fft2(iFs(model[ch]))
-    convmodel[ch] = Fs(fftpack.ifft2(tmp * gausskernhat)).real
+    tmp = np.fft.fft2(iFs(model[ch]))
+    convmodel[ch] = Fs(np.fft.ifft2(tmp * gausskernhat)).real
 
 # add in residuals if they exist
 if args.fitsresidual is not None:
@@ -140,6 +133,8 @@ if args.fitsresidual is not None:
 else:
     print("No residual provided. Setting  threshold i.t.o dynamic range")
     threshold = model.max()/args.maxDR
+
+print("Threshold set to %f Jy." % threshold)
 
 # get pixels above threshold
 minimage = np.amin(convmodel, axis=0)
@@ -157,6 +152,7 @@ fitcubedask = da.from_array(fitcube, chunks=(ncomps//ncpu, nband))
 weightsdask = da.from_array(weights, chunks=(nband))
 freqsdask = da.from_array(freqs.astype(np.float64), chunks=(nband))
 
+print("Fitting %i components"%ncomps)
 alpha, varalpha, Iref, varIref = fit_spi_components(fitcubedask, weightsdask,
                                                     freqsdask, ref_freq).compute()
 
@@ -181,12 +177,31 @@ else:
 # save alpha map
 if not outfile.endswith('/'):
     outfile = args.outfile
-    
-hdu = fits.PrimaryHDU(header=mhdr)
-hdu.data = alphamap
+
+hdr_keys = ['SIMPLE', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2', 'NAXIS3', 'NAXIS4', 'BUNIT', 'BMAJ', 'BMIN', 'BPA',
+            'EQUINOX', 'BTYPE', 'TELESCOP', 'OBSERVER', 'OBJECT', 'ORIGIN', 'CTYPE1', 'CTYPE2', 'CTYPE3', 'CTYPE4',
+            'CRPIX1', 'CRPIX2', 'CRPIX3', 'CRPIX4', 'CRVAL1', 'CRVAL2', 'CRVAL3', 'CRVAL4', 'CDELT1', 'CDELT2', 'CDELT3', 
+            'CDELT4', 'CUNIT1', 'CUNIT2', 'CUNIT3', 'CUNIT4', 'SPECSYS', 'DATE-OBS']
+
+new_hdr={}
+for key in hdr_keys:
+    new_hdr[key] = ref_hdr[key]
+
+new_hdr = fits.Header(new_hdr)
+
+# save alpha map
+hdu = fits.PrimaryHDU(header=new_hdr)
+hdu.data = alphamap.T[::-1]
 hdu.writeto(outfile + 'alpha.fits', overwrite=True)
 
 # save I0 map
-hdu = fits.PrimaryHDU(header=mhdr)
-hdu.data = i0map
+hdu = fits.PrimaryHDU(header=new_hdr)
+hdu.data = i0map.T[::-1]
 hdu.writeto(outfile + 'I0.fits', overwrite=True)
+
+# save clean beam for consistency check
+hdu = fits.PrimaryHDU(header=new_hdr)
+hdu.data = gausskern.T[::-1]
+hdu.writeto(outfile + 'clean-beam.fits', overwrite=True)
+
+print("All done here")
