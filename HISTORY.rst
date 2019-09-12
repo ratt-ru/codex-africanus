@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
 * Expand travis build matrix (:pr:`147`)
 * Drop Python 2 support (:pr:`146`)
 * Support the beam in the predict example (:pr:`145`)
