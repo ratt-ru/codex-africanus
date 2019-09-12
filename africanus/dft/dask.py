@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from africanus.dft.kernels import im_to_vis_docs, vis_to_im_docs
 from africanus.dft.kernels import im_to_vis as np_im_to_vis
