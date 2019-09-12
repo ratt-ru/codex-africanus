@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import argparse
 from collections import namedtuple
@@ -147,6 +144,7 @@ def load_beams(beam_file_schema, corr_types):
 
     class FITSFile(object):
         """ Exists so that fits file is closed when last ref is gc'd """
+
         def __init__(self, filename):
             self.hdul = hdul = fits.open(filename)
             assert len(hdul) == 1
