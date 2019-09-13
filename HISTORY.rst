@@ -5,6 +5,7 @@ History
 0.1.9 (YYYY-MM-DD)
 ------------------
 
+* Fix documentation package versions (:pr:`151`)
 * Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
 * Expand travis build matrix (:pr:`147`)
 * Drop Python 2 support (:pr:`146`, :pr:`149`, :pr:`150`)
