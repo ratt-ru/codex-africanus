@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
-try:
-    from functools import reduce
-except ImportError:
-    pass
+from functools import reduce
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -18,8 +14,7 @@ def freq_grid_interp(frequencies, beam_freq_map):
     grids = np.arange(beam_freq_map.size).astype(np.float64)
     grid_pos_f = np.interp(frequencies, beam_freq_map, grids)
     # Floor grid position
-    grid_pos = np.empty((grid_pos_f.shape[0], 2),
-                        dtype=np.int32)
+    grid_pos = np.empty((grid_pos_f.shape[0], 2), dtype=np.int32)
     # Frequency scaling for cases when we're below or above the beam
     freq_scale = np.empty_like(frequencies)
     # Frequency difference between the channel frequency and the grid frequency
@@ -84,7 +79,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     beam_lw, beam_mh, beam_nud = beam.shape[:3]
     corrs = beam.shape[3:]
 
-    if beam_lw < 0 or beam_mh < 0 or beam_nud < 0:
+    if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
         raise ValueError("beam_lw, beam_mh and beam_nud must be >= 2")
 
     # Flatten correlations
