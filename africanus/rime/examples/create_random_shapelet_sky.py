@@ -46,11 +46,12 @@ sbeta1 = sky_model.sources[0].shape.sbetal
 sbeta2 = sky_model.sources[0].shape.sbetam
 ra = np.rad2deg(sky_model.sources[0].pos.ra)
 dec = np.rad2deg(sky_model.sources[0].pos.dec)
+print("RA, DEC IS ", ra, dec)
 I = sky_model.sources[0].flux.I * 0.0001
 spi = sky_model.sources[0].spectrum.spi
 freq0 = sky_model.sources[0].spectrum.freq0
 print(I)
-for i in range(36):
+for i in range(128):
     # Calculate size
     b1 = sbeta1 + (0.5 * sbeta1) * (np.random.random() - 0.5)
     b2 = sbeta2 + (0.5 * sbeta2) * (np.random.random() - 0.5)
@@ -60,8 +61,8 @@ for i in range(36):
     coeffs_lm = 10 * np.random.random(ncoeffs)
         
     # Random position
-    r = ra + (0.2 * (np.random.uniform(0,1) - 0.5))
-    d = dec + (0.2 * (np.random.uniform(0,1) - 0.5))
+    r = ra + (6 * (np.random.uniform(0,1) - 0.5))
+    d = dec + (6 * (np.random.uniform(0,1) - 0.5))
     print(r, d)
     # print(as_csv(coeffs_lm.flatten()))
 
