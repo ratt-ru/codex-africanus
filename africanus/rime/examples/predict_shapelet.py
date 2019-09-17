@@ -306,17 +306,14 @@ def write_fits(beam, timestamp, filename):
     hdu.writeto(filename, overwrite=True)
 
 def generate_primary_beam(filename, ant, chan, ntime, lm, pa, frequency_scaling, antenna_scaling, pointing_errors):
-    npoly = 20
-    coeffs_file = np.load(filename, allow_pickle=True, encoding="bytes").item()
-    noll_indices_r = np.zeros((ant, chan, 2, 2, npoly))
-    noll_indices_i = np.zeros((ant, chan, 2, 2, npoly))
-    zernike_coeffs_r = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
-    zernike_coeffs_i = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
+    npoly = 8
+    coeffs_file = np.load(filename, allow_pickle=True, encoding="bytes").all()
+    noll_indices = np.zeros((ant, chan, 2, 2, npoly))
+    zernike_coeffs = np.zeros((ant, chan, 2,2,npoly), dtype=np.complex128)
     corr_letters = [b'x',b'y']
     nsrc = lm.shape[0]
     coords = np.empty((3, nsrc, ntime, ant, chan))
     lm = lm.compute()
-    print("coeffs file : ", coeffs_file)
 
     
     print("LM COORDINATES ARE ", lm)
@@ -329,20 +326,11 @@ def generate_primary_beam(filename, ant, chan, ntime, lm, pa, frequency_scaling,
             for corr1 in range(2):
                 for corr2 in range(2):
                     corr_index = corr_letters[corr1] + corr_letters[corr2]
-                    noll_indices_r[a,c,corr1, corr2, :] = coeffs_file[b'noll_index'][b'real'][corr_index][:npoly] 
-                    noll_indices_i[a,c,corr1, corr2, :] = coeffs_file[b'noll_index'][b'imag'][corr_index][:npoly]
-                    zernike_coeffs_r[a,c,corr1,corr2, :] = coeffs_file[b'coeffs'][b'real'][corr_index][:npoly]
-                    zernike_coeffs_i[a,c,corr1,corr2, :] = coeffs_file[b'coeffs'][b'imag'][corr_index][:npoly]
-    z_r =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), 
-            da.from_array(zernike_coeffs_r, chunks=zernike_coeffs_r.shape), 
-            da.from_array(noll_indices_r, chunks=noll_indices_r.shape), 
-            pa, 
-            frequency_scaling, 
-            antenna_scaling, 
-            pointing_errors)
-    z_i =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), 
-            da.from_array(zernike_coeffs_i, chunks=zernike_coeffs_r.shape), 
-            da.from_array(noll_indices_i, chunks=noll_indices_r.shape), 
+                    noll_indices[a,c,corr1, corr2, :] = coeffs_file[b'noll_index'][corr_index][:npoly] 
+                    zernike_coeffs[a,c,corr1,corr2, :] = coeffs_file[b'coeff'][corr_index][:npoly]
+    z =  zernike_dde(da.from_array(coords, chunks=(3, 32, ntime, ant, chan)), 
+            da.from_array(zernike_coeffs, chunks=zernike_coeffs.shape), 
+            da.from_array(noll_indices, chunks=noll_indices.shape), 
             pa, 
             frequency_scaling, 
             antenna_scaling, 
@@ -355,7 +343,7 @@ def generate_primary_beam(filename, ant, chan, ntime, lm, pa, frequency_scaling,
     plt.savefig("./partial_beam.png")
     plt.close()
     """
-    return z_r + 1j * z_i
+    return z
 
 def generate_fov_primary_beam(filename, ant, chan, ntime, lm, pa, frequency_scaling, antenna_scaling, pointing_errors, npix):
     npoly = 8
@@ -452,6 +440,7 @@ def vis_factory(args, source_type, sky_model, time_index,
         frequency = spw.CHAN_FREQ.data
 
 
+
     # (source, row, frequency)
     print(lm.compute() * 180 / np.pi)
     print(uvw)
@@ -507,7 +496,7 @@ def vis_factory(args, source_type, sky_model, time_index,
         # Compute parallactic_angle
         pa = parallactic_angles(utime, da.from_array(antenna_positions), da.from_array(field.PHASE_DIR.data)) 
 
-        write_fits_primary_beam = False
+        write_fits_primary_beam = True
         if write_fits_primary_beam:
             fov = 2.0
 
@@ -533,17 +522,16 @@ def vis_factory(args, source_type, sky_model, time_index,
 
             generate_fov_primary_beam("./zernike_coeffs.npy", na, nchan, ntime, coords, pa, frequency_scaling, antenna_scaling, pointing_errors, npix)
 
+            quit()
 
         # Create primary beam
-        dde_primary_beam = generate_primary_beam("./zernike_real_imag_coeffs.npy", na, nchan, ntime, lm, pa, frequency_scaling, antenna_scaling, pointing_errors)
-        print("dde primary_beam : ", dde_primary_beam)
-        print("jones : ", jones)
+        dde_primary_beam = generate_primary_beam("./zernike_coeffs.npy", na, nchan, ntime, lm, pa, frequency_scaling, antenna_scaling, pointing_errors) * -1
 
         # return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
         #                dde_primary_beam, jones, dde_primary_beam, None, None, None)
         
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
-                       dde_primary_beam, jones, dde_primary_beam, None, None, None)
+                       dde_primary_beam, jones, dde_primary_beam, np.ones((ntime, na, nchan, 2, 2), dtype=np.float64), None, np.ones((ntime, na, nchan, 2, 2), dtype=np.float64))
     else:
         print("SKIPPING PRIMARY BEAM")
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,

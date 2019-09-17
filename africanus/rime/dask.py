@@ -148,15 +148,15 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
 
 
 @wraps(np_zernike_dde)
-def _zernike_wrapper(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling):
+def _zernike_wrapper(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
     # coords loses "three" dim
     # coeffs loses "poly" dim
     # noll_index loses "poly" dim
-    return np_zernike_dde(coords[0], coeffs[0], noll_index[0], parallactic_angle, frequency_scaling, antenna_scaling[0])
+    return np_zernike_dde(coords[0], coeffs[0], noll_index[0], parallactic_angle, frequency_scaling, antenna_scaling[0], pointing_errors[0])
 
 
 @requires_optional('dask.array', da_import_error)
-def zernike_dde(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling):
+def zernike_dde(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
     ncorrs = len(coeffs.shape[2:-1])
     corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
 
@@ -174,6 +174,8 @@ def zernike_dde(coords, coeffs, noll_index, parallactic_angle, frequency_scaling
                              ("chan",),
                              antenna_scaling,
                              ("ant", "chan", "two"),
+                             pointing_errors,
+                             ("time", "ant", "chan", "two"),
                              dtype=coeffs.dtype)
 
 
