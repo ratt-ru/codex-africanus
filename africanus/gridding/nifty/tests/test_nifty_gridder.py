@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
@@ -42,7 +39,7 @@ def test_dask_nifty_gridder():
     vis = rf(size=(nrow, nchan, ncorr)).astype(np.complex128)
     freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros(vis.shape, dtype=np.uint8)
-    flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8)
+    flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8).astype(np.bool)
     weight = rf(vis.shape).astype(np.float64)
 
     da_vis = da.from_array(vis, chunks=(row, chan, corr))
@@ -103,7 +100,7 @@ def test_dask_nifty_degridder():
     # Random UV data
     uvw = rf(size=(nrow, 3)).astype(np.float64)*128
     freq = np.linspace(.856e9, 2*.856e9, nchan)
-    flag = np.zeros((nrow, nchan, ncorr), dtype=np.uint8)
+    flag = np.zeros((nrow, nchan, ncorr), dtype=np.bool)
     weight = np.ones((nrow, nchan, ncorr), dtype=np.float64)
     image = rc(size=(nx, ny, ncorr)).astype(np.complex128)
 
@@ -111,7 +108,7 @@ def test_dask_nifty_degridder():
     da_freq = da.from_array(freq, chunks=chan)
     da_flag = da.from_array(flag, chunks=(row, chan, corr))
     da_weight = da.from_array(weight, chunks=(row, chan, corr))
-    da_image = da.from_array(image, chunks=(nx, ny, ncorr))
+    da_image = da.from_array(image, chunks=(nx, ny, 1))
 
     da_grid_vis = model(da_image, gc)
     da_vis = degrid(da_grid_vis, da_uvw, da_flag, da_weight, da_freq, gc)

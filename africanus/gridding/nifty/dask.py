@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 import numpy as np
 
@@ -17,7 +19,6 @@ except ImportError as e:
 else:
     import_error = None
 
-from africanus.compatibility import Mapping
 from africanus.util.requirements import requires_optional
 
 
@@ -25,6 +26,7 @@ class GridderConfigWrapper(object):
     """
     Wraps a nifty GridderConfiguration for pickling purposes.
     """
+
     def __init__(self, nx=1024, ny=1024, eps=2e-13,
                  cell_size_x=2.0, cell_size_y=2.0):
         self.nx = nx
@@ -95,15 +97,15 @@ def _nifty_indices(baselines, grid_config, flag,
 def _nifty_grid(baselines, grid_config, indices, vis, weights):
     """ Wrapper function for creating a grid of visibilities per row chunk """
     assert len(vis) == 1 and type(vis) == list
-    return ng.ms2grid_c_wgt(baselines, grid_config, indices,
-                            vis[0], weights[0], None)[None, :, :]
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis[0], None, weights[0])[None, :, :]
 
 
 def _nifty_grid_streams(baselines, grid_config, indices,
                         vis, weights, grid_in=None):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    return ng.ms2grid_c_wgt(baselines, grid_config, indices,
-                            vis, weights, grid_in=grid_in)
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis, grid_in, weights)
 
 
 class GridStreamReduction(Mapping):
@@ -117,6 +119,7 @@ class GridStreamReduction(Mapping):
     Produces graph serially summing coherencies in
     ``stream`` parallel streams.
     """
+
     def __init__(self, baselines, indices, gc,
                  corr_vis, corr_weights,
                  corr, streams):
@@ -204,6 +207,7 @@ class FinalGridReduction(Mapping):
     Produces graph serially summing coherencies in
     ``stream`` parallel streams.
     """
+
     def __init__(self, grid_stream_reduction):
         self.in_name = grid_stream_reduction.name
         token = dask.base.tokenize(grid_stream_reduction)
@@ -481,7 +485,8 @@ def degrid(grid, uvw, flags, weights, frequencies,
     vis_chunks = []
 
     for corr in range(grid.shape[2]):
-        corr_flags = flags[:, :, corr]
+        corr_flags = flags[:, :, corr].map_blocks(np.require, requirements="C")
+        corr_grid = grid[:, :, corr].map_blocks(np.require, requirements="C")
 
         indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
@@ -494,7 +499,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
                                dtype=np.int32)
 
         vis = da.blockwise(_nifty_degrid, ("row", "chan"),
-                           grid[:, :, corr], ("ny", "nx"),
+                           corr_grid, ("ny", "nx"),
                            baselines, ("row",),
                            indices, ("row",),
                            grid_config, None,

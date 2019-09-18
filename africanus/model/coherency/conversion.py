@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from collections import OrderedDict, deque
 from pprint import pformat
@@ -10,63 +7,9 @@ from textwrap import fill
 
 import numpy as np
 
-from africanus.compatibility import string_types
+from africanus.util.casa_types import (STOKES_TYPES,
+                                       STOKES_ID_MAP)
 from africanus.util.docs import DocstringTemplate
-
-STOKES_TYPES = [
-    "Undefined",
-    "I",
-    "Q",
-    "U",
-    "V",
-    "RR",
-    "RL",
-    "LR",
-    "LL",
-    "XX",
-    "XY",
-    "YX",
-    "YY",
-    "RX",
-    "RY",
-    "LX",
-    "LY",
-    "XR",
-    "XL",
-    "YR",
-    "YL",
-    "PP",
-    "PQ",
-    "QP",
-    "QQ",
-    "RCircular",
-    "LCircular",
-    "Linear",
-    "Ptotal",
-    "Plinear",
-    "PFtotal",
-    "PFlinear",
-    "Pangle"]
-"""
-List of stokes types as defined in
-Measurement Set 2.0 and Stokes.h in casacore:
-https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
-"""
-
-
-STOKES_TYPE_MAP = {k: i for i, k in enumerate(STOKES_TYPES)}
-"""
-Map of stokes type to enumeration as defined in
-Measurement Set 2.0 and Stokes.h in casacore:
-https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
-"""
-
-STOKES_ID_MAP = {v: k for k, v in STOKES_TYPE_MAP.items()}
-"""
-Map of stokes ID to stokes type string as defined in
-Measurement Set 2.0 and Stokes.h in casacore:
-https://casacore.github.io/casacore/classcasacore_1_1Stokes.html
-"""
 
 stokes_conv = {
     'RR': {('I', 'V'): lambda i, v: i + v + 0j},
@@ -128,7 +71,7 @@ def _element_indices_and_shape(data):
             if isinstance(e, (tuple, list)):
                 queue.append((e, current_idx + (i, ), depth + 1))
             # String
-            elif isinstance(e, string_types):
+            elif isinstance(e, str):
                 if e in result:
                     raise ValueError("'%s' defined multiple times" % e)
 

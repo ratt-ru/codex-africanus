@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.compatibility import PY2, string_types
 from africanus.model.spectral.spec_model import (spectral_model,
                                                  numpy_spectral_model)
 
@@ -58,10 +53,6 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
     if isinstance(base, list):
         base = base[0] if npol == 0 else base[:npol]
 
-    base_has_strings = ((isinstance(base, list) and
-                         isinstance(base[0], string_types)) or
-                        isinstance(base, string_types))
-
     if npol > 0:
         flux_slice = (slice(None), None)
         flux_shape = (nsrc, npol)
@@ -76,14 +67,6 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
     spi = 0.7 + np.random.random(spi_shape) * 0.2
     ref_freq = ref_freq(nsrc)
     freq = frequency(nchan)
-
-    # Expect failure for string bases in python 2
-    if PY2 and base_has_strings:
-        with pytest.raises(TypeError) as exc_info:
-            spectral_model(stokes, spi, ref_freq, freq, base=base)
-            assert 'unsupported in python 2' in str(exc_info.value)
-
-        return
 
     model = spectral_model(stokes, spi, ref_freq, freq, base=base)
     np_model = numpy_spectral_model(stokes, spi, ref_freq, freq, base=base)
@@ -113,10 +96,6 @@ def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
     if isinstance(base, list):
         base = base[0] if npol == 0 else base[:npol]
 
-    base_has_strings = ((isinstance(base, list) and
-                         isinstance(base[0], string_types)) or
-                        isinstance(base, string_types))
-
     if npol > 0:
         flux_slice = (slice(None), None)
         flux_shape = (nsrc, npol)
@@ -141,14 +120,6 @@ def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
 
     da_model = spectral_model(da_stokes, da_spi,
                               da_ref_freq, da_freq, base=base)
-
-    # Expect failure for string bases in python 2
-    if PY2 and base_has_strings:
-        with pytest.raises(TypeError) as exc_info:
-            da_model.compute()
-            assert 'unsupported in python 2' in str(exc_info.value)
-
-        return
 
     np_model = np_spectral_model(stokes, spi, ref_freq, freq, base=base)
     assert_array_almost_equal(da_model, np_model)

@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
+
+from functools import reduce
 from itertools import product
-from functools import wraps
 from operator import mul
 
 import numpy as np
 
-from africanus.compatibility import range, reduce, Mapping
 from africanus.util.requirements import requires_optional
 
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
@@ -239,7 +240,6 @@ class CoherencyFinalReduction(Mapping):
         return layers
 
 
-@wraps(np_predict_vis)
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
                          die1_jones, base_vis, die2_jones):
@@ -260,7 +260,6 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
             [None, ...])
 
 
-@wraps(np_predict_vis)
 def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           dde1_jones, source_coh, dde2_jones,
                           die1_jones, base_vis, die2_jones):

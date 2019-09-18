@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
 
 import numpy as np
 
@@ -39,7 +34,6 @@ def radec_to_lmn(radec, phase_centre=None):
     else:
         _maybe_create_phase_centre = _return_phase_centre
 
-    @wraps(radec_to_lmn)
     def _radec_to_lmn_impl(radec, phase_centre=None):
         sources, components = radec.shape
 
@@ -79,7 +73,6 @@ def radec_to_lm(radec, phase_centre=None):
     else:
         _maybe_create_phase_centre = _return_phase_centre
 
-    @wraps(radec_to_lm)
     def _radec_to_lm_impl(radec, phase_centre=None):
         sources, components = radec.shape
 
@@ -117,7 +110,6 @@ def lmn_to_radec(lmn, phase_centre=None):
     else:
         _maybe_create_phase_centre = _return_phase_centre
 
-    @wraps(lmn_to_radec)
     def _lmn_to_radec_impl(lmn, phase_centre=None):
         if lmn.ndim != 2 or lmn.shape[1] != 3:
             raise ValueError("lmn must have shape (source, 3)")
@@ -148,7 +140,6 @@ def lm_to_radec(lm, phase_centre=None):
     else:
         _maybe_create_phase_centre = _return_phase_centre
 
-    @wraps(lm_to_radec)
     def _lm_to_radec_impl(lm, phase_centre=None):
         if lm.ndim != 2 or lm.shape[1] != 2:
             raise ValueError("lm must have shape (source, 2)")

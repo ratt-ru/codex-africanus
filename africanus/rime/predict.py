@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
 
 import numpy as np
 
@@ -216,11 +211,21 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                                   out[r, f])
 
     elif not have_ddes and have_coh:
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-            for s in range(blj.shape[0]):
-                for r in range(blj.shape[1]):
-                    for f in range(blj.shape[2]):
-                        out[r, f] += blj[s, r, f]
+        if jones_type == JONES_2X2:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c1 in range(blj.shape[3]):
+                                for c2 in range(blj.shape[4]):
+                                    out[r, f, c1, c2] += blj[s, r, f, c1, c2]
+        else:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c in range(blj.shape[3]):
+                                out[r, f, c] += blj[s, r, f, c]
     else:
         # noop
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
@@ -456,7 +461,6 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
-    @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
@@ -508,7 +512,7 @@ to the following formula:
 
 
     V_{pq} = G_{p} \left(
-        B_{pq} + \sum_{s} A_{ps} X_{pqs} A_{qs}^H
+        B_{pq} + \sum_{s} E_{ps} X_{pqs} E_{qs}^H
         \right) G_{q}^H
 
 where for antenna :math:`p` and :math:`q`, and source :math:`s`:
@@ -554,26 +558,32 @@ antenna2 : $(array_type)
     for a particular baseline.
     with shape :code:`(row,)`.
 dde1_jones : $(array_type), optional
-    :math:`A_{ps}` Direction-Dependent Jones terms for the first antenna.
+    :math:`E_{ps}` Direction-Dependent Jones terms for the first antenna.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 source_coh : $(array_type), optional
     :math:`X_{pqs}` Direction-Dependent Coherency matrix for the baseline.
     with shape :code:`(source,row,chan,corr_1,corr_2)`
 dde2_jones : $(array_type), optional
-    :math:`A_{qs}` Direction-Dependent Jones terms for the second antenna.
+    :math:`E_{qs}` Direction-Dependent Jones terms for the second antenna.
+    This is usually the same array as ``dde1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 die1_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     first antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
 base_vis : $(array_type), optional
-    :math:`B_{pq}` base visibilities, added to source coherency summation
+    :math:`B_{pq}` base coherencies, added to source coherency summation
     *before* multiplication with `die1_jones` and `die2_jones`.
     shape :code:`(row,chan,corr_1,corr_2)`.
 die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     second antenna of the baseline.
-    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+    This is usually the same array as ``die1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
+    shape :code:`(time,ant,chan,corr_1,corr_2)`
 $(extra_args)
 
 Returns

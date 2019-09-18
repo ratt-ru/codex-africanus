@@ -135,6 +135,8 @@ Guarantees
     \sqrt{\frac{\sum w_i^2 \sigma_i^2}{(\sum w_i)^2}}
 
 
+The following table summarizes the handling of each
+column in the main Measurement Set table:
 
 =============== ================= ============================ ===========
 Column          Unflagged/Flagged Aggregation Method           Required
@@ -150,13 +152,22 @@ FLAG_ROW        Effective         Set if All Inputs Flagged    No
 UVW             Effective         Mean                         No
 WEIGHT          Effective         Sum                          No
 SIGMA           Effective         Weighted Mean                No
-CHAN_FREQ       Nominal           Mean                         No
-CHAN_WIDTH      Nominal           Sum                          No
 DATA (vis)      Effective         Weighted Mean                No
 FLAG            Effective         Set if All Inputs Flagged    No
 WEIGHT_SPECTRUM Effective         Sum                          No
 SIGMA_SPECTRUM  Effective         Weighted Mean                No
 =============== ================= ============================ ===========
+
+The following SPECTRAL_WINDOW sub-table columns are averaged as follows:
+
+=============== ============================
+Column          Aggregation Method
+=============== ============================
+CHAN_FREQ       Mean
+CHAN_WIDTH      Sum
+EFFECTIVE_BW    Sum
+RESOLUTION      Sum
+=============== ============================
 
 Dask Implementation
 ~~~~~~~~~~~~~~~~~~~
