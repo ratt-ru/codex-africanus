@@ -7,8 +7,6 @@ from africanus.model.spi.component_spi import (
 
 from africanus.util.requirements import requires_optional
 
-import numpy as np
-
 try:
     from dask.array.core import blockwise
 except ImportError as e:
