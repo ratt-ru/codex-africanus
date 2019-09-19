@@ -4,7 +4,7 @@ History
 
 0.1.9 (YYYY-MM-DD)
 ------------------
-
+* Added standalone SPI fitter (:pr:`153`)
 * Fix documentation package versions (:pr:`151`)
 * Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
 * Expand travis build matrix (:pr:`147`)
