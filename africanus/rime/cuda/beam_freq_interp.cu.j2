@@ -11,7 +11,7 @@ extern "C" __global__ void {{kernel_name}}(
     CArray<{{freq_type}}, 2> freq_data)
 {
     const int nud = beam_freq_map.shape()[0];
-    const int nchan = frequencies.shape()[1];
+    const int nchan = frequencies.shape()[0];
     const int chan = blockIdx.x*blockDim.x + threadIdx.x;
 
     __shared__ struct {
