@@ -34,11 +34,12 @@ __device__ void trilinear_interpolate(
     int i = ((int(gl)*beam_mh + int(gm))*beam_nud +
         int(gchan))*{{ncorr}} + thread_corr;
 
-    // Perhaps unnecessary as long as BLOCKDIMX is 32
+    // Load Beam value through the L1 cache
+    // Perhaps unnecessary if blockdimx is 32
     {{beam_type}}2 data = __ldg(beam + i);
     pol_sum.x += weight*data.x;
     pol_sum.y += weight*data.y;
-    abs_sum += weight*{{beam_abs_fn}}(data.x*data.x + data.y*data.y);
+    abs_sum += weight*{{beam_sqrt_fn}}(data.x*data.x + data.y*data.y);
 }
 
 
@@ -46,10 +47,10 @@ extern "C" __global__ void {{kernel_name}}(
     const CArray<{{beam_type}}2, 4> beam,
     const CArray<{{lm_ext_type}}, 2> beam_lm_ext,
     const CArray<{{beam_freq_type}}, 1> beam_freq_map,
-    const CArray<{{lm_type}}2, 0> lm,              // 0 ndim
+    const CArray<{{lm_type}}, 2> lm,
     const CArray<{{pa_type}}, 2> parangles,
-    const CArray<{{pe_type}}2, 0> pointing_errors, // 0 ndim
-    const CArray<{{as_type}}2, 0> antenna_scaling, // 0 ndim
+    const CArray<{{pe_type}}, 4> pointing_errors,
+    const CArray<{{as_type}}, 3> antenna_scaling,
     const CArray<{{freq_type}}, 1> frequencies,
     const CArray<{{freq_type}}, 2> freq_data,
     const int nsrc,
@@ -74,8 +75,7 @@ extern "C" __global__ void {{kernel_name}}(
         {{lm_ext_type}} lm_ext[4];                   // lm extents
         {{lm_ext_type}} lscale;                      // l axis scaling factor
         {{lm_ext_type}} mscale;                      // m axis scaling factor
-        // parallactic_angles
-        {{pa_type}} pa_sin[blockdimz][blockdimy];
+        {{pa_type}} pa_sin[blockdimz][blockdimy];    // parallactic_angles
         {{pa_type}} pa_cos[blockdimz][blockdimy];
         {{pe_type}}2 pe[blockdimz][blockdimy][blockchans]; // pointing errors
         {{as_type}}2 as[blockdimy][blockchans];            // antenna scaling
@@ -128,14 +128,17 @@ extern "C" __global__ void {{kernel_name}}(
     if(thread_corr == 0)
     {
         i = (TIME*na + ANT)*nchan + (CHANCORR >> {{corr_shift}});
-        shared.pe[threadIdx.z][threadIdx.y][thread_chan] = pointing_errors[i];
+        shared.pe[threadIdx.z][threadIdx.y][thread_chan] =
+            *reinterpret_cast<const {{pe_type}}2 *>(&pointing_errors[2*i]);
     }
 
     // Antenna scaling factors vary by antenna and channel, but not timestep
     if(threadIdx.z == 0 && thread_corr == 0)
     {
         i = ANT*nchan + (CHANCORR >> {{corr_shift}});
-        shared.as[threadIdx.y][thread_chan] = antenna_scaling[i];
+        // Cast address to compound type (float2 or double2) and load
+        shared.as[threadIdx.y][thread_chan] =
+            *reinterpret_cast<const {{as_type}}2 *>(&antenna_scaling[2*i]);
     }
 
     // Parallactic angles vary by time and antenna, but not channel
@@ -158,7 +161,10 @@ extern "C" __global__ void {{kernel_name}}(
 
     for(int SRC=0; SRC < nsrc; ++SRC)
     {
-        {{lm_type}}2 rlm = lm[SRC];
+        // Cast address to compound type (float2 or double2) and load
+        i = 2*SRC;
+        {{lm_type}}2 rlm = *reinterpret_cast<const {{lm_type}}2 *>(&lm[i]);
+
         {{freq_type}} freq_scale = shared.freq_data[0][thread_chan];
         rlm.x *= freq_scale;
         rlm.y *= freq_scale;
@@ -229,48 +235,53 @@ extern "C" __global__ void {{kernel_name}}(
         // at the supplied coordinate offsets.
 
 
+
         {{beam_type}}2 pol_sum = {{make2_beam_fn}}(0, 0);
         {{FT}} abs_sum = {{FT}}(0);
 
-        {{FT}} chd = shared.freq_data[1][thread_chan];
+        {{FT}} nud = shared.freq_data[1][thread_chan];
         {{FT}} gc0 = shared.freq_data[2][thread_chan];
 
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
             gl0, gm0, gc0,
-            (one-ld)*(one-md)*(one-chd),
+            (one-ld)*(one-md)*nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
             gl1, gm0, gc0,
-            ld*(one-md)*(one-chd),
+            ld*(one-md)*nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
             gl0, gm1, gc0,
-            (one-ld)*md*(one-chd),
+            (one-ld)*md*nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
             gl1, gm1, gc0,
-            ld*md*(one-chd),
+            ld*md*nud,
             beam_lw, beam_mh, beam_nud);
 
+        {{FT}} inv_nud = one - nud;
+        {{FT}} gc1 = gc0 + 1.0;
+
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
-            gl0, gm0, (gc0 + 1),
-            (one-ld)*(one-md)*chd,
+            gl0, gm0, gc1,
+            (one-ld)*(one-md)*inv_nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
-            gl1, gm0, (gc0 + 1),
-            ld*(one-md)*chd,
+            gl1, gm0, gc1,
+            ld*(one-md)*inv_nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
-            gl0, gm1, (gc0 + 1),
-            (one-ld)*md*chd,
+            gl0, gm1, gc1,
+            (one-ld)*md*inv_nud,
             beam_lw, beam_mh, beam_nud);
         trilinear_interpolate(pol_sum, abs_sum, &beam[0],
-            gl1, gm1, (gc0 + 1),
-            ld*md*chd,
+            gl1, gm1, gc1,
+            ld*md*inv_nud,
             beam_lw, beam_mh, beam_nud);
 
         // Normalise the angle and multiply in the absolute sum
         {{FT}} norm = {{beam_rsqrt_fn}}(pol_sum.x*pol_sum.x + pol_sum.y*pol_sum.y);
+
         if(!::isfinite(norm))
             { norm = 1.0; }
 

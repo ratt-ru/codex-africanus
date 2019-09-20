@@ -63,6 +63,8 @@ def _main_key_fn(beam, beam_lm_ext, beam_freq_map,
             antenna_scaling.dtype, frequencies.dtype, dde_dims, ncorr)
 
 
+# Value to use in a bit shift to recover channel from flattened
+# channel/correlation index
 _corr_shifter = {4: 2, 2: 1, 1: 0}
 
 
@@ -72,22 +74,29 @@ def _generate_main_kernel(beam, beam_lm_ext, beam_freq_map,
                           antenna_scaling, frequencies,
                           dde_dims, ncorr):
 
+    beam_lw, beam_mh, beam_nud = beam.shape[:3]
+
+    if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
+        raise ValueError("(beam_lw, beam_mh, beam_nud) < 2 "
+                         "to linearly interpolate")
+
     # Create template
     render = jinja_env.get_template(str(_MAIN_TEMPLATE_PATH)).render
     name = "beam_cube_dde"
     dtype = beam.dtype
 
     if dtype == np.complex64:
-        block = (32, 16, 1)
-    elif dtype == np.complex128:
         block = (32, 32, 1)
+    elif dtype == np.complex128:
+        block = (32, 16, 1)
     else:
         raise TypeError("Need complex beam cube '%s'" % beam.dtype)
 
     try:
         corr_shift = _corr_shifter[ncorr]
     except KeyError:
-        raise ValueError("Correlations not in %s" % list(_corr_shifter.keys()))
+        raise ValueError("Number of Correlations not in %s"
+                         % list(_corr_shifter.keys()))
 
     coord_type = np.result_type(beam_lm_ext, lm, parangles,
                                 pointing_errors, antenna_scaling,
@@ -106,7 +115,7 @@ def _generate_main_kernel(beam, beam_lm_ext, beam_freq_map,
                   beam_type=_get_typename(beam.real.dtype),
                   beam_dims=beam.ndim,
                   make2_beam_fn=cuda_function('make2', beam.real.dtype),
-                  beam_abs_fn=cuda_function('abs', coord_type),
+                  beam_sqrt_fn=cuda_function('sqrt', beam.real.dtype),
                   beam_rsqrt_fn=cuda_function('rsqrt', beam.real.dtype),
                   # Coordinate type and manipulation functions
                   FT=_get_typename(coord_type),
@@ -169,7 +178,7 @@ def beam_cube_dde(beam, beam_lm_ext, beam_freq_map,
                                                  ncorr)
     # Call frequency interpolation kernel
     igrid = grids((nchan, 1, 1), iblock)
-    freq_data = cp.zeros((3, nchan), dtype=frequencies.dtype)
+    freq_data = cp.empty((3, nchan), dtype=frequencies.dtype)
 
     try:
         ikernel(igrid, iblock, (frequencies, beam_freq_map, freq_data))
@@ -185,7 +194,7 @@ def beam_cube_dde(beam, beam_lm_ext, beam_freq_map,
         kernel(grid, block, (fbeam, beam_lm_ext, beam_freq_map,
                              lm, parangles, pointing_errors,
                              antenna_scaling, frequencies, freq_data,
-                             lm.shape[0], out))
+                             nsrc, out))
     except CompileException:
         log.exception(format_code(kernel.code))
         raise

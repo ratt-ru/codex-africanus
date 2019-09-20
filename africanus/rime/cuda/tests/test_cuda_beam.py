@@ -9,30 +9,42 @@ from africanus.rime import beam_cube_dde as np_beam_cube_dde
 from africanus.rime.cuda.beam import beam_cube_dde as cp_beam_cude_dde
 from africanus.rime.fast_beam_cubes import freq_grid_interp
 
+cp = pytest.importorskip('cupy')
 
-@pytest.mark.parametrize("corrs", [(2, 2), (4,)])
+
+@pytest.mark.parametrize("corrs", [(2, 2), (4,), (2,), (1,)])
 def test_cuda_beam(corrs):
-    src = 2
-    time = 10
+    rs = np.random.RandomState(42)
+    src = 100
+    time = 1024
     ant = 7
-    chan = 8
+    chan = 17
 
     beam_lw = 10
     beam_mh = 10
     beam_nud = 4
 
-    cp = pytest.importorskip('cupy')
+    src, time, ant, chan = 20, 29, 14, 64
+    beam_lw = beam_mh = beam_nud = 50
 
-    beam = (np.random.random((beam_lw, beam_mh, beam_nud) + corrs) +
-            np.random.random((beam_lw, beam_mh, beam_nud) + corrs)*1j)
+
+    beam = (rs.normal(size=(beam_lw, beam_mh, beam_nud) + corrs) +
+            rs.normal(size=(beam_lw, beam_mh, beam_nud) + corrs)*1j)
 
     beam_lm_ext = np.array(([[-0.5, 0.5], [-0.5, 0.5]]))
 
-    lm = np.random.random((src, 2)) - 0.5
-    freqs = np.linspace(.856e9, 2*.856e9, chan)
-    beam_freq_map = np.linspace(freqs[0], freqs[-1], beam_nud)
+    lm = rs.normal(size=(src, 2)) - 0.5
 
-    parangles = np.random.random((time, ant))
+    if chan == 1:
+        freqs = np.array([.856e9*3 / 2])
+    else:
+        freqs = np.linspace(.856e9, 2*.856e9, chan)
+
+    beam_freq_map = np.linspace(.856e9, 2*.856e9, beam_nud)
+
+    parangles = rs.normal(size=(time, ant))
+    # point_errors = rs.normal(size=(time, ant, chan, 2))
+    # ant_scales = rs.normal(size=(ant, chan, 2))
     point_errors = np.zeros((time, ant, chan, 2))
     ant_scales = np.ones((ant, chan, 2))
 
@@ -49,4 +61,4 @@ def test_cuda_beam(corrs):
                                cp.asarray(ant_scales),
                                cp.asarray(freqs))
 
-    assert np_ddes.shape == cp_ddes.shape
+    assert_array_almost_equal(np_ddes, cp.asnumpy(cp_ddes), decimal=6)
