@@ -1,0 +1,281 @@
+// #include <cupy/complex.cuh>
+#include <cupy/carray.cuh>
+// #include <cupy/atomics.cuh>
+
+#define blockdimx {{blockdimx}}
+#define blockdimy {{blockdimy}}
+#define blockdimz {{blockdimz}}
+#define blockchans ({{blockdimx}} >> {{corr_shift}})
+#define beam_nud_limit {{beam_nud_limit}}
+#define ncorr {{ncorr}}
+// Channel associated with X thread
+#define thread_chan (threadIdx.x >> {{corr_shift}})
+// Correlation associated with X thread
+#define thread_corr (threadIdx.x & {{ncorr - 1}})
+
+
+#define one {{FT}}(1)
+#define zero {{FT}}(0)
+#define clamp(value, vmin, vmax) ({{min_fn}}(vmax, {{max_fn}}(value, vmin)))
+
+
+__device__ void trilinear_interpolate(
+    {{beam_type}}2 & pol_sum,
+    {{FT}} & abs_sum,
+    const {{beam_type}}2 * beam,
+    {{FT}} gl,
+    {{FT}} gm,
+    {{FT}} gchan,
+    {{FT}} weight,
+    const int beam_lw,
+    const int beam_mh,
+    const int beam_nud)
+{
+    int i = ((int(gl)*beam_mh + int(gm))*beam_nud +
+        int(gchan))*{{ncorr}} + thread_corr;
+
+    // Load Beam value through the L1 cache
+    // Perhaps unnecessary if blockdimx is 32
+    {{beam_type}}2 data = __ldg(beam + i);
+    pol_sum.x += weight*data.x;
+    pol_sum.y += weight*data.y;
+    abs_sum += weight*{{beam_sqrt_fn}}(data.x*data.x + data.y*data.y);
+}
+
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{beam_type}}2, 4> beam,
+    const CArray<{{lm_ext_type}}, 2> beam_lm_ext,
+    const CArray<{{beam_freq_type}}, 1> beam_freq_map,
+    const CArray<{{lm_type}}, 2> lm,
+    const CArray<{{pa_type}}, 2> parangles,
+    const CArray<{{pe_type}}, 4> pointing_errors,
+    const CArray<{{as_type}}, 3> antenna_scaling,
+    const CArray<{{freq_type}}, 1> frequencies,
+    const CArray<{{freq_type}}, 2> freq_data,
+    const int nsrc,
+    CArray<{{dde_type}}2, 5> ddes)
+{
+    const ptrdiff_t & beam_lw = beam.shape()[0];
+    const ptrdiff_t & beam_mh = beam.shape()[1];
+    const ptrdiff_t & beam_nud = beam.shape()[2];
+    const ptrdiff_t & ntime = parangles.shape()[0];
+    const ptrdiff_t & na = parangles.shape()[1];
+    const ptrdiff_t & nchan = frequencies.shape()[0];
+    const ptrdiff_t & nchancorr = nchan * ncorr;
+
+    const int TIME = blockIdx.z*blockDim.z + threadIdx.z;
+    const int ANT = blockIdx.y*blockDim.y + threadIdx.y;
+    const int CHANCORR = blockIdx.x*blockDim.x + threadIdx.x;
+
+    if(TIME >= ntime || ANT >= na || CHANCORR >= nchancorr)
+        { return; }
+
+    __shared__ struct {
+        {{lm_ext_type}} lm_ext[4];                   // lm extents
+        {{lm_ext_type}} lscale;                      // l axis scaling factor
+        {{lm_ext_type}} mscale;                      // m axis scaling factor
+        {{pa_type}} pa_sin[blockdimz][blockdimy];    // parallactic_angles
+        {{pa_type}} pa_cos[blockdimz][blockdimy];
+        {{pe_type}}2 pe[blockdimz][blockdimy][blockchans]; // pointing errors
+        {{as_type}}2 as[blockdimy][blockchans];            // antenna scaling
+        {{freq_type}} freq_data[3][blockchans];
+    } shared;
+
+
+    int i;
+
+    // 3D thread ID
+    i = threadIdx.z*blockDim.x*blockDim.y
+        + threadIdx.y*blockDim.x
+        + threadIdx.x;
+
+    // Shared memory loads
+
+    // Use first four threads to load beam extents into shared memory
+    if(threadIdx.x < 4)
+        { shared.lm_ext[threadIdx.x] = beam_lm_ext[threadIdx.x]; }
+
+    {{lm_ext_type}} & lower_l = shared.lm_ext[0];
+    {{lm_ext_type}} & upper_l = shared.lm_ext[1];
+    {{lm_ext_type}} & lower_m = shared.lm_ext[2];
+    {{lm_ext_type}} & upper_m = shared.lm_ext[3];
+
+    // Use first thread to precompute l and m scaling factors in shared memory
+    // Because a warp is 32 threads, the lm_ext's
+    // should be loaded at this point
+    if(threadIdx.z == 0 && threadIdx.y == 0 && threadIdx.x == 0)
+    {
+        shared.lscale = {{beam_freq_type}}(beam_lw - 1) / (upper_l - lower_l);
+        shared.mscale = {{beam_freq_type}}(beam_mh - 1) / (upper_m - lower_m);
+    }
+
+    // Pointing errors vary by time, antenna and channel
+    if(thread_corr == 0)
+    {
+        i = (TIME*na + ANT)*nchan + (CHANCORR >> {{corr_shift}});
+        shared.pe[threadIdx.z][threadIdx.y][thread_chan] =
+            *reinterpret_cast<const {{pe_type}}2 *>(&pointing_errors[2*i]);
+    }
+
+    // Antenna scaling factors vary by antenna and channel, but not timestep
+    if(threadIdx.z == 0 && thread_corr == 0)
+    {
+        i = ANT*nchan + (CHANCORR >> {{corr_shift}});
+        // Cast address to compound type (float2 or double2) and load
+        shared.as[threadIdx.y][thread_chan] =
+            *reinterpret_cast<const {{as_type}}2 *>(&antenna_scaling[2*i]);
+    }
+
+    // Parallactic angles vary by time and antenna, but not channel
+    if(threadIdx.x == 0)
+    {
+        i = TIME*na + ANT;
+        {{pa_type}} pa = parangles[i];
+        shared.pa_sin[threadIdx.z][threadIdx.y] = {{sin_fn}}(pa);
+        shared.pa_cos[threadIdx.z][threadIdx.y] = {{cos_fn}}(pa);
+    }
+
+    if(threadIdx.z == 0 && threadIdx.y == 0 && thread_corr == 0)
+    {
+        shared.freq_data[0][thread_chan] = freq_data[0*nchan + (CHANCORR >> {{corr_shift}})];
+        shared.freq_data[1][thread_chan] = freq_data[1*nchan + (CHANCORR >> {{corr_shift}})];
+        shared.freq_data[2][thread_chan] = freq_data[2*nchan + (CHANCORR >> {{corr_shift}})];
+    }
+
+    __syncthreads();
+
+    for(int SRC=0; SRC < nsrc; ++SRC)
+    {
+        // Cast address to compound type (float2 or double2) and load
+        i = 2*SRC;
+        {{lm_type}}2 rlm = *reinterpret_cast<const {{lm_type}}2 *>(&lm[i]);
+
+        {{freq_type}} freq_scale = shared.freq_data[0][thread_chan];
+        rlm.x *= freq_scale;
+        rlm.y *= freq_scale;
+
+        // Add the pointing errors for this antenna.
+        {{FT}} tl = rlm.x + shared.pe[threadIdx.z][threadIdx.y][thread_chan].x;
+        {{FT}} tm = rlm.y + shared.pe[threadIdx.z][threadIdx.y][thread_chan].y;
+
+        {{FT}} l = tl*shared.pa_cos[threadIdx.z][threadIdx.y] -
+                   tm*shared.pa_sin[threadIdx.z][threadIdx.y];
+        {{FT}} m = tl*shared.pa_sin[threadIdx.z][threadIdx.y] +
+                   tm*shared.pa_cos[threadIdx.z][threadIdx.y];
+
+       // L coordinate
+        // Scale by antenna scaling factors
+        l *= shared.as[threadIdx.y][thread_chan].x;
+        // l grid position
+        l = shared.lscale * (l - lower_l);
+        // clamp to grid edges
+        l = clamp(zero, l, beam_lw - 1);
+        // Snap to grid coordinate
+        {{FT}} gl0 = {{floor_fn}}(l);
+        {{FT}} gl1 = {{min_fn}}(gl0 + one, {{FT}}(beam_lw - 1));
+        // Offset of snapped coordinate from grid position
+        {{FT}} ld = l - gl0;
+
+        // M coordinate
+        // Scale by antenna scaling factors
+        m *= shared.as[threadIdx.y][thread_chan].y;
+        // m grid position
+        m = shared.mscale * (m - lower_m);
+        // clamp to grid edges
+        m = clamp(zero, m, beam_mh - 1);
+        // Snap to grid position
+        {{FT}} gm0 = {{floor_fn}}(m);
+        {{FT}} gm1 = {{min_fn}}(gm0 + one, {{FT}}(beam_mh - 1));
+        // Offset of snapped coordinate from grid position
+        {{FT}} md = m - gm0;
+
+        // A simplified trilinear weighting is used here. Given
+        // point x between points x1 and x2, with function f
+        // provided values f(x1) and f(x2) at these points.
+        //
+        // x1 ------- x ---------- x2
+        //
+        // Then, the value of f can be approximated using the following:
+        // f(x) ~= f(x1)(x2-x)/(x2-x1) + f(x2)(x-x1)/(x2-x1)
+        //
+        // Note how the value f(x1) is weighted with the distance
+        // from the opposite point (x2-x).
+        //
+        // As we are interpolating on a grid, we have the following
+        // 1. (x2 - x1) == 1
+        // 2. (x - x1)  == 1 - 1 + (x - x1)
+        //              == 1 - (x2 - x1) + (x - x1)
+        //              == 1 - (x2 - x)
+        // 2. (x2 - x)  == 1 - 1 + (x2 - x)
+        //              == 1 - (x2 - x1) + (x2 - x)
+        //              == 1 - (x - x1)
+        //
+        // Extending the above to 3D, we have
+        // f(x,y,z) ~= f(x1,y1,z1)(x2-x)(y2-y)(z2-z) + ...
+        //           + f(x2,y2,z2)(x-x1)(y-y1)(z-z1)
+        //
+        // f(x,y,z) ~= f(x1,y1,z1)(1-(x-x1))(1-(y-y1))(1-(z-z1)) + ...
+        //           + f(x2,y2,z2)   (x-x1)    (y-y1)    (z-z1)
+        // Load in the complex values from the E beam
+        // at the supplied coordinate offsets.
+
+
+
+        {{beam_type}}2 pol_sum = {{make2_beam_fn}}(0, 0);
+        {{FT}} abs_sum = {{FT}}(0);
+
+        {{FT}} nud = shared.freq_data[1][thread_chan];
+        {{FT}} gc0 = shared.freq_data[2][thread_chan];
+
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl0, gm0, gc0,
+            (one-ld)*(one-md)*nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl1, gm0, gc0,
+            ld*(one-md)*nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl0, gm1, gc0,
+            (one-ld)*md*nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl1, gm1, gc0,
+            ld*md*nud,
+            beam_lw, beam_mh, beam_nud);
+
+        {{FT}} inv_nud = one - nud;
+        {{FT}} gc1 = gc0 + 1.0;
+
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl0, gm0, gc1,
+            (one-ld)*(one-md)*inv_nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl1, gm0, gc1,
+            ld*(one-md)*inv_nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl0, gm1, gc1,
+            (one-ld)*md*inv_nud,
+            beam_lw, beam_mh, beam_nud);
+        trilinear_interpolate(pol_sum, abs_sum, &beam[0],
+            gl1, gm1, gc1,
+            ld*md*inv_nud,
+            beam_lw, beam_mh, beam_nud);
+
+        // Normalise the angle and multiply in the absolute sum
+        {{FT}} norm = {{beam_rsqrt_fn}}(pol_sum.x*pol_sum.x + pol_sum.y*pol_sum.y);
+
+        if(!::isfinite(norm))
+            { norm = 1.0; }
+
+        pol_sum.x *= norm * abs_sum;
+        pol_sum.y *= norm * abs_sum;
+        i = ((SRC*ntime + TIME)*na + ANT)*nchancorr + CHANCORR;
+        ddes[i] = pol_sum;
+    }
+
+ }
+

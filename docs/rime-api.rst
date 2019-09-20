@@ -69,10 +69,12 @@ Cuda
     predict_vis
     phase_delay
     feed_rotation
+    beam_cube_dde
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
 .. autofunction:: feed_rotation
+.. autofunction:: beam_cube_dde
 
 
 Dask
