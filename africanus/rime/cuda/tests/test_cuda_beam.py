@@ -7,7 +7,6 @@ import pytest
 
 from africanus.rime import beam_cube_dde as np_beam_cube_dde
 from africanus.rime.cuda.beam import beam_cube_dde as cp_beam_cude_dde
-from africanus.rime.fast_beam_cubes import freq_grid_interp
 
 cp = pytest.importorskip('cupy')
 
@@ -15,18 +14,9 @@ cp = pytest.importorskip('cupy')
 @pytest.mark.parametrize("corrs", [(2, 2), (4,), (2,), (1,)])
 def test_cuda_beam(corrs):
     rs = np.random.RandomState(42)
-    src = 100
-    time = 1024
-    ant = 7
-    chan = 17
-
-    beam_lw = 10
-    beam_mh = 10
-    beam_nud = 4
 
     src, time, ant, chan = 20, 29, 14, 64
     beam_lw = beam_mh = beam_nud = 50
-
 
     beam = (rs.normal(size=(beam_lw, beam_mh, beam_nud) + corrs) +
             rs.normal(size=(beam_lw, beam_mh, beam_nud) + corrs)*1j)
@@ -61,4 +51,4 @@ def test_cuda_beam(corrs):
                                cp.asarray(ant_scales),
                                cp.asarray(freqs))
 
-    assert_array_almost_equal(np_ddes, cp.asnumpy(cp_ddes), decimal=6)
+    assert_array_almost_equal(np_ddes, cp.asnumpy(cp_ddes))

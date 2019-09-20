@@ -90,20 +90,6 @@ extern "C" __global__ void {{kernel_name}}(
         + threadIdx.y*blockDim.x
         + threadIdx.x;
 
-    // if(i == 0)
-    // {
-    //     printf("beam_lw=%d "
-    //            "beam_mh=%d "
-    //            "beam_nud=%d "
-    //            "src=%d "
-    //            "time=%d "
-    //            "ant=%d "
-    //            "chan=%d "
-    //            "corr=%d\n",
-    //            int(beam_lw), int(beam_mh), int(beam_nud),
-    //            int(nsrc), int(ntime), int(na), int(nchan), int(ncorr));
-    // }
-
     // Shared memory loads
 
     // Use first four threads to load beam extents into shared memory
@@ -187,7 +173,7 @@ extern "C" __global__ void {{kernel_name}}(
         l = clamp(zero, l, beam_lw - 1);
         // Snap to grid coordinate
         {{FT}} gl0 = {{floor_fn}}(l);
-        {{FT}} gl1 = {{min_fn}}(gl0 + one, beam_lw - 1);
+        {{FT}} gl1 = {{min_fn}}(gl0 + one, {{FT}}(beam_lw - 1));
         // Offset of snapped coordinate from grid position
         {{FT}} ld = l - gl0;
 
@@ -200,7 +186,7 @@ extern "C" __global__ void {{kernel_name}}(
         m = clamp(zero, m, beam_mh - 1);
         // Snap to grid position
         {{FT}} gm0 = {{floor_fn}}(m);
-        {{FT}} gm1 = {{min_fn}}(gm0 + one, beam_mh - 1);
+        {{FT}} gm1 = {{min_fn}}(gm0 + one, {{FT}}(beam_mh - 1));
         // Offset of snapped coordinate from grid position
         {{FT}} md = m - gm0;
 

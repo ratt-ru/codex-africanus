@@ -40,7 +40,7 @@ cuda_fns = {
         'cos': 'cos',
         'floor': 'floor',
         'make2': 'make_double2',
-        'max': 'fmaxf',
+        'max': 'fmax',
         'min': 'fmin',
         'rsqrt': 'rsqrt',
         'sin': 'sin',
