@@ -33,10 +33,8 @@ def test_cuda_beam(corrs):
     beam_freq_map = np.linspace(.856e9, 2*.856e9, beam_nud)
 
     parangles = rs.normal(size=(time, ant))
-    # point_errors = rs.normal(size=(time, ant, chan, 2))
-    # ant_scales = rs.normal(size=(ant, chan, 2))
-    point_errors = np.zeros((time, ant, chan, 2))
-    ant_scales = np.ones((ant, chan, 2))
+    point_errors = rs.normal(size=(time, ant, chan, 2))
+    ant_scales = rs.normal(size=(ant, chan, 2))
 
     np_ddes = np_beam_cube_dde(beam, beam_lm_ext, beam_freq_map,
                                lm, parangles, point_errors, ant_scales,
