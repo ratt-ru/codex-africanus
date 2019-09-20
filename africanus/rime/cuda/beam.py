@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from africanus.rime.fast_beam_cubes import BEAM_CUBE_DOCS
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_function, grids
 from africanus.util.jinja2 import jinja_env
@@ -200,3 +201,10 @@ def beam_cube_dde(beam, beam_lm_ext, beam_freq_map,
         raise
 
     return out.reshape(oshape)
+
+
+try:
+    beam_cube_dde.__doc__ = BEAM_CUBE_DOCS.substitute(
+                                array_type=":class:`cupy.ndarray`")
+except AttributeError:
+    pass
