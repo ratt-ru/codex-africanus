@@ -30,7 +30,7 @@ extras_require = {
     'astropy': ['astropy >= 2.0.0, < 3.0; python_version <= "2.7"',
                 'astropy >= 3.0; python_version >= "3.0"'],
     'python-casacore': ['python-casacore == 3.0.0'],
-    'testing': ['pytest', 'flaky', 'pytest-flake8']
+    'testing': ['pytest', 'flaky', 'pytest-flake8', 'pathlib']
 }
 
 _non_cuda_extras = [er for n, er in extras_require.items() if n != "cuda"]
