@@ -3,12 +3,14 @@ Simple SPI Fitter
 
 Fits a simple spectral index model to image cubes. Usage is as follows
 
-$ ./simple_spi_fitter.py --fitsmodel=/path/to/model.fits 
---fitsresidual=path/to/residual.fits ...
+.. code-block:: bash
+
+    $ ./simple_spi_fitter.py --fitsmodel=/path/to/model.fits 
 
 Run
 
-$ ./simple_spi_fitter.py -h
+.. code-block:: bash
+    $ ./simple_spi_fitter.py -h
 
 for documentation of the various options. In principle the model file is the
 only compulsary input if the beam parameters are specified.
