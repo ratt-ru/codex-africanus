@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# flake8: noqa
 
 import argparse
 import dask
 import dask.array as da
 import numpy as np
 from astropy.io import fits
+import warnings
 from africanus.model.spi.dask import fit_spi_components
 iFs = np.fft.ifftshift
 Fs = np.fft.fftshift
@@ -32,9 +30,9 @@ def Gaussian2D(xin, yin, GaussPar=(1., 1., 0.)):
     extent = (5 * SMaj)**2
     xflat = xin.squeeze()
     yflat = yin.squeeze()
-    I = np.argwhere(xflat**2 + yflat**2 <= extent).squeeze()
-    idx = I[:, 0]
-    idy = I[:, 1]
+    ind = np.argwhere(xflat**2 + yflat**2 <= extent).squeeze()
+    idx = ind[:, 0]
+    idy = ind[:, 1]
     x = np.array([xflat[idx, idy].ravel(), yflat[idx, idy].ravel()])
     R = np.einsum('nb,bc,cn->n', x.T, A, x)
     # need to adjust for the fact that GaussPar corresponds to FWHM
@@ -44,6 +42,7 @@ def Gaussian2D(xin, yin, GaussPar=(1., 1., 0.)):
     gausskern[idx, idy] = tmp
     return np.ascontiguousarray(gausskern.reshape(sOut),
                                 dtype=np.float64)
+
 
 def convolve_model(model, gausskern, args):
     print("Doing FFT's")
@@ -65,8 +64,9 @@ def convolve_model(model, gausskern, args):
         unpad_l = slice(npad_ll, -npad_lr)
         unpad_m = slice(npad_ml, -npad_mr)
     except:
-        print("Suboptimal warning - could not determine fast fft size. "
-              "Install scipy for optimal performance")
+        warnings.warn("Could not determine fast fft size. "
+                      "Install scipy for optimal performance.",
+                      ImportWarning)
         padding = ((0, 0), (npad_l, npad_l), (npad_m, npad_m))
         unpad_l = slice(npad_l, -npad_l)
         unpad_m = slice(npad_m, -npad_m)
@@ -74,18 +74,21 @@ def convolve_model(model, gausskern, args):
     lastsize = npix_m + np.sum(padding[-1])
     try:
         from pypocketfft import r2c, c2r
-        # overwrite functions so that they have the same arguments 
+        # overwrite functions so that they have the same arguments
         # as the numpy equivalents
-        fft = lambda x: r2c(x, axes=ax, forward=True, nthreads=args.ncpu, inorm=0)
-        ifft = lambda y: c2r(y, axes=ax, forward=False, lastsize=lastsize,
-                             nthreads=args.ncpu, inorm=2) 
+        def fft(x): return r2c(x, axes=ax, forward=True,
+                               nthreads=args.ncpu, inorm=0)
+        def ifft(y): return c2r(y, axes=ax, forward=False, lastsize=lastsize,
+                                nthreads=args.ncpu, inorm=2)
     except:
+        warnings.warn("No pypocketfft installation found. "
+                      "FFT's will be performed in serial.",
+                      ImportWarning)
         from numpy.fft import rfftn, irfftn
-        print("Suboptimal warning - no pypocketfft installation found. "
-              "FFT's will be performed in serial")
-        fft = lambda x: rfftn(x, axes=ax)
-        ifft = lambda y: irfftn(y, axes=ax)
-    
+
+        def fft(x): return rfftn(x, axes=ax)
+        def ifft(y): return irfftn(y, axes=ax)
+
     # get FT of convolution kernel
     gausskernhat = fft(iFs(np.pad(gausskern[None], padding, mode='constant'),
                            axes=ax))
@@ -94,6 +97,7 @@ def convolve_model(model, gausskern, args):
     convmodel = fft(iFs(np.pad(model, padding, mode='constant'), axes=ax))
     convmodel *= gausskernhat
     return Fs(ifft(convmodel), axes=ax)[:, unpad_l, unpad_m]
+
 
 def interpolate_beam(xx, yy, maskindices, freqs, args):
     print("Interpolating beam")
@@ -155,8 +159,8 @@ def interpolate_beam(xx, yy, maskindices, freqs, args):
         m_min = (1 - refpix_m)*delta_m
         m_max = (1 + npix_m - refpix_m)*delta_m
 
-        if (l_min > l_source.min() or m_min > m_source.min() or 
-            l_max < l_source.max() or m_max < m_source.max()):
+        if (l_min > l_source.min() or m_min > m_source.min() or
+                l_max < l_source.max() or m_max < m_source.max()):
             raise ValueError("The supplied beam is not large enough")
 
         beam_extents = np.array([[l_min, l_max], [m_min, m_max]])
@@ -171,8 +175,8 @@ def interpolate_beam(xx, yy, maskindices, freqs, args):
         freq0 = beam_hdr['CRVAL3']
         bfreqs = freq0 + np.arange(1 - refpix, 1 + nchan - refpix) * delta
         if bfreqs[0] > freqs[0] or bfreqs[-1] < freqs[-1]:
-            print("Warning - the supplied beam does not have sufficient "
-                  "bandwidth. Beam frequencies:")
+            warnings.warn("The supplied beam does not have sufficient "
+                          "bandwidth. Beam frequencies:")
             with np.printoptions(precision=2):
                 print(bfreqs)
 
@@ -182,6 +186,7 @@ def interpolate_beam(xx, yy, maskindices, freqs, args):
                                     lm_source, parangles, point_errs,
                                     ant_scale, freqs).squeeze()
         return beam_source
+
 
 def create_parser():
     p = argparse.ArgumentParser(description='Simple spectral index fitting'
@@ -230,6 +235,7 @@ def create_parser():
                    help="Padding factor for FFT's.")
     return p
 
+
 def main(args):
 
     ref_hdr = fits.getheader(args.fitsresidual)
@@ -246,7 +252,7 @@ def main(args):
 
     # load images
     model = np.ascontiguousarray(fits.getdata(args.fitsmodel).squeeze(),
-                                dtype=np.float64)
+                                 dtype=np.float64)
     mhdr = fits.getheader(args.fitsmodel)
 
     if mhdr['CUNIT1'] != "DEG" and mhdr['CUNIT1'] != "deg":
@@ -286,7 +292,8 @@ def main(args):
     if ncorr > 1:
         raise ValueError("Only Stokes I cubes supported")
 
-    freqs = ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
+    freqs = ref_freq + np.arange(1 - refpix_nu,
+                                 1 + nband - refpix_nu) * delta_nu
 
     print("Cube frequencies:")
     with np.printoptions(precision=2):
@@ -307,11 +314,11 @@ def main(args):
         rms_cube = np.std(resid.reshape(nband, npix_l*npix_m), axis=1).ravel()
         threshold = args.threshold * rms
         print("Setting cutoff threshold as %i times the rms "
-            "of the residual" % args.threshold)
+              "of the residual" % args.threshold)
         del resid
     else:
         print("No residual provided. Setting  threshold i.t.o dynamic range. "
-            "Max dynamic range is %i" % args.maxDR)
+              "Max dynamic range is %i" % args.maxDR)
         threshold = model.max()/args.maxDR
         if args.channelweights is None:
             rms_cube = None
@@ -324,11 +331,10 @@ def main(args):
     if not maskindices.size:
         raise ValueError("No components found above threshold. "
                          "Try lowering your threshold."
-                         "Max on convolved model is %3.2e"%model.max())
+                         "Max of convolved model is %3.2e" % model.max())
     fitcube = model[:, maskindices[:, 0], maskindices[:, 1]].T
 
     print(xx.shape, yy.shape, maskindices.shape)
-
 
     # get primary beam at source locations
     if args.beammodel is not None:
@@ -354,7 +360,7 @@ def main(args):
 
     print("Fitting %i components" % ncomps)
     alpha, _, Iref, _ = fit_spi_components(fitcube, weights, freqsdask,
-                                        np.float64(ref_freq)).compute()
+                                           np.float64(ref_freq)).compute()
     print("Done. Writing output.")
 
     alphamap = np.zeros([npix_l, npix_m])
@@ -367,7 +373,10 @@ def main(args):
         # find last /
         tmp = args.fitsmodel[::-1]
         idx = tmp.find('/')
-        outfile = args.fitsmodel[0:-idx]
+        if idx != -1:
+            outfile = args.fitsmodel[0:-idx]
+        else:
+            outfile = 'image-'
     else:
         outfile = args.outfile
 
@@ -443,7 +452,8 @@ def main(args):
 
     print("All done here")
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     args = create_parser().parse_args()
 
     if args.ncpu:

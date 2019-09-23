@@ -28,6 +28,25 @@
 # flake8: noqa
 
 # standard preamble
+from Siamese.OMS import oms_gain_models
+from Siamese.OMS import oms_pointing_errors
+from Siamese.SBY import lofar_beams
+from Siamese.OMS import vla_beams
+from Siamese.OMS import paf_beams
+from Siamese.OMS.emss_beams import emss_polar_beams
+from Siamese.OMS import pybeams_fits
+from Siamese.OMS import fits_beams0
+from Siamese.OMS import analytic_beams
+from Siamese.OMS import oms_dipole_projection
+from Siamese.OMS.rotation import Rotation
+from Siamese.OMS import oms_ionosphere, oms_ionosphere2
+from Lions import ZJones
+from Siamese.OMS import oms_n_inverse
+from Siamese.OMS import fitsimage_sky
+from Siamese.OMS import transient_sky
+from Siamese.AGW import azel_sky
+from Siamese.OMS import gridded_sky
+from Meow import TensorMeqMaker
 from Timba.TDL import *
 from Timba.Meq import meq
 import math
@@ -65,15 +84,10 @@ model_opt = TDLCompileOption("read_ms_model", "Read additional uv-model visibili
 model_opt.when_changed(mssel.enable_model_column)
 
 # now load optional modules for the ME maker
-from Meow import TensorMeqMaker
 meqmaker = TensorMeqMaker.TensorMeqMaker()
 
 # specify available sky models
 # these will show up in the menu automatically
-from Siamese.OMS import gridded_sky
-from Siamese.AGW import azel_sky
-from Siamese.OMS import transient_sky
-from Siamese.OMS import fitsimage_sky
 
 # OMS: time to retire this one
 #import Meow.LSM
@@ -95,32 +109,19 @@ meqmaker.add_sky_models(models)
 # these will show up in the menu automatically
 
 # Ncorr - correct for N
-from Siamese.OMS import oms_n_inverse
 meqmaker.add_sky_jones('Ncorr', 'n-term correction', oms_n_inverse)
 
 # Z - ionosphere
-from Lions import ZJones
-from Siamese.OMS import oms_ionosphere, oms_ionosphere2
 meqmaker.add_sky_jones('Z', 'ionosphere', [
                        oms_ionosphere, oms_ionosphere2, ZJones.ZJones()])
 
 # P - Parallactic angle or dipole projection
-from Siamese.OMS.rotation import Rotation
-from Siamese.OMS import oms_dipole_projection
 meqmaker.add_sky_jones('L', 'parallactic angle or dipole rotation', [
                        Rotation('L', feed_angle=False), oms_dipole_projection])
 
 
 # E - beam
-from Siamese.OMS import analytic_beams
-from Siamese.OMS import fits_beams0
-from Siamese.OMS import pybeams_fits
-from Siamese.OMS.emss_beams import emss_polar_beams
-from Siamese.OMS import paf_beams
 # OMS: retiting this one: from Siamese.OMS import wsrt_beams
-from Siamese.OMS import vla_beams
-from Siamese.SBY import lofar_beams
-from Siamese.OMS import oms_pointing_errors
 meqmaker.add_sky_jones('E', 'beam', [analytic_beams, pybeams_fits, emss_polar_beams, paf_beams, fits_beams0, vla_beams, lofar_beams],
                        pointing=oms_pointing_errors)
 
@@ -128,7 +129,6 @@ meqmaker.add_sky_jones('E', 'beam', [analytic_beams, pybeams_fits, emss_polar_be
 meqmaker.add_uv_jones('P', 'feed angle', Rotation('P'))
 
 # G - gains
-from Siamese.OMS import oms_gain_models
 meqmaker.add_uv_jones('G', 'gains/phases', oms_gain_models)
 
 # very important -- insert meqmaker's options properly

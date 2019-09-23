@@ -10,6 +10,7 @@ Fits a simple spectral index model to image cubes. Usage is as follows
 Run
 
 .. code-block:: bash
+
     $ ./simple_spi_fitter.py -h
 
 for documentation of the various options. In principle the model file is the
