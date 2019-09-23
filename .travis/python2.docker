@@ -1,7 +1,0 @@
-FROM kernsuite/base:3
-RUN docker-apt-install python-pip python-casacore
-RUN pip install --upgrade pip setuptools
-ADD . /code
-WORKDIR /code
-RUN pip install .[astropy,dask,python-casacore,scipy,testing]
-RUN py.test -s -vvv /code/africanus

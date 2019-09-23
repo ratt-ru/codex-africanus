@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
 
 from africanus.dft.kernels import im_to_vis_docs, vis_to_im_docs
 from africanus.dft.kernels import im_to_vis as np_im_to_vis
@@ -23,7 +18,6 @@ else:
     dask_import_error = None
 
 
-@wraps(np_im_to_vis)
 def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
     return np_im_to_vis(image[0], uvw[0], lm[0][0],
                         frequency, dtype=dtype_)
@@ -31,7 +25,7 @@ def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
 
 @requires_optional('dask.array', dask_import_error)
 def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
-    """ Dask wrapper for phase_delay function """
+    """ Dask wrapper for im_to_vis function """
     if lm.chunks[0][0] != lm.shape[0]:
         raise ValueError("lm chunks must match lm shape "
                          "on first axis")
@@ -41,8 +35,11 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
     if image.chunks[0][0] != lm.chunks[0][0]:
         raise ValueError("Image chunks and lm chunks must "
                          "match on first axis")
-    return da.core.blockwise(_im_to_vis_wrapper, ("row", "chan"),
-                             image, ("source", "chan"),
+    if image.chunks[1] != frequency.chunks[0]:
+        raise ValueError("Image chunks must match frequency "
+                         "chunks on second axis")
+    return da.core.blockwise(_im_to_vis_wrapper, ("row", "chan", "corr"),
+                             image, ("source", "chan", "corr"),
                              uvw, ("row", "(u,v,w)"),
                              lm, ("source", "(l,m)"),
                              frequency, ("chan",),
@@ -50,21 +47,33 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
                              dtype_=dtype)
 
 
-@wraps(np_vis_to_im)
-def _vis_to_im_wrapper(vis, uvw, lm, frequency, dtype_):
-    return np_vis_to_im(vis, uvw[0], lm[0], frequency,
+def _vis_to_im_wrapper(vis, uvw, lm, frequency, flags, dtype_):
+    return np_vis_to_im(vis, uvw[0], lm[0],
+                        frequency, flags,
                         dtype=dtype_)[None, :]
 
 
 @requires_optional('dask.array', dask_import_error)
-def vis_to_im(vis, uvw, lm, frequency, dtype=np.float64):
-    """ Dask wrapper for phase_delay_adjoint function """
+def vis_to_im(vis, uvw, lm, frequency, flags, dtype=np.float64):
+    """ Dask wrapper for vis_to_im function """
 
-    ims = da.core.blockwise(_vis_to_im_wrapper, ("row", "source", "chan"),
-                            vis, ("row", "chan"),
+    if vis.chunks[0] != uvw.chunks[0]:
+        raise ValueError("Vis chunks and uvw chunks must "
+                         "match on first axis")
+    if vis.chunks[1] != frequency.chunks[0]:
+        raise ValueError("Vis chunks must match frequency "
+                         "chunks on second axis")
+    if vis.chunks != flags.chunks:
+        raise ValueError("Vis chunks must match flags "
+                         "chunks on all axes")
+
+    ims = da.core.blockwise(_vis_to_im_wrapper,
+                            ("row", "source", "chan", "corr"),
+                            vis, ("row", "chan", "corr"),
                             uvw, ("row", "(u,v,w)"),
                             lm, ("source", "(l,m)"),
                             frequency, ("chan",),
+                            flags, ("row", "chan", "corr"),
                             adjust_chunks={"row": 1},
                             dtype=dtype,
                             dtype_=dtype)

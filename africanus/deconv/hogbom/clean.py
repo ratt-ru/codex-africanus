@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import logging
 
 import numba
 import numpy as np
-import scipy.signal
-from scipy import optimize as opt
+
+try:
+    import scipy.signal
+    from scipy import optimize as opt
+except ImportError as e:
+    opt_import_err = e
+else:
+    opt_import_err = None
+
+from africanus.util.requirements import requires_optional
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
@@ -28,6 +33,7 @@ def twod_gaussian(coords, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.flatten()
 
 
+@requires_optional('scipy', opt_import_err)
 def fit_2d_gaussian(psf):
     """
     Fit an elliptical Gaussian to the primary lobe of the psf
@@ -188,6 +194,7 @@ def hogbom_clean(dirty, psf,
     return clean, residuals
 
 
+@requires_optional("scipy", opt_import_err)
 def restore(clean, psf, residuals):
     """
     Parameters

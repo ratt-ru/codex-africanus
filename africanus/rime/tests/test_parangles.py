@@ -66,6 +66,7 @@ def _observation_endpoints(year, month, day, hour_duration):
     return (start, end)
 
 
+@pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(
@@ -88,6 +89,7 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
     assert pa.shape == (5, 4)
 
 
+@pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.skipif(no_casa or no_astropy,
                     reason="Neither python-casacore or astropy installed")
 # Parametrize on observation length and error tolerance
@@ -126,6 +128,7 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     assert np.all(np.abs(diff) < Angle(rtol))
 
 
+@pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(

@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 
@@ -13,8 +10,10 @@ from africanus.constants import c as lightspeed
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def gaussian(uvw, frequency, shape_params):
-    fwhmint = 1.0 / np.sqrt(np.log(256))
-    gauss_scale = fwhmint*np.sqrt(2.0)*np.pi/lightspeed
+    # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
+    fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    fwhminv = 1.0 / fwhm
+    gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
     dtype = np.result_type(*(np.dtype(a.dtype.name) for
                              a in (uvw, frequency, shape_params)))
@@ -27,15 +26,17 @@ def gaussian(uvw, frequency, shape_params):
         shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
         scaled_freq = np.empty_like(frequency)
 
+        # Scale each frequency
         for f in range(frequency.shape[0]):
             scaled_freq[f] = frequency[f] * gauss_scale
 
         for s in range(shape_params.shape[0]):
             emaj, emin, angle = shape_params[s]
 
+            # Convert to l-projection, m-projection, ratio
             el = emaj * np.sin(angle)
             em = emaj * np.cos(angle)
-            er = emaj / (1.0 if emin == 0.0 else emin)
+            er = emin / (1.0 if emaj == 0.0 else emaj)
 
             for r in range(uvw.shape[0]):
                 u, v, w = uvw[r]
@@ -60,7 +61,7 @@ Computes the Gaussian Shape Function.
 .. math::
 
     & \lambda^\prime = 2 \lambda \pi \\
-    & r = \frac{e_{maj}}{e_{min}} \\
+    & r = \frac{e_{min}}{e_{maj}} \\
     & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
       r \lambda^\prime \\
     & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))

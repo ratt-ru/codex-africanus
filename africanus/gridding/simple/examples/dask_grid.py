@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import argparse
 
@@ -15,7 +12,7 @@ from africanus.gridding.simple.dask import grid, degrid
 from africanus.gridding.util import estimate_cell_size
 from africanus.constants import c as lightspeed
 from africanus.filters import convolution_filter
-from xarrayms import xds_from_ms, xds_from_table
+from daskms import xds_from_ms, xds_from_table
 
 
 def create_parser():
@@ -28,11 +25,6 @@ def create_parser():
 
 
 args = create_parser().parse_args()
-
-xds = list(xds_from_ms(args.ms, chunks={"row": args.chunks}))[0]
-spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
-                             group_cols="__row__"))[0]
-wavelength = (lightspeed / spw_ds.CHAN_FREQ.data).compute()
 
 # Determine UVW Coordinate extents
 query = """
@@ -52,6 +44,12 @@ with pt.taql(query) as Q:
     vmax = Q.getcol("ABS_VMAX").item()
     wmin = Q.getcol("WMIN").item()
     wmax = Q.getcol("WMAX").item()
+
+
+xds = list(xds_from_ms(args.ms, chunks={"row": args.chunks}))[0]
+spw_ds = list(xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")),
+                             group_cols="__row__"))[0]
+wavelength = (lightspeed / spw_ds.CHAN_FREQ.data[0]).compute()
 
 
 if args.cell_size:

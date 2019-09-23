@@ -2,9 +2,69 @@
 History
 =======
 
-0.1.3 (2018-03-28)
+0.1.9 (YYYY-MM-DD)
 ------------------
+
+* CUDA Beam Implementation (:pr:`152`)
+* Fix documentation package versions (:pr:`151`)
+* Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
+* Expand travis build matrix (:pr:`147`)
+* Drop Python 2 support (:pr:`146`, :pr:`149`, :pr:`150`)
+* Support the beam in the predict example (:pr:`145`)
+* Fix weight indexing in averaging (:pr:`144`)
+* Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
+* Optimise predict_vis jones coherency summation (:pr:`143`)
+* Remove use of @wraps (:pr:`141`, :pr:`142`)
+* Set row chunks to nan in dask averaging code. (:pr:`139`)
+* predict_vis documentation improvements (:pr:`135`, :pr:`140`)
+* Upgrade to dask-ms in the examples (:pr:`134`, :pr:`138`)
+* Explain how to obtain predict_vis time_index argument (:pr:`130`)
+* Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
+* Add dask wrappers for the nifty gridder (:pr:`116`, :pr:`136`, :pr:`146`)
+* Testing and requirement updates. (:pr:`124`)
+* Upgraded DFT kernels to have a correlation axis and added flags
+  for vis_to_im. Added predict_from_fits example. (:pr:`122`)
+* Fixed segfault when using `_unique_internal` on empty ndarrays (:pr:`123`)
+* Removed `apply_gains`. Use `africanus.calibration.utils.correct_vis`
+  instead (:pr:`118`)
+* Add streams parameter to dask `predict_vis` (:pr:`118`)
+* Implement the beam in numba (:pr:`112`)
+* Add residual_vis, correct_vis, phase_only_GN (:pr:`113`)
+
+0.1.8 (2019-05-28)
+------------------
+
+* Use environment markers in setup.py (:pr:`110`)
+* Add `apply_gains`, a wrapper around `predict_vis` (:pr:`108`)
+* Fix testing extras_require (:pr:`107`)
+* Fix WEIGHT_SPECTRUM averaging and add more averaging tests (:pr:`106`)
+
+0.1.7 (2019-05-09)
+------------------
+
+* Even more support for automated travis deploys.
+
+0.1.6 (2019-05-09)
+------------------
+
+* Support automated travis deploys.
+
+0.1.5 (2019-05-09)
+------------------
+* Predict script enhancements (:pr:`103`) and
+  dask channel chunking fix (:issue:`104`).
+* Directly jit DFT functions (:pr:`100`, :pr:`101`)
+* Spectral Models (:pr:`86`)
+* Fix radec sign conversion in wsclean sky model (:pr:`96`)
+* Full Time and Channel Averaging Implementation (:pr:`80`, :pr:`97`, :pr:`98`)
+* Support integer seconds in wsclean ra and dec columns (:pr:`91`, :pr:`93`)
+* Fix ratio computation in Gaussian Shape (:pr:`89`, :pr:`90`)
+
+0.1.4 (2019-03-11)
+------------------
+* Support `complete` and `complete-cuda` to support non-GPU installs (:pr:`87`)
 * Gaussian Shape Parameter Implementation (:pr:`82`, :pr:`83`)
+* WSClean Spectral Model (:pr:`81`)
 * Compare predict versus MeqTrees (:pr:`79`)
 * Time and channel averaging (:pr:`75`)
 * cupy implementation of `predict_vis` (:pr:`73`)

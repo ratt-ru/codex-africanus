@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
 
 import numpy as np
 
@@ -216,11 +211,21 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                                   out[r, f])
 
     elif not have_ddes and have_coh:
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-            for s in range(blj.shape[0]):
-                for r in range(blj.shape[1]):
-                    for f in range(blj.shape[2]):
-                        out[r, f] += blj[s, r, f]
+        if jones_type == JONES_2X2:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c1 in range(blj.shape[3]):
+                                for c2 in range(blj.shape[4]):
+                                    out[r, f, c1, c2] += blj[s, r, f, c1, c2]
+        else:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c in range(blj.shape[3]):
+                                out[r, f, c] += blj[s, r, f, c]
     else:
         # noop
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
@@ -229,29 +234,37 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     return njit(nogil=True)(sum_coh_fn)
 
 
-def output_factory(have_ddes, have_coh, have_dies, out_dtype):
+def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
     """ Factory function generating a function that creates function output """
     if have_ddes:
         def output(time_index, dde1_jones, source_coh, dde2_jones,
-                   die1_jones, die2_jones):
+                   die1_jones, base_vis, die2_jones):
             row = time_index.shape[0]
             chan = dde1_jones.shape[3]
             corrs = dde1_jones.shape[4:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
     elif have_coh:
         def output(time_index, dde1_jones, source_coh, dde2_jones,
-                   die1_jones, die2_jones):
+                   die1_jones, base_vis, die2_jones):
             row = time_index.shape[0]
             chan = source_coh.shape[2]
             corrs = source_coh.shape[3:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
     elif have_dies:
         def output(time_index, dde1_jones, source_coh, dde2_jones,
-                   die1_jones, die2_jones):
+                   die1_jones, base_vis, die2_jones):
             row = time_index.shape[0]
             chan = die1_jones.shape[2]
             corrs = die1_jones.shape[3:]
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
+    elif have_base_vis:
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones):
+            row = time_index.shape[0]
+            chan = base_vis.shape[1]
+            corrs = base_vis.shape[2:]
+            return np.zeros((row, chan) + corrs, dtype=out_dtype)
+
     else:
         raise ValueError("Insufficient inputs were supplied "
                          "for determining the output shape")
@@ -344,11 +357,17 @@ def predict_checks(time_index, antenna1, antenna2,
         raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
 
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
+
     if have_ddes1 and dde1_jones.ndim not in (5, 6):
         raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
 
     if have_ddes2 and dde2_jones.ndim not in (5, 6):
         raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
+
+    if have_ddes and dde1_jones.ndim != dde2_jones.ndim:
+        raise ValueError("dde1_jones.ndim != dde2_jones.ndim")
 
     if have_coh and source_coh.ndim not in (4, 5):
         raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
@@ -361,6 +380,34 @@ def predict_checks(time_index, antenna1, antenna2,
 
     if have_dies2 and die2_jones.ndim not in (4, 5):
         raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
+
+    if have_dies1 and have_dies2 and die1_jones.ndim != die2_jones.ndim:
+        raise ValueError("die1_jones.ndim != die2_jones.ndim")
+
+    expected_sizes = []
+
+    if have_ddes:
+        ndim = dde1_jones.ndim
+        expected_sizes.append([ndim, ndim - 1, ndim - 2, ndim - 1]),
+
+    if have_coh:
+        ndim = source_coh.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_dies:
+        ndim = die1_jones.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_bvis:
+        ndim = base_vis.ndim
+        expected_sizes.append([ndim + 2, ndim + 1, ndim, ndim + 1])
+
+    if not all(expected_sizes[0] == s for s in expected_sizes[1:]):
+        raise ValueError("One of the following pre-conditions is broken "
+                         "(missing values are ignored):\n"
+                         "dde_jones{1,2}.ndim == source_coh.ndim + 1\n"
+                         "dde_jones{1,2}.ndim == base_vis.ndim + 2\n"
+                         "dde_jones{1,2}.ndim == die_jones{1,2}.ndim + 1")
 
     return (have_ddes1, have_coh, have_ddes2,
             have_dies1, have_bvis, have_dies2)
@@ -391,6 +438,7 @@ def predict_vis(time_index, antenna1, antenna2,
         _get_jones_types("source_coh", source_coh, 4, 5),
         _get_jones_types("dde2_jones", dde2_jones, 5, 6),
         _get_jones_types("die1_jones", die1_jones, 4, 5),
+        _get_jones_types("base_vis", base_vis, 3, 4),
         _get_jones_types("die2_jones", die2_jones, 4, 5)]
 
     ptypes = [t for t in jones_types if t != JONES_NOT_PRESENT]
@@ -407,19 +455,19 @@ def predict_vis(time_index, antenna1, antenna2,
     have_dies = have_dies1 and have_dies2
 
     # Create functions that we will use inside our predict function
-    out_fn = output_factory(have_ddes, have_coh, have_dies, out_dtype)
+    out_fn = output_factory(have_ddes, have_coh,
+                            have_dies, have_bvis, out_dtype)
     sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
-    @wraps(predict_vis)
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
 
         # Get the output shape
         out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
-                     die1_jones, die2_jones)
+                     die1_jones, base_vis, die2_jones)
 
         # Minimum time index, used to normalise within function
         tmin = time_index.min()
@@ -442,6 +490,20 @@ def predict_vis(time_index, antenna1, antenna2,
     return _predict_vis_fn
 
 
+@generated_jit(nopython=True, nogil=True, cache=True)
+def apply_gains(time_index, antenna1, antenna2,
+                die1_jones, corrupted_vis, die2_jones):
+
+    def impl(time_index, antenna1, antenna2,
+             die1_jones, corrupted_vis, die2_jones):
+        return predict_vis(time_index, antenna1, antenna2,
+                           die1_jones=die1_jones,
+                           base_vis=corrupted_vis,
+                           die2_jones=die2_jones)
+
+    return impl
+
+
 PREDICT_DOCS = DocstringTemplate(r"""
 Multiply Jones terms together to form model visibilities according
 to the following formula:
@@ -450,7 +512,7 @@ to the following formula:
 
 
     V_{pq} = G_{p} \left(
-        B_{pq} + \sum_{s} A_{ps} X_{pqs} A_{qs}^H
+        B_{pq} + \sum_{s} E_{ps} X_{pqs} E_{qs}^H
         \right) G_{q}^H
 
 where for antenna :math:`p` and :math:`q`, and source :math:`s`:
@@ -485,8 +547,8 @@ Parameters
 ----------
 time_index : $(array_type)
     Time index used to look up the antenna Jones index
-    for a particular baseline.
-    shape :code:`(row,)`.
+    for a particular baseline with shape :code:`(row,)`.
+    Obtainable via $(get_time_index).
 antenna1 : $(array_type)
     Antenna 1 index used to look up the antenna Jones
     for a particular baseline.
@@ -496,25 +558,33 @@ antenna2 : $(array_type)
     for a particular baseline.
     with shape :code:`(row,)`.
 dde1_jones : $(array_type), optional
-    :math:`A_{ps}` Direction-Dependent Jones terms for the first antenna.
+    :math:`E_{ps}` Direction-Dependent Jones terms for the first antenna.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 source_coh : $(array_type), optional
     :math:`X_{pqs}` Direction-Dependent Coherency matrix for the baseline.
     with shape :code:`(source,row,chan,corr_1,corr_2)`
 dde2_jones : $(array_type), optional
-    :math:`A_{qs}` Direction-Dependent Jones terms for the second antenna.
+    :math:`E_{qs}` Direction-Dependent Jones terms for the second antenna.
+    This is usually the same array as ``dde1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
     shape :code:`(source,time,ant,chan,corr_1,corr_2)`
 die1_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     first antenna of the baseline.
     with shape :code:`(time,ant,chan,corr_1,corr_2)`
 base_vis : $(array_type), optional
-    :math:`B_{pq}` base visibilities, added to source coherency summation
+    :math:`B_{pq}` base coherencies, added to source coherency summation
     *before* multiplication with `die1_jones` and `die2_jones`.
+    shape :code:`(row,chan,corr_1,corr_2)`.
 die2_jones : $(array_type), optional
     :math:`G_{ps}` Direction-Independent Jones terms for the
     second antenna of the baseline.
-    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+    This is usually the same array as ``die1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
+    shape :code:`(time,ant,chan,corr_1,corr_2)`
+$(extra_args)
 
 Returns
 -------
@@ -526,6 +596,59 @@ visibilities : $(array_type)
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                             array_type=":class:`numpy.ndarray`",
+                            get_time_index=":code:`np.unique(time, "
+                                           "return_inverse=True)[1]`",
+                            extra_args="",
                             extra_notes="")
+except AttributeError:
+    pass
+
+
+APPLY_GAINS_DOCS = DocstringTemplate(r"""
+Apply gains to corrupted visibilities in order to recover
+the true visibilities.
+
+Thin wrapper around $(wrapper_func).
+
+.. math::
+
+
+    V_{pq} = G_{p} C_{pq} G_{q}^H
+
+
+Parameters
+----------
+time_index : $(array_type)
+    Time index used to look up the antenna Jones index
+    for a particular baseline
+    with shape :code:`(row,)`.
+antenna1 : $(array_type)
+    Antenna 1 index used to look up the antenna Jones
+    for a particular baseline
+    with shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Antenna 2 index used to look up the antenna Jones
+    for a particular baseline
+    with shape :code:`(row,)`.
+gains1 : $(array_type), optional
+    :math:`G_{ps}` Gains for the first antenna of the baseline.
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+corrupted_vis : $(array_type), optiona
+    :math:`B_{pq}` corrupted visibilities.
+    with shape :code:`(row,chan,corr_1,corr_2)`.
+gains2 : $(array_type), optional
+    :math:`G_{ps}` Gains for the second antenna of the baseline
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`.
+
+Returns
+-------
+true_vis : $(array_type)
+    True visibilities of shape :code:`(row,chan,corr_1,corr_2)`
+""")
+
+try:
+    apply_gains.__doc__ = APPLY_GAINS_DOCS.substitute(
+                        array_type=":class:`numpy.ndarray`",
+                        wrapper_func=":func:`~africanus.rime.predict_vis`")
 except AttributeError:
     pass

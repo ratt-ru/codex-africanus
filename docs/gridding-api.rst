@@ -37,29 +37,31 @@ Dask
 .. autofunction:: grid
 .. autofunction:: degrid
 
-W Stacking
-~~~~~~~~~~
+Nifty
+~~~~~
 
-**This is currently experimental**
+Dask wrappers around
+`Nifty's Gridder <https://gitlab.mpcdf.mpg.de/ift/nifty_gridder>`_.
 
-Implements W-Stacking as described in `WSClean <wsclean_>`_.
+Dask
+++++
 
-.. currentmodule:: africanus.gridding.wstack
+.. currentmodule:: africanus.gridding.nifty.dask
 
 .. autosummary::
-    w_stacking_layers
-    w_stacking_bins
-    w_stacking_centroids
+    grid_config
     grid
+    dirty
     degrid
+    model
 
-.. autofunction:: w_stacking_layers
-.. autofunction:: w_stacking_bins
-.. autofunction:: w_stacking_centroids
+.. autofunction:: grid_config
 .. autofunction:: grid
+.. autofunction:: dirty
 .. autofunction:: degrid
+.. autofunction:: model
 
-.. _wsclean: https://academic.oup.com/mnras/article/444/1/606/1010067
+
 
 Utilities
 ~~~~~~~~~

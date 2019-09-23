@@ -14,3 +14,4 @@ Contributors
 * Benjamin Hugo <bhugo@ska.ac.za>
 * Gijs Molenaar <gijs@pythonic.nl>
 * Joshua van Staden <joshvstaden14@gmail.com>
+* Oleg Smirnov <oms@ska.ac.za, osmirnov@gmail.com>

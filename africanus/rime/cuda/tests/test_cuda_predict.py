@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 import pytest
@@ -44,10 +41,10 @@ def test_cuda_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     time_idx = np.concatenate([np.full(rows, i+10, dtype=np.int32)
                                for i, rows in enumerate(chunks['rows'])])
 
-    ant1 = np.concatenate([np.random.randint(0, a, rows)
+    ant1 = np.concatenate([np.random.randint(0, a, rows, dtype=np.int32)
                            for rows in chunks['rows']])
 
-    ant2 = np.concatenate([np.random.randint(0, a, rows)
+    ant2 = np.concatenate([np.random.randint(0, a, rows, dtype=np.int32)
                            for rows in chunks['rows']])
 
     assert ant1.size == r

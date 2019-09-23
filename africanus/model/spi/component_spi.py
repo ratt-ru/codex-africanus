@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 
@@ -67,7 +64,9 @@ def fit_spi_components(data, weights, freqs, freq0,
     if I0i is not None:
         out[2, :] = I0i
     else:
-        out[2, :] = np.ones(ncomps, dtype=dtype)
+        tmp = np.abs(freqs - freq0)
+        ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
+        out[2, :] = data[:, ref_freq_idx]
     return _fit_spi_components_impl(data, weights, freqs, freq0, out,
                                     jac, ncomps, nfreqs, tol, maxiter)
 
