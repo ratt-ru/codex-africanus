@@ -1,0 +1,85 @@
+// #include <cupy/complex.cuh>
+#include <cupy/carray.cuh>
+// #include <cupy/atomics.cuh>
+
+#define blockdimx {{blockdimx}}
+#define beam_nud_limit {{beam_nud_limit}}
+
+extern "C" __global__ void {{kernel_name}}(
+    const CArray<{{freq_type}}, 1> frequencies,
+    const CArray<{{beam_freq_type}}, 1> beam_freq_map,
+    CArray<{{freq_type}}, 2> freq_data)
+{
+    const int nud = beam_freq_map.shape()[0];
+    const int nchan = frequencies.shape()[0];
+    const int chan = blockIdx.x*blockDim.x + threadIdx.x;
+
+    __shared__ struct {
+        {{beam_freq_type}} beam_freqs[beam_nud_limit];
+    } shared;
+
+    // Load in beam frequency map across
+    if(chan < beam_nud_limit)
+        { shared.beam_freqs[threadIdx.x] = beam_freq_map[chan]; }
+
+    __syncthreads();
+
+    if(chan >= nchan)
+        { return; }
+
+    {{freq_type}} freq = frequencies[chan];
+    int lower = 0;
+    int upper = nud - 1;
+
+    // Warp divergence
+    while(lower <= upper)
+    {
+        int mid = lower + (upper - lower)/2;
+        {{freq_type}} beam_freq = shared.beam_freqs[mid];
+
+        if(beam_freq < freq)
+            { lower = mid + 1; }
+        else if(beam_freq > freq)
+            { upper = mid - 1; }
+        else
+        {
+            lower = mid;
+            break;
+        }
+    }
+
+    lower = min(lower, upper);
+    upper = lower + 1;
+
+    {{freq_type}} freq_scale;
+    {{freq_type}} freq_ratio;
+    {{freq_type}} freq_grid;
+
+    // Frequency below the beam cube
+    if(lower == -1)
+    {
+        freq_scale = freq / shared.beam_freqs[0];
+        freq_ratio = 1.0;
+        freq_grid = 0.0;
+    }
+    // Frequency above the beam cube
+    else if(upper == nud)
+    {
+        freq_scale = freq / shared.beam_freqs[nud - 1];
+        freq_ratio = 0.0;
+        freq_grid = nud - 2;
+    }
+    // Standard interpolation case
+    else
+    {
+        freq_scale = 1.0;
+        {{freq_type}} freq_low = shared.beam_freqs[lower];
+        {{freq_type}} freq_high = shared.beam_freqs[upper];
+        freq_ratio = (freq_high - freq) / (freq_high - freq_low);
+        freq_grid = lower;
+    }
+
+    freq_data[0*nchan + chan] = freq_scale;
+    freq_data[1*nchan + chan] = freq_ratio;
+    freq_data[2*nchan + chan] = freq_grid;
+}
