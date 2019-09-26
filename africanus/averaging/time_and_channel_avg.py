@@ -937,6 +937,14 @@ chan_bin_size : int, optional
     Number of bins to average together.
     Defaults to 1.
 
+Notes
+-----
+
+The implementation currently requires unique lexicographical
+combinations of (TIME, ANTENNA1, ANTENNA2). This can usually
+be achieved by suitably partitioning input data on indexing rows,
+DATA_DESC_ID and SCAN_NUMBER in particular.
+
 Returns
 -------
 namedtuple

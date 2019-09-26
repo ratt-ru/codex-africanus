@@ -33,6 +33,14 @@ Baseline T0  T1  T2  T3  T4
 It is possible for times or baselines to be missing. In the above
 example, T2 is missing for baseline (0, 2).
 
+.. warning::
+
+  The above requires unique lexicographical
+  combinations of (TIME, ANTENNA1, ANTENNA2). This can usually
+  be achieved by suitably partitioning input data on indexing rows,
+  DATA_DESC_ID and SCAN_NUMBER in particular.
+
+
 For each baseline, adjacent time's are assigned to a bin
 if :math:`h_c - h_e/2 - (l_c - l_e/2) <` :code:`time_bin_secs`, where
 :math:`h_c` and :math:`l_c` are the upper and lower time and
