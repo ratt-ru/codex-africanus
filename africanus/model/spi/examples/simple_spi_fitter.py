@@ -12,6 +12,31 @@ from africanus.model.spi.dask import fit_spi_components
 iFs = np.fft.ifftshift
 Fs = np.fft.fftshift
 
+# we want to fall back to numpy if pypocketfft is not installed
+# so set up functions to have the same call signatures
+try:
+    from pypocketfft import r2c, c2r
+    def fft(x, ax, ncpu):
+        return r2c(x, axes=ax, forward=True,
+                   nthreads=ncpu, inorm=0)
+
+    def ifft(y, ax, ncpu, lastsize):
+        return c2r(y, axes=ax, forward=False, lastsize=lastsize,
+                   nthreads=args.ncpu, inorm=2)
+except:
+    warnings.warn("No pypocketfft installation found. "
+                  "FFT's will be performed in serial. "
+                  "Install pypocketfft from "
+                  "https://gitlab.mpcdf.mpg.de/mtr/pypocketfft "
+                  "for optimal performance.",
+                  ImportWarning)
+    from numpy.fft import rfftn, irfftn
+    # additional arguments will have no effect
+    def fft(x, ax, ncpu):
+        return rfftn(x, axes=ax)
+
+    def ifft(y, ax, ncpu, lastsize):
+        return irfftn(y, axes=ax)
 
 def Gaussian2D(xin, yin, GaussPar=(1., 1., 0.)):
     S0, S1, PA = GaussPar
@@ -72,31 +97,17 @@ def convolve_model(model, gausskern, args):
         unpad_m = slice(npad_m, -npad_m)
     ax = (1, 2)  # axes over which to perform fft
     lastsize = npix_m + np.sum(padding[-1])
-    try:
-        from pypocketfft import r2c, c2r
-        # overwrite functions so that they have the same arguments
-        # as the numpy equivalents
-        def fft(x): return r2c(x, axes=ax, forward=True,
-                               nthreads=args.ncpu, inorm=0)
-        def ifft(y): return c2r(y, axes=ax, forward=False, lastsize=lastsize,
-                                nthreads=args.ncpu, inorm=2)
-    except:
-        warnings.warn("No pypocketfft installation found. "
-                      "FFT's will be performed in serial.",
-                      ImportWarning)
-        from numpy.fft import rfftn, irfftn
-
-        def fft(x): return rfftn(x, axes=ax)
-        def ifft(y): return irfftn(y, axes=ax)
 
     # get FT of convolution kernel
     gausskernhat = fft(iFs(np.pad(gausskern[None], padding, mode='constant'),
-                           axes=ax))
+                           axes=ax), ax, args.ncpu)
 
     # Convolve model with Gaussian kernel
-    convmodel = fft(iFs(np.pad(model, padding, mode='constant'), axes=ax))
+    convmodel = fft(iFs(np.pad(model, padding, mode='constant'), axes=ax),
+                    ax, args.ncpu)
     convmodel *= gausskernhat
-    return Fs(ifft(convmodel), axes=ax)[:, unpad_l, unpad_m]
+    return Fs(ifft(convmodel, ax, args.ncpu, lastsize), 
+              axes=ax)[:, unpad_l, unpad_m]
 
 
 def interpolate_beam(xx, yy, maskindices, freqs, args):

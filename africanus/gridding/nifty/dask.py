@@ -13,11 +13,19 @@ try:
     import dask.array as da
     from dask.base import normalize_token
     from dask.highlevelgraph import HighLevelGraph
-    import nifty_gridder as ng
 except ImportError as e:
     import_error = e
 else:
     import_error = None
+
+try:
+    import nifty_gridder as ng
+except ImportError as e:
+    nifty_import_err = ImportError("Please manually install nifty_gridder "
+                                   "from https://gitlab.mpcdf.mpg.de/ift/"
+                                   "nifty_gridder.git")
+else:
+    nifty_import_err = None
 
 from africanus.util.requirements import requires_optional
 
@@ -53,7 +61,8 @@ if import_error is None:
         return normalize_token((gc.nx, gc.ny, gc.csx, gc.csy, gc.eps))
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
     """
     Returns a wrapper around a NIFTY GridderConfiguration object.
@@ -258,7 +267,8 @@ class FinalGridReduction(Mapping):
         return layers
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def grid(vis, uvw, flags, weights, frequencies, grid_config,
          wmin=-1e30, wmax=1e30, streams=None):
     """
@@ -367,7 +377,8 @@ def _nifty_dirty(grid, grid_config):
     return np.stack(grids, axis=2)
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def dirty(grid, grid_config):
     """
     Computes the dirty image from gridded visibilities and the
@@ -405,7 +416,8 @@ def _nifty_model(image, grid_config):
     return np.stack(images, axis=2)
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def model(image, grid_config):
     """
     Computes model visibilities from an image
@@ -440,7 +452,8 @@ def _nifty_degrid(grid, baselines, indices, grid_config):
     return ng.grid2ms_c(baselines, grid_config.object, indices, grid[0][0])
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def degrid(grid, uvw, flags, weights, frequencies,
            grid_config, wmin=-1e30, wmax=1e30):
     """

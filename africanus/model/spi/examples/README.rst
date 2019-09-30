@@ -34,3 +34,10 @@ It is also possible to perform an image space correction for the primary beam
 pattern. Currently only real and imaginary fits beams are supported.
 Please see the documentation for the --beammodel parameter for the required
 format.
+
+For parallel FFT's you will also need to install pypocketfft which can be
+found at git+https://gitlab.mpcdf.mpg.de/mtr/pypocketfft. Install via
+
+.. code-block:: bash
+
+    $ pip3 install git+https://gitlab.mpcdf.mpg.de/mtr/pypocketfft
