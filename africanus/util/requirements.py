@@ -13,7 +13,7 @@ def _missing_packages(fn, packages, import_errors):
     if len(import_errors) > 0:
         import_err_str = "\n".join((str(e) for e in import_errors))
         return ("%s requires installation of "
-                "the following packages: %s.\n" 
+                "the following packages: %s.\n"
                 "%s" % (fn, packages, import_err_str))
 
 
@@ -134,11 +134,13 @@ def requires_optional(*requirements):
                                       "test case, but pytest cannot "
                                       "be imported! %s" % str(e))
                 else:
-                    msg = _missing_packages(fn.__name__, missing_requirements, import_errors)
+                    msg = _missing_packages(
+                        fn.__name__, missing_requirements, import_errors)
                     pytest.skip(msg)
             # Raise the exception
             else:
-                msg = _missing_packages(fn.__name__, missing_requirements, import_errors)
+                msg = _missing_packages(
+                    fn.__name__, missing_requirements, import_errors)
                 raise MissingPackageException(msg)
 
         return decorate(fn, _wrapper)
