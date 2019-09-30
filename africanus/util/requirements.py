@@ -17,7 +17,7 @@ def _missing_packages(fn, packages, import_errors):
                 "%s" % (fn, packages, import_err_str))
     else:
         return ("%s requires installation of the following packages: %s. "
-                % (fn, *packages))
+                % (fn, tuple(packages)))
 
 
 class MissingPackageException(Exception):
