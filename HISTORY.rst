@@ -2,7 +2,7 @@
 History
 =======
 
-0.1.9 (YYYY-MM-DD)
+0.2.0 (2019-09-30)
 ------------------
 * Added standalone SPI fitter (:pr:`153`)
 * Fail earlier and explain duplicate averaging rows (:pr:`155`)
