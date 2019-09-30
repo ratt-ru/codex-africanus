@@ -16,6 +16,7 @@ Fs = np.fft.fftshift
 # so set up functions to have the same call signatures
 try:
     from pypocketfft import r2c, c2r
+
     def fft(x, ax, ncpu):
         return r2c(x, axes=ax, forward=True,
                    nthreads=ncpu, inorm=0)
@@ -32,11 +33,13 @@ except:
                   ImportWarning)
     from numpy.fft import rfftn, irfftn
     # additional arguments will have no effect
+
     def fft(x, ax, ncpu):
         return rfftn(x, axes=ax)
 
     def ifft(y, ax, ncpu, lastsize):
         return irfftn(y, axes=ax)
+
 
 def Gaussian2D(xin, yin, GaussPar=(1., 1., 0.)):
     S0, S1, PA = GaussPar
@@ -106,7 +109,7 @@ def convolve_model(model, gausskern, args):
     convmodel = fft(iFs(np.pad(model, padding, mode='constant'), axes=ax),
                     ax, args.ncpu)
     convmodel *= gausskernhat
-    return Fs(ifft(convmodel, ax, args.ncpu, lastsize), 
+    return Fs(ifft(convmodel, ax, args.ncpu, lastsize),
               axes=ax)[:, unpad_l, unpad_m]
 
 

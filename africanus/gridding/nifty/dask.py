@@ -20,7 +20,7 @@ else:
 
 try:
     import nifty_gridder as ng
-except ImportError as e:
+except ImportError:
     nifty_import_err = ImportError("Please manually install nifty_gridder "
                                    "from https://gitlab.mpcdf.mpg.de/ift/"
                                    "nifty_gridder.git")
