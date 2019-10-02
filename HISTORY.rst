@@ -2,9 +2,12 @@
 History
 =======
 
+0.2.1 (YYYY-MM-DD)
+------------------
+* Modified predict to be compatible with eidos fits headers (:pr:`158`)
+
 0.2.0 (2019-09-30)
 ------------------
-* Modiefied predict to be compatible with eidos fits headers (:pr:`158`)
 * Added standalone SPI fitter (:pr:`153`)
 * Fail earlier and explain duplicate averaging rows (:pr:`155`)
 * CUDA Beam Implementation (:pr:`152`)
