@@ -160,8 +160,14 @@ def load_beams(beam_file_schema, corr_types):
         beam_files.append((corr, (re_f, im_f)))
         headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
 
-    # All FITS headers should agree
-    flat_headers = [d for k, v in headers for d in v]
+    # All FITS headers should agree (apart from DATE)
+    flat_headers = []
+
+    for corr, (re_header, im_header) in headers:
+        del re_header["DATE"]
+        del im_header["DATE"]
+        flat_headers.append(re_header)
+        flat_headers.append(im_header)
 
     if not all(flat_headers[0] == h for h in flat_headers[1:]):
         raise ValueError("BEAM FITS Header Files differ")

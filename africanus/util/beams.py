@@ -158,19 +158,19 @@ def beam_grids(header):
 
     # Find the relevant axes
     for i in range(beam_axes.ndims):
-        if beam_axes.ctype[i] in ('L', 'X'):
+        if beam_axes.ctype[i] in ('L', 'X', 'px'):
             l = i  # noqa
-        elif beam_axes.ctype[i] in ('M', 'Y'):
+        elif beam_axes.ctype[i] in ('M', 'Y', 'py'):
             m = i
         elif beam_axes.ctype[i] == "FREQ":
             freq = i
 
     # Complain if not found
     if l is None:
-        raise ValueError("No L/X axis present in FITS header")
+        raise ValueError("No L/X/px axis present in FITS header")
 
     if m is None:
-        raise ValueError("No M/Y axis present in FITS header")
+        raise ValueError("No M/Y/py axis present in FITS header")
 
     if freq is None:
         raise ValueError("No FREQ axis present in FITS header")
