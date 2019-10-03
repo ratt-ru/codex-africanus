@@ -2,6 +2,10 @@
 History
 =======
 
+0.2.1 (YYYY-MM-DD)
+------------------
+* Modified predict to be compatible with eidos fits headers (:pr:`158`)
+
 0.2.0 (2019-09-30)
 ------------------
 * Added standalone SPI fitter (:pr:`153`)
