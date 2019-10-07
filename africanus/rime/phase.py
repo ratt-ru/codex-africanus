@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
-from functools import wraps
 import math
 
 import numpy as np
@@ -23,7 +19,6 @@ def phase_delay(lm, uvw, frequency):
 
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
-    @wraps(phase_delay)
     def _phase_delay_impl(lm, uvw, frequency):
         shape = (lm.shape[0], uvw.shape[0], frequency.shape[0])
         complex_phase = np.zeros(shape, dtype=out_dtype)

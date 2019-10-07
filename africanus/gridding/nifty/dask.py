@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 import numpy as np
 
@@ -11,13 +13,20 @@ try:
     import dask.array as da
     from dask.base import normalize_token
     from dask.highlevelgraph import HighLevelGraph
-    import nifty_gridder as ng
 except ImportError as e:
     import_error = e
 else:
     import_error = None
 
-from africanus.compatibility import Mapping
+try:
+    import nifty_gridder as ng
+except ImportError:
+    nifty_import_err = ImportError("Please manually install nifty_gridder "
+                                   "from https://gitlab.mpcdf.mpg.de/ift/"
+                                   "nifty_gridder.git")
+else:
+    nifty_import_err = None
+
 from africanus.util.requirements import requires_optional
 
 
@@ -52,7 +61,8 @@ if import_error is None:
         return normalize_token((gc.nx, gc.ny, gc.csx, gc.csy, gc.eps))
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
     """
     Returns a wrapper around a NIFTY GridderConfiguration object.
@@ -96,15 +106,15 @@ def _nifty_indices(baselines, grid_config, flag,
 def _nifty_grid(baselines, grid_config, indices, vis, weights):
     """ Wrapper function for creating a grid of visibilities per row chunk """
     assert len(vis) == 1 and type(vis) == list
-    return ng.ms2grid_c_wgt(baselines, grid_config, indices,
-                            vis[0], weights[0], None)[None, :, :]
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis[0], None, weights[0])[None, :, :]
 
 
 def _nifty_grid_streams(baselines, grid_config, indices,
                         vis, weights, grid_in=None):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    return ng.ms2grid_c_wgt(baselines, grid_config, indices,
-                            vis, weights, grid_in=grid_in)
+    return ng.ms2grid_c(baselines, grid_config, indices,
+                        vis, grid_in, weights)
 
 
 class GridStreamReduction(Mapping):
@@ -257,7 +267,8 @@ class FinalGridReduction(Mapping):
         return layers
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def grid(vis, uvw, flags, weights, frequencies, grid_config,
          wmin=-1e30, wmax=1e30, streams=None):
     """
@@ -366,7 +377,8 @@ def _nifty_dirty(grid, grid_config):
     return np.stack(grids, axis=2)
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def dirty(grid, grid_config):
     """
     Computes the dirty image from gridded visibilities and the
@@ -404,7 +416,8 @@ def _nifty_model(image, grid_config):
     return np.stack(images, axis=2)
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def model(image, grid_config):
     """
     Computes model visibilities from an image
@@ -439,7 +452,8 @@ def _nifty_degrid(grid, baselines, indices, grid_config):
     return ng.grid2ms_c(baselines, grid_config.object, indices, grid[0][0])
 
 
-@requires_optional("dask.array", "nifty_gridder", import_error)
+@requires_optional("dask.array", import_error)
+@requires_optional("nifty_gridder", nifty_import_err)
 def degrid(grid, uvw, flags, weights, frequencies,
            grid_config, wmin=-1e30, wmax=1e30):
     """
@@ -484,7 +498,8 @@ def degrid(grid, uvw, flags, weights, frequencies,
     vis_chunks = []
 
     for corr in range(grid.shape[2]):
-        corr_flags = flags[:, :, corr]
+        corr_flags = flags[:, :, corr].map_blocks(np.require, requirements="C")
+        corr_grid = grid[:, :, corr].map_blocks(np.require, requirements="C")
 
         indices = da.blockwise(_nifty_indices, ("row",),
                                baselines, ("row",),
@@ -497,7 +512,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
                                dtype=np.int32)
 
         vis = da.blockwise(_nifty_degrid, ("row", "chan"),
-                           grid[:, :, corr], ("ny", "nx"),
+                           corr_grid, ("ny", "nx"),
                            baselines, ("row",),
                            indices, ("row",),
                            grid_config, None,

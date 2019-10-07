@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-try:
-    from functools import reduce
-except ImportError:
-    pass
+from functools import reduce
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -15,79 +8,65 @@ from africanus.util.numba import njit
 
 
 @njit(nogil=True, cache=True)
-def freq_grid_interp(frequencies, beam_freq_map):
+def freq_grid_interp(frequency, beam_freq_map):
     # Interpolated grid coordinate
     beam_nud = beam_freq_map.shape[0]
-    grids = np.arange(beam_freq_map.size).astype(np.float64)
-    grid_pos_f = np.interp(frequencies, beam_freq_map, grids)
-    # Floor grid position
-    grid_pos = np.empty((grid_pos_f.shape[0], 2),
-                        dtype=np.int32)
-    # Frequency scaling for cases when we're below or above the beam
-    freq_scale = np.empty_like(frequencies)
-    # Frequency difference between the channel frequency and the grid frequency
-    freq_grid_diff = np.empty((frequencies.shape[0], 2),
-                              dtype=frequencies.dtype)
+    freq_data = np.empty((frequency.shape[0], 3),
+                         dtype=frequency.dtype)
 
-    beam_nud = beam_freq_map.shape[0]
-    beam_nud_f_minus_one = grid_pos_f.dtype.type(beam_freq_map.shape[0] - 1)
+    for f in range(frequency.shape[0]):
+        freq = frequency[f]
+        lower = 0
+        upper = beam_nud - 1
 
-    for chan in range(frequencies.shape[0]):
-        freq = frequencies[chan]
+        while lower <= upper:
+            mid = lower + (upper - lower) // 2
+            beam_freq = beam_freq_map[mid]
 
-        # Below the beam_freq_map,
-        # we'll clamp frequencies to the lower position
-        # and introduce scaling for the lm coordinates
-        if freq < beam_freq_map[0]:
-            freq_scale[chan] = freq / beam_freq_map[0]
-            grid_low = 0
-            freq = beam_freq_map[0]
-        # Above, or exactly on the last value of the beam_freq_map
-        # clamp frequencies to the upper position and introduce
-        # scaling for lm coordinates
-        elif grid_pos_f[chan] == beam_nud_f_minus_one:
-            if freq > beam_freq_map[-1]:
-                freq_scale[chan] = freq / beam_freq_map[-1]
+            if beam_freq < freq:
+                lower = mid + 1
+            elif beam_freq > freq:
+                upper = mid - 1
             else:
-                freq_scale[chan] = 1.0
+                lower = mid
+                break
 
-            # Shift one grid point back from the end
-            grid_low = beam_nud - 2
-            freq = beam_freq_map[-1]
-        # Standard case, snap to the lower grid coordinate
+        # This handles the lower <= upper in the while loop
+        lower = min(lower, upper)
+        upper = lower + 1
+
+        # Set up scaling, lower weight, lower grid pos
+        if lower == -1:
+            freq_data[f, 0] = freq / beam_freq_map[0]
+            freq_data[f, 1] = 1.0
+            freq_data[f, 2] = 0
+        elif upper == beam_nud:
+            freq_data[f, 0] = freq / beam_freq_map[beam_nud - 1]
+            freq_data[f, 1] = 0.0
+            freq_data[f, 2] = beam_nud - 2
         else:
-            grid_low = int(np.floor(grid_pos_f[chan]))
-            freq_scale[chan] = 1.0
+            freq_data[f, 0] = 1.0
+            freq_low = beam_freq_map[lower]
+            freq_high = beam_freq_map[upper]
+            freq_diff = freq_high - freq_low
+            freq_data[f, 1] = (freq_high - freq) / freq_diff
+            freq_data[f, 2] = lower
 
-        grid_hi = min(grid_low + 1, beam_nud - 1)
-
-        grid_pos[chan] = grid_low, grid_hi
-
-        if grid_low == grid_hi:
-            assert grid_low == beam_nud - 1
-            freq_grid_diff[chan] = 1.0, 0.0
-        else:
-            lower_freq = beam_freq_map[grid_low]
-            upper_freq = beam_freq_map[grid_hi]
-            freq_diff = upper_freq - lower_freq
-            freq_grid_diff[chan, 0] = (upper_freq - freq) / freq_diff
-            freq_grid_diff[chan, 1] = (freq - lower_freq) / freq_diff
-
-    return grid_pos, freq_scale, freq_grid_diff
+    return freq_data
 
 
 @njit(nogil=True, cache=True)
 def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                   lm, parallactic_angles, point_errors, antenna_scaling,
-                  frequencies):
+                  frequency):
 
     nsrc = lm.shape[0]
     ntime, nants = parallactic_angles.shape
-    nchan = frequencies.shape[0]
+    nchan = frequency.shape[0]
     beam_lw, beam_mh, beam_nud = beam.shape[:3]
     corrs = beam.shape[3:]
 
-    if beam_lw < 0 or beam_mh < 0 or beam_nud < 0:
+    if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
         raise ValueError("beam_lw, beam_mh and beam_nud must be >= 2")
 
     # Flatten correlations
@@ -117,8 +96,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     fjones = np.empty((nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
 
     # Compute frequency interpolation stuff
-    grid_pos, freq_scale, freq_diff = freq_grid_interp(frequencies,
-                                                       beam_freq_map)
+    freq_data = freq_grid_interp(frequency, beam_freq_map)
 
     corr_sum = np.zeros((ncorrs,), dtype=beam.dtype)
     absc_sum = np.zeros((ncorrs,), dtype=beam.real.dtype)
@@ -134,9 +112,18 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                 l, m = lm[s]
 
                 for f in range(nchan):
+                    # Unpack frequency data
+                    freq_scale = freq_data[f, 0]
+                    # lower and upper frequency weights
+                    nud = freq_data[f, 1]
+                    inv_nud = 1.0 - nud
+                    # lower and upper frequency grid position
+                    gc0 = np.int32(freq_data[f, 2])
+                    gc1 = gc0 + 1
+
                     # Apply any frequency scaling
-                    sl = l * freq_scale[f]
-                    sm = m * freq_scale[f]
+                    sl = l * freq_scale
+                    sm = m * freq_scale
 
                     # Add pointing errors
                     tl = sl + point_errors[t, a, f, 0]
@@ -161,17 +148,14 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     # Snap to the lower grid coordinates
                     gl0 = np.int32(np.floor(vl))
                     gm0 = np.int32(np.floor(vm))
-                    gc0 = grid_pos[f, 0]
 
                     # Snap to the upper grid coordinates
                     gl1 = min(gl0 + 1, lmaxi)
                     gm1 = min(gm0 + 1, mmaxi)
-                    gc1 = grid_pos[f, 1]
 
                     # Difference between grid and offset coordinates
                     ld = vl - gl0
                     md = vm - gm0
-                    nud, inv_nud = freq_diff[f]
 
                     # Zero accumulation arrays
                     corr_sum[:] = 0
@@ -292,7 +276,7 @@ BEAM_CUBE_DOCS = DocstringTemplate(
         Pointing errors of shape :code:`(time, ant, chan, 2)`.
     antenna_scaling : $(array_type)
         Antenna scaling factors of shape :code:`(ant, chan, 2)`
-    frequencies : $(array_type)
+    frequency : $(array_type)
         Frequencies of shape :code:`(chan,)`.
 
     Returns

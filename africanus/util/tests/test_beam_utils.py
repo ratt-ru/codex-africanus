@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 import pytest
@@ -162,32 +159,32 @@ def test_beam_grids(fits_header):
 def test_beam_filenames():
     from africanus.util.beams import beam_filenames
 
-    assert beam_filenames("beam_$(corr)_$(reim).fits", "linear") == {
-        'xx': ('beam_xx_re.fits', 'beam_xx_im.fits'),
-        'xy': ('beam_xy_re.fits', 'beam_xy_im.fits'),
-        'yx': ('beam_yx_re.fits', 'beam_yx_im.fits'),
-        'yy': ('beam_yy_re.fits', 'beam_yy_im.fits')
+    assert beam_filenames("beam_$(corr)_$(reim).fits", [9, 10, 11, 12]) == {
+        'xx': ['beam_xx_re.fits', 'beam_xx_im.fits'],
+        'xy': ['beam_xy_re.fits', 'beam_xy_im.fits'],
+        'yx': ['beam_yx_re.fits', 'beam_yx_im.fits'],
+        'yy': ['beam_yy_re.fits', 'beam_yy_im.fits']
     }
 
-    assert beam_filenames("beam_$(corr)_$(reim).fits", "circular") == {
-        'rr': ('beam_rr_re.fits', 'beam_rr_im.fits'),
-        'rl': ('beam_rl_re.fits', 'beam_rl_im.fits'),
-        'lr': ('beam_lr_re.fits', 'beam_lr_im.fits'),
-        'll': ('beam_ll_re.fits', 'beam_ll_im.fits')
+    assert beam_filenames("beam_$(corr)_$(reim).fits", [5, 6, 7, 8]) == {
+        'rr': ['beam_rr_re.fits', 'beam_rr_im.fits'],
+        'rl': ['beam_rl_re.fits', 'beam_rl_im.fits'],
+        'lr': ['beam_lr_re.fits', 'beam_lr_im.fits'],
+        'll': ['beam_ll_re.fits', 'beam_ll_im.fits']
     }
 
-    assert beam_filenames("beam_$(CORR)_$(reim).fits", "linear") == {
-        'xx': ('beam_XX_re.fits', 'beam_XX_im.fits'),
-        'xy': ('beam_XY_re.fits', 'beam_XY_im.fits'),
-        'yx': ('beam_YX_re.fits', 'beam_YX_im.fits'),
-        'yy': ('beam_YY_re.fits', 'beam_YY_im.fits')
+    assert beam_filenames("beam_$(CORR)_$(reim).fits", [9, 10, 11, 12]) == {
+        'xx': ['beam_XX_re.fits', 'beam_XX_im.fits'],
+        'xy': ['beam_XY_re.fits', 'beam_XY_im.fits'],
+        'yx': ['beam_YX_re.fits', 'beam_YX_im.fits'],
+        'yy': ['beam_YY_re.fits', 'beam_YY_im.fits']
     }
 
-    assert beam_filenames("beam_$(corr)_$(REIM).fits", "linear") == {
-        'xx': ('beam_xx_RE.fits', 'beam_xx_IM.fits'),
-        'xy': ('beam_xy_RE.fits', 'beam_xy_IM.fits'),
-        'yx': ('beam_yx_RE.fits', 'beam_yx_IM.fits'),
-        'yy': ('beam_yy_RE.fits', 'beam_yy_IM.fits')
+    assert beam_filenames("beam_$(corr)_$(REIM).fits", [9, 10, 11, 12]) == {
+        'xx': ['beam_xx_RE.fits', 'beam_xx_IM.fits'],
+        'xy': ['beam_xy_RE.fits', 'beam_xy_IM.fits'],
+        'yx': ['beam_yx_RE.fits', 'beam_yx_IM.fits'],
+        'yy': ['beam_yy_RE.fits', 'beam_yy_IM.fits']
     }
 
 

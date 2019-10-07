@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from collections import OrderedDict
 import string
@@ -10,7 +7,7 @@ import re
 
 import numpy as np
 
-from africanus.compatibility import range
+from africanus.util.casa_types import STOKES_ID_MAP
 
 
 class FitsAxes(object):
@@ -161,19 +158,19 @@ def beam_grids(header):
 
     # Find the relevant axes
     for i in range(beam_axes.ndims):
-        if beam_axes.ctype[i] in ('L', 'X'):
+        if beam_axes.ctype[i].upper() in ('L', 'X', 'PX'):
             l = i  # noqa
-        elif beam_axes.ctype[i] in ('M', 'Y'):
+        elif beam_axes.ctype[i].upper() in ('M', 'Y', 'PY'):
             m = i
         elif beam_axes.ctype[i] == "FREQ":
             freq = i
 
     # Complain if not found
     if l is None:
-        raise ValueError("No L/X axis present in FITS header")
+        raise ValueError("No L/X/PX axis present in FITS header")
 
     if m is None:
-        raise ValueError("No M/Y axis present in FITS header")
+        raise ValueError("No M/Y/PY axis present in FITS header")
 
     if freq is None:
         raise ValueError("No FREQ axis present in FITS header")
@@ -216,7 +213,29 @@ LINEAR_CORRELATIONS = ('xx', 'xy', 'yx', 'yy')
 REIM = ('re', 'im')
 
 
-def beam_filenames(filename_schema, polarisation_type):
+def _re_im_filenames(corr, template):
+    filenames = []
+
+    for ri in REIM:
+        try:
+            filename = template.substitute(corr=corr.lower(),
+                                           CORR=corr.upper(),
+                                           reim=ri.lower(),
+                                           REIM=ri.upper())
+        except KeyError:
+            raise ValueError("Invalid filename schema '%s'. "
+                             "FITS Beam filename schemas "
+                             "must follow forms such as "
+                             "'beam_$(corr)_$(reim).fits' or "
+                             "'beam_$(CORR)_$(REIM).fits."
+                             % template.template)
+        else:
+            filenames.append(filename)
+
+    return filenames
+
+
+def beam_filenames(filename_schema, corr_types):
     """
     Returns a dictionary of beam filename pairs,
     keyed on correlation,from the cartesian product
@@ -227,10 +246,10 @@ def beam_filenames(filename_schema, polarisation_type):
     .. code-block:: python
 
         {
-          'xx' : ('beam_xx_re.fits', 'beam_xx_im.fits'),
-          'xy' : ('beam_xy_re.fits', 'beam_xy_im.fits'),
+          'xx' : ['beam_xx_re.fits', 'beam_xx_im.fits'],
+          'xy' : ['beam_xy_re.fits', 'beam_xy_im.fits'],
           ...
-          'yy' : ('beam_yy_re.fits', 'beam_yy_im.fits'),
+          'yy' : ['beam_yy_re.fits', 'beam_yy_im.fits'],
         }
 
     Given ``beam_$(CORR)_$(REIM).fits`` returns:
@@ -238,18 +257,18 @@ def beam_filenames(filename_schema, polarisation_type):
     .. code-block:: python
 
         {
-          'xx' : ('beam_XX_RE.fits', 'beam_XX_IM.fits'),
-          'xy' : ('beam_XY_RE.fits', 'beam_XY_IM.fits'),
+          'xx' : ['beam_XX_RE.fits', 'beam_XX_IM.fits'],
+          'xy' : ['beam_XY_RE.fits', 'beam_XY_IM.fits'],
           ...
-          'yy' : ('beam_YY_RE.fits', 'beam_YY_IM.fits'),
+          'yy' : ['beam_YY_RE.fits', 'beam_YY_IM.fits']),
         }
 
     Parameters
     ----------
     filename_schema : str
         String containing the filename schema.
-    polarisation_type : {'linear', 'circular'}
-        String defining the type of polarisation.
+    corr_types : list of integers
+        list of integers defining the correlation type.
 
     Returns
     -------
@@ -260,26 +279,15 @@ def beam_filenames(filename_schema, polarisation_type):
     """
     template = FitsFilenameTemplate(filename_schema)
 
-    def _re_im_filenames(corr, template):
-        try:
-            return tuple(template.substitute(
-                corr=corr.lower(), CORR=corr.upper(),
-                reim=ri.lower(), REIM=ri.upper())
-                for ri in REIM)
-        except KeyError:
-            raise ValueError("Invalid filename schema '%s'. "
-                             "FITS Beam filename schemas "
-                             "must follow forms such as "
-                             "'beam_$(corr)_$(reim).fits' or "
-                             "'beam_$(CORR)_$(REIM).fits." % filename_schema)
+    corr_names = []
 
-    if polarisation_type == 'linear':
-        CORRELATIONS = LINEAR_CORRELATIONS
-    elif polarisation_type == 'circular':
-        CORRELATIONS = CIRCULAR_CORRELATIONS
-    else:
-        raise ValueError("Invalid polarisation_type '{}'. "
-                         "Should be 'linear' or 'circular'")
+    for corr_type in corr_types:
+        try:
+            corr_name = STOKES_ID_MAP[corr_type]
+        except KeyError:
+            raise ValueError("Unknown Stokes ID %d" % corr_type)
+        else:
+            corr_names.append(corr_name.lower())
 
     return OrderedDict((c, _re_im_filenames(c, template))
-                       for c in CORRELATIONS)
+                       for c in corr_names)
