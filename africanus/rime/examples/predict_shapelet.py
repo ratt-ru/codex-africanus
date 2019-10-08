@@ -452,6 +452,7 @@ def vis_factory(args, source_type, sky_model, time_index,
         frequency = spw.CHAN_FREQ.data
 
 
+
     # (source, row, frequency)
     print(lm.compute() * 180 / np.pi)
     print(uvw)
@@ -543,7 +544,7 @@ def vis_factory(args, source_type, sky_model, time_index,
         #                dde_primary_beam, jones, dde_primary_beam, None, None, None)
         
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,
-                       dde_primary_beam, jones, dde_primary_beam, None, None, None)
+                       dde_primary_beam, jones, dde_primary_beam, np.ones((ntime, na, nchan, 2, 2), dtype=np.float64), None, np.ones((ntime, na, nchan, 2, 2), dtype=np.float64))
     else:
         print("SKIPPING PRIMARY BEAM")
         return predict_vis(time_index, ms.ANTENNA1.data, ms.ANTENNA2.data,

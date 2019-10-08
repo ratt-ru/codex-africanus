@@ -80,8 +80,7 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
 
                     vl = fl * cos_pa - fm * sin_pa
                     vm = fl * sin_pa + fm * cos_pa
-
-
+                    
                     vl *= antenna_scaling[a, c, 0]
                     vm *= antenna_scaling[a, c, 1]
 

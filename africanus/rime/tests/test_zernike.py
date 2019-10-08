@@ -66,13 +66,8 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     coords[2, 0:nsrc, 0, 0, 0] = 0
 
     # Call the function, reshape accordingly, and normalise
-    zernike_vals = zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
-    xx_corr = zernike_vals[...,0,0]
-    yy_corr = zernike_vals[...,1,1]
-
-    stokes_I = (xx_corr * np.conj(xx_corr.T) + yy_corr * np.conj(yy_corr.T)) / 2
-    
-    zernike_vals = zernike_vals[:, 0, 0, 0].reshape((npix, npix))
+    zernike_vals = (zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)[:, 0, 0, 0]
+                    .reshape((npix, npix)))
     write_fits(zernike_vals.real, [0], 'test_script_fits_beam.fits')
     write_fits(eidos_data_xx, [0], "eidos_fits_beam.fits")
     assert np.allclose(eidos_data_xx, zernike_vals)

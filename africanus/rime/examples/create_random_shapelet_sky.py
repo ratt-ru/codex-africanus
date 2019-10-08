@@ -59,8 +59,8 @@ coeffs_lm = 10 * np.random.random(ncoeffs)
 r = ra
 d = dec 
 
-ra_half_power_beam_width = [83.27018, 94.25633]
-dec_half_power_beam_width = [83.27018, 94.25633]
+ra_half_power_beam_width = 0.66
+dec_half_power_beam_width = 0.00
 
 # for i in range(2):
 #     r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm)))  
@@ -90,8 +90,8 @@ for i in range(10):
     coeffs_lm = 10 * np.random.random(ncoeffs)
         
     # Random position
-    r = ra + (1.0 * (np.random.uniform(0,1) - 0.5))
-    d = dec + (1.0 * (np.random.uniform(0,1) - 0.5))
+    r = ra + (ra_half_power_beam_width * (np.random.uniform(0,1) - 0.5))
+    d = dec + (ra_half_power_beam_width * (np.random.uniform(0,1) - 0.5))
     print(r, d)
     # print(as_csv(coeffs_lm.flatten()))
  
