@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
+from functools import reduce
 import logging
 from operator import mul
 from os.path import join as pjoin
 
 import numpy as np
 
-from africanus.compatibility import reduce
 from africanus.model.coherency.conversion import (_element_indices_and_shape,
                                                   CONVERT_DOCS,
                                                   MissingConversionInputs)

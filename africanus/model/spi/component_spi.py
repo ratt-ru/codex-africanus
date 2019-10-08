@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 
@@ -55,15 +52,15 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
 
 
 def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None, tol=1e-6,
-                       maxiter=100, dtype=np.float64):
+                       alphai=None, I0i=None, tol=1e-4,
+                       maxiter=100):
     ncomps, nfreqs = data.shape
-    jac = np.zeros((2, nfreqs), dtype=dtype)
-    out = np.zeros((4, ncomps), dtype=dtype)
+    jac = np.zeros((2, nfreqs), dtype=data.dtype)
+    out = np.zeros((4, ncomps), dtype=data.dtype)
     if alphai is not None:
         out[0, :] = alphai
     else:
-        out[0, :] = -0.7 * np.ones(ncomps, dtype=dtype)
+        out[0, :] = -0.7 * np.ones(ncomps, dtype=data.dtype)
     if I0i is not None:
         out[2, :] = I0i
     else:

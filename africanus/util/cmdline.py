@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import ast
-
-import __builtin__
+import builtins
 
 # builtin function whitelist
 _BUILTIN_WHITELIST = frozenset(['slice'])
-_missing = _BUILTIN_WHITELIST.difference(dir(__builtin__))
+_missing = _BUILTIN_WHITELIST.difference(dir(builtins))
 if len(_missing) > 0:
     raise ValueError("'%s' are not valid builtin functions.'" % list(_missing))
 
@@ -72,7 +68,7 @@ def parse_python_assigns(assign_str):
             else:
                 kwargs = {}
 
-            return getattr(__builtin__, func_name)(*args, **kwargs)
+            return getattr(builtins, func_name)(*args, **kwargs)
         # Try a literal eval
         else:
             return ast.literal_eval(stmt_value)

@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from numba import types
 import numpy as np
 
-from africanus.compatibility import PY2, PY3
 from africanus.util.numba import generated_jit, njit
 from africanus.util.docs import DocstringTemplate
 
@@ -110,8 +106,6 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
     promote_base = promote_base_factory(is_base_list)
 
-    # numba doesn't support strings yet, support base type
-    # through integers
     if isinstance(base, types.scalars.Integer):
         def is_std(base):
             return base == 0
@@ -122,7 +116,7 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         def is_log10(base):
             return base == 2
 
-    elif PY3 and isinstance(base, types.misc.UnicodeType):
+    elif isinstance(base, types.misc.UnicodeType):
         def is_std(base):
             return base == "std"
 
@@ -131,14 +125,6 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
         def is_log10(base):
             return base == "log10"
-
-    elif PY2 and isinstance(base, types.common.Opaque) and base.name == "str":
-        # python 2 string support can be added when
-        # https://github.com/numba/numba/issues/3323
-        # is complete
-        raise TypeError("String 'base' unsupported in python 2. "
-                        "Use integers to specify the type of "
-                        "polynomial base.")
     else:
         raise TypeError("base '%s' should be a string or integer" % base)
 

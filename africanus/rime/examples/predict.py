@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import argparse
 from collections import namedtuple
@@ -162,12 +159,17 @@ def load_beams(beam_file_schema, corr_types):
         beam_files.append((corr, (re_f, im_f)))
         headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
 
-    # All FITS headers should agree
-    flat_headers = [d for k, v in headers for d in v]
+    # All FITS headers should agree (apart from DATE)
+    flat_headers = []
+
+    for corr, (re_header, im_header) in headers:
+        del re_header["DATE"]
+        del im_header["DATE"]
+        flat_headers.append(re_header)
+        flat_headers.append(im_header)
 
     if not all(flat_headers[0] == h for h in flat_headers[1:]):
-        print([h for h in flat_headers])
-        # raise ValueError("BEAM FITS Header Files differ")
+        raise ValueError("BEAM FITS Header Files differ")
 
     #  Map FITS header type to NumPy type
     BITPIX_MAP = {8: np.dtype('uint8').type, 16: np.dtype('int16').type,
@@ -298,7 +300,7 @@ def parse_sky_model(filename, chunks):
             point_ref_freq.append(ref_freq)
         else:
             raise ValueError("Unknown source morphology %s" % typecode)
-    
+
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
     Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq",
                                  "shape"])
@@ -398,7 +400,6 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
                          "a feed rotation matrix will not be "
                          "possible." % (corr_type,))
 
-
     # Construct feed rotation
     feed_rot = feed_rotation(parangles, pol_type)
 
@@ -423,14 +424,12 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     # Load the beam information
     beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
 
-
     # Introduce the correlation axis
-    beam = beam.reshape(beam.shape[:3] + (2, 2))    
-    
+    beam = beam.reshape(beam.shape[:3] + (2, 2))
+
     beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
                              zpe, zas,
                              frequency)
-
 
     # Multiply the beam by the feed rotation to form the DDE term
     return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
@@ -489,7 +488,6 @@ def vis_factory(args, source_type, sky_model,
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
-
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)

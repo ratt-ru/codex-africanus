@@ -1,16 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
-
-from africanus.compatibility import range
 
 from africanus.model.coherency.conversion import (convert_setup,
                                                   convert_impl,
-                                                  convert as np_stokes_convert,
                                                   CONVERT_DOCS)
 
 from africanus.util.requirements import requires_optional
@@ -23,8 +15,6 @@ else:
     da_import_error = None
 
 
-# This wraps is a https://en.wikipedia.org/wiki/Noble_lie
-@wraps(np_stokes_convert)
 def _wrapper(np_input, mapping=None, in_shape=None,
              out_shape=None, dtype_=None):
     result = convert_impl(np_input, mapping, in_shape,
