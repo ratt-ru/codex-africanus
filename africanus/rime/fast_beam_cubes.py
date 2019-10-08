@@ -69,7 +69,7 @@ def freq_grid_interp(frequencies, beam_freq_map):
         else:
             lower_freq = beam_freq_map[grid_low]
             upper_freq = beam_freq_map[grid_hi]
-            freq_diff = upper_freq - lower_freq
+            freq_diff = upper_freq - lower_freq if not upper_freq == lower_freq else 1
             freq_grid_diff[chan, 0] = (upper_freq - freq) / freq_diff
             freq_grid_diff[chan, 1] = (freq - lower_freq) / freq_diff
 
@@ -103,9 +103,10 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     mmaxf = ex_dtype.type(beam_mh - 1)
     lmaxi = beam_lw - 1
     mmaxi = beam_mh - 1
-
+    
     lscale = lmaxf / (upper_l - lower_l)
     mscale = mmaxf / (upper_m - lower_m)
+    # print("First")
 
     one = ex_dtype.type(1)
     zero = ex_dtype.type(0)
@@ -117,9 +118,10 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     fjones = np.empty((nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
 
     # Compute frequency interpolation stuff
+    # print("about to interpolate")
     grid_pos, freq_scale, freq_diff = freq_grid_interp(frequencies,
                                                        beam_freq_map)
-
+    # print("interpolated")
     corr_sum = np.zeros((ncorrs,), dtype=beam.dtype)
     absc_sum = np.zeros((ncorrs,), dtype=beam.real.dtype)
     beam_scratch = np.zeros((ncorrs,), dtype=beam.dtype)
@@ -149,6 +151,8 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     # Scale by antenna scaling
                     vl *= antenna_scaling[a, f, 0]
                     vm *= antenna_scaling[a, f, 1]
+
+                    # print("(", l, m, ") (freq ",freq_scale[f],") ===> (", vl, vm, ")")
 
                     # Shift into the cube coordinate system
                     vl = lscale*(vl - lower_l)

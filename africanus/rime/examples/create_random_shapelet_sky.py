@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
@@ -46,24 +46,53 @@ sbeta1 = sky_model.sources[0].shape.sbetal
 sbeta2 = sky_model.sources[0].shape.sbetam
 ra = np.rad2deg(sky_model.sources[0].pos.ra)
 dec = np.rad2deg(sky_model.sources[0].pos.dec)
-I = sky_model.sources[0].flux.I * 0.0001
+print("RA, DEC IS ", ra, dec)
+I = sky_model.sources[0].flux.I * 1e10
 spi = sky_model.sources[0].spectrum.spi
 freq0 = sky_model.sources[0].spectrum.freq0
 print(I)
-for i in range(36):
+b1 = sbeta1
+b2 = sbeta2
+
+ncoeffs = 8
+coeffs_lm = 10 * np.random.random(ncoeffs)
+r = ra
+d = dec 
+
+ra_half_power_beam_width = [83.27018, 94.25633]
+dec_half_power_beam_width = [83.27018, 94.25633]
+
+# for i in range(2):
+#     r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm)))  
+#     # Calculate size
+#     b1 = sbeta1 + (0.5 * sbeta1) * (np.random.random() - 0.5)
+#     b2 = sbeta2 + (0.5 * sbeta2) * (np.random.random() - 0.5)
+
+#     # Generate random coefficients
+#     coeffs_lm = None
+#     ncoeffs = 8
+#     coeffs_lm = 10 * np.random.random(ncoeffs)
+        
+#     # Random position
+#     r = ra + ra_half_power_beam_width[i]
+#     d = dec + dec_half_power_beam_width[i]
+#     print(r, d)
+    
+for i in range(10):
+    r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm)))  
     # Calculate size
     b1 = sbeta1 + (0.5 * sbeta1) * (np.random.random() - 0.5)
     b2 = sbeta2 + (0.5 * sbeta2) * (np.random.random() - 0.5)
 
     # Generate random coefficients
+    coeffs_lm = None
     ncoeffs = 8
     coeffs_lm = 10 * np.random.random(ncoeffs)
         
     # Random position
-    r = ra + (0.2 * (np.random.uniform(0,1) - 0.5))
-    d = dec + (0.2 * (np.random.uniform(0,1) - 0.5))
+    r = ra + (1.0 * (np.random.uniform(0,1) - 0.5))
+    d = dec + (1.0 * (np.random.uniform(0,1) - 0.5))
     print(r, d)
     # print(as_csv(coeffs_lm.flatten()))
-
-    r_sky_model.write("\nJ%d %f %f %f %f %f %f %f %s" %(i, r, d, I, spi, freq0, b1, b2, as_csv(coeffs_lm)))   
+ 
     

@@ -37,7 +37,7 @@ def zernike_rad(m, n, rho):
 @jit(nogil=True, nopython=True, cache=True)
 def zernike(j, rho, phi):
     if rho > 1:
-        return 0 + 0j
+        return 0.0
     j += 1
     n = 0
     j1 = j-1
@@ -55,11 +55,11 @@ def zernike(j, rho, phi):
 @jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l, m):
     rho, phi = (l**2 + m ** 2) ** 0.5, np.arctan2(l, m)
-    return rho, phi
+    return rho * 100, phi
 
 
 @jit(nogil=True, nopython=True, cache=True)
-def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequency_scaling, antenna_scaling):
+def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
     sources, times, ants, chans, corrs = out.shape
     npoly = coeffs.shape[-1]
 
@@ -72,11 +72,15 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
                 for c in range(chans):
                     l, m, freq = coords[:, s, t, a, c]
 
-                    l = l * frequency_scaling[c] 
-                    m = m * frequency_scaling[c]
+                    fl = l * frequency_scaling[c] 
+                    fm = m * frequency_scaling[c]
 
-                    vl = l * cos_pa - l * sin_pa
-                    vm = m * sin_pa + m * cos_pa
+                    fl += pointing_errors[t, a, c, 0]
+                    fm += pointing_errors[t, a, c, 1]
+
+                    vl = fl * cos_pa - fm * sin_pa
+                    vm = fl * sin_pa + fm * cos_pa
+
 
                     vl *= antenna_scaling[a, c, 0]
                     vm *= antenna_scaling[a, c, 1]
@@ -96,7 +100,7 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
     return out
 
 
-def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling):
+def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
     """ Wrapper for :func:`nb_zernike_dde` """
     _, sources, times, ants, chans = coords.shape
     # ant, chan, corr_1, ..., corr_n, poly
@@ -110,7 +114,7 @@ def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scalin
     coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))
     noll_index = noll_index.reshape((ants, chans, fcorrs, npoly))
 
-    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles, frequency_scaling, antenna_scaling)
+    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
 
     # Reshape to full correlation size
     return result.reshape((sources, times, ants, chans) + corr_shape)

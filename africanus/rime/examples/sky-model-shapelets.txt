@@ -1,2 +1,2 @@
-#format: name ra_d dec_d i spi freq0 sbetal_s sbetam_s shapelet_coeffs
-J0 0.00 60.00 0.013291 -0.700000 1420000000.000000 0.00001 0.00001 1.0,2.0,3.0,4.0,5.0,6.0
+#format:name ra_d dec_d i spi freq0 sbetal_s sbetam_s shapelet_coeffs
+SRC0 0.00 0.66 1.0 0.0 1070000000 0.00001 0.0001 1.0,2.0
