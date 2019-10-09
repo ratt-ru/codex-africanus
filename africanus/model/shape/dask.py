@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 
 from africanus.model.shape.gaussian_shape import (gaussian as np_gaussian,
                                                   GAUSSIAN_DOCS)

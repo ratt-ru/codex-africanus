@@ -2,11 +2,19 @@
 History
 =======
 
-0.1.9 (YYYY-MM-DD)
+0.2.1 (YYYY-MM-DD)
 ------------------
+* Modified predict to be compatible with eidos fits headers (:pr:`158`)
 
+0.2.0 (2019-09-30)
+------------------
+* Added standalone SPI fitter (:pr:`153`)
+* Fail earlier and explain duplicate averaging rows (:pr:`155`)
+* CUDA Beam Implementation (:pr:`152`)
+* Fix documentation package versions (:pr:`151`)
+* Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
 * Expand travis build matrix (:pr:`147`)
-* Drop Python 2 support (:pr:`146`)
+* Drop Python 2 support (:pr:`146`, :pr:`149`, :pr:`150`)
 * Support the beam in the predict example (:pr:`145`)
 * Fix weight indexing in averaging (:pr:`144`)
 * Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)

@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 
 import numpy as np
 
@@ -27,14 +23,30 @@ _array_types = tuple(_array_types)
 
 cuda_fns = {
     np.dtype(np.float32): {
+        'abs': 'fabsf',
+        'cos': 'cosf',
+        'floor': 'floorf',
+        'make2': 'make_float2',
+        'max': 'fmaxf',
+        'min': 'fminf',
+        'rsqrt': 'rsqrtf',
         'sqrt': 'sqrtf',
+        'sin': 'sinf',
         'sincos': 'sincosf',
         'sincospi': 'sincospif',
     },
     np.dtype(np.float64): {
-        'sqrt': 'sqrt',
+        'abs': 'fabs',
+        'cos': 'cos',
+        'floor': 'floor',
+        'make2': 'make_double2',
+        'max': 'fmax',
+        'min': 'fmin',
+        'rsqrt': 'rsqrt',
+        'sin': 'sin',
         'sincos': 'sincos',
         'sincospi': 'sincospi',
+        'sqrt': 'sqrt',
     },
 }
 

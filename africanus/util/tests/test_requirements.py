@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import sys
 
@@ -22,7 +19,7 @@ def test_requires_optional_missing_import():
     with pytest.raises(MissingPackageException) as e:
         f(1, a=2)
 
-    assert ("f requires installation of the following packages: ('bob',)"
+    assert ("f requires installation of the following packages: ('bob',)."
             in str(e.value))
 
 
