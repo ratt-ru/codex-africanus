@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import argparse
 from collections import namedtuple
@@ -147,6 +144,7 @@ def load_beams(beam_file_schema, corr_types):
 
     class FITSFile(object):
         """ Exists so that fits file is closed when last ref is gc'd """
+
         def __init__(self, filename):
             self.hdul = hdul = fits.open(filename)
             assert len(hdul) == 1
@@ -162,12 +160,17 @@ def load_beams(beam_file_schema, corr_types):
         beam_files.append((corr, (re_f, im_f)))
         headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
 
-    # All FITS headers should agree
-    flat_headers = [d for k, v in headers for d in v]
+    # All FITS headers should agree (apart from DATE)
+    flat_headers = []
+
+    for corr, (re_header, im_header) in headers:
+        del re_header["DATE"]
+        del im_header["DATE"]
+        flat_headers.append(re_header)
+        flat_headers.append(im_header)
 
     if not all(flat_headers[0] == h for h in flat_headers[1:]):
-        print([h for h in flat_headers])
-        # raise ValueError("BEAM FITS Header Files differ")
+        raise ValueError("BEAM FITS Header Files differ")
 
     #  Map FITS header type to NumPy type
     BITPIX_MAP = {8: np.dtype('uint8').type, 16: np.dtype('int16').type,
@@ -189,7 +192,7 @@ def load_beams(beam_file_schema, corr_types):
                          "L or X, M or Y and FREQ. NAXIS != 3")
 
     (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
-
+    
     # Shape of each correlation
     shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
 
@@ -209,14 +212,18 @@ def load_beams(beam_file_schema, corr_types):
     beam_corrs = [da.from_delayed(bc, shape=shape, dtype=dtype)
                   for bc in beam_corrs]
 
+
     # Stack correlations and rechunk to one great big block
     beam = da.stack(beam_corrs, axis=3)
     beam = beam.rechunk(shape + (len(corr_types),))
+
 
     # Dask arrays for the beam extents and beam frequency grid
     beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
     beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
     beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
+    print(beam_freq_grid.compute())
+    # quit()
 
     return beam, beam_lm_ext, beam_freq_grid
 
@@ -298,7 +305,7 @@ def parse_sky_model(filename, chunks):
             point_ref_freq.append(ref_freq)
         else:
             raise ValueError("Unknown source morphology %s" % typecode)
-    
+
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
     Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq",
                                  "shape"])
@@ -398,7 +405,6 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
                          "a feed rotation matrix will not be "
                          "possible." % (corr_type,))
 
-
     # Construct feed rotation
     feed_rot = feed_rotation(parangles, pol_type)
 
@@ -423,13 +429,26 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     # Load the beam information
     beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
 
-
     # Introduce the correlation axis
-    beam = beam.reshape(beam.shape[:3] + (2, 2))    
-    
+    beam = beam.reshape(beam.shape[:3] + (2, 2))
+    b = beam.compute()
+    power = (b[:,:,:,0,0].real**2 + b[:,:,:,0,0].imag**2 + b[:,:,:,1,1].real**2 + b[:,:,:,1,1].imag**2) / 2
+    half = np.max(power) / 2
+    prox = b - half
+    # print(b[np.where(prox ==np.min(prox))])
+    # print("half is ", half)
+    # quit()
+    print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency)
+    # quit()
     beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
                              zpe, zas,
                              frequency)
+
+    b = beam_dde.compute()[0,0,0,0,:,:]
+    power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
+
+    print(power)
+    quit()
 
 
     # Multiply the beam by the feed rotation to form the DDE term
@@ -489,7 +508,6 @@ def vis_factory(args, source_type, sky_model,
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
-
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
