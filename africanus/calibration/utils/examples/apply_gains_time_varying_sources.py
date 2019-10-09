@@ -7,16 +7,12 @@ expected by the corrupt_vis function.
 It is assumed that the direction axis is ordered in the same way as
 model_cols where model_cols is a comma separated string
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 from africanus.calibration.utils.dask import compute_and_corrupt_vis
 from africanus.calibration.utils import chunkify_rows
 from africanus.dft.dask import im_to_vis
-import xarray as xr
-from xarrayms import xds_from_ms, xds_to_table
+from daskms import xds_from_ms, xds_to_table
 from pyrap.tables import table
 import dask.array as da
 from dask.diagnostics import ProgressBar
@@ -119,10 +115,7 @@ corrupted_data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
                                          jones, model, uvw, freqs, lm)
 
 # Assign visibilities to args.out_col and write to ms
-data = xr.DataArray(corrupted_data, dims=["row", "chan", "corr"])
-
 xds = xds.assign(**{args.out_col: data})
-
 # Create a write to the table
 write = xds_to_table(xds, args.ms, [args.out_col])
 

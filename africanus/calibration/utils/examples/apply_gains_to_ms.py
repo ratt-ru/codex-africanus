@@ -7,9 +7,6 @@ expected by the corrupt_vis function.
 It is assumed that the direction axis is ordered in the same way as
 model_cols where model_cols is a comma separated string
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 from africanus.calibration.utils.dask import corrupt_vis
