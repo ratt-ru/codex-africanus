@@ -11,6 +11,8 @@ from africanus.util.numba import generated_jit, njit
 from africanus.calibration.utils import check_type
 from africanus.constants import minus_two_pi_over_c as m2pioc
 
+m2pioc *= -1
+
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
