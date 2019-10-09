@@ -15,8 +15,8 @@ import numpy as np
 from africanus.calibration.utils.dask import compute_and_corrupt_vis
 from africanus.calibration.utils import chunkify_rows
 from africanus.dft.dask import im_to_vis
-# import xarray as xr
-# from xarrayms import xds_from_ms, xds_to_table
+import xarray as xr
+from xarrayms import xds_from_ms, xds_to_table
 from pyrap.tables import table
 import dask.array as da
 from dask.diagnostics import ProgressBar
