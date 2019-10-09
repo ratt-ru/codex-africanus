@@ -15,8 +15,8 @@ import numpy as np
 from africanus.calibration.utils.dask import compute_and_corrupt_vis
 from africanus.calibration.utils import chunkify_rows
 from africanus.dft.dask import im_to_vis
-import xarray as xr
-from xarrayms import xds_from_ms, xds_to_table
+# import xarray as xr
+# from xarrayms import xds_from_ms, xds_to_table
 from pyrap.tables import table
 import dask.array as da
 from dask.diagnostics import ProgressBar
@@ -30,7 +30,9 @@ def create_parser():
                    "time variable model in format [time, chan, source, corr].",
                    type=str)
     p.add_argument("--coord_file", type=str, help="file containing source "
-                   "coordinates in format [time, source, l, m].")
+                   "coordinates in format [time, source, ra, dec].")
+    p.add_argument("--phase_center", type=float, nargs='+', default=None,
+                   help="Phase center (ra,dec) of observation in degrees.")
     p.add_argument("--data_col", help="Column where data lives. "
                    "Only used to get shape of data at this stage",
                    default='DATA', type=str)
@@ -75,8 +77,9 @@ n_freq = freqs.size
 freqs = da.from_array(freqs, chunks=(n_freq))
 
 # get source coordinates
-lm = np.load(args.coord_file).astype(np.float64)
-assert lm.shape[0] == n_time
+radec0 = args.phase_center
+radec = np.load(args.coord_file).astype(np.float64)
+assert radec.shape[0] == n_time
 
 # load in the model file
 model = np.load(args.model_file).astype(np.float64)
@@ -86,7 +89,14 @@ assert model.shape[1] == n_freq
 
 # get number of sources
 n_dir = model.shape[2]
-assert lm.shape[1] == n_dir
+assert radec.shape[1] == n_dir
+
+from africanus.coordinates import radec_to_lm
+lm = np.zeros_like(radec)
+for t in range(n_time):
+    print('ra = ', radec[t])
+    lm[t] = radec_to_lm(radec[t], radec0)
+    print('lm = ', lm[t])
 
 lm = da.from_array(lm, chunks=(args.utimes_per_chunk, n_dir, 2))
 
