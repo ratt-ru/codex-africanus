@@ -32,7 +32,7 @@ def create_parser():
     p.add_argument("--coord_file", type=str, help="file containing source "
                    "coordinates in format [time, source, ra, dec].")
     p.add_argument("--phase_center", type=float, nargs='+', default=None,
-                   help="Phase center (ra,dec) of observation in degrees.")
+                   help="Phase center (ra,dec) of observation in radians.")
     p.add_argument("--data_col", help="Column where data lives. "
                    "Only used to get shape of data at this stage",
                    default='DATA', type=str)
@@ -94,9 +94,7 @@ assert radec.shape[1] == n_dir
 from africanus.coordinates import radec_to_lm
 lm = np.zeros_like(radec)
 for t in range(n_time):
-    print('ra = ', radec[t])
     lm[t] = radec_to_lm(radec[t], radec0)
-    print('lm = ', lm[t])
 
 lm = da.from_array(lm, chunks=(args.utimes_per_chunk, n_dir, 2))
 
