@@ -53,8 +53,8 @@ def zernike(j, rho, phi):
 
 
 @jit(nogil=True, nopython=True, cache=True)
-def _convert_coords(l, m):  # noqa: E741
-    rho, phi = (l**2 + m ** 2) ** 0.5, np.arctan2(l, m)
+def _convert_coords(l, m):
+    rho, phi = ((l**2 + m ** 2) ** 0.5)* 14.585867437300582, np.arctan2(l, m)
     return rho, phi
 
 
@@ -85,6 +85,7 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
                     vm *= antenna_scaling[a, c, 1]
 
                     rho, phi = _convert_coords(vl, vm)
+                    # print("rho, phi,l,m, sqrt(l**2 + m**2) is ", rho, phi,vl,vm,(l**2 + m**2)**0.5)
 
                     for co in range(corrs):
                         zernike_sum = 0
