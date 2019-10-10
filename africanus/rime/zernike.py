@@ -54,8 +54,8 @@ def zernike(j, rho, phi):
 
 @jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l, m):
-    rho, phi = (l**2 + m ** 2) ** 0.5, np.arctan2(l, m)
-    return rho * 100, phi
+    rho, phi = ((l**2 + m ** 2) ** 0.5)* 14.585867437300582, np.arctan2(l, m)
+    return rho, phi
 
 
 @jit(nogil=True, nopython=True, cache=True)
@@ -72,19 +72,20 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
                 for c in range(chans):
                     l, m, freq = coords[:, s, t, a, c]
 
-                    fl = l * frequency_scaling[c] 
-                    fm = m * frequency_scaling[c]
+                    l = l * frequency_scaling[c] 
+                    m = m * frequency_scaling[c]
 
-                    fl += pointing_errors[t, a, c, 0]
-                    fm += pointing_errors[t, a, c, 1]
+                    l += pointing_errors[t, a, c, 0]
+                    m += pointing_errors[t, a, c, 1]
 
-                    vl = fl * cos_pa - fm * sin_pa
-                    vm = fl * sin_pa + fm * cos_pa
-                    
+                    vl = l * cos_pa - l * sin_pa
+                    vm = m * sin_pa + m * cos_pa
+
                     vl *= antenna_scaling[a, c, 0]
                     vm *= antenna_scaling[a, c, 1]
 
                     rho, phi = _convert_coords(vl, vm)
+                    # print("rho, phi,l,m, sqrt(l**2 + m**2) is ", rho, phi,vl,vm,(l**2 + m**2)**0.5)
 
                     for co in range(corrs):
                         zernike_sum = 0
