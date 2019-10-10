@@ -54,7 +54,7 @@ def zernike(j, rho, phi):
 
 @jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l, m):
-    rho, phi = ((l**2 + m ** 2) ** 0.5)* 14.585867437300582, np.arctan2(l, m)
+    rho, phi = ((l**2 + m ** 2) ** 0.5), np.arctan2(l, m)
     return rho, phi
 
 

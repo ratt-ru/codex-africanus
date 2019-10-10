@@ -459,9 +459,13 @@ def vis_factory(args, source_type, sky_model,
     # Select single dataset rows
     corrs = pol.NUM_CORR.data[0]
     frequency = spw.CHAN_FREQ.data[0]
+    # print(frequency)
+    # quit()
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
 
-    lm = radec_to_lm(source.radec, phase_dir)
+    lm = radec_to_lm(source.radec, phase_dir) 
+    print(source.radec.compute() * 180 / np.pi, lm.compute())
+    # quit()
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
     # (source, row, frequency)
@@ -528,7 +532,7 @@ def vis_factory(args, source_type, sky_model,
     # print(parangles)
     # quit()
 
-    zernike_coords[0,:,:,:,:], zernike_coords[1, :,:,:,:], zernike_coords[2,:,:,:,:] = lm[0,0], lm[0,1],0
+    zernike_coords[0,:,:,:,:], zernike_coords[1, :,:,:,:], zernike_coords[2,:,:,:,:] = lm[0,1]*180/np.pi/5, lm[0,0]*180/np.pi/5,0
     # print("ratio to use is ", np.sqrt(0.167968**2 + (-0.00390625)**2) / np.sqrt(lm.compute()[0,0]**2 + lm.compute()[0,1]**2))
     # quit()
     coeffs_file = np.load("./zernike_real_imag_coeffs.npy", encoding='latin1', allow_pickle=True).item()
@@ -544,6 +548,10 @@ def vis_factory(args, source_type, sky_model,
                     coeffs_i[ant, chan, i,j,:] = coeffs_file[b'coeffs'][b'imag'][corr_index][:]
                     noll_index_r[ant, chan, i,j,:] = coeffs_file[b'noll_index'][b'real'][corr_index][:]
                     noll_index_i[ant, chan, i,j,:] = coeffs_file[b'noll_index'][b'imag'][corr_index][:]
+    # print("coords ", zernike_coords)
+    print("coeffs ", coeffs_r)#[0,0,1,1,:])
+    # print("noll indices : ", noll_index_r)
+    # quit()
     dde_r = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
                         da.from_array(coeffs_r, chunks=coeffs_r.shape),
                         da.from_array(noll_index_r, chunks=noll_index_r.shape),
@@ -560,7 +568,7 @@ def vis_factory(args, source_type, sky_model,
     # quit()
 
     power = (d_r[0,0] ** 2 + d_i[0,0]**2 + d_r[1,1]**2 + d_i[1,1]**2) / 2
-    print(power.compute(), lm.compute())
+    print(power.compute(), zernike_coords[:2, 0, 0, 0, 0])
     quit()
     z_dde = dde_r + 1j * dde_i
     
