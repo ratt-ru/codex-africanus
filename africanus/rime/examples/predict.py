@@ -392,8 +392,8 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
 
     parangles = parallactic_angles(utime, ant.POSITION.data,
                                    field.PHASE_DIR.data[0][0])
-    print(parangles.compute())
-    quit()
+    # print(parangles.compute())
+    # quit()
 
 
     corr_type_set = set(corr_type)
@@ -443,6 +443,8 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     # quit()
     print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency)
     # quit()
+    print("coords beam_cube : ", lm.compute()/5)
+    # quit()
     beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
                              zpe, zas,
                              frequency)
@@ -453,8 +455,8 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     b = beam_dde.compute()[0,0,0,0,:,:]
     power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
 
-    # print(power, lm.compute())
-    # quit()
+    print(power, lm.compute())
+    quit()
 
 
     # Multiply the beam by the feed rotation to form the DDE term
