@@ -33,6 +33,14 @@ Baseline T0  T1  T2  T3  T4
 It is possible for times or baselines to be missing. In the above
 example, T2 is missing for baseline (0, 2).
 
+.. warning::
+
+  The above requires unique lexicographical
+  combinations of (TIME, ANTENNA1, ANTENNA2). This can usually
+  be achieved by suitably partitioning input data on indexing rows,
+  DATA_DESC_ID and SCAN_NUMBER in particular.
+
+
 For each baseline, adjacent time's are assigned to a bin
 if :math:`h_c - h_e/2 - (l_c - l_e/2) <` :code:`time_bin_secs`, where
 :math:`h_c` and :math:`l_c` are the upper and lower time and
@@ -135,6 +143,8 @@ Guarantees
     \sqrt{\frac{\sum w_i^2 \sigma_i^2}{(\sum w_i)^2}}
 
 
+The following table summarizes the handling of each
+column in the main Measurement Set table:
 
 =============== ================= ============================ ===========
 Column          Unflagged/Flagged Aggregation Method           Required
@@ -150,13 +160,22 @@ FLAG_ROW        Effective         Set if All Inputs Flagged    No
 UVW             Effective         Mean                         No
 WEIGHT          Effective         Sum                          No
 SIGMA           Effective         Weighted Mean                No
-CHAN_FREQ       Nominal           Mean                         No
-CHAN_WIDTH      Nominal           Sum                          No
 DATA (vis)      Effective         Weighted Mean                No
 FLAG            Effective         Set if All Inputs Flagged    No
 WEIGHT_SPECTRUM Effective         Sum                          No
 SIGMA_SPECTRUM  Effective         Weighted Mean                No
 =============== ================= ============================ ===========
+
+The following SPECTRAL_WINDOW sub-table columns are averaged as follows:
+
+=============== ============================
+Column          Aggregation Method
+=============== ============================
+CHAN_FREQ       Mean
+CHAN_WIDTH      Sum
+EFFECTIVE_BW    Sum
+RESOLUTION      Sum
+=============== ============================
 
 Dask Implementation
 ~~~~~~~~~~~~~~~~~~~

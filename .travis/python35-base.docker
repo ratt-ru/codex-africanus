@@ -10,11 +10,4 @@ WORKDIR /code
 # Test base install without optional installs works
 # Most of the tests will be skipped
 RUN pip3 install .[testing]
-RUN py.test -s -vvv /code/africanus
-
-# Test most functionality.
-# Install kern python-casacore to avoid build dependencies
-RUN DEBIAN_FRONTEND=noninteractive apt install -y python3-casacore
-RUN pip3 install .[astropy,dask,scipy,testing]
-RUN pip3 install git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git
-RUN py.test -s -vvv /code/africanus
+RUN py.test --flake8 -s -vvv /code/africanus

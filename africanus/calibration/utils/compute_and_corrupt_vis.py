@@ -133,17 +133,17 @@ antenna1 : $(array_type)
 antenna2 : $(array_type)
     Second antenna indices of shape :code:`(row,)`
 jones : $(array_type)
-    Gains of shape :code:`(time, ant, chan, dir, corr)`
-    or :code:`(time, ant, chan, dir, corr, corr)`.
+    Gains of shape :code:`(utime, ant, chan, dir, corr)`
+    or :code:`(utime, ant, chan, dir, corr, corr)`.
 model : $(array_type)
     Model image as a function of time with shape
-    :code:`(time, chan, dir, corr)` or
-    :code:`(time, chan, dir, corr, corr)`.
+    :code:`(utime, chan, dir, corr)` or
+    :code:`(utime, chan, dir, corr, corr)`.
 uvw : $(array_type)
     uvw coordinates of shape :code:`(row, 3)`
 lm : $(array_type)
     Source lm coordinates as a function of time
-    :code:`(time, dir, 2)`
+    :code:`(utime, dir, 2)`
 Returns
 -------
 vis : $(array_type)

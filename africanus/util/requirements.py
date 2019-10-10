@@ -1,21 +1,23 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import importlib
 
 from decorator import decorate
 
-from africanus.compatibility import string_types
 from africanus.util.docs import on_rtd
 from africanus.util.testing import in_pytest, force_missing_pkg_exception
 
 
-def _missing_packages(fn, *packages):
-    return ("%s requires installation of "
-            "the following packages: %s" % (fn, packages))
+def _missing_packages(fn, packages, import_errors):
+    if len(import_errors) > 0:
+        import_err_str = "\n".join((str(e) for e in import_errors))
+        return ("%s requires installation of "
+                "the following packages: %s.\n"
+                "%s" % (fn, packages, import_err_str))
+    else:
+        return ("%s requires installation of the following packages: %s. "
+                % (fn, tuple(packages)))
 
 
 class MissingPackageException(Exception):
@@ -91,7 +93,7 @@ def requires_optional(*requirements):
         elif isinstance(requirement, ImportError):
             import_errors.append(requirement)
         # An actual package, try to import it
-        elif isinstance(requirement, string_types):
+        elif isinstance(requirement, str):
             try:
                 importlib.import_module(requirement)
             except ImportError:
@@ -135,11 +137,13 @@ def requires_optional(*requirements):
                                       "test case, but pytest cannot "
                                       "be imported! %s" % str(e))
                 else:
-                    msg = _missing_packages(fn.__name__, *missing_requirements)
+                    msg = _missing_packages(
+                        fn.__name__, missing_requirements, import_errors)
                     pytest.skip(msg)
             # Raise the exception
             else:
-                msg = _missing_packages(fn.__name__, *missing_requirements)
+                msg = _missing_packages(
+                    fn.__name__, missing_requirements, import_errors)
                 raise MissingPackageException(msg)
 
         return decorate(fn, _wrapper)

@@ -1,24 +1,4 @@
 [codex-compare-circular]
-img_sel.image_clean_gain = 0.1
-img_sel.image_clean_method = clark
-img_sel.image_clean_niter = 1000
-img_sel.image_clean_resetmodel = 1
-img_sel.image_clean_threshold = 0Jy
-img_sel.image_viewer = tigger
-img_sel.imaging_arcmin = 120.0
-img_sel.imaging_chanmode = 1 (average all)
-img_sel.imaging_column = MODEL_DATA
-img_sel.imaging_custom_ms_select = 0
-img_sel.imaging_enable_wproj = 0
-img_sel.imaging_freqmode = frequency
-img_sel.imaging_ifrs = all
-img_sel.imaging_npix = 2048
-img_sel.imaging_padding = 1.0
-img_sel.imaging_phasecenter = default
-img_sel.imaging_stokes = I
-img_sel.imaging_taper_gauss = 0
-img_sel.imaging_weight = natural
-img_sel.output_fitsname = default
 me.e_advanced = 0
 me.e_enable = 0
 me.e_module = Siamese_OMS_pybeams_fits
@@ -76,26 +56,6 @@ rot_l.enable_pa = enabled
 
 
 [codex-compare-linear]
-img_sel.image_clean_gain = 0.1
-img_sel.image_clean_method = clark
-img_sel.image_clean_niter = 1000
-img_sel.image_clean_resetmodel = 1
-img_sel.image_clean_threshold = 0Jy
-img_sel.image_viewer = tigger
-img_sel.imaging_arcmin = 120.0
-img_sel.imaging_chanmode = 1 (average all)
-img_sel.imaging_column = MODEL_DATA
-img_sel.imaging_custom_ms_select = 0
-img_sel.imaging_enable_wproj = 0
-img_sel.imaging_freqmode = frequency
-img_sel.imaging_ifrs = all
-img_sel.imaging_npix = 2048
-img_sel.imaging_padding = 1.0
-img_sel.imaging_phasecenter = default
-img_sel.imaging_stokes = I
-img_sel.imaging_taper_gauss = 0
-img_sel.imaging_weight = natural
-img_sel.output_fitsname = default
 me.e_advanced = 0
 me.e_enable = 0
 me.e_module = Siamese_OMS_pybeams_fits

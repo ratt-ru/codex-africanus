@@ -121,7 +121,11 @@ def test_fast_beam_small():
 
 
 def test_grid_interpolate(freqs, beam_freq_map):
-    grid_pos, freq_scale, fgrid_diff = freq_grid_interp(freqs, beam_freq_map)
+    freq_data = freq_grid_interp(freqs, beam_freq_map)
+
+    freq_scale = freq_data[:, 0]
+    fgrid_diff = freq_data[:, 1]
+    grid_pos = np.int32(freq_data[:, 2])
 
     # Frequencies (first -- 0.8 and last -- 1.1)
     # outside the beam result in scaling,
@@ -130,19 +134,19 @@ def test_grid_interpolate(freqs, beam_freq_map):
     # Frequencies outside the beam are snapped to 0 if below
     # and beam_nud - 2 if above.
     # Frequencies on the edges are similarly snapped
-    assert_array_equal(grid_pos[:, 0], [0, 0, 1, 2, 2, 2, 3, 3])
+    assert_array_equal(grid_pos, [0, 0, 1, 2, 2, 2, 3, 3])
     # Frequency less grid position frequency.
     # frequency is snapped to the first and last beam freq value
     # if outside (first and last values)
     # Third frequency value is also exactly on a grid point
-    exp_diff = [[1., 0.],
-                [1., 0.],
-                [0.71428571, 0.28571429],
-                [1., 0.],
-                [0.52380952, 0.47619048],
-                [0.04761905, 0.95238095],
-                [0., 1.],
-                [0., 1.]]
+    exp_diff = [1.,
+                1.,
+                0.71428571,
+                1.,
+                0.52380952,
+                0.04761905,
+                0.,
+                0.]
 
     assert_array_almost_equal(fgrid_diff, exp_diff)
 

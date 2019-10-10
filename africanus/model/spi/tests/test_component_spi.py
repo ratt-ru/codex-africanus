@@ -87,7 +87,7 @@ def test_dask_fit_spi_components_vs_np():
                                                         freqs_dask,
                                                         freq0).compute()
 
-    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=10)
-    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=10)
-    np.testing.assert_array_almost_equal(I01, I02, decimal=10)
-    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=10)
+    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=6)
+    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=6)
+    np.testing.assert_array_almost_equal(I01, I02, decimal=6)
+    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=6)

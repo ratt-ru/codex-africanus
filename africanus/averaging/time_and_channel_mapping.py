@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 from collections import namedtuple
 
@@ -205,6 +202,7 @@ def row_mapper(time, interval, antenna1, antenna2,
         time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
         interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
 
+        # Is the entire bin flagged?
         bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
 
         # Create a mapping from the full bl x time resolution back
@@ -212,7 +210,16 @@ def row_mapper(time, interval, antenna1, antenna2,
         for r in range(time.shape[0]):
             bl = bl_inv[r]
             t = time_inv[r]
-            row_lookup[bl, t] = r
+
+            if row_lookup[bl, t] == -1:
+                row_lookup[bl, t] = r
+            else:
+                raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2) "
+                                 "combinations were discovered in the input "
+                                 "data. This is usually caused by not "
+                                 "partitioning your data sufficiently "
+                                 "by indexing columns, DATA_DESC_ID "
+                                 "and SCAN_NUMBER in particular.")
 
         # Average times over each baseline and construct the
         # bin_lookup and time_lookup arrays

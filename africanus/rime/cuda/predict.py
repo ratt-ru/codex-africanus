@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
+from functools import reduce
 import logging
 from operator import mul
 from os.path import join as pjoin
 
 import numpy as np
 
-from africanus.compatibility import reduce
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks)
 from africanus.util.code import format_code, memoize_on_key
 from africanus.util.cuda import cuda_type, grids
@@ -204,6 +201,8 @@ def predict_vis(time_index, antenna1, antenna2,
 try:
     predict_vis.__doc__ = PREDICT_DOCS.substitute(
                                 array_type=":class:`cupy.ndarray`",
+                                get_time_index=":code:`cp.unique(time, "
+                                               "return_inverse=True)[1]`",
                                 extra_args="",
                                 extra_notes="")
 except AttributeError:

@@ -1,4 +1,2 @@
-numpydoc==0.8
-sphinx
-dask_sphinx_theme>=1.1.0
-numpy
+numpydoc==0.7.0
+sphinx==1.8.5

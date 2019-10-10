@@ -2,10 +2,30 @@
 History
 =======
 
-0.1.9 (YYYY-MM-DD)
+0.2.1 (YYYY-MM-DD)
 ------------------
+* Modified predict to be compatible with eidos fits headers (:pr:`158`)
 
-* Add dask wrappers for the nifty gridder (:pr:`116`)
+0.2.0 (2019-09-30)
+------------------
+* Added standalone SPI fitter (:pr:`153`)
+* Fail earlier and explain duplicate averaging rows (:pr:`155`)
+* CUDA Beam Implementation (:pr:`152`)
+* Fix documentation package versions (:pr:`151`)
+* Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
+* Expand travis build matrix (:pr:`147`)
+* Drop Python 2 support (:pr:`146`, :pr:`149`, :pr:`150`)
+* Support the beam in the predict example (:pr:`145`)
+* Fix weight indexing in averaging (:pr:`144`)
+* Support EFFECTIVE_BW and RESOLUTION in averaging (:pr:`144`)
+* Optimise predict_vis jones coherency summation (:pr:`143`)
+* Remove use of @wraps (:pr:`141`, :pr:`142`)
+* Set row chunks to nan in dask averaging code. (:pr:`139`)
+* predict_vis documentation improvements (:pr:`135`, :pr:`140`)
+* Upgrade to dask-ms in the examples (:pr:`134`, :pr:`138`)
+* Explain how to obtain predict_vis time_index argument (:pr:`130`)
+* Update RIME predict example to support Tigger LSM's and Gaussians (:pr:`129`)
+* Add dask wrappers for the nifty gridder (:pr:`116`, :pr:`136`, :pr:`146`)
 * Testing and requirement updates. (:pr:`124`)
 * Upgraded DFT kernels to have a correlation axis and added flags
   for vis_to_im. Added predict_from_fits example. (:pr:`122`)
