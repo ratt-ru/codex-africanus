@@ -275,6 +275,9 @@ def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
         raise ValueError("Insufficient inputs were supplied "
                          "for determining the output shape")
 
+    # TODO(sjperkins)
+    # perhaps inline='always' on resolution of
+    # https://github.com/numba/numba/issues/4691
     return njit(nogil=True, inline='never')(output)
 
 

@@ -22,7 +22,10 @@ def output_factory(present):
         def impl(rows, array):
             return None
 
-    return njit(nogil=True, cache=True)(impl)
+    # TODO(sjperkins)
+    # perhaps inline='always' on resolution of
+    # https://github.com/numba/numba/issues/4691
+    return njit(nogil=True, cache=True, inline='never')(impl)
 
 
 def add_factory(present):
@@ -34,7 +37,7 @@ def add_factory(present):
         def impl(input, irow, output, orow):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def comp_add_factory(present):
@@ -51,7 +54,7 @@ def comp_add_factory(present):
         def impl(input, irow, output, orow):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def sigma_add_factory(have_sigma, have_weight):
@@ -74,7 +77,7 @@ def sigma_add_factory(have_sigma, have_weight):
                 out_sigma[orow, c] += in_sigma[irow, c]**2
                 out_weight_sum[orow, c] += in_weight[irow, c]
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def normaliser_factory(present):
@@ -86,7 +89,7 @@ def normaliser_factory(present):
         def impl(data, row, bin_size):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def sigma_normaliser_factory(present):
@@ -104,7 +107,7 @@ def sigma_normaliser_factory(present):
         def impl(sigma, row, weight_sum):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def matching_flag_factory(present):
@@ -115,7 +118,7 @@ def matching_flag_factory(present):
         def impl(flag_row, ri, out_flag_row, ro):
             return True
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 _row_output_fields = ["antenna1", "antenna2", "time_centroid", "exposure",
@@ -218,7 +221,7 @@ def weight_sum_output_factory(present):
         def impl(shape, array):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='never')(impl)
 
 
 def chan_output_factory(present):
@@ -230,7 +233,7 @@ def chan_output_factory(present):
         def impl(shape, array):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='never')(impl)
 
 
 def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
@@ -270,7 +273,7 @@ def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
             out_vis[orow, ochan, corr] += iv
             out_weight_sum[orow, ochan, corr] += 1.0
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
@@ -314,7 +317,7 @@ def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
             out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
             out_weight_sum[orow, ochan, corr] += 1.0
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def chan_add_factory(present):
@@ -326,7 +329,7 @@ def chan_add_factory(present):
         def impl(output, input, orow, ochan, irow, ichan, corr):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def vis_normaliser_factory(present):
@@ -340,7 +343,7 @@ def vis_normaliser_factory(present):
         def impl(vis_out, vis_in, row, chan, corr, weight_sum):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def sigma_spectrum_normaliser_factory(present):
@@ -358,7 +361,7 @@ def sigma_spectrum_normaliser_factory(present):
         def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def weight_spectrum_normaliser_factory(present):
@@ -369,7 +372,7 @@ def weight_spectrum_normaliser_factory(present):
         def impl(wt_spec_out, wt_spec_in, row, chan, corr):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def chan_normaliser_factory(present):
@@ -381,7 +384,7 @@ def chan_normaliser_factory(present):
         def impl(data_out, data_in, row, chan, corr, bin_size):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -405,6 +408,9 @@ def shape_or_invalid_shape(array, ndim):
     return impl
 
 
+# TODO(sjperkins)
+# maybe inline='always' if
+# https://github.com/numba/numba/issues/4693 is resolved
 @njit(nogil=True, cache=True)
 def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
     """
@@ -462,6 +468,9 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
     return chan, corr
 
 
+# TODO(sjperkins)
+# maybe inline='always' if
+# https://github.com/numba/numba/issues/4693 is resolved
 @njit(nogil=True, cache=True)
 def chan_corrs(vis, flag,
                weight_spectrum, sigma_spectrum,
@@ -509,7 +518,7 @@ def is_chan_flagged_factory(present):
         def impl(flag, r, f, c):
             return False
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def set_flagged_factory(present):
@@ -520,7 +529,7 @@ def set_flagged_factory(present):
         def impl(flag, r, f, c):
             pass
 
-    return njit(nogil=True, cache=True)(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
@@ -744,6 +753,9 @@ AverageOutput = namedtuple("AverageOutput",
                            _rowchan_output_fields)
 
 
+# TODO(sjperkins)
+# maybe replace with njit and inline='always' if
+# https://github.com/numba/numba/issues/4693 is resolved
 @generated_jit(nopython=True, nogil=True, cache=True)
 def merge_flags(flag_row, flag):
     have_flag_row = not is_numba_type_none(flag_row)
