@@ -61,8 +61,8 @@ def test_shapelets_against_gaussian():
         npix=33
         ncoeffs_l = 1
         ncoeffs_m = 1
-        coeffs_l=np.ones((1, ncoeffs_l), dtype=np.float64)
-        coeffs_m = np.ones((1, ncoeffs_m), dtype=np.float64)
+        coeffs_l=np.ones((1, ncoeffs_l, ncoeffs_l), dtype=np.float64)
+        coeffs_m = np.ones((1, ncoeffs_m, ncoeffs_m), dtype=np.float64)
         l_min = -15.0 * beta[0, 0]
         l_max = 15.0 * beta[0, 0]
         m_min = -15.0 * beta[0, 1]
@@ -93,8 +93,14 @@ def test_shapelets_against_gaussian():
         frequency_gaussian = np.array([(lightspeed * np.sqrt(np.log(256))) / (np.sqrt(2) * np.pi)], dtype=np.float64)
         gaussian_params=np.array([[1., 1., 0.]], dtype=np.float64)
 
-        print("starting shapelets now")        
-        uv_shape = shapelet(uvw, frequency_shapelets, coeffs_l, coeffs_m, beta, (delta_l, delta_m),source_center) * (delta_l * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) ) * (delta_m * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) )# * (delta_l * delta_m *np.sqrt(np.pi)) / (2 * np.pi) #shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
+        print("starting shapelets now")
+        print(coeffs_l.shape)        
+        uv_shape = shapelet(uvw, 
+                frequency_shapelets, 
+                coeffs_l, 
+                coeffs_m, 
+                beta, 
+                np.array([delta_l, delta_m])) #* (delta_l * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) ) * (delta_m * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) )# * (delta_l * delta_m *np.sqrt(np.pi)) / (2 * np.pi) #shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
         print("finished shapelets")
         gaussian_shape = gaussian(uvw, frequency_gaussian, gaussian_params)
         print("gaussian shape = ", gaussian_shape.shape)
