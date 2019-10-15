@@ -502,17 +502,19 @@ def vis_factory(args, source_type, sky_model,
                                  chunks=(np.nan,),
                                  dtype=ms.TIME.dtype)
 
+
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
     # dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
     nsrc = 1
-    ntime = 864
+    ntime = len(utime.compute())
     na = 64
     nchan = 1
     corr1 = 2
     corr2 = 2
     npoly = 20
+    time_chunks = ntime // 2 + 1
 
 
     zernike_coords = np.empty((3,nsrc, ntime, na, nchan))
@@ -521,11 +523,14 @@ def vis_factory(args, source_type, sky_model,
     noll_index_r = np.empty((na, nchan, 2,2,npoly))
     noll_index_i = np.empty((na, nchan, 2,2,npoly))
     frequency_scaling = da.from_array(np.ones((nchan,)), chunks=(nchan,))
-    pointing_errors = da.from_array(np.zeros((ntime, na, nchan, 2)), chunks=(ntime, na, nchan, 2))
+    pointing_errors = da.from_array(np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2))
     antenna_scaling = da.from_array(np.ones((na, nchan, 2)), chunks=(na, nchan, 2))
-    # parangles = parallactic_angles(np.array(utime.compute()), ant.POSITION.data,
-                                    #    field.PHASE_DIR.data[0][0])
-    parangles = da.from_array(np.zeros((ntime, na)), chunks=(ntime, na))
+    # parangles = da.from_array(parallactic_angles(np.array(utime.compute()), ant.POSITION.data,
+    #                                    field.PHASE_DIR.data[0][0]).compute(), chunks=(time_chunks, na))
+    parangles = da.from_array(np.zeros((ntime, na)), chunks=(time_chunks, na))
+    print(parangles.chunks, parangles.shape)
+    # quit()
+    # 
     # par_vals = [0] * ntime
     # parangles[0, :] = par_vals
     # print(parangles.compute()[:,:].shape)
@@ -535,21 +540,22 @@ def vis_factory(args, source_type, sky_model,
     zernike_coords[0,:,:,:,:], zernike_coords[1, :,:,:,:], zernike_coords[2,:,:,:,:] = lm[0,1]*180/np.pi/5, lm[0,0]*180/np.pi/5,0
     # print("ratio to use is ", np.sqrt(0.167968**2 + (-0.00390625)**2) / np.sqrt(lm.compute()[0,0]**2 + lm.compute()[0,1]**2))
     # quit()
-    coeffs_file = np.load("./zernike_real_imag_coeffs.npy", encoding='latin1', allow_pickle=True).item()
+    coeffs_file = np.load("./zernike_coeffs.npz", allow_pickle=True)
+    c_freqs = coeffs_file['freqs']
+    ch = [abs(c_freqs-i).argmin() for i in (frequency/1e06)]
+    # print(ch)
+    # quit()
+    params = coeffs_file['params'][ch,:]
     # print(coeffs_file[b'coeffs'][b'real'][b'xx'].shape)
     # quit()
-    corr_letters = [b'x', b'y']
     for ant in range(na):
         for chan in range(nchan):
-            for i in range(2):
-                for j in range(2):
-                    corr_index = corr_letters[i] + corr_letters[j]
-                    coeffs_r[ant, chan, i,j,:] = coeffs_file[b'coeffs'][b'real'][corr_index][:]
-                    coeffs_i[ant, chan, i,j,:] = coeffs_file[b'coeffs'][b'imag'][corr_index][:]
-                    noll_index_r[ant, chan, i,j,:] = coeffs_file[b'noll_index'][b'real'][corr_index][:]
-                    noll_index_i[ant, chan, i,j,:] = coeffs_file[b'noll_index'][b'imag'][corr_index][:]
+            coeffs_r[ant, chan, :,:,:] = params[chan,0][0,:,:,:]#coeffs_file[b'coeffs'][b'real'][corr_index][:]
+            coeffs_i[ant, chan, :,:,:] = params[chan,0][1,:,:,:]#coeffs_file[b'coeffs'][b'imag'][corr_index][:]
+            noll_index_r[ant, chan, :,:,:] = params[chan,1][0,:,:,:]#coeffs_file[b'noll_index'][b'real'][corr_index][:]
+            noll_index_i[ant, chan, :,:,:] = params[chan,1][1,:,:,:]#coeffs_file[b'noll_index'][b'imag'][corr_index][:]
     # print("coords ", zernike_coords)
-    print("coeffs ", coeffs_r)#[0,0,1,1,:])
+    print("coeffs ", coeffs_r[0,0,0,0,:])#[0,0,1,1,:])
     # print("noll indices : ", noll_index_r)
     # quit()
     dde_r = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
@@ -569,13 +575,31 @@ def vis_factory(args, source_type, sky_model,
 
     power = (d_r[0,0] ** 2 + d_i[0,0]**2 + d_r[1,1]**2 + d_i[1,1]**2) / 2
     print(power.compute(), zernike_coords[:2, 0, 0, 0, 0])
-    quit()
+    # quit()
     z_dde = dde_r + 1j * dde_i
     
     feed_rot = feed_rotation(parangles, 'linear')
     dde = da.einsum("stafij,tajk->stafik", z_dde, feed_rot)
-    print(parangles)
+    d=dde[0,0,0,0,:,:]
+    dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
+    print(dde_power.compute())
     # quit()
+    # print(parangles)
+    # # quit()
+    dde = z_dde
+    # j=jones.compute()[0,:,0,:,:]
+    # jones_power = (j[:,0,0].real**2 + j[:,0,0].imag**2 + j[:,1,1].real**2 + j[:,1,1].imag**2) / 2
+    # print(np.max(jones_power) * power.compute())
+    # quit()
+    # print(j.shape)
+    # p = predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
+    #                    dde, jones, dde, None, None, None).compute()[:,0,:,:]
+    # # print(p.shape)
+    # # quit()
+    # p_pow = (p[:,0,0].real**2 + p[:,0,0].imag**2 + p[:,1,1].real**2 + p[:,1,1].imag**2)/2
+    # print(np.max(p_pow))
+    # quit()  
+
 
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,

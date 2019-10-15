@@ -1,4 +1,4 @@
-import numba
+from africanus.util import numba
 import numpy as np
 from numpy import sqrt, exp
 from africanus.constants import c as lightspeed
@@ -65,6 +65,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     Returns:
         out_shapelets: Shapelet with shape (nrow, nchan, nsrc)
     """
+    # print("starting shapelets now")
     nrow = coords.shape[0]
     nsrc = coeffs.shape[0]
     nchan = frequency.shape[0]
@@ -78,7 +79,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
             for src in range(nsrc):
-                nmax1, nmax2 = coeffs[src].shape
+                nmax1, nmax2 = coeffs[src,:,:].shape
                 beta_u, beta_v = beta[src, :]
                 tmp_shapelet = np.zeros(1, dtype=dtype)
                 for n1 in range(nmax1):
@@ -86,6 +87,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
                         tmp_shapelet += 0 if coeffs[src][n1,n2] == 0 else coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                 out_shapelets[row, chan, src] = tmp_shapelet[0]
+    # print("exiting shapelets")
     return out_shapelets
 
 #@numba.jit(nogil=True, nopython=True, cache=True)

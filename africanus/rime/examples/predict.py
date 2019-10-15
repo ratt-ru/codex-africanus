@@ -441,7 +441,7 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     # print(b[np.where(prox ==np.min(prox))])
     # print("half is ", half)
     # quit()
-    print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency)
+    print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency, "freq_map", freq_map.compute())
     # quit()
     print("coords beam_cube : ", lm.compute()/5)
     # quit()
@@ -456,12 +456,15 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
 
     print(power, lm.compute())
-    quit()
+    # quit()
 
 
     # Multiply the beam by the feed rotation to form the DDE term
-    print(da.einsum("stafij,tajk->stafik", beam_dde, feed_rot))
-    quit()
+    dde = da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
+    d=dde.compute()[0,0,0,0,:,:]
+    dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
+    print(dde_power)
+    # quit()
     return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
 
 
