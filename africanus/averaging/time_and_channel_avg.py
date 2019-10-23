@@ -57,29 +57,6 @@ def comp_add_factory(present):
     return njit(nogil=True, cache=True, inline='always')(impl)
 
 
-def sigma_add_factory(have_sigma, have_weight):
-    """
-    Returns function for adding sigma values to a bin.
-    Uses provided weights, else natural weights
-    """
-    if not have_sigma:
-        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
-            pass
-    elif have_weight:
-        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
-            for c in range(out_sigma.shape[1]):
-                out_sigma[orow, c] += (in_sigma[irow, c]**2 *
-                                       in_weight[irow, c]**2)
-                out_weight_sum[orow, c] += in_weight[irow, c]
-    else:
-        def impl(out_sigma, out_weight_sum, orow, in_sigma, in_weight, irow):
-            for c in range(out_sigma.shape[1]):
-                out_sigma[orow, c] += in_sigma[irow, c]**2
-                out_weight_sum[orow, c] += in_weight[irow, c]
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
 def normaliser_factory(present):
     """ Returns function for normalising data in a bin """
     if present:
@@ -87,24 +64,6 @@ def normaliser_factory(present):
             data[row] /= bin_size
     else:
         def impl(data, row, bin_size):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def sigma_normaliser_factory(present):
-    """ Returns function for normalising sigma in a bin """
-    if present:
-        def impl(sigma, row, weight_sum):
-            for c in range(sigma.shape[1]):
-                wt = weight_sum[row, c]
-
-                if wt == 0.0:
-                    continue
-
-                sigma[row, c] = np.sqrt(sigma[row, c] / (wt**2))
-    else:
-        def impl(sigma, row, weight_sum):
             pass
 
     return njit(nogil=True, cache=True, inline='always')(impl)
@@ -132,29 +91,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
                 weight=None, sigma=None):
 
     have_flag_row = not is_numba_type_none(flag_row)
-    have_uvw = not is_numba_type_none(uvw)
-    have_time_centroid = not is_numba_type_none(time_centroid)
-    have_exposure = not is_numba_type_none(exposure)
-    have_weight = not is_numba_type_none(weight)
-    have_sigma = not is_numba_type_none(sigma)
-
     flags_match = matching_flag_factory(have_flag_row)
-
-    uvw_factory = output_factory(have_uvw)
-    time_centroid_factory = output_factory(have_time_centroid)
-    exposure_factory = output_factory(have_exposure)
-    weight_factory = output_factory(have_weight)
-    sigma_factory = output_factory(have_sigma)
-
-    time_centroid_adder = add_factory(have_time_centroid)
-    exposure_adder = add_factory(have_exposure)
-    uvw_adder = comp_add_factory(have_uvw)
-    weight_adder = comp_add_factory(have_weight)
-    sigma_adder = sigma_add_factory(have_sigma, have_weight)
-
-    uvw_normaliser = normaliser_factory(have_uvw)
-    sigma_normaliser = sigma_normaliser_factory(have_sigma)
-    time_centroid_normaliser = normaliser_factory(have_time_centroid)
 
     def impl(meta, ant1, ant2, flag_row=None,
              time_centroid=None, exposure=None, uvw=None,
@@ -169,25 +106,71 @@ def row_average(meta, ant1, ant2, flag_row=None,
         ant2_avg = np.empty(out_rows, ant2.dtype)
 
         # Possibly present outputs for possibly present inputs
-        uvw_avg = uvw_factory(out_rows, uvw)
-        time_centroid_avg = time_centroid_factory(out_rows, time_centroid)
-        exposure_avg = exposure_factory(out_rows, exposure)
-        weight_avg = weight_factory(out_rows, weight)
-        sigma_avg = sigma_factory(out_rows, sigma)
-        sigma_weight_sum = sigma_factory(out_rows, sigma)
+        uvw_avg = (
+            None if uvw is None else
+            np.zeros((out_rows,) + uvw.shape[1:],
+                     dtype=uvw.dtype))
+
+        time_centroid_avg = (
+            None if time_centroid is None else
+            np.zeros((out_rows,) + time_centroid.shape[1:],
+                     dtype=time_centroid.dtype))
+
+        exposure_avg = (
+            None if exposure is None else
+            np.zeros((out_rows,) + exposure.shape[1:],
+                     dtype=exposure.dtype))
+
+        weight_avg = (
+            None if weight is None else
+            np.zeros((out_rows,) + weight.shape[1:],
+                     dtype=weight.dtype))
+
+        sigma_avg = (
+            None if sigma is None else
+            np.zeros((out_rows,) + sigma.shape[1:],
+                     dtype=sigma.dtype))
+
+        sigma_weight_sum = (
+            None if sigma is None else
+            np.zeros((out_rows,) + sigma.shape[1:],
+                     dtype=sigma.dtype))
 
         # Iterate over input rows, accumulating into output rows
         for in_row, out_row in enumerate(meta.map):
             # Input and output flags must match in order for the
             # current row to contribute to these columns
             if flags_match(flag_row, in_row, meta.flag_row, out_row):
-                uvw_adder(uvw_avg, out_row, uvw, in_row)
-                weight_adder(weight_avg, out_row, weight, in_row)
-                sigma_adder(sigma_avg, sigma_weight_sum, out_row,
-                            sigma, weight, in_row)
-                time_centroid_adder(time_centroid_avg, out_row,
-                                    time_centroid, in_row)
-                exposure_adder(exposure_avg, out_row, exposure, in_row)
+                if uvw is not None:
+                    uvw_avg[out_row, 0] += uvw[in_row, 0]
+                    uvw_avg[out_row, 1] += uvw[in_row, 1]
+                    uvw_avg[out_row, 2] += uvw[in_row, 2]
+
+                if time_centroid is not None:
+                    time_centroid_avg[out_row] += time_centroid[in_row]
+
+                if exposure is not None:
+                    exposure_avg[out_row] += exposure[in_row]
+
+                if weight is not None:
+                    for co in range(weight.shape[1]):
+                        weight_avg[out_row, co] += weight[in_row, co]
+
+                if sigma is not None:
+                    for co in range(sigma.shape[1]):
+                        sva = sigma[in_row, co]**2
+
+                        # Use provided weights
+                        if weight is not None:
+                            wt = weight[in_row, co]
+                            sva *= wt ** 2
+                            sigma_weight_sum[out_row, co] += wt
+                        # Natural weights
+                        else:
+                            sigma_weight_sum[out_row, co] += 1.0
+
+                        # Assign
+                        sigma_avg[out_row, co] += sva
 
                 counts[out_row] += 1
 
@@ -201,12 +184,30 @@ def row_average(meta, ant1, ant2, flag_row=None,
             count = counts[out_row]
 
             if count > 0:
-                uvw_normaliser(uvw_avg, out_row, count)
-                time_centroid_normaliser(time_centroid_avg, out_row, count)
-                sigma_normaliser(sigma_avg, out_row, sigma_weight_sum)
+                # Normalise uvw
+                if uvw is not None:
+                    uvw_avg[out_row, 0] /= count
+                    uvw_avg[out_row, 1] /= count
+                    uvw_avg[out_row, 2] /= count
+
+                # Normalise time centroid
+                if time_centroid is not None:
+                    time_centroid_avg[out_row] /= count
+
+                # Normalise sigma
+                if sigma is not None:
+                    for co in range(sigma.shape[1]):
+                        ssva = sigma_avg[out_row, co]
+                        wt = sigma_weight_sum[out_row, co]
+
+                        if wt != 0.0:
+                            ssva /= (wt**2)
+
+                        sigma_avg[out_row, co] = np.sqrt(ssva)
 
         return RowAverageOutput(ant1_avg, ant2_avg,
-                                time_centroid_avg, exposure_avg, uvw_avg,
+                                time_centroid_avg,
+                                exposure_avg, uvw_avg,
                                 weight_avg, sigma_avg)
 
     return impl
@@ -701,44 +702,47 @@ ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 @generated_jit(nopython=True, nogil=True, cache=True)
 def chan_average(chan_meta, chan_freq=None, chan_width=None,
                  effective_bw=None, resolution=None):
-    have_chan_freq = not is_numba_type_none(chan_freq)
-    have_chan_width = not is_numba_type_none(chan_width)
-    have_effective_bw = not is_numba_type_none(effective_bw)
-    have_resolution = not is_numba_type_none(resolution)
-
-    chan_freq_output = chan_output_factory(have_chan_freq)
-    chan_width_output = chan_output_factory(have_chan_width)
-    effective_bw_output = chan_output_factory(have_effective_bw)
-    resolution_output = chan_output_factory(have_resolution)
-
-    chan_freq_normaliser = normaliser_factory(have_chan_freq)
-
-    chan_freq_adder = add_factory(have_chan_freq)
-    chan_width_adder = add_factory(have_chan_width)
-    effective_bw_adder = add_factory(have_effective_bw)
-    resolution_adder = add_factory(have_resolution)
 
     def impl(chan_meta, chan_freq=None, chan_width=None,
              effective_bw=None, resolution=None):
         chan_map, out_chans = chan_meta
 
-        chan_freq_avg = chan_freq_output(out_chans, chan_freq)
-        chan_width_avg = chan_width_output(out_chans, chan_width)
-        effective_bw_avg = effective_bw_output(out_chans, effective_bw)
-        resolution_avg = resolution_output(out_chans, resolution)
+        chan_freq_avg = (
+            None if chan_freq is None else
+            np.zeros(out_chans, dtype=chan_freq.dtype))
+
+        chan_width_avg = (
+            None if chan_width is None else
+            np.zeros(out_chans, dtype=chan_width.dtype))
+
+        effective_bw_avg = (
+            None if effective_bw is None else
+            np.zeros(out_chans, dtype=effective_bw.dtype))
+
+        resolution_avg = (
+            None if resolution is None else
+            np.zeros(out_chans, dtype=resolution.dtype))
+
         counts = np.zeros(out_chans, dtype=np.uint32)
 
         for in_chan, out_chan in enumerate(chan_map):
             counts[out_chan] += 1
-            chan_freq_adder(chan_freq_avg, out_chan, chan_freq, in_chan)
-            chan_width_adder(chan_width_avg, out_chan, chan_width, in_chan)
-            effective_bw_adder(effective_bw_avg, out_chan,
-                               effective_bw, in_chan)
-            resolution_adder(resolution_avg, out_chan,
-                             resolution, in_chan)
+
+            if chan_freq is not None:
+                chan_freq_avg[out_chan] += chan_freq[in_chan]
+
+            if chan_width is not None:
+                chan_width_avg[out_chan] += chan_width[in_chan]
+
+            if effective_bw is not None:
+                effective_bw_avg[out_chan] += effective_bw[in_chan]
+
+            if resolution is not None:
+                resolution_avg[out_chan] += resolution[in_chan]
 
         for out_chan in range(out_chans):
-            chan_freq_normaliser(chan_freq_avg, out_chan, counts[out_chan])
+            if chan_freq is not None:
+                chan_freq_avg[out_chan] /= counts[out_chan]
 
         return ChannelAverageOutput(chan_freq_avg, chan_width_avg,
                                     effective_bw_avg, resolution_avg)
