@@ -12,63 +12,6 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
-def output_factory(present):
-    """ Returns function creating an output if present """
-
-    if present:
-        def impl(rows, array):
-            return np.zeros((rows,) + array.shape[1:], array.dtype)
-    else:
-        def impl(rows, array):
-            return None
-
-    # TODO(sjperkins)
-    # perhaps inline='always' on resolution of
-    # https://github.com/numba/numba/issues/4691
-    return njit(nogil=True, cache=True, inline='never')(impl)
-
-
-def add_factory(present):
-    """ Returns function for adding data to a bin """
-    if present:
-        def impl(output, orow, input, irow):
-            output[orow] += input[irow]
-    else:
-        def impl(input, irow, output, orow):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def comp_add_factory(present):
-    """
-    Returns function for adding data with components to a bin.
-    Rows are assumed to be in the first dimension and
-    components are assumed to be in the second
-    """
-    if present:
-        def impl(output, orow, input, irow):
-            for c in range(output.shape[1]):
-                output[orow, c] += input[irow, c]
-    else:
-        def impl(input, irow, output, orow):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def normaliser_factory(present):
-    """ Returns function for normalising data in a bin """
-    if present:
-        def impl(data, row, bin_size):
-            data[row] /= bin_size
-    else:
-        def impl(data, row, bin_size):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
 def matching_flag_factory(present):
     if present:
         def impl(flag_row, ri, out_flag_row, ro):
