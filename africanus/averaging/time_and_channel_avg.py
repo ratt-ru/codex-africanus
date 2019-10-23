@@ -277,9 +277,9 @@ def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
     return njit(nogil=True, cache=True, inline='always')(impl)
 
 
-def sigma_spectrum_add_factory(have_vis, have_weight, have_weight_spectrum):
+def sigma_spectrum_add_factory(have_sigma, have_weight, have_weight_spectrum):
     """ Returns function adding weighted sigma to a bin """
-    if not have_vis:
+    if not have_sigma:
         def impl(out_sigma, out_weight_sum, in_sigma,
                  weight, weight_spectrum,
                  orow, ochan, irow, ichan, corr):
