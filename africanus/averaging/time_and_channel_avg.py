@@ -165,7 +165,7 @@ def weight_sum_output_factory(present):
         def impl(shape, array):
             pass
 
-    return njit(nogil=True, cache=True, inline='never')(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def chan_output_factory(present):
@@ -177,7 +177,7 @@ def chan_output_factory(present):
         def impl(shape, array):
             pass
 
-    return njit(nogil=True, cache=True, inline='never')(impl)
+    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
