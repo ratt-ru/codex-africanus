@@ -23,8 +23,7 @@ import argparse
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", help="Name of measurement set", type=str)
-    p.add_argument("--sky_model", type=str, help="file containing source "
-                   "coordinates in format [time, source, ra, dec].")
+    p.add_argument("--sky_model", type=str, help="Tigger lsm file")
     p.add_argument("--data_col", help="Column where data lives. "
                    "Only used to get shape of data at this stage",
                    default='DATA', type=str)
