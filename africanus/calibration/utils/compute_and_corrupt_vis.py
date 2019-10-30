@@ -11,8 +11,6 @@ from africanus.util.numba import generated_jit, njit
 from africanus.calibration.utils import check_type
 from africanus.constants import minus_two_pi_over_c as m2pioc
 
-m2pioc *= -1
-
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
@@ -98,7 +96,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
         time_bin_indices -= time_bin_indices.min()
         n_tim = np.shape(time_bin_indices)[0]
         model_shape = np.shape(model)
-        vis_shape = (antenna1.shape[0],) + (freq.shape[0],) + (model.shape[-1],)
+        vis_shape = (antenna1.shape[0],) + (freq.shape[0],) + model.shape[3:]
         vis = np.zeros(vis_shape, dtype=jones.dtype)
         n_chan = model_shape[1]
         for t in range(n_tim):

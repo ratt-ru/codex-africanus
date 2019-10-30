@@ -18,7 +18,8 @@ FULL = 2
 def jacobian_factory(mode):
     if mode == DIAG_DIAG:
         def jacobian(a1j, blj, a2j, sign, out):
-            out[...] = sign * a1j * blj * a2j.conjugate()
+            for c in range(out.shape[-1]):
+                out[c] = sign * a1j[c] * blj[c] * a2j[c].conjugate()
     elif mode == DIAG:
         def jacobian(a1j, blj, a2j, sign, out):
             out[...] = 0
