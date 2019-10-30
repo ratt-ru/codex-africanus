@@ -202,6 +202,7 @@ def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
 
         # check convergence/iteration control
         eps = np.abs(phases_new - phases).max()
+        print("At iteration %i the max phase difference is %f"%(k, eps))
         k += 1
 
     return jones, jhj, jhr, k

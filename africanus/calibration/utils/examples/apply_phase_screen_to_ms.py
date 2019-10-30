@@ -58,7 +58,7 @@ def make_screen(lm, freq, n_time, n_ant, n_corr):
                 screen = basis.dot(alphas[t, p, :, c])
                 # apply frequency scaling
                 phases[t, p, :, :, c] = screen[None, :]/freq_norm[:, None]
-    return np.exp(phases), alphas
+    return np.exp(1.0j*phases), alphas
 
 def simulate(args):
     # get full time column and compute row chunks
@@ -139,7 +139,7 @@ def simulate(args):
     jones, alphas = make_screen(lm, freq, n_time, n_ant, jones_corr[0])  
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
-    jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
+    jones_da = da.from_array(jones, chunks=(args.utimes_per_chunk,)
                         + jones_shape[1::])
 
     freqs = da.from_array(freq, chunks=(n_freq))
@@ -159,7 +159,7 @@ def simulate(args):
 
     # apply gains
     data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
-                                   jones, model, uvw, freqs, lm)
+                                   jones_da, model, uvw, freqs, lm)
 
     # Assign visibilities to args.out_col and write to ms
     xds = xds.assign(**{args.out_col: (("row", "chan", "corr"), data.reshape(n_row, n_freq, n_corr))})
@@ -170,14 +170,13 @@ def simulate(args):
     with ProgressBar():
         write.compute()
 
-    print("Jones 1  = ", np.angle(jones).max(), np.angle(jones).min())
     return jones, alphas
 
 
 def calibrate(args, jones, alphas):
     # simple calibration to test if simulation went as expected. 
     # Note do not run on large data set
-    print("Jones 2  = ", np.angle(jones).max(), np.angle(jones).min())
+
     # load data
     ms = table(args.ms)
     time = ms.getcol('TIME')
@@ -237,28 +236,17 @@ def calibrate(args, jones, alphas):
     jones0 = np.ones((n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.complex128)
 
     # calibrate
-    jones_hat, jhj, jhr, k = phase_only_gauss_newton(tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-4, maxiter=200)
+    jones_hat, jhj, jhr, k = phase_only_gauss_newton(tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=250)
 
     print("Took %i iterations"%k)
 
     # verify result
-    for p in range(2):
+    for p in range(n_ant):
         for q in range(p):
             print(" p = %i, q = %i" % (p, q))
-            # diff_true = np.angle(jones[:, p] * jones[:, q].conj())
-            # diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
-            # assert assert_array_almost_equal(diff_true, diff_hat, decimal=3)
-            for d in range(n_dir):
-                for c in range(n_corr):
-                    diff_true = np.angle(jones[:, p, :, d, c] * jones[:, q, :, d, c].conj())
-                    diff_hat = np.angle(jones_hat[:, p, :, d, c] * jones_hat[:, q, :, d, c].conj())
-                    plt.figure('true')
-                    plt.imshow(diff_true)
-                    plt.colorbar()
-                    plt.figure('hat')
-                    plt.imshow(diff_hat)
-                    plt.colorbar()
-                    plt.show()
+            diff_true = np.angle(jones[:, p] * jones[:, q].conj())
+            diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
+            assert assert_array_almost_equal(diff_true, diff_hat, decimal=2)
 
 if __name__=="__main__":
     args = create_parser().parse_args()
@@ -275,4 +263,4 @@ if __name__=="__main__":
 
     jones, alphas = simulate(args)
 
-    # calibrate(args, jones, alphas)
+    calibrate(args, jones, alphas)
