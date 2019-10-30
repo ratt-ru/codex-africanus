@@ -8,7 +8,7 @@ import numpy as np
 from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis, check_type
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import generated_jit, njit, jit
 
 DIAG_DIAG = 0
 DIAG = 1
@@ -39,7 +39,6 @@ def compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
 
     jacobian = jacobian_factory(mode)
 
-    @wraps(compute_jhj_and_jhr)
     def _jhj_and_jhr_fn(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, residual, model, flag):
         # for chunked dask arrays we need to adjust the chunks to
@@ -86,7 +85,6 @@ def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
 
     jacobian = jacobian_factory(mode)
 
-    @wraps(compute_jhj)
     def _compute_jhj_fn(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, model, flag):
         # for dask arrays we need to adjust the chunks to
@@ -127,7 +125,6 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
 
     jacobian = jacobian_factory(mode)
 
-    @wraps(compute_jhr)
     def _compute_jhr_fn(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, residual, model, flag):
         # for dask arrays we need to adjust the chunks to
@@ -159,53 +156,59 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
         return jhr
     return _compute_jhr_fn
 
-
-def phase_only_gauss_newton(time_bin_indices, time_bin_counts, antenna1,
-                            antenna2, jones, vis, flag, model,
-                            weight, tol=1e-4, maxiter=100):
-    # whiten data
-    sqrtweights = np.sqrt(weight)
-    vis *= sqrtweights
-    model *= sqrtweights[:, :, None]
+@generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
+def gauss_newton(time_bin_indices, time_bin_counts, antenna1,
+                 antenna2, jones, vis, flag, model,
+                 weight, tol=1e-4, maxiter=100):
 
     mode = check_type(jones, vis)
 
-    # can avoid recomputing JHJ in DIAG_DIAG mode
-    if mode == DIAG_DIAG:
-        jhj = compute_jhj(time_bin_indices, time_bin_counts,
-                          antenna1, antenna2, jones, model, flag)
+    def _gauss_newton_fn(time_bin_indices, time_bin_counts, antenna1,
+                         antenna2, jones, vis, flag, model,
+                         weight, tol=1e-4, maxiter=100):
 
-    eps = 1.0
-    k = 0
-    while eps > tol and k < maxiter:
-        # keep track of old phases
-        phases = np.angle(jones)
+        # # whiten data
+        # sqrtweights = np.sqrt(weight)
+        # vis *= sqrtweights
+        # model *= sqrtweights[:, :, None]
 
-        # get residual TODO - we can avoid this in DIE case
-        residual = residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                                antenna2, jones, vis, flag, model)
-
-        # only need jhr in DIAG_DIAG mode
+        # can avoid recomputing JHJ in DIAG_DIAG mode
         if mode == DIAG_DIAG:
-            jhr = compute_jhr(time_bin_indices, time_bin_counts,
-                              antenna1, antenna2,
-                              jones, residual, model, flag)
-        else:
-            raise NotImplementedError("Only DIAG_DIAG mode implemented")
-            # jhj, jhr = compute_jhj_and_jhr(time_bin_indices, time_bin_counts,
-            #                                antenna1, antenna2, jones,
-            #                                residual, model, flag)
+            jhj = compute_jhj(time_bin_indices, time_bin_counts,
+                            antenna1, antenna2, jones, model, flag)
 
-        # implement update
-        phases_new = phases + 0.5 * (jhr/jhj).real
-        jones = np.exp(1.0j * phases_new)
+        eps = 1.0
+        k = 0
+        while eps > tol and k < maxiter:
+            # keep track of old phases
+            phases = np.angle(jones)
 
-        # check convergence/iteration control
-        eps = np.abs(phases_new - phases).max()
-        print("At iteration %i the max phase difference is %f"%(k, eps))
-        k += 1
+            # get residual TODO - we can avoid this in DIE case
+            residual = residual_vis(time_bin_indices, time_bin_counts, antenna1,
+                                    antenna2, jones, vis, flag, model)
 
-    return jones, jhj, jhr, k
+            # only need jhr in DIAG_DIAG mode
+            if mode == DIAG_DIAG:
+                jhr = compute_jhr(time_bin_indices, time_bin_counts,
+                                antenna1, antenna2,
+                                jones, residual, model, flag)
+            else:
+                raise NotImplementedError("Only DIAG_DIAG mode implemented")
+                # jhj, jhr = compute_jhj_and_jhr(time_bin_indices, time_bin_counts,
+                #                                antenna1, antenna2, jones,
+                #                                residual, model, flag)
+
+            # implement update
+            phases_new = phases + 0.5 * (jhr/jhj).real
+            jones = np.exp(1.0j * phases_new)
+
+            # check convergence/iteration control
+            eps = np.abs(phases_new - phases).max()
+            # print("At iteration %i the max phase difference is %f"%(k, eps))
+            k += 1
+
+        return jones, jhj, jhr, k
+    return _gauss_newton_fn
 
 
 PHASE_CALIBRATION_DOCS = DocstringTemplate("""
@@ -266,7 +269,7 @@ k : int
 
 
 try:
-    phase_only_gauss_newton.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
+    gauss_newton.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
                                     array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
