@@ -1,24 +1,18 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
-from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
-from africanus.calibration.utils import check_type
+from .utils import check_type
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
-
 def jones_inverse_mul_factory(mode):
     if mode == DIAG_DIAG:
         def jones_inverse_mul(a1j, blj, a2j, out):
-            out[...] = blj/(a1j*np.conj(a2j))
+            for c in range(out.shape[-1]):
+                out[c] = blj[c]/(a1j[c]*np.conj(a2j[c]))
     elif mode == DIAG:
         def jones_inverse_mul(a1j, blj, a2j, out):
             out[0, 0] = blj[0, 0]/(a1j[0]*np.conj(a2j[0]))
@@ -70,7 +64,7 @@ def jones_inverse_mul_factory(mode):
                 t2*b01 +\
                 t3*b11 +\
                 t4*b11
-    return njit(nogil=True)(jones_inverse_mul)
+    return njit(nogil=True, inline='always')(jones_inverse_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -80,7 +74,6 @@ def correct_vis(time_bin_indices, time_bin_counts,
     mode = check_type(jones, vis)
     jones_inverse_mul = jones_inverse_mul_factory(mode)
 
-    @wraps(correct_vis)
     def _correct_vis_fn(time_bin_indices, time_bin_counts,
                         antenna1, antenna2, jones, vis, flag):
         # for dask arrays we need to adjust the chunks to
@@ -103,18 +96,17 @@ def correct_vis(time_bin_indices, time_bin_counts,
                 gq = jones[t, q]
                 for nu in range(n_chan):
                     if not np.any(flag[row, nu]):
-                        jones_inverse_mul(
-                            gp[nu, 0], vis[row, nu], gq[nu, 0],
-                            corrected_vis[row, nu])
+                        jones_inverse_mul(gp[nu, 0], vis[row, nu], gq[nu, 0],
+                                          corrected_vis[row, nu])
         return corrected_vis
 
     return _correct_vis_fn
 
 
 CORRECT_VIS_DOCS = DocstringTemplate("""
-Apply DIE gains to visibilities to
-generate corrected visibilities. For a
-measurement model of the form
+Apply inverse of direction independent gains to
+visibilities to generate corrected visibilities.
+For a measurement model of the form
 
 .. math::
 

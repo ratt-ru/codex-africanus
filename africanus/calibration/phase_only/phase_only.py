@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
 from functools import wraps
@@ -156,6 +151,7 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
         return jhr
     return _compute_jhr_fn
 
+# LB - TODO mutiple dispatch on mode to avoid if statements
 @generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
 def gauss_newton(time_bin_indices, time_bin_counts, antenna1,
                  antenna2, jones, vis, flag, model,
@@ -211,10 +207,10 @@ def gauss_newton(time_bin_indices, time_bin_counts, antenna1,
     return _gauss_newton_fn
 
 
-PHASE_CALIBRATION_DOCS = DocstringTemplate("""
+GAUSS_NEWTON_DOCS = DocstringTemplate("""
 Performs phase-only maximum likelihood
-calibration assuming scalar or diagonal
-inputs using Gauss-Newton oprimisation.
+calibration using a Gauss-Newton optimisation
+algorithm. Currently only DIAG mode is supported.
 
 Parameters
 ----------
@@ -244,7 +240,7 @@ weight : $(array_type)
     Weight spectrum of shape :code:`(row, chan, corr)`.
     If the channel axis is missing weights are duplicated
     for each channel.
-tol : float, optional
+tol: float, optional
     The tolerance of the solver. Defaults to 1e-4.
 maxiter: int, optional
     The maximum number of iterations. Defaults to 100.
@@ -262,24 +258,21 @@ jhr : $(array_type)
     Residuals projected into gain space
     of shape :code:`(time, ant, chan, dir, corr)`
     or shape :code:`(time, ant, chan, dir, corr, corr)`.
-k : int
+k: int
     Number of iterations (will equal maxiter if
     not converged)
 """)
 
 
 try:
-    gauss_newton.__doc__ = PHASE_CALIBRATION_DOCS.substitute(
-                                    array_type=":class:`numpy.ndarray`")
+    gauss_newton.__doc__ = GAUSS_NEWTON_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
 
 JHJ_AND_JHR_DOCS = DocstringTemplate("""
 Computes the diagonal of the Hessian and
-the residual projected in to gain space.
-These are the terms required to perform
-phase-only maximum likelihood calibration
-assuming scalar or diagonal inputs.
+the residual locally projected in to gain space.
 
 Parameters
 ----------

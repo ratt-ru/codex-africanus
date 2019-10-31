@@ -23,6 +23,7 @@ from africanus.coordinates import radec_to_lm
 import argparse
 from numpy.testing import assert_array_almost_equal
 import matplotlib.pyplot as plt
+from time import time as timeit
 
 def create_parser():
     p = argparse.ArgumentParser()
@@ -236,19 +237,19 @@ def calibrate(args, jones, alphas):
     jones0 = np.ones((n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.complex128)
 
     # calibrate
-    jones_hat, jhj, jhr, k = gauss_newton(tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=250)
+    ti = timeit()
+    jones_hat, jhj, jhr, k = gauss_newton(tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=25)
+    print("%i iterations took %fs"%(k, timeit() - ti))
 
-    print("Took %i iterations"%k)
-
-    # verify result
-    for p in range(n_ant):
-        for q in range(p):
-            diff_true = np.angle(jones[:, p] * jones[:, q].conj())
-            diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
-            try:
-                assert_array_almost_equal(diff_true, diff_hat, decimal=2)
-            except Exception as e:
-                print(e)
+    # # verify result
+    # for p in range(n_ant):
+    #     for q in range(p):
+    #         diff_true = np.angle(jones[:, p] * jones[:, q].conj())
+    #         diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
+    #         try:
+    #             assert_array_almost_equal(diff_true, diff_hat, decimal=2)
+    #         except Exception as e:
+    #             print(e)
 
 if __name__=="__main__":
     args = create_parser().parse_args()

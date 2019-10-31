@@ -1,20 +1,13 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import numpy as np
-from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
-from africanus.calibration.utils import check_type
+from .utils import check_type
 from africanus.constants import minus_two_pi_over_c as m2pioc
 
 DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
-
 
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
@@ -26,7 +19,8 @@ def jones_mul_factory(mode):
                 n = np.sqrt(1 - l**2 - m**2)
                 real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
                 source_vis = model[s] * np.exp(1.0j*real_phase)/n
-                out += a1j[s]*source_vis*np.conj(a2j[s])
+                for c in range(out.shape[-1]):
+                    out[c] += a1j[s, c]*source_vis[c]*np.conj(a2j[s, c])
     elif mode == DIAG:
         def jones_mul(a1j, model, a2j, uvw, freq, lm, out):
             n_dir = np.shape(model)[0]
@@ -77,7 +71,7 @@ def jones_mul_factory(mode):
                     t3*tmp[1, 1] +\
                     t4*tmp[1, 1]
 
-    return njit(nogil=True)(jones_mul)
+    return njit(nogil=True, inline='always')(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -87,7 +81,6 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
     mode = check_type(jones, model, vis_type='model')
     jones_mul = jones_mul_factory(mode)
 
-    @wraps(compute_and_corrupt_vis)
     def _compute_and_corrupt_vis_fn(time_bin_indices, time_bin_counts,
                                     antenna1, antenna2, jones, model,
                                     uvw, freq, lm):
@@ -115,8 +108,9 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
 
 
 COMPUTE_AND_CORRUPT_VIS_DOCS = DocstringTemplate("""
-Corrupts time variable model image with arbitrary
-Jones terms. 
+Corrupts time variable component model with arbitrary
+Jones terms. Currrently only time variable point source
+models are supported. 
 
 Parameters
 ----------

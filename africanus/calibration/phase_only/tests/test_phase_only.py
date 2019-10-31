@@ -8,12 +8,10 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 from africanus.averaging.support import unique_time
-from africanus.calibration.phase_only import phase_only_gauss_newton
+from africanus.calibration.phase_only import gauss_newton
 from africanus.calibration.utils import chunkify_rows
-from africanus.calibration.phase_only.phase_only import (compute_jhj
-                                                         as np_compute_jhj)
-from africanus.calibration.phase_only.phase_only import (compute_jhr
-                                                         as np_compute_jhr)
+from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
+from africanus.calibration.phase_only import compute_jhr as np_compute_jhr
 
 
 def test_compute_jhj_and_jhr(data_factory):
@@ -186,7 +184,7 @@ def test_phase_only_diag_diag(data_factory):
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir) + jones_shape,
                      dtype=np.complex64)
     precision = 4
-    gains, jhj, jhr, k = phase_only_gauss_newton(
+    gains, jhj, jhr, k = gauss_newton(
         time_bin_indices, time_bin_counts,
         ant1, ant2, jones0, vis,
         flag, model, weight,

@@ -1,18 +1,10 @@
-# -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from functools import wraps
-
-from africanus.calibration.phase_only.phase_only import COMPUTE_JHJ_DOCS
-from africanus.calibration.phase_only.phase_only import COMPUTE_JHR_DOCS
+from .phase_only import COMPUTE_JHJ_DOCS
+from .phase_only import COMPUTE_JHR_DOCS
 from africanus.calibration.utils import check_type
-from africanus.calibration.phase_only.phase_only import (compute_jhj
-                                                         as np_compute_jhj)
-from africanus.calibration.phase_only.phase_only import (compute_jhr
-                                                         as np_compute_jhr)
+from .phase_only import compute_jhj as np_compute_jhj
+from .phase_only import compute_jhr as np_compute_jhr
+from .phase_only import compute_jhj_and_jhr as np_compute_jhj_and_jhr
 from africanus.util.requirements import requires_optional
 
 try:
@@ -27,13 +19,6 @@ DIAG = 1
 FULL = 2
 
 
-@wraps(np_compute_jhj)
-def _compute_jhj_wrapper(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, model, flag):
-    return np_compute_jhj(time_bin_indices, time_bin_counts, antenna1,
-                          antenna2, jones, model, flag)
-
-
 @requires_optional('dask.array', dask_import_error)
 def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, model, flag):
@@ -46,7 +31,7 @@ def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
     jones_shape = ('row', 'ant', 'chan', 'dir', 'corr')
     vis_shape = ('row', 'chan', 'corr')
     model_shape = ('row', 'chan', 'dir', 'corr')
-    return blockwise(_compute_jhj_wrapper, jones_shape,
+    return blockwise(np_compute_jhj, jones_shape,
                      time_bin_indices, ('row',),
                      time_bin_counts, ('row',),
                      antenna1, ('row',),
@@ -58,13 +43,6 @@ def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
                      new_axes={"corr2": 2},  # why?
                      dtype=model.dtype,
                      align_arrays=False)
-
-
-@wraps(np_compute_jhr)
-def _compute_jhr_wrapper(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, residual, model, flag):
-    return np_compute_jhr(time_bin_indices, time_bin_counts, antenna1,
-                          antenna2, jones, residual, model, flag)
 
 
 @requires_optional('dask.array', dask_import_error)
@@ -79,7 +57,7 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
     jones_shape = ('row', 'ant', 'chan', 'dir', 'corr')
     vis_shape = ('row', 'chan', 'corr')
     model_shape = ('row', 'chan', 'dir', 'corr')
-    return blockwise(_compute_jhr_wrapper, jones_shape,
+    return blockwise(np_compute_jhr, jones_shape,
                      time_bin_indices, ('row',),
                      time_bin_counts, ('row',),
                      antenna1, ('row',),

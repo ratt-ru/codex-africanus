@@ -101,8 +101,8 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
 
 
 RESIDUAL_VIS_DOCS = DocstringTemplate("""
-Computes residual visibilities in place
-given model visibilities and gains solutions.
+Computes residual visibilities given model
+visibilities and gains solutions.
 
 Parameters
 ----------
