@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -9,13 +10,14 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
+
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
         def jones_mul(a1j, model, a2j, uvw, freq, lm, out):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
-                l,m = lm[s]
+                l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
                 real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
                 source_vis = model[s] * np.exp(1.0j*real_phase)/n
@@ -26,7 +28,7 @@ def jones_mul_factory(mode):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
-                l,m = lm[s]
+                l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
                 real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
                 source_vis = model[s] * np.exp(1.0j*real_phase)/n
@@ -39,7 +41,7 @@ def jones_mul_factory(mode):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
-                l,m = lm[s]
+                l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
                 real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
                 source_vis = model[s] * np.exp(1.0j*real_phase)/n
@@ -110,8 +112,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
 COMPUTE_AND_CORRUPT_VIS_DOCS = DocstringTemplate("""
 Corrupts time variable component model with arbitrary
 Jones terms. Currrently only time variable point source
-models are supported. 
-
+models are supported.
 Parameters
 ----------
 time_bin_indices : $(array_type)

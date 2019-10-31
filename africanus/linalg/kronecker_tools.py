@@ -3,6 +3,7 @@
 
 import numpy as np
 
+
 def kron_N(x):
     """
     Computes N = N_1 x N_2 x ... x N_D i.e.
@@ -23,6 +24,7 @@ def kron_N(x):
     for i in range(D):
         dims[i] = x[i].shape[0]
     return int(np.prod(dims))
+
 
 def kron_matvec(A, b):
     """
@@ -55,6 +57,7 @@ def kron_matvec(A, b):
         Z = np.einsum("ab -> ba", Z)
         x = Z.flatten()
     return x
+
 
 def kron_tensorvec(A, b):
     """
@@ -94,11 +97,12 @@ def kron_tensorvec(A, b):
         G[d] = M[d]
     return x
 
+
 def kron_matmat(A, B):
     """
     Computes the product between a kronecker matrix A
     and some RHS matrix B    
-    
+
     Parameters
     ----------
     A : :class:`numpy.ndarray`
@@ -118,8 +122,9 @@ def kron_matmat(A, B):
     N = kron_N(A)
     C = np.zeros([N, M])
     for i in range(M):
-        C[:,i] = kron_matvec(A, B[:, i])
+        C[:, i] = kron_matvec(A, B[:, i])
     return C
+
 
 def kron_tensormat(A, B):
     """
@@ -146,8 +151,9 @@ def kron_tensormat(A, B):
     N = kron_N(A)
     C = np.zeros([N, M])
     for i in range(M):
-        C[:,i] = kron_tensorvec(A, B[:, i])
+        C[:, i] = kron_tensorvec(A, B[:, i])
     return C
+
 
 def kron_cholesky(A):
     """

@@ -4,7 +4,6 @@ from .phase_only import COMPUTE_JHR_DOCS
 from africanus.calibration.utils import check_type
 from .phase_only import compute_jhj as np_compute_jhj
 from .phase_only import compute_jhr as np_compute_jhr
-from .phase_only import compute_jhj_and_jhr as np_compute_jhj_and_jhr
 from africanus.util.requirements import requires_optional
 
 try:

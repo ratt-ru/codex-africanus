@@ -9,6 +9,7 @@ DIAG_DIAG = 0
 DIAG = 1
 FULL = 2
 
+
 def jones_inverse_mul_factory(mode):
     if mode == DIAG_DIAG:
         def jones_inverse_mul(a1j, blj, a2j, out):

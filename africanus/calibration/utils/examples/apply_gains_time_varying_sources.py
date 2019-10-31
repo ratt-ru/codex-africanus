@@ -11,7 +11,6 @@ model_cols where model_cols is a comma separated string
 import numpy as np
 from africanus.calibration.utils.dask import compute_and_corrupt_vis
 from africanus.calibration.utils import chunkify_rows
-from africanus.dft.dask import im_to_vis
 from daskms import xds_from_ms, xds_to_table
 from pyrap.tables import table
 import dask.array as da
@@ -19,6 +18,7 @@ from dask.diagnostics import ProgressBar
 import Tigger
 from africanus.coordinates import radec_to_lm
 import argparse
+
 
 def create_parser():
     p = argparse.ArgumentParser()
@@ -40,25 +40,28 @@ def create_parser():
     p.add_argument('--field', default=0, type=int)
     return p
 
+
 def main(args):
     # get full time column and compute row chunks
     ms = table(args.ms)
     time = ms.getcol('TIME')
-    row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
+    row_chunks, tbin_idx, tbin_counts = chunkify_rows(
+        time, args.utimes_per_chunk)
     # convert to dask arrays
     tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
     tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
     n_time = tbin_idx.size
     ms.close()
-    
+
     # get phase dir
     fld = table(args.ms+'::FIELD')
-    radec0 = fld.getcol('PHASE_DIR').squeeze().reshape(1,2)
-    radec0 = np.tile(radec0, (n_time,1))
-    fld.close() 
+    radec0 = fld.getcol('PHASE_DIR').squeeze().reshape(1, 2)
+    radec0 = np.tile(radec0, (n_time, 1))
+    fld.close()
 
     # get freqs
-    freqs = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
+    freqs = table(
+        args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
     n_freq = freqs.size
     freqs = da.from_array(freqs, chunks=(n_freq))
 
@@ -68,7 +71,7 @@ def main(args):
     stokes = []
     spi = []
     ref_freqs = []
-    
+
     for source in lsm.sources:
         radec.append([source.pos.ra, source.pos.dec])
         stokes.append([source.flux.I])
@@ -91,7 +94,7 @@ def main(args):
     spi = np.asarray(spi)
     for t in range(n_time):
         for d in range(n_dir):
-            model[t, :, d, 0] = stokes[d] * (freqs/ref_freqs[d])**spi[d] 
+            model[t, :, d, 0] = stokes[d] * (freqs/ref_freqs[d])**spi[d]
 
     # append antenna columns
     cols = []
@@ -103,13 +106,12 @@ def main(args):
     jones = np.load(args.gain_file)
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
-    ndims = len(jones_shape)
     jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
-                        + jones_shape[1::])
+                          + jones_shape[1::])
 
     # change model to dask array
     model = da.from_array(model, chunks=(args.utimes_per_chunk,)
-                        + model.shape[1::])
+                          + model.shape[1::])
 
     # load data in in chunks and apply gains to each chunk
     xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
@@ -119,7 +121,7 @@ def main(args):
 
     # apply gains
     data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
-                                            jones, model, uvw, freqs, lm)
+                                   jones, model, uvw, freqs, lm)
 
     # Assign visibilities to args.out_col and write to ms
     xds = xds.assign(**{args.out_col: (("row", "chan", "corr"), data)})
@@ -131,7 +133,7 @@ def main(args):
         write.compute()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     args = create_parser().parse_args()
 
     if args.ncpu:

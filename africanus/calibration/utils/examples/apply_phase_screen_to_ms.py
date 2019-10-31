@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 This example show how to apply gains to an ms in a chunked up way.
@@ -7,23 +6,23 @@ expected by the corrupt_vis function.
 It is assumed that the direction axis is ordered in the same way as
 model_cols where model_cols is a comma separated string
 """
+from time import time as timeit
+from numpy.testing import assert_array_almost_equal
+import argparse
+from africanus.coordinates import radec_to_lm
+import Tigger
+from dask.diagnostics import ProgressBar
+import dask.array as da
+from pyrap.tables import table
+from daskms import xds_from_ms, xds_to_table
+from africanus.dft import im_to_vis
+from africanus.calibration.phase_only import gauss_newton
+from africanus.calibration.utils import chunkify_rows
+from africanus.calibration.utils.dask import compute_and_corrupt_vis
+import numpy as np
 import matplotlib as mpl
 mpl.use('TkAgg')
-import numpy as np
-from africanus.calibration.utils.dask import compute_and_corrupt_vis
-from africanus.calibration.utils import chunkify_rows
-from africanus.calibration.phase_only import gauss_newton
-from africanus.dft import im_to_vis
-from daskms import xds_from_ms, xds_to_table
-from pyrap.tables import table
-import dask.array as da
-from dask.diagnostics import ProgressBar
-import Tigger
-from africanus.coordinates import radec_to_lm
-import argparse
-from numpy.testing import assert_array_almost_equal
-import matplotlib.pyplot as plt
-from time import time as timeit
+
 
 def create_parser():
     p = argparse.ArgumentParser()
@@ -38,6 +37,7 @@ def create_parser():
                    "Default of zero means all", default=10, type=int)
     return p
 
+
 def make_screen(lm, freq, n_time, n_ant, n_corr):
     n_dir = lm.shape[0]
     n_freq = freq.size
@@ -45,7 +45,8 @@ def make_screen(lm, freq, n_time, n_ant, n_corr):
     n_coeff = 3
     l = lm[:, 0]
     m = lm[:, 1]
-    basis = np.hstack((np.ones((n_dir, 1), dtype=np.float64), l[:, None], m[:, None]))
+    basis = np.hstack(
+        (np.ones((n_dir, 1), dtype=np.float64), l[:, None], m[:, None]))
     # get coeffs
     alphas = 0.05 * np.random.randn(n_time, n_ant, n_coeff, n_corr)
     # normalise freqs
@@ -61,11 +62,13 @@ def make_screen(lm, freq, n_time, n_ant, n_corr):
                 phases[t, p, :, :, c] = screen[None, :]/freq_norm[:, None]
     return np.exp(1.0j*phases), alphas
 
+
 def simulate(args):
     # get full time column and compute row chunks
     ms = table(args.ms)
     time = ms.getcol('TIME')
-    row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
+    row_chunks, tbin_idx, tbin_counts = chunkify_rows(
+        time, args.utimes_per_chunk)
     # convert to dask arrays
     tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
     tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
@@ -76,9 +79,9 @@ def simulate(args):
     flag = ms.getcol("FLAG")
     n_row, n_freq, n_corr = flag.shape
     if n_corr == 4:
-        model_corr = (2,2)
+        model_corr = (2, 2)
         jones_corr = (2,)
-    elif n_corr ==2:
+    elif n_corr == 2:
         model_corr = (2,)
         jones_corr = (2,)
     elif n_corr == 1:
@@ -87,12 +90,13 @@ def simulate(args):
     else:
         raise RuntimeError("Invalid number of correlations")
     ms.close()
-    
+
     # get phase dir
     radec0 = table(args.ms+'::FIELD').getcol('PHASE_DIR').squeeze()
 
     # get freqs
-    freq = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
+    freq = table(
+        args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
     assert freq.size == n_freq
 
     # get source coordinates from lsm
@@ -101,7 +105,7 @@ def simulate(args):
     stokes = []
     spi = []
     ref_freqs = []
-    
+
     for source in lsm.sources:
         radec.append([source.pos.ra, source.pos.dec])
         stokes.append([source.flux.I])
@@ -129,7 +133,6 @@ def simulate(args):
         else:
             model[:, d, 0] = Stokes_I
 
-
     # append antenna columns
     cols = []
     cols.append('ANTENNA1')
@@ -137,20 +140,21 @@ def simulate(args):
     cols.append('UVW')
 
     # load in gains
-    jones, alphas = make_screen(lm, freq, n_time, n_ant, jones_corr[0])  
+    jones, alphas = make_screen(lm, freq, n_time, n_ant, jones_corr[0])
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
     jones_da = da.from_array(jones, chunks=(args.utimes_per_chunk,)
-                        + jones_shape[1::])
+                             + jones_shape[1::])
 
     freqs = da.from_array(freq, chunks=(n_freq))
-    lm = da.from_array(np.tile(lm[None], (n_time, 1, 1)), chunks=(args.utimes_per_chunk, n_dir, 2))
+    lm = da.from_array(np.tile(lm[None], (n_time, 1, 1)), chunks=(
+        args.utimes_per_chunk, n_dir, 2))
     # change model to dask array
     tmp_shape = (n_time,)
     for i in range(len(model.shape)):
         tmp_shape += (1,)
     model = da.from_array(np.tile(model[None], tmp_shape), chunks=(args.utimes_per_chunk,)
-                        + model.shape)
+                          + model.shape)
 
     # load data in in chunks and apply gains to each chunk
     xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
@@ -163,7 +167,8 @@ def simulate(args):
                                    jones_da, model, uvw, freqs, lm)
 
     # Assign visibilities to args.out_col and write to ms
-    xds = xds.assign(**{args.out_col: (("row", "chan", "corr"), data.reshape(n_row, n_freq, n_corr))})
+    xds = xds.assign(
+        **{args.out_col: (("row", "chan", "corr"), data.reshape(n_row, n_freq, n_corr))})
     # Create a write to the table
     write = xds_to_table(xds, args.ms, [args.out_col])
 
@@ -175,7 +180,7 @@ def simulate(args):
 
 
 def calibrate(args, jones, alphas):
-    # simple calibration to test if simulation went as expected. 
+    # simple calibration to test if simulation went as expected.
     # Note do not run on large data set
 
     # load data
@@ -195,10 +200,12 @@ def calibrate(args, jones, alphas):
     flag = flag[:, :, (0, 3)]
 
     # get phase dir
-    radec0 = table(args.ms+'::FIELD').getcol('PHASE_DIR').squeeze().astype(np.float64)
+    radec0 = table(
+        args.ms+'::FIELD').getcol('PHASE_DIR').squeeze().astype(np.float64)
 
     # get freqs
-    freq = table(args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
+    freq = table(
+        args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
     assert freq.size == n_freq
 
     # now get the model
@@ -208,7 +215,7 @@ def calibrate(args, jones, alphas):
     stokes = []
     spi = []
     ref_freqs = []
-    
+
     for source in lsm.sources:
         radec.append([source.pos.ra, source.pos.dec])
         stokes.append([source.flux.I])
@@ -227,41 +234,44 @@ def calibrate(args, jones, alphas):
     spi = np.asarray(spi)
     for d in range(n_dir):
         Stokes_I = stokes[d] * (freq/ref_freqs[d])**spi[d]
-        model[:, :, d, 0:1] = im_to_vis(Stokes_I[None, :, None], uvw, lm[d:d+1], freq)
+        model[:, :, d, 0:1] = im_to_vis(
+            Stokes_I[None, :, None], uvw, lm[d:d+1], freq)
         model[:, :, d, 1] = model[:, :, d, 0]
 
     # set weights to unity
     weight = np.ones_like(data, dtype=np.float64)
 
     # initialise gains
-    jones0 = np.ones((n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.complex128)
-
-    print(tbin_idx)
-    print(tbin_counts)
+    jones0 = np.ones((n_time, n_ant, n_freq, n_dir, n_corr),
+                     dtype=np.complex128)
 
     # calibrate
     ti = timeit()
-    jones_hat, jhj, jhr, k = gauss_newton(tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=100)
-    print("%i iterations took %fs"%(k, timeit() - ti))
+    jones_hat, jhj, jhr, k = gauss_newton(
+        tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=100)
+    print("%i iterations took %fs" % (k, timeit() - ti))
 
     # verify result
     for p in range(2):
         for q in range(p):
-            for d in range(n_dir):
-                for c in range(n_corr):
-                    diff_true = np.angle(jones[:, p, :, d, c] * jones[:, q, :, d, c].conj())
-                    diff_hat = np.angle(jones_hat[:, p, :, d, c] * jones_hat[:, q, :, d, c].conj())
-                    plt.figure(str(p) + str(q))
-                    plt.imshow(diff_true - diff_hat)
-                    plt.colorbar()
-                    plt.show()
+            # LB -TODO still differences for low freqs and not sure why
+            # for d in range(n_dir):
+            #     for c in range(n_corr):
+            #         diff_true = np.angle(jones[:, p, :, d, c] * jones[:, q, :, d, c].conj())
+            #         diff_hat = np.angle(jones_hat[:, p, :, d, c] * jones_hat[:, q, :, d, c].conj())
+            #         plt.figure(str(p) + str(q))
+            #         plt.imshow(diff_true - diff_hat)
+            #         plt.colorbar()
+            #         plt.show()
+            diff_true = np.angle(jones[:, p] * jones[:, q].conj())
+            diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
+            try:
+                assert_array_almost_equal(diff_true, diff_hat, decimal=2)
+            except Exception as e:
+                print(e)
 
-            # try:
-            #     assert_array_almost_equal(diff_true, diff_hat, decimal=2)
-            # except Exception as e:
-            #     print(e)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     args = create_parser().parse_args()
 
     if args.ncpu:
