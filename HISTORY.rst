@@ -4,6 +4,8 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Upgrade to numba 0.46.0, using new inlining functionality
+  in the RIME and averaging code.
 * Modified predict to be compatible with eidos fits headers (:pr:`158`)
 
 0.2.0 (2019-09-30)
