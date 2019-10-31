@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 from africanus.calibration.utils import corrupt_vis
 from africanus.dft import im_to_vis
-from africanus.averaging.support import unique_time
+from africanus.calibration.utils import chunkify_rows
 import pytest
 
 
@@ -83,7 +79,7 @@ def data_factory():
             assert (np.abs(jones) > 1e-5).all()
             assert not np.isnan(jones).any()
         # get vis
-        _, time_bin_indices, _, time_bin_counts = unique_time(time)
+        _, time_bin_indices, time_bin_counts = chunkify_rows(time, n_time)
         vis = corrupt_vis(time_bin_indices, time_bin_counts,
                           antenna1, antenna2, jones, model_data)
         assert not np.isnan(vis).any()

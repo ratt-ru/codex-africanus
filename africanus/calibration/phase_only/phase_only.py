@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 
 import numpy as np
 from functools import wraps
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis, check_type
 from africanus.util.numba import generated_jit, njit, jit
+from numpy.testing import assert_array_almost_equal
 
 DIAG_DIAG = 0
 DIAG = 1
@@ -13,8 +15,9 @@ FULL = 2
 def jacobian_factory(mode):
     if mode == DIAG_DIAG:
         def jacobian(a1j, blj, a2j, sign, out):
-            for c in range(out.shape[-1]):
-                out[c] = sign * a1j[c] * blj[c] * a2j[c].conjugate()
+            out[...] = sign * a1j * blj * a2j.conjugate()
+            # for c in range(out.shape[-1]):
+            #     out[c] = sign * a1j[c] * blj[c] * a2j[c].conjugate()
     elif mode == DIAG:
         def jacobian(a1j, blj, a2j, sign, out):
             out[...] = 0
@@ -163,15 +166,18 @@ def gauss_newton(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag, model,
                          weight, tol=1e-4, maxiter=100):
 
-        # # whiten data
-        # sqrtweights = np.sqrt(weight)
-        # vis *= sqrtweights
-        # model *= sqrtweights[:, :, None]
+        # whiten data
+        sqrtweights = np.sqrt(weight)
+        vis *= sqrtweights
+        model *= sqrtweights.reshape(sqrtweights.shape + (1,))
 
         # can avoid recomputing JHJ in DIAG_DIAG mode
         if mode == DIAG_DIAG:
             jhj = compute_jhj(time_bin_indices, time_bin_counts,
-                            antenna1, antenna2, jones, model, flag)
+                               antenna1, antenna2, jones, model, flag)
+        else:
+            raise NotImplementedError("Only DIAG_DIAG mode implemented")
+
 
         eps = 1.0
         k = 0
@@ -183,16 +189,9 @@ def gauss_newton(time_bin_indices, time_bin_counts, antenna1,
             residual = residual_vis(time_bin_indices, time_bin_counts, antenna1,
                                     antenna2, jones, vis, flag, model)
 
-            # only need jhr in DIAG_DIAG mode
-            if mode == DIAG_DIAG:
-                jhr = compute_jhr(time_bin_indices, time_bin_counts,
-                                antenna1, antenna2,
-                                jones, residual, model, flag)
-            else:
-                raise NotImplementedError("Only DIAG_DIAG mode implemented")
-                # jhj, jhr = compute_jhj_and_jhr(time_bin_indices, time_bin_counts,
-                #                                antenna1, antenna2, jones,
-                #                                residual, model, flag)
+            jhr = compute_jhr(time_bin_indices, time_bin_counts,
+                              antenna1, antenna2,
+                              jones, residual, model, flag)
 
             # implement update
             phases_new = phases + 0.5 * (jhr/jhj).real

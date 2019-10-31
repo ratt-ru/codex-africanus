@@ -42,6 +42,13 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
 
     mode = check_type(jones, model, vis_type='model')
 
+    if jones.chunks[1][0] != jones.shape[1]:
+        raise ValueError("Cannot chunk jones over antenna") 
+    if jones.chunks[3][0] != jones.shape[3]:
+        raise ValueError("Cannot chunk jones over direction")
+    if model.chunks[2][0] != model.shape[2]:
+        raise ValueError("Cannot chunk model over direction")
+
     if mode == DIAG_DIAG:
         out_shape = ("row", "chan", "corr1")
         model_shape = ("row", "chan", "dir", "corr1")
@@ -82,6 +89,19 @@ def _compute_and_corrupt_vis_wrapper(time_bin_indices, time_bin_counts,
 def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
                             antenna1, antenna2, jones, model,
                             uvw, freq, lm):
+
+    if jones.chunks[1][0] != jones.shape[1]:
+        raise ValueError("Cannot chunk jones over antenna") 
+    if jones.chunks[3][0] != jones.shape[3]:
+        raise ValueError("Cannot chunk jones over direction")
+    if model.chunks[2][0] != model.shape[2]:
+        raise ValueError("Cannot chunk model over direction")
+    if uvw.chunks[1][0] != uvw.shape[1]:
+        raise ValueError("Cannot chunk uvw over last axis")
+    if lm.chunks[1][0] != lm.shape[1]:
+        raise ValueError("Cannot chunks lm over direction")
+    if lm.chunks[2][0] != lm.shape[2]:
+        raise ValueError("Cannot chunks lm over last axis")
 
     mode = check_type(jones, model, vis_type='model')
 
@@ -125,6 +145,11 @@ def _correct_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
 def correct_vis(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, vis, flag):
 
+    if jones.chunks[1][0] != jones.shape[1]:
+        raise ValueError("Cannot chunk jones over antenna") 
+    if jones.chunks[3][0] != jones.shape[3]:
+        raise ValueError("Cannot chunk jones over direction")
+
     mode = check_type(jones, vis)
 
     if mode == DIAG_DIAG:
@@ -161,6 +186,13 @@ def _residual_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
 @requires_optional('dask.array', dask_import_error)
 def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                  antenna2, jones, vis, flag, model):
+
+    if jones.chunks[1][0] != jones.shape[1]:
+        raise ValueError("Cannot chunk jones over antenna") 
+    if jones.chunks[3][0] != jones.shape[3]:
+        raise ValueError("Cannot chunk jones over direction")
+    if model.chunks[2][0] != model.shape[2]:
+        raise ValueError("Cannot chunk model over direction")
 
     mode = check_type(jones, vis)
 

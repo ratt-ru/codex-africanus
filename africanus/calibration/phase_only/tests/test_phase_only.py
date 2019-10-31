@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
-from africanus.averaging.support import unique_time
 from africanus.calibration.phase_only import gauss_newton
 from africanus.calibration.utils import chunkify_rows
 from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
@@ -28,7 +23,7 @@ def test_compute_jhj_and_jhr(data_factory):
     data_dict = data_factory(sigma_n, sigma_f, n_time, n_chan,
                              n_ant, n_dir, corr_shape, jones_shape)
     time = data_dict['TIME']
-    _, time_bin_indices, _, time_bin_counts = unique_time(time)
+    _, time_bin_indices, time_bin_counts = chunkify_rows(time, n_time)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     vis = data_dict['DATA']
@@ -159,20 +154,21 @@ def test_phase_only_diag_diag(data_factory):
     we reconstruct the correct gains for a noise
     free simulation.
     """
+    np.random.seed(420)
     # simulate noise free data with random DDE's
     n_dir = 3
     n_time = 32
     n_chan = 16
     n_ant = 7
     sigma_n = 0.0
-    sigma_f = 0.05
+    sigma_f = 0.1
     corr_shape = (2,)
     jones_shape = (2,)
     data_dict = data_factory(sigma_n, sigma_f, n_time, n_chan,
                              n_ant, n_dir, corr_shape, jones_shape,
                              phase_only_gains=True)
     time = data_dict['TIME']
-    _, time_bin_indices, _, time_bin_counts = unique_time(time)
+    _, time_bin_indices, time_bin_counts = chunkify_rows(time, n_time)
     ant1 = data_dict['ANTENNA1']
     ant2 = data_dict['ANTENNA2']
     vis = data_dict['DATA']
@@ -182,8 +178,8 @@ def test_phase_only_diag_diag(data_factory):
     weight = data_dict['WEIGHT_SPECTRUM']
     # calibrate the data
     jones0 = np.ones((n_time, n_ant, n_chan, n_dir) + jones_shape,
-                     dtype=np.complex64)
-    precision = 4
+                     dtype=np.complex128)
+    precision = 5
     gains, jhj, jhr, k = gauss_newton(
         time_bin_indices, time_bin_counts,
         ant1, ant2, jones0, vis,
@@ -192,7 +188,7 @@ def test_phase_only_diag_diag(data_factory):
     # check that phase differences are correct
     for p in range(n_ant):
         for q in range(p):
-            phase_diff_true = np.angle(jones[:, p] * jones[:, q].conjugate())
-            phase_diff = np.angle(gains[:, p] * gains[:, q].conjugate())
+            phase_diff_true = np.angle(jones[:, p]) - np.angle(jones[:, q])
+            phase_diff = np.angle(gains[:, p]) - np.angle(gains[:, q])
             assert_array_almost_equal(
-                phase_diff_true, phase_diff, decimal=precision-2)
+                phase_diff_true, phase_diff, decimal=precision-3)

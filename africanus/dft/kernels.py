@@ -7,6 +7,7 @@ import numba
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
+two_pi_over_c = - minus_two_pi_over_c
 from africanus.util.docs import doc_tuple_to_str
 from africanus.util.numba import is_numba_type_none, generated_jit
 
@@ -91,7 +92,7 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
                 u, v, w = uvw[r]
 
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = -minus_two_pi_over_c * (l * u + m * v + n * w)
+                real_phase = two_pi_over_c * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
                 for nu in range(nchan):
