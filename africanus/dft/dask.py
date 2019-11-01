@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 from africanus.dft.kernels import im_to_vis_docs, vis_to_im_docs
 from africanus.dft.kernels import im_to_vis as np_im_to_vis
 from africanus.dft.kernels import vis_to_im as np_vis_to_im

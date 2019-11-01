@@ -4,6 +4,7 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Restructuring calibration module (:pr:`127`)
 * Upgrade to numba 0.46.0, using new inlining functionality
   in the RIME and averaging code.
 * Modified predict to be compatible with eidos fits headers (:pr:`158`)
