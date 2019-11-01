@@ -19,7 +19,7 @@ def jacobian_factory(mode):
     elif mode == FULL:
         def jacobian(a1j, blj, a2j, sign, out):
             out[...] = 0
-    return njit(nogil=True)(jacobian)
+    return njit(nogil=True, inline='always')(jacobian)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)

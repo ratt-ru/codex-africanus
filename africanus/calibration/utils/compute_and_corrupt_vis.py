@@ -70,7 +70,7 @@ def jones_mul_factory(mode):
                     t3*tmp[1, 1] +\
                     t4*tmp[1, 1]
 
-    return njit(nogil=True)(jones_mul)
+    return njit(nogil=True, inline='always')(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
