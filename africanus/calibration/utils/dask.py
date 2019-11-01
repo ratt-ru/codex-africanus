@@ -6,7 +6,7 @@ from africanus.calibration.utils.residual_vis import RESIDUAL_VIS_DOCS
 from africanus.calibration.utils.compute_and_corrupt_vis import (
                                 COMPUTE_AND_CORRUPT_VIS_DOCS)
 from africanus.calibration.utils import correct_vis as np_correct_vis
-from africanus.calibration.utils import compute_and_corrupt_vis as (
+from africanus.calibration.utils import (compute_and_corrupt_vis as
                                         np_compute_and_corrupt_vis)
 from africanus.calibration.utils import corrupt_vis as np_corrupt_vis
 from africanus.calibration.utils import residual_vis as np_residual_vis
@@ -56,6 +56,8 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
+    # the new_axes={"corr2": 2} is required because of a dask bug
+    # see https://github.com/dask/dask/issues/5550
     return blockwise(_corrupt_vis_wrapper, out_shape,
                      time_bin_indices, ("row",),
                      time_bin_counts, ("row",),
@@ -64,7 +66,7 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                      jones, jones_shape,
                      model, model_shape,
                      adjust_chunks={"row": antenna1.chunks[0]},
-                     new_axes={"corr2": 2},  # why?
+                     new_axes={"corr2": 2}, 
                      dtype=model.dtype,
                      align_arrays=False)
 
@@ -111,7 +113,9 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
         jones_shape = ("row", "ant", "chan", "dir", "corr1", "corr2")
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
-
+    
+    # the new_axes={"corr2": 2} is required because of a dask bug
+    # see https://github.com/dask/dask/issues/5550
     return blockwise(_compute_and_corrupt_vis_wrapper, out_shape,
                      time_bin_indices, ("row",),
                      time_bin_counts, ("row",),
@@ -123,7 +127,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
                      freq, ("chan",),
                      lm, ("row", "dir", "two"),
                      adjust_chunks={"row": antenna1.chunks[0]},
-                     new_axes={"corr2": 2},  # why?
+                     new_axes={"corr2": 2},
                      dtype=model.dtype,
                      align_arrays=False)
 
@@ -157,6 +161,8 @@ def correct_vis(time_bin_indices, time_bin_counts, antenna1,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
+    # the new_axes={"corr2": 2} is required because of a dask bug
+    # see https://github.com/dask/dask/issues/5550
     return blockwise(_correct_vis_wrapper, out_shape,
                      time_bin_indices, ("row",),
                      time_bin_counts, ("row",),
@@ -166,7 +172,7 @@ def correct_vis(time_bin_indices, time_bin_counts, antenna1,
                      vis, out_shape,
                      flag, out_shape,
                      adjust_chunks={"row": antenna1.chunks[0]},
-                     new_axes={"corr2": 2},  # why?
+                     new_axes={"corr2": 2},
                      dtype=vis.dtype,
                      align_arrays=False)
 
@@ -204,6 +210,9 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
         jones_shape = ("row", "ant", "chan", "dir", "corr1", "corr2")
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
+    
+    # the new_axes={"corr2": 2} is required because of a dask bug
+    # see https://github.com/dask/dask/issues/5550
     return blockwise(_residual_vis_wrapper, out_shape,
                      time_bin_indices, ("row",),
                      time_bin_counts, ("row",),
@@ -214,7 +223,7 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                      flag, out_shape,
                      model, model_shape,
                      adjust_chunks={"row": antenna1.chunks[0]},
-                     new_axes={"corr2": 2},  # why?
+                     new_axes={"corr2": 2},
                      dtype=vis.dtype,
                      align_arrays=False)
 
