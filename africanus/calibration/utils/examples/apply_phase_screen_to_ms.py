@@ -43,16 +43,17 @@ def make_screen(lm, freq, n_time, n_ant, n_corr):
     n_freq = freq.size
     # create basis matrix for plane [1, l, m]
     n_coeff = 3
-    l = lm[:, 0]
-    m = lm[:, 1]
-    basis = np.hstack(
-        (np.ones((n_dir, 1), dtype=np.float64), l[:, None], m[:, None]))
+    l_coord = lm[:, 0]
+    m_coord = lm[:, 1]
+    basis = np.hstack((np.ones((n_dir, 1), dtype=np.float64),
+                       l_coord[:, None], m_coord[:, None]))
     # get coeffs
     alphas = 0.05 * np.random.randn(n_time, n_ant, n_coeff, n_corr)
     # normalise freqs
     freq_norm = freq/freq.max()
     # simulate phases
-    phases = np.zeros((n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.float64)
+    phases = np.zeros((n_time, n_ant, n_freq, n_dir, n_corr),
+                      dtype=np.float64)
     for t in range(n_time):
         for p in range(n_ant):
             for c in range(n_corr):
@@ -153,8 +154,8 @@ def simulate(args):
     tmp_shape = (n_time,)
     for i in range(len(model.shape)):
         tmp_shape += (1,)
-    model = da.from_array(np.tile(model[None], tmp_shape), chunks=(args.utimes_per_chunk,)
-                          + model.shape)
+    model = da.from_array(np.tile(model[None], tmp_shape),
+                          chunks=(args.utimes_per_chunk,) + model.shape)
 
     # load data in in chunks and apply gains to each chunk
     xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
@@ -167,8 +168,8 @@ def simulate(args):
                                    jones_da, model, uvw, freqs, lm)
 
     # Assign visibilities to args.out_col and write to ms
-    xds = xds.assign(
-        **{args.out_col: (("row", "chan", "corr"), data.reshape(n_row, n_freq, n_corr))})
+    xds = xds.assign(**{args.out_col: (("row", "chan", "corr"),
+                                       data.reshape(n_row, n_freq, n_corr))})
     # Create a write to the table
     write = xds_to_table(xds, args.ms, [args.out_col])
 
@@ -248,21 +249,13 @@ def calibrate(args, jones, alphas):
     # calibrate
     ti = timeit()
     jones_hat, jhj, jhr, k = gauss_newton(
-        tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model, weight, tol=1e-5, maxiter=100)
+        tbin_idx, tbin_counts, ant1, ant2, jones0, data, flag, model,
+        weight, tol=1e-5, maxiter=100)
     print("%i iterations took %fs" % (k, timeit() - ti))
 
     # verify result
     for p in range(2):
         for q in range(p):
-            # LB -TODO still differences for low freqs and not sure why
-            # for d in range(n_dir):
-            #     for c in range(n_corr):
-            #         diff_true = np.angle(jones[:, p, :, d, c] * jones[:, q, :, d, c].conj())
-            #         diff_hat = np.angle(jones_hat[:, p, :, d, c] * jones_hat[:, q, :, d, c].conj())
-            #         plt.figure(str(p) + str(q))
-            #         plt.imshow(diff_true - diff_hat)
-            #         plt.colorbar()
-            #         plt.show()
             diff_true = np.angle(jones[:, p] * jones[:, q].conj())
             diff_hat = np.angle(jones_hat[:, p] * jones_hat[:, q].conj())
             try:

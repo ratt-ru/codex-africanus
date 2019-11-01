@@ -17,7 +17,7 @@ def kron_N(x):
     Returns
     -------
     N : int
-        The total number of rows in a kronecker matrix or vector 
+        The total number of rows in a kronecker matrix or vector
     """
     D = x.shape[0]
     dims = np.zeros(D)
@@ -101,8 +101,7 @@ def kron_tensorvec(A, b):
 def kron_matmat(A, B):
     """
     Computes the product between a kronecker matrix A
-    and some RHS matrix B    
-
+    and some RHS matrix B
     Parameters
     ----------
     A : :class:`numpy.ndarray`
@@ -130,7 +129,7 @@ def kron_tensormat(A, B):
     """
     Computes the matrix product between A kronecker matrix A
     and some RHS matrix B. Does not assume A to consist of a
-    kronecker product of square matrices. 
+    kronecker product of square matrices.
 
     Parameters
     ----------
