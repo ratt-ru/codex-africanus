@@ -4,10 +4,7 @@ import numpy as np
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis, check_type
 from africanus.util.numba import generated_jit, njit
-
-DIAG_DIAG = 0
-DIAG = 1
-FULL = 2
+from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
 def jacobian_factory(mode):

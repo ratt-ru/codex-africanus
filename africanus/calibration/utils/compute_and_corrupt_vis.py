@@ -5,10 +5,7 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
 from .utils import check_type
 from africanus.constants import minus_two_pi_over_c as m2pioc
-
-DIAG_DIAG = 0
-DIAG = 1
-FULL = 2
+from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
 def jones_mul_factory(mode):

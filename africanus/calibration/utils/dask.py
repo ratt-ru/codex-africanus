@@ -9,7 +9,7 @@ from . import compute_and_corrupt_vis as np_compute_and_corrupt_vis
 from africanus.calibration.utils import corrupt_vis as np_corrupt_vis
 from africanus.calibration.utils import residual_vis as np_residual_vis
 from africanus.calibration.utils import check_type
-
+from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 from africanus.util.requirements import requires_optional
 
 try:
@@ -18,10 +18,6 @@ except ImportError as e:
     dask_import_error = e
 else:
     dask_import_error = None
-
-DIAG_DIAG = 0
-DIAG = 1
-FULL = 2
 
 
 def _corrupt_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,

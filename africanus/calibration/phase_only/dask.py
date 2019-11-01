@@ -5,17 +5,13 @@ from africanus.calibration.utils import check_type
 from .phase_only import compute_jhj as np_compute_jhj
 from .phase_only import compute_jhr as np_compute_jhr
 from africanus.util.requirements import requires_optional
-
+from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 try:
     from dask.array.core import blockwise
 except ImportError as e:
     dask_import_error = e
 else:
     dask_import_error = None
-
-DIAG_DIAG = 0
-DIAG = 1
-FULL = 2
 
 
 @requires_optional('dask.array', dask_import_error)

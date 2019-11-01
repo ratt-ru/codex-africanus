@@ -4,10 +4,7 @@ import numpy as np
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
 from .utils import check_type
-
-DIAG_DIAG = 0
-DIAG = 1
-FULL = 2
+from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
 def jones_mul_factory(mode):
@@ -15,8 +12,6 @@ def jones_mul_factory(mode):
         def jones_mul(a1j, model, a2j, out):
             n_dir = np.shape(model)[0]
             for s in range(n_dir):
-                # for c in range(out.shape[-1]):
-                #     out[c] += a1j[s, c]*model[s, c]*np.conj(a2j[s, c])
                 out += a1j[s]*model[s]*np.conj(a2j[s])
     elif mode == DIAG:
         def jones_mul(a1j, model, a2j, out):
