@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 
-from .phase_only import COMPUTE_JHJ_DOCS
-from .phase_only import COMPUTE_JHR_DOCS
+from africanus.calibration.phase_only.phase_only import COMPUTE_JHJ_DOCS
+from africanus.calibration.phase_only.phase_only import COMPUTE_JHR_DOCS
 from africanus.calibration.utils import check_type
-from .phase_only import compute_jhj as np_compute_jhj
-from .phase_only import compute_jhr as np_compute_jhr
+from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
+from africanus.calibration.phase_only import compute_jhr as np_compute_jhr
 from africanus.util.requirements import requires_optional
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 try:

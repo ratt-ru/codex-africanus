@@ -3,9 +3,11 @@
 from africanus.calibration.utils.correct_vis import CORRECT_VIS_DOCS
 from africanus.calibration.utils.corrupt_vis import CORRUPT_VIS_DOCS
 from africanus.calibration.utils.residual_vis import RESIDUAL_VIS_DOCS
-from .compute_and_corrupt_vis import COMPUTE_AND_CORRUPT_VIS_DOCS
+from africanus.calibration.utils.compute_and_corrupt_vis import (
+                                COMPUTE_AND_CORRUPT_VIS_DOCS)
 from africanus.calibration.utils import correct_vis as np_correct_vis
-from . import compute_and_corrupt_vis as np_compute_and_corrupt_vis
+from africanus.calibration.utils import compute_and_corrupt_vis as (
+                                        np_compute_and_corrupt_vis)
 from africanus.calibration.utils import corrupt_vis as np_corrupt_vis
 from africanus.calibration.utils import residual_vis as np_residual_vis
 from africanus.calibration.utils import check_type

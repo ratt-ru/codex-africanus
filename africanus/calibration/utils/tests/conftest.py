@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 from africanus.calibration.utils import corrupt_vis
 from africanus.dft import im_to_vis

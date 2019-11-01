@@ -56,7 +56,7 @@ def subtract_model_factory(mode):
                     t2*tmp[0, 1] +\
                     t3*tmp[1, 1] +\
                     t4*tmp[1, 1]
-    return njit(nogil=True)(subtract_model)
+    return njit(nogil=True, inline='always')(subtract_model)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)

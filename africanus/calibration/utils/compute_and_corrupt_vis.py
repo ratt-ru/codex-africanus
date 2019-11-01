@@ -3,7 +3,7 @@
 import numpy as np
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
-from .utils import check_type
+from africanus.calibration.utils import check_type
 from africanus.constants import minus_two_pi_over_c as m2pioc
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 

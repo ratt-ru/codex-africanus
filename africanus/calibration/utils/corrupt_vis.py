@@ -3,7 +3,7 @@
 import numpy as np
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, njit
-from .utils import check_type
+from africanus.calibration.utils import check_type
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
@@ -53,7 +53,7 @@ def jones_mul_factory(mode):
                     t3*tmp[1, 1] +\
                     t4*tmp[1, 1]
 
-    return njit(nogil=True)(jones_mul)
+    return njit(nogil=True, inline='always')(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
