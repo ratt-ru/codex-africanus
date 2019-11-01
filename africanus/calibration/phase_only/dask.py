@@ -6,7 +6,7 @@ from africanus.calibration.utils import check_type
 from africanus.calibration.phase_only import compute_jhj as np_compute_jhj
 from africanus.calibration.phase_only import compute_jhr as np_compute_jhr
 from africanus.util.requirements import requires_optional
-from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
+from africanus.calibration.utils.utils import DIAG_DIAG
 try:
     from dask.array.core import blockwise
 except ImportError as e:
