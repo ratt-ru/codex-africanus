@@ -5,9 +5,12 @@ from africanus.model.shape.shapelets import shapelet as sl
 from scipy.special import factorial, hermite
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+import pytest
 from africanus.model.shape import shapelet, basis_function, shapelet_1d, shapelet_2d
 from africanus.constants import c as lightspeed
+from dask.diagnostics import ProgressBar
+import pickle
+# from shapelets import *
 
 Fs = np.fft.fftshift
 iFs = np.fft.ifftshift
@@ -17,6 +20,173 @@ fft = fftpack.fft
 ifft = fftpack.ifft
 fft2 = fftpack.fft2
 ifft2 = fftpack.ifft2
+
+def test_N6251_vals():
+        da = pytest.importorskip("dask.array")
+        from africanus.model.shape.dask import shapelet as ca_shapelet
+
+        p_file = open("./N6251_cart.pkl", "rb")
+        d = pickle.load(p_file, encoding='latin1')#['coeffs'].reshape((1, 16,16))[:,:npoly, :npoly]
+
+        d_size = (83,107)
+        xc = [52., 49.]
+        beta_vals = [2.5, 6.0]
+        npoly=16
+
+        ry=np.array(range(0,d['size'][0]),dtype=float)-d['xc'][0]
+        rx=np.array(range(0,d['size'][1]),dtype=float)-d['xc'][1]
+
+        yy=np.reshape(np.tile(ry,len(rx)),(len(rx),len(ry))).T
+        xx=np.reshape(np.tile(rx,len(ry)),(len(ry),len(rx)))
+
+        gf_shapelets = np.load("./shapelet_out.npz")['mdl']
+
+        xy = np.vstack((xx.flatten(), yy.flatten())).T
+        plt.figure("X coords")
+        plt.imshow(xx)
+        plt.colorbar()
+        plt.savefig("./x_coords.png")
+        plt.close()
+        plt.figure("Y coords")
+        plt.imshow(yy)
+        plt.colorbar()
+        plt.savefig("./y_coords.png")
+        plt.close()
+
+        ca_coords = np.zeros((xy.shape[0], 3))
+        ca_coords[:,:2] = xy
+        ca_coeffs = d['coeffs'].reshape((1, 16,16))[:,:npoly, :npoly]
+        ca_beta = np.array(d['beta']).reshape((1,2))
+        ca_frequency = np.array([lightspeed / (2 * np.pi)])
+        # delta_lm = np.array([1/(10 * np.max(ca_coords[:,0])), 1/(10 * np.max(ca_coords[:,1]))])
+        delta_lm = np.array([ca_coords[1,0] - ca_coords[0,0], ca_coords[d['size'][1],1] - ca_coords[0,1]])
+        print(delta_lm)
+        # print("coords shape is : ",ca_coords.shape)
+        # quit()
+
+        row_chunks = ca_coords.shape[0] // 5
+
+        c_computations = ca_shapelet(da.from_array(ca_coords, chunks=(row_chunks, 3)),
+                        da.from_array(ca_frequency, chunks=ca_frequency.shape),
+                        da.from_array(ca_coeffs, chunks=ca_coeffs.shape),
+                        da.from_array(ca_beta, chunks=ca_beta.shape),
+                        da.from_array(delta_lm, chunks=delta_lm.shape))
+        c_computations = c_computations / np.max(np.abs(c_computations))
+        c = None
+        with ProgressBar():
+                c = da.compute(c_computations)[0][:,0,0].reshape(gf_shapelets.shape)
+
+
+        plt.figure('Codex Africanus')
+        plt.imshow(c.real)
+        plt.colorbar()
+        plt.savefig("Codex_N6251.png")
+        plt.close()
+
+        plt.figure('Griffinfoster')
+        plt.imshow(gf_shapelets.real)
+        plt.colorbar()
+        plt.savefig("Griffin_N6251.png")
+        plt.close()
+
+        # print(yy.shape, xx.shape, gf_shapelets.shape, c[0][:,0,0].reshape(gf_shapelets.shape).shape)
+        
+        
+
+def _test_N6251():
+        da = pytest.importorskip('dask.array')
+
+        from africanus.model.shape.dask import shapelet
+        npix = 128
+        row_chunks = npix // 8
+        source_chunks = (1,)
+        npoly=15
+
+        row = npix**2
+        source = sum(source_chunks)
+        beta_vals = [2.5, 6.0]
+        nchan=1 
+
+        scale_fact = 4
+        l_min = -3 * np.sqrt(2) * beta_vals[0] * scale_fact
+        l_max = 3 * np.sqrt(2) * beta_vals[0] * scale_fact
+        m_min = l_min#-3 * np.sqrt(2) * beta_vals[1] * scale_fact
+        m_max = l_max#3 * np.sqrt(2) * beta_vals[1] * scale_fact
+        delta_l = (l_max - l_min)/((npix-1) * 10)
+
+        l = np.linspace(l_min, l_max, npix)
+        m=np.linspace(m_min, m_max, npix)
+
+        mm, ll = np.meshgrid(l,m)
+
+        lm=np.vstack((ll.flatten(), mm.flatten())).T
+        # plt.figure()
+        # plt.imshow(mm)
+        # plt.colorbar()
+        # plt.savefig("./ll.png")
+        # plt.close()
+
+        freq = Fs(np.fft.fftfreq(npix, d=delta_l))
+        uu, vv = np.meshgrid(freq, freq)
+        nrows = uu.size
+        assert nrows == npix**2
+        uv = np.hstack((uu.reshape(nrows, 1), vv.reshape(nrows, 1)))
+
+        p_file = open("./N6251_cart.pkl", "rb")
+        p_coeffs = pickle.load(p_file, encoding='latin1')['coeffs'].reshape((1, 16,16))[:,:npoly, :npoly]
+
+        s_coeffs = np.load("./shapelet_coeffs.npz")['coeffs'][:,:npoly,:npoly]
+        # d=np.load("./shapelet_coeffs.npz")
+        print("coeffs shape is",s_coeffs.shape)
+        nmax = [s_coeffs.shape[1], s_coeffs.shape[2]]
+
+        # ry=np.array(range(0,npix),dtype=float)-52.0
+        # rx=np.array(range(0,npix),dtype=float)-49.0
+
+        # yy=np.reshape(np.tile(ry,len(rx)),(len(rx),len(ry)))
+        # xx=np.reshape(np.tile(rx,len(ry)),(len(ry),len(rx)))
+
+        # xy = np.vstack((xx.flatten(), yy.flatten())).T
+
+        # print(xy.shape)
+        # quit()   
+
+        np_coords = np.empty((row, 3))
+        np_coords[:, :2], np_coords[:,2] = lm, 0
+        np_coeffs = np.random.randn(source, nmax[0], nmax[1])
+        np_coeffs[...] = p_coeffs[...]
+        np_frequency = np.ones((nchan,)) * (lightspeed / (2*np.pi))
+        np_beta = np.empty((source, 2))
+        np_beta[:, 0], np_beta[:, 1] = beta_vals[0], beta_vals[1]
+        np_delta_lm = np.array([1/(10 *np.max(np_coords[:,0])), 1/(10 * np.max(np_coords[:,1]))])
+
+        print("Min coordinate : ", np.min(np_coords))
+
+
+        da_coords = da.from_array(np_coords, chunks=(row_chunks, 3))
+        da_coeffs = da.from_array(np_coeffs, chunks=(source_chunks, nmax[0], nmax[1]))
+        da_frequency = da.from_array(np_frequency, chunks=(nchan,))
+        da_beta = da.from_array(np_beta, chunks=(source_chunks, 2))
+        delta_lm = da.from_array(np_delta_lm, chunks=(2))
+
+
+        da_shapelets = shapelet(da_coords,da_frequency, da_coeffs, da_beta, delta_lm)
+        print(da_shapelets.shape)
+        sl_vals = None
+        with ProgressBar():
+                # sl_vals = ifft2(iFs(da_shapelets[:,0,0].compute().reshape((npix,npix)))).real
+                sl_vals = da_shapelets[:,0,0].compute().reshape((npix,npix))
+        print(sl_vals[np.where(sl_vals > 0)])
+        print(np.allclose(sl_vals, sl_vals[0,0]))
+        print(np.max(sl_vals) - np.min(sl_vals))
+        sl_vals = sl_vals / np.max(np.abs(sl_vals))
+        plt.figure('N6251')
+        plt.imshow(np.abs(sl_vals))
+        plt.colorbar()
+        # plt.show()
+        plt.savefig("./N6251.png")
+        plt.close()
+
 
 def _test_1d_shapelet():
     # set signal space coords
@@ -55,8 +225,9 @@ def _test_1d_shapelet():
 
     plt.show()
 
-def test_shapelets_against_gaussian():
+def _test_shapelets_against_gaussian():
         from africanus.model.shape import gaussian
+        from africanus.model.shape import shapelet
         beta=np.array([[1.0, 1.0]], dtype=np.float64)
         npix=33
         ncoeffs_l = 1
@@ -94,15 +265,19 @@ def test_shapelets_against_gaussian():
         gaussian_params=np.array([[1., 1., 0.]], dtype=np.float64)
 
         print("starting shapelets now")
-        print(coeffs_l.shape)        
+        print(uvw.shape)
+        print(frequency_shapelets.shape)
+        print(coeffs_l)
+        print(coeffs_m.shape)
+        print(beta.shape)
+        print(delta_l)
         uv_shape = shapelet(uvw, 
                 frequency_shapelets, 
                 coeffs_l, 
-                coeffs_m, 
                 beta, 
-                np.array([delta_l, delta_m])) #* (delta_l * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) ) * (delta_m * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) )# * (delta_l * delta_m *np.sqrt(np.pi)) / (2 * np.pi) #shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
+                np.array([delta_l, delta_m]))[:,0,0] #* (delta_l * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) ) * (delta_m * np.sqrt(np.sqrt(np.pi)) / np.sqrt(2 * np.pi) )# * (delta_l * delta_m *np.sqrt(np.pi)) / (2 * np.pi) #shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
         print("finished shapelets")
-        gaussian_shape = gaussian(uvw, frequency_gaussian, gaussian_params)
+        gaussian_shape = gaussian(uvw, frequency_gaussian, gaussian_params)[0,:,0]
         print("gaussian shape = ", gaussian_shape.shape)
 
         uv_shape_max = np.abs(uv_shape.real).max()
@@ -110,31 +285,32 @@ def test_shapelets_against_gaussian():
         gaussian_shape_max = np.abs(gaussian_shape).max()
         print("gaussian_shape_max = ", gaussian_shape_max)
 
-        uv_shape = uv_shape# / uv_shape_max
-        gaussian_shape = gaussian_shape# / gaussian_shape_max
+        uv_shape = uv_shape / uv_shape_max
+        gaussian_shape = gaussian_shape / gaussian_shape_max
         
-        print("maximum_gauss, maximum shapelet = ", uv_shape_max, gaussian_shape_max)
+        print("maximum Shapelet, maximum Gauss = ", uv_shape_max, gaussian_shape_max)
         print("ratio = ", uv_shape_max / gaussian_shape_max)
         print("shape = ", np.allclose(uv_shape.real, gaussian_shape))
         print("max diff = ", np.max(uv_shape.real - gaussian_shape))
 
         plt.figure('Shapelet')
-        plt.imshow(uv_shape[:, 0, 0].real.reshape(npix, npix))
+        plt.imshow(uv_shape.real.reshape(npix, npix))
         plt.colorbar()
         plt.savefig("./shapelet.png")
         plt.close()
 
         plt.figure('Gaussian')
-        plt.imshow(gaussian_shape[0, :, 0].reshape(npix, npix))
+        plt.imshow(gaussian_shape.reshape(npix, npix))
         plt.colorbar()
         plt.savefig("./gaussian.png")
         plt.close()
 
         plt.figure('Difference')
-        plt.imshow((uv_shape[:, 0, 0].real - gaussian_shape[0, :, 0]).reshape(npix, npix))
+        plt.imshow((uv_shape.real - gaussian_shape).reshape(npix, npix))
         plt.colorbar()
         plt.savefig("./difference.png")
         plt.close()
+        # plt.show()
 
 
 
@@ -143,7 +319,7 @@ def _test_2d_shapelet():
 	npix=129
 	ncoeffs_l = 1
 	ncoeffs_m = 1
-	coeffs_l=np.ones(ncoeffs_l, dtype=np.float64)
+	coeffs_l=np.ones((ncoeffs_l, ncoeffs_m), dtype=np.float64)
 	coeffs_m = np.ones(ncoeffs_m, dtype=np.float64)
 	l_min = -15.0 * beta
 	l_max = 15.0 * beta
@@ -164,7 +340,7 @@ def _test_2d_shapelet():
 	fft_shape = Fs(fft2(iFs(img_shape)))
 	fft_shape_max = fft_shape.real.max()
 
-	uv_shape = shapelet_2d(u, v, coeffs_l, coeffs_m, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
+	uv_shape = shapelet_2d(u, v, coeffs_l, True, delta_x=delta_l, delta_y=delta_m, beta=beta)
 	uv_shape_max = uv_shape.real.max()
 
 	print("ratio = ", uv_shape_max / fft_shape_max)
@@ -530,6 +706,7 @@ def _test_shapelet_vals():
 def _test_dask_shapelets():
         da = pytest.importorskip('dask.array')
         from africanus.model.shape.dask import shapelet as da_shapelet
+        from africanus.model.shape import shapelet as nb_shapelet
 
         row_chunks = (2,2)
         source_chunks = (5,10,5,5)
@@ -538,20 +715,32 @@ def _test_dask_shapelets():
         source = sum(source_chunks)
         nmax = [5, 5]
         beta_vals = [1., 1.]
+        nchan=1
 
         np_coords = np.random.randn(row, 3)
         np_coeffs = np.random.randn(source, nmax[0], nmax[1])
+        np_frequency = np.random.randn(nchan)
         np_beta = np.empty((source, 2))
         np_beta[:, 0], np_beta[:, 1] = beta_vals[0], beta_vals[1]
+        np_delta_lm = np.array([1/(10 *np.max(np_coords[:,0])), 1/(10 * np.max(np_coords[:,1]))])
 
         da_coords = da.from_array(np_coords, chunks=(row_chunks, 3))
         da_coeffs = da.from_array(np_coeffs, chunks=(source_chunks, nmax[0], nmax[1]))
+        da_frequency = da.from_array(np_frequency, chunks=(nchan,))
         da_beta = da.from_array(np_beta, chunks=(source_chunks, 2))
+        delta_lm = da.from_array(np_delta_lm, chunks=(2))
 
+        print(np_coords.shape)
+        print(np_frequency.shape)
+        print(np_coeffs.shape)
+        print(np_beta.shape)
+        print(np_delta_lm.shape)
         np_shapelets = nb_shapelet(np_coords,
+                                np_frequency,
                                 np_coeffs,
-                                np_beta)
-        da_shapelets = da_shapelet(da_coords, da_coeffs, da_beta).compute()
+                                np_beta,
+                                np_delta_lm)
+        da_shapelets = da_shapelet(da_coords,da_frequency, da_coeffs, da_beta, delta_lm).compute()
         assert_array_almost_equal(da_shapelets, np_shapelets)
 
 def _test_single_shapelet():

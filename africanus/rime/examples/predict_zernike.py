@@ -464,7 +464,7 @@ def vis_factory(args, source_type, sky_model,
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
 
     lm = radec_to_lm(source.radec, phase_dir) 
-    print(source.radec.compute() * 180 / np.pi, lm.compute())
+    # print(source.radec.compute() * 180 / np.pi, lm.compute())
     # quit()
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
@@ -514,7 +514,11 @@ def vis_factory(args, source_type, sky_model,
     corr1 = 2
     corr2 = 2
     npoly = 20
-    time_chunks = ntime // 2 + 1
+    print(args.row_chunks)
+    # quit()
+    time_chunks = (ntime // len(jones.chunks[1])) + 1
+    # print(ntime, jones.chunks, ntime // len(jones.chunks[1]))
+    # quit()
 
 
     zernike_coords = np.empty((3,nsrc, ntime, na, nchan))
@@ -528,13 +532,21 @@ def vis_factory(args, source_type, sky_model,
     # parangles = da.from_array(parallactic_angles(np.array(utime.compute()), ant.POSITION.data,
     #                                    field.PHASE_DIR.data[0][0]).compute(), chunks=(time_chunks, na))
     parangles = da.from_array(np.zeros((ntime, na)), chunks=(time_chunks, na))
-    print(parangles.chunks, parangles.shape)
+    print(len(jones.chunks[1]), len(parangles.chunks[0]))
+    # quit()
+    # print(parangles.chunks, parangles.shape)
     # quit()
     # 
     # par_vals = [0] * ntime
     # parangles[0, :] = par_vals
     # print(parangles.compute()[:,:].shape)
     # print(parangles)
+    # quit()
+
+    # print(lm.compute()*180/np.pi/5, phase_dir)
+    l = lm[0,1]*180/np.pi/5
+    m = lm[0,0]*180/np.pi/5
+    # print(np.sqrt(l**2 + m**2).compute())
     # quit()
 
     zernike_coords[0,:,:,:,:], zernike_coords[1, :,:,:,:], zernike_coords[2,:,:,:,:] = lm[0,1]*180/np.pi/5, lm[0,0]*180/np.pi/5,0
@@ -555,7 +567,7 @@ def vis_factory(args, source_type, sky_model,
             noll_index_r[ant, chan, :,:,:] = params[chan,1][0,:,:,:]#coeffs_file[b'noll_index'][b'real'][corr_index][:]
             noll_index_i[ant, chan, :,:,:] = params[chan,1][1,:,:,:]#coeffs_file[b'noll_index'][b'imag'][corr_index][:]
     # print("coords ", zernike_coords)
-    print("coeffs ", coeffs_r[0,0,0,0,:])#[0,0,1,1,:])
+    # print("coeffs ", coeffs_r[0,0,0,0,:])#[0,0,1,1,:])
     # print("noll indices : ", noll_index_r)
     # quit()
     dde_r = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
@@ -574,7 +586,7 @@ def vis_factory(args, source_type, sky_model,
     # quit()
 
     power = (d_r[0,0] ** 2 + d_i[0,0]**2 + d_r[1,1]**2 + d_i[1,1]**2) / 2
-    print(power.compute(), zernike_coords[:2, 0, 0, 0, 0])
+    print("DDE power : ", power.compute(), "Coordinates : ", zernike_coords[:2, 0, 0, 0, 0])
     # quit()
     z_dde = dde_r + 1j * dde_i
     
@@ -582,7 +594,7 @@ def vis_factory(args, source_type, sky_model,
     dde = da.einsum("stafij,tajk->stafik", z_dde, feed_rot)
     d=dde[0,0,0,0,:,:]
     dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
-    print(dde_power.compute())
+    # print(dde_power.compute())
     # quit()
     # print(parangles)
     # # quit()
@@ -600,7 +612,9 @@ def vis_factory(args, source_type, sky_model,
     # print(np.max(p_pow))
     # quit()  
 
-
+    # print(predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
+    #                    dde, jones, dde, None, None, None))
+    # quit()
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
@@ -647,6 +661,8 @@ def predict(args):
 
         # Sum visibilities together
         vis = sum(source_vis)
+        print(vis.compute())
+        # quit()
 
         # Reshape (2, 2) correlation to shape (4,)
         if corrs == 4:
