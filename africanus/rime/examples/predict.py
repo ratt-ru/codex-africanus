@@ -381,6 +381,7 @@ def _unity_ant_scales(parangles, frequency, dtype_):
 
 
 def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
+
     if args.beam is None:
         return None
 
@@ -500,11 +501,16 @@ def vis_factory(args, source_type, sky_model,
     bl_jones_args = ["phase_delay", phase]
 
     # Add any visibility amplitude terms
+    print(source_type)
+    # quit()
     if source_type == "gauss":
         bl_jones_args.append("gauss_shape")
         bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
+        print("gauss shape")
 
     bl_jones_args.extend(["brightness", brightness])
+    print(phase.compute().shape)
+    # quit()    
 
     # Unique times and time index for each row chunk
     # The index is not global
@@ -521,6 +527,10 @@ def vis_factory(args, source_type, sky_model,
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
+    print(lm.compute() * 180 / np.pi)
+    print(phase_dir * 180 / np.pi)
+    print(jones.compute())
+    # quit()
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
@@ -573,9 +583,12 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+        xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
+        # xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
         # Create a write to the table
-        write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
+        write = xds_to_table(xds, args.ms, ['CORRECTED_DATA'])
+        # write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
+        # print("write to corrected data")
         # Add to the list of writes
         writes.append(write)
 

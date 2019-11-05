@@ -1,4 +1,4 @@
-from africanus.util import numba
+import numba
 import numpy as np
 from numpy import sqrt, exp
 from africanus.constants import c as lightspeed
@@ -17,13 +17,13 @@ def hermite(n, x):
         return 2*x*hermite(n-1,x)-2*(n-1)*hermite(n-2,x)
 
 
-@numba.jit(nogil=True, nopython=True, cache=True)
+@numba.jit(numba.uint64(numba.int32), nogil=True, nopython=True, cache=True)
 def factorial(n):
     if n <= 1:
         return 1
     ans = 1
     for i in range(1, n):
-        ans *= i
+        ans = ans * i
     return ans * n
 
 @numba.jit(nogil=True, nopython=True, cache=True)
@@ -65,7 +65,6 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     Returns:
         out_shapelets: Shapelet with shape (nrow, nchan, nsrc)
     """
-    # print("starting shapelets now")
     nrow = coords.shape[0]
     nsrc = coeffs.shape[0]
     nchan = frequency.shape[0]
@@ -73,21 +72,21 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     delta_l, delta_m = delta_lm
     for row in range(nrow):
         u, v, w = coords[row, :]
-        # delta_l = 1.0/np.max(coords[:, 0])
-        # delta_m = 1.0/np.max(coords[:, 1])
         for chan in range(nchan):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
             for src in range(nsrc):
                 nmax1, nmax2 = coeffs[src,:,:].shape
                 beta_u, beta_v = beta[src, :]
-                tmp_shapelet = np.zeros(1, dtype=dtype)
+                if beta_u == 0 or beta_v==0:
+                    out_shapelets[row, chan, src] = 1
+                    continue
+                tmp_shapelet = 0+0j
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
                         tmp_shapelet += 0 if coeffs[src][n1,n2] == 0 else coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
-                out_shapelets[row, chan, src] = tmp_shapelet[0]
-    # print("exiting shapelets")
+                out_shapelets[row, chan, src] = tmp_shapelet
     return out_shapelets
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
@@ -126,7 +125,7 @@ def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
     return out 
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet_2d(u, v, coeffs_l, coeffs_m, fourier, delta_x=None, delta_y=None, beta=1.0):
+def shapelet_2d(u, v, coeffs_l, fourier, delta_x=None, delta_y=None, beta=1.0):
     nrow_u = u.size
     nrow_v = v.size
     if fourier:
@@ -137,8 +136,9 @@ def shapelet_2d(u, v, coeffs_l, coeffs_m, fourier, delta_x=None, delta_y=None, b
         out = np.zeros((nrow_u, nrow_v), dtype=np.float64)
     for i, ui in enumerate(u):
         for j, vj in enumerate(v):
-            for n1, c1 in enumerate(coeffs_l):
-                for n2, c2 in enumerate(coeffs_m):
-                    out[i, j] += c1 * basis_function(n1, ui, beta, fourier=fourier, delta_x=delta_x) \
-                        * c2 * basis_function(n2, vj, beta, fourier=fourier, delta_x=delta_y)
+            for n1 in range(coeffs_l.shape[0]):
+                for n2 in range(coeffs_l.shape[1]):
+                    c=coeffs_l[n1,n2]
+                    out[i, j] += c * basis_function(n1, ui, beta, fourier=fourier, delta_x=delta_x) \
+                        * basis_function(n2, vj, beta, fourier=fourier, delta_x=delta_y)
     return out

@@ -31,20 +31,24 @@ def zernike_rad(m, n, rho):
     radial_component = 0
     for k in range((n-m)/2+1):
         radial_component += pre_fac(k, n, m) * rho ** (n - 2.0 * k)
+    # print(radial_component)
     return radial_component
 
 
 @jit(nogil=True, nopython=True, cache=True)
 def zernike(j, rho, phi):
+    # print(rho)
     if rho > 1:
         return 0.0
     j += 1
     n = 0
     j1 = j-1
+    # print(j1, n)
     while (j1 > n):
         n += 1
         j1 -= n
     m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1) % 2)) / 2.0))
+    # print(m)
     if (m > 0):
         return zernike_rad(m, n, rho) * np.cos(m * phi)
     if (m < 0):
@@ -94,6 +98,7 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
                             zc = coeffs[a, c, co, p]
                             zn = noll_index[a, c, co, p]
                             zernike_sum += zc * zernike(zn, rho, phi)
+                            # print(zn, rho, phi)
 
                         out[s, t, a, c, co] = zernike_sum
 
