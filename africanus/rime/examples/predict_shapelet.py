@@ -143,6 +143,7 @@ def create_parser():
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
     p.add_argument("-z", "--zernike", action="store_true")
+    p.add_argument("-dc", "--data-column", type=str, default="MODEL_DATA")
     return p
 
 def parse_sky_model(filename, chunks):
@@ -335,7 +336,9 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
     nchan = len(frequency)
     npoly = 20
     n_row_chunks = nrow // args.row_chunks if nrow % args.row_chunks == 0 else nrow // args.row_chunks + 1
-    time_chunks = ntime // n_row_chunks 
+    time_chunks = ntime // n_row_chunks + 1 if ntime % n_row_chunks == 0 else (ntime // n_row_chunks) + 2
+    # print(n_row_chunks, args.row_chunks, nrow, time_chunks, ntime / 73)
+    # quit()
 
 
     zernike_coords = np.empty((3,nsrc, ntime, na, nchan))
@@ -346,7 +349,7 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
     frequency_scaling = da.from_array(np.ones((nchan,)), chunks=(nchan,))
     pointing_errors = da.from_array(np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2))
     antenna_scaling = da.from_array(np.ones((na, nchan, 2)), chunks=(na, nchan, 2))
-    parangles = da.from_array(parallactic_angles(np.array(utime.compute()), ant.POSITION.data,
+    parangles = da.from_array(parallactic_angles(np.array(utime), ant.POSITION.data,
                                        field.PHASE_DIR.data[0][0]).compute(), chunks=(time_chunks, na))
 
     
@@ -364,11 +367,11 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
             noll_index_r[ant, chan, :,:,:] = params[chan,1][0,:,:,:]
             noll_index_i[ant, chan, :,:,:] = params[chan,1][1,:,:,:]
 
-    dde_r = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
+    dde_r = zernike_dde(da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
                         da.from_array(coeffs_r, chunks=coeffs_r.shape),
                         da.from_array(noll_index_r, chunks=noll_index_r.shape),
                         parangles, frequency_scaling, antenna_scaling, pointing_errors)
-    dde_i = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
+    dde_i = zernike_dde(da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
                         da.from_array(coeffs_i, chunks=coeffs_i.shape),
                         da.from_array(noll_index_i, chunks=noll_index_i.shape),
                         parangles, frequency_scaling, antenna_scaling, pointing_errors)
@@ -497,11 +500,12 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis)) if args.data_column == "MODEL_DATA" else xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
         # xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
+        print("Writing data to ", args.data_column)
 
         # Create a write to the table
-        write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
+        write = xds_to_table(xds, args.ms, [args.data_column])
         # write = xds_to_table(xds, args.ms, ['CORRECTED_DATA'])
 
         # Add to the list of writes
