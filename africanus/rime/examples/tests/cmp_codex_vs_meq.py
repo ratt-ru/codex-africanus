@@ -190,13 +190,16 @@ def compare():
         # Zero comparison columns
         with pt.table(args.ms, readonly=False, ack=False) as T:
             nrows = T.nrows()
+            row_chunk = 10000
 
-            for r in range(0, nrows, 10000):
-                nrow = max(10000, max(0, (r+1)*10000 - nrows))
-                
+            for r in range(0, nrows, row_chunk):
+                nrow = min(row_chunk, nrows - r)
+
                 exemplar = T.getcol("MODEL_DATA", startrow=r, nrow=nrow)
-                T.putcol("MODEL_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow)
-                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow)
+                T.putcol("MODEL_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
+                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
 
         pol_type = inspect_polarisation_type(args)
         beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits",
