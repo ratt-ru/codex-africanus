@@ -164,8 +164,10 @@ def load_beams(beam_file_schema, corr_types):
     flat_headers = []
 
     for corr, (re_header, im_header) in headers:
-        del re_header["DATE"]
-        del im_header["DATE"]
+        if "DATE" in re_header:
+            del re_header["DATE"]
+        if "DATE" in im_header:
+            del im_header["DATE"]
         flat_headers.append(re_header)
         flat_headers.append(im_header)
 

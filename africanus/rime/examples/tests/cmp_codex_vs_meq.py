@@ -118,9 +118,11 @@ def compare_columns(args, codex_column, meqtrees_column):
     with pt.table(args.ms) as T:
         codex_vis = T.getcol(codex_column)
         meqtrees_vis = T.getcol(meqtrees_column)
-
+        a1 = T.getcol("ANTENNA1")
+        a2 = T.getcol("ANTENNA2")
+        asel = a1 != a2
         # Compare
-        close = np.isclose(meqtrees_vis, codex_vis)
+        close = np.isclose(meqtrees_vis[asel], codex_vis[asel])
         not_close = np.invert(close)
         problems = np.nonzero(not_close)
 
@@ -190,11 +192,11 @@ def compare():
             nrows = T.nrows()
 
             for r in range(0, nrows, 10000):
-                nrow = min(r + 10000, nrows)
-
+                nrow = max(10000, max(0, (r+1)*10000 - nrows))
+                
                 exemplar = T.getcol("MODEL_DATA", startrow=r, nrow=nrow)
-                T.putcol("MODEL_DATA", np.zeros_like(exemplar))
-                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar))
+                T.putcol("MODEL_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow)
+                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow)
 
         pol_type = inspect_polarisation_type(args)
         beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits",
