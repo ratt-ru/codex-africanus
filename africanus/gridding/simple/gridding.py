@@ -129,7 +129,8 @@ def grid(vis, uvw, flags, weights, ref_wave,
         float64 array of UVW coordinates of shape :code:`(row, 3)`
         in wavelengths.
     weights : np.ndarray
-        float32 or float64 array of weights. Set this to
+        float32 or float64 array of weights of
+        shape :code:`(row, chan, corr_1, corr_2)`. Set this to
         ``np.ones_like(vis, dtype=np.float32)`` as default.
     flags : np.ndarray
         flagged array of shape :code:`(row, chan, corr_1, corr_2)`.
