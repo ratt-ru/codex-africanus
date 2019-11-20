@@ -11,6 +11,10 @@ from africanus.averaging.time_and_channel_mapping import (row_mapper,
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
+TUPLE_TYPE = 0
+ARRAY_TYPE = 1
+NONE_TYPE = 2
+
 
 def matching_flag_factory(present):
     if present:
@@ -168,14 +172,19 @@ def weight_sum_output_factory(present):
     return njit(nogil=True, cache=True, inline='always')(impl)
 
 
-def chan_output_factory(present):
+def chan_output_factory(array_type):
     """ Returns function producing outputs if the array is present """
-    if present:
+    if array_type == TUPLE_TYPE:
+        def impl(shape, array):
+            return tuple(np.zeros(shape, dtype=a.dtype) for a in array)
+    elif array_type == ARRAY_TYPE:
         def impl(shape, array):
             return np.zeros(shape, dtype=array.dtype)
-    else:
+    elif array_type == NONE_TYPE:
         def impl(shape, array):
             pass
+    else:
+        raise TypeError("Invalid array_type %d" % array_type)
 
     return njit(nogil=True, cache=True, inline='always')(impl)
 
@@ -490,8 +499,18 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
 
+    if isinstance(vis, (types.UniTuple, types.NamedUniTuple)):
+        vis_type = 0
+    elif isinstance(vis, (types.Tuple, types.NamedTuple)):
+        raise TypeError("visibility tuple arrays must have homogenous types")
+    elif isinstance(vis, types.npytypes.Array):
+        vis_type = 1
+    elif is_numba_type_none(vis):
+        vis_type = 2
+    else:
+        raise TypeError("Invalid vis type %s" % vis)
+
     have_flag_row = not is_numba_type_none(flag_row)
-    have_vis = not is_numba_type_none(vis)
     have_flag = not is_numba_type_none(flag)
     have_weight = not is_numba_type_none(weight)
     have_weight_spectrum = not is_numba_type_none(weight_spectrum)
@@ -500,7 +519,7 @@ def row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
     flags_match = matching_flag_factory(have_flag_row)
     is_chan_flagged = is_chan_flagged_factory(have_flag)
 
-    vis_factory = chan_output_factory(have_vis)
+    vis_factory = chan_output_factory(vis_type)
     weight_sum_factory = weight_sum_output_factory(have_vis)
     flag_factory = chan_output_factory(have_flag)
     weight_factory = chan_output_factory(have_weight_spectrum)
