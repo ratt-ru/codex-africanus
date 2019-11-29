@@ -18,7 +18,7 @@ else:
 
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
-                         die1_jones, base_vis, die2_jones,
+                         base_vis,
                          reduce_single_source=False):
 
     if reduce_single_source:
@@ -33,11 +33,9 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          source_coh,
                          # dde2_jones contracts over a single 'ant' chunk
                          dde2_jones[0] if dde2_jones else None,
-                         # die1_jones contracts over a single 'ant' chunk
-                         die1_jones[0] if die1_jones else None,
+                         None,
                          base_vis,
-                         # die2_jones contracts over a single 'ant' chunk
-                         die2_jones[0] if die2_jones else None)
+                         None)
 
     if reduce_single_source:
         return vis
@@ -46,16 +44,12 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
 
 
 def _predict_dies_wrapper(time_index, antenna1, antenna2,
-                          dde1_jones, source_coh, dde2_jones,
                           die1_jones, base_vis, die2_jones):
 
     return np_predict_vis(time_index, antenna1, antenna2,
-                          # dde1_jones loses the 'source' and 'ant' dims
-                          dde1_jones[0][0] if dde1_jones else None,
-                          # source_coh loses the 'source' dim
-                          source_coh[0] if source_coh else None,
-                          # dde2_jones loses the 'source' and 'ant' dims
-                          dde2_jones[0][0] if dde2_jones else None,
+                          None,
+                          None,
+                          None,
                           # die1_jones loses the 'ant' dim
                           die1_jones[0] if die1_jones else None,
                           base_vis,
@@ -100,8 +94,6 @@ def stream_reduction(time_index, antenna1, antenna2,
         None if dde2_jones is None else ajones_dims,
 
         None, None,
-        None, None,
-        None, None,
         reduce_single_source=True,
         # time+row dimension chunks are equivalent but differently sized
         align_arrays=False,
@@ -126,9 +118,7 @@ def stream_reduction(time_index, antenna1, antenna2,
             None if dde2_jones is None else dde2_jones.blocks[sb, ...],
             None if dde2_jones is None else ajones_dims,
 
-            None, None,
             base_vis, ("row", "chan") + cdims,
-            None, None,
             reduce_single_source=True,
             # time+row dimension chunks are equivalent but differently sized
             align_arrays=False,
@@ -168,8 +158,6 @@ def fan_reduction(time_index, antenna1, antenna2,
         dde1_jones, None if dde1_jones is None else ajones_dims,
         source_coh, None if source_coh is None else src_coh_dims,
         dde2_jones, None if dde2_jones is None else ajones_dims,
-        None, None,
-        None, None,
         None, None,
         # time+row dimension chunks are equivalent but differently sized
         align_arrays=False,
@@ -219,9 +207,6 @@ def apply_dies(time_index, antenna1, antenna2,
         time_index, ("row",),
         antenna1, ("row",),
         antenna2, ("row",),
-        None, None,
-        None, None,
-        None, None,
         die1_jones, None if die1_jones is None else gjones_dims,
         base_vis, None if base_vis is None else vis_dims,
         die2_jones, None if die2_jones is None else gjones_dims,
