@@ -19,27 +19,27 @@ else:
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
                          die1_jones, base_vis, die2_jones,
-                         reduce_source=False):
+                         reduce_single_source=False):
 
-    if reduce_source:
+    if reduce_single_source:
+        # All these arrays contract over a single 'source' chunk
         dde1_jones = dde1_jones[0] if dde1_jones else None
         source_coh = source_coh[0] if source_coh else None
         dde2_jones = dde2_jones[0] if dde2_jones else None
 
     vis = np_predict_vis(time_index, antenna1, antenna2,
-                         # dde1_jones loses the 'ant' dim
+                         # dde1_jones contracts over a single 'ant' chunk
                          dde1_jones[0] if dde1_jones else None,
-                         # source_coh loses the 'source' dim
                          source_coh,
-                         # dde2_jones loses the 'source' and 'ant' dims
+                         # dde2_jones contracts over a single 'ant' chunk
                          dde2_jones[0] if dde2_jones else None,
-                         # die1_jones loses the 'ant' dim
+                         # die1_jones contracts over a single 'ant' chunk
                          die1_jones[0] if die1_jones else None,
                          base_vis,
-                         # die2_jones loses the 'ant' dim
+                         # die2_jones contracts over a single 'ant' chunk
                          die2_jones[0] if die2_jones else None)
 
-    if reduce_source:
+    if reduce_single_source:
         return vis
 
     return vis[None, ...]
@@ -102,7 +102,7 @@ def stream_reduction(time_index, antenna1, antenna2,
         None, None,
         None, None,
         None, None,
-        reduce_source=True,
+        reduce_single_source=True,
         # time+row dimension chunks are equivalent but differently sized
         align_arrays=False,
         # Force row dimension to take row chunking scheme,
@@ -129,7 +129,7 @@ def stream_reduction(time_index, antenna1, antenna2,
             None, None,
             base_vis, ("row", "chan") + cdims,
             None, None,
-            reduce_source=True,
+            reduce_single_source=True,
             # time+row dimension chunks are equivalent but differently sized
             align_arrays=False,
             # Force row dimension to take row chunking scheme,
@@ -230,6 +230,7 @@ def apply_dies(time_index, antenna1, antenna2,
         # Force row dimension to take row chunking scheme,
         # instead of time chunking scheme
         adjust_chunks={'row': time_index.chunks[0]},
+        meta=np.empty((0,)*len(vis_dims), dtype=out_dtype),
         dtype=out_dtype)
 
 
