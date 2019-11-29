@@ -115,10 +115,9 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
-@pytest.mark.parametrize("streams", [1, 3])
 def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                           a1j, blj, a2j, g1j, bvis, g2j,
-                          chunks, streams):
+                          chunks):
 
     da = pytest.importorskip('dask.array')
     import numpy as np
@@ -182,8 +181,8 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
             da_base_vis if bvis else None,
             da_g2_jones if g2j else None)
 
-    stream_model_vis = predict_vis(*args, streams=streams)
-    fan_model_vis = predict_vis(*args, streams=None)
+    stream_model_vis = predict_vis(*args, streams=True)
+    fan_model_vis = predict_vis(*args, streams=False)
 
     stream_model_vis, fan_model_vis = dask.compute(stream_model_vis,
                                                    fan_model_vis)
