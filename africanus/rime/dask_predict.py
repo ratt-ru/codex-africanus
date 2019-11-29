@@ -23,7 +23,7 @@ def _predict_coh_wrapper(time_index, antenna1, antenna2,
 
     if reduce_source:
         dde1_jones = dde1_jones[0] if dde1_jones else None
-        source_coh = source_coh[0] if isinstance(source_coh, list) else None
+        source_coh = source_coh[0] if source_coh else None
         dde2_jones = dde2_jones[0] if dde2_jones else None
 
     vis = np_predict_vis(time_index, antenna1, antenna2,
