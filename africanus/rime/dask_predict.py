@@ -1,15 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
-
-from functools import reduce
-from itertools import product
-from operator import mul
-
 import numpy as np
 
 from africanus.util.requirements import requires_optional
@@ -18,10 +9,7 @@ from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 
 try:
-    from dask.blockwise import blockwise
-    from dask.base import tokenize
     import dask.array as da
-    from dask.highlevelgraph import HighLevelGraph
 except ImportError as e:
     opt_import_error = e
 else:
