@@ -28,236 +28,33 @@ else:
     opt_import_error = None
 
 
-def _source_stream_blocks(source_blocks, streams):
-    return (source_blocks + streams - 1) // streams
-
-
-def _extract_blocks(time_index, dde1_jones, source_coh, dde2_jones):
-    """
-    Returns
-    -------
-    blocks : tuple
-        :code:`(source, row, ant, chan, corr1, ..., corrn)
-    """
-
-    if dde1_jones is not None:
-        return ((dde1_jones.numblocks[0], time_index.numblocks[0]) +
-                (1, dde1_jones.numblocks[3]) +
-                dde1_jones.numblocks[4:])
-    elif source_coh is not None:
-        return (source_coh.numblocks[:2] +
-                (1, source_coh.numblocks[2]) +
-                source_coh.numblocks[3:])
-    else:
-        raise ValueError("need ddes or coherencies")
-
-
-def _extract_chunks(time_index, dde1_jones, source_coh, dde2_jones):
-    """
-    Returns
-    -------
-    chunks : tuple
-        :code:`(source, row, chan, corr1, ..., corrn)
-    """
-
-    if dde1_jones is not None:
-        return ((dde1_jones.chunks[0], time_index.chunks[0]) +
-                (dde1_jones.chunks[3],) +
-                dde1_jones.chunks[4:])
-    elif source_coh is not None:
-        return source_coh.chunks
-    else:
-        raise ValueError("need ddes or coherencies")
-
-
-class CoherencyStreamReduction(Mapping):
-    """
-    tl;dr this is a dictionary that is expanded in place when
-    first acccessed. Saves memory when pickled for sending
-    to the dask scheduler.
-
-    See :class:`dask.blockwise.Blockwise` for further insight.
-
-    Produces graph serially summing coherencies in
-    ``stream`` parallel streams.
-    """
-
-    def __init__(self, time_index, antenna1, antenna2,
-                 dde1_jones, source_coh, dde2_jones,
-                 out_name, streams):
-        self.time_index_name = None if time_index is None else time_index.name
-        self.ant1_name = None if antenna1 is None else antenna1.name
-        self.ant2_name = None if antenna2 is None else antenna2.name
-        self.dde1_name = None if dde1_jones is None else dde1_jones.name
-        self.coh_name = None if source_coh is None else source_coh.name
-        self.dde2_name = None if dde2_jones is None else dde2_jones.name
-
-        self.out_name = out_name
-
-        self.blocks = _extract_blocks(time_index, dde1_jones,
-                                      source_coh, dde2_jones)
-        self.streams = streams
-
-    @property
-    def _dict(self):
-        if hasattr(self, "_cached_dict"):
-            return self._cached_dict
-        else:
-            self._cached_dict = self._create_dict()
-            return self._cached_dict
-
-    def __getitem__(self, key):
-        return self._dict[key]
-
-    def __iter__(self):
-        return iter(self._dict)
-
-    def __len__(self):
-        # Extract dimension blocks
-        (source, row, _, chan), corr = self.blocks[:4], self.blocks[4:]
-        return reduce(mul, (source, row, chan) + corr, 1)
-
-    def _create_dict(self):
-        # Graph dictionary
-        layers = {}
-
-        # For loop performance
-        out_name = self.out_name
-        ti = self.time_index_name
-        a1 = self.ant1_name
-        a2 = self.ant2_name
-        dde1 = self.dde1_name
-        coh = self.coh_name
-        dde2 = self.dde2_name
-
-        # Extract dimension blocks
-        (source_blocks, row_blocks, ant_blocks,
-         chan_blocks), corr_blocks = self.blocks[:4], self.blocks[4:]
-
-        assert ant_blocks == 1
-        ab = 0
-
-        # Subdivide number of source blocks by number of streams
-        source_block_chunks = _source_stream_blocks(source_blocks,
-                                                    self.streams)
-
-        # Iterator of block id's for row, channel and correlation blocks
-        # We don't reduce over these dimensions
-        block_ids = enumerate(product(range(row_blocks), range(chan_blocks),
-                                      *[range(cb) for cb in corr_blocks]))
-
-        for flat_bid, bid in block_ids:
-            rb, fb = bid[0:2]
-            cb = bid[2:]
-
-            # Create the streamed reduction proper.
-            # For a stream, the base visibilities are set to the result
-            # of the previous result in the stream (last_key)
-            for sb_start in range(0, source_blocks, source_block_chunks):
-                sb_end = min(sb_start + source_block_chunks, source_blocks)
-                last_key = None
-
-                for sb in range(sb_start, sb_end):
-                    # Dask task object calling predict vis
-                    task = (np_predict_vis,
-                            (ti, rb), (a1, rb), (a2, rb),
-                            (dde1, sb, rb, ab, fb) + cb if dde1 else None,
-                            (coh, sb, rb, fb) + cb if coh else None,
-                            (dde2, sb, rb, ab, fb) + cb if dde2 else None,
-                            None, last_key, None)
-
-                    key = (out_name, sb, flat_bid)
-                    layers[key] = task
-                    last_key = key
-
-        return layers
-
-
-class CoherencyFinalReduction(Mapping):
-    """
-    tl;dr this is a dictionary that is expanded in place when
-    first acccessed. Saves memory when pickled for sending
-    to the dask scheduler.
-
-    See :class:`dask.blockwise.Blockwise` for further insight.
-
-    Produces graph reducing results of ``stream`` parallel streams in
-    CoherencyStreamReduction.
-    """
-
-    def __init__(self, out_name, coherency_stream_reduction):
-        self.in_name = coherency_stream_reduction.out_name
-        self.blocks = coherency_stream_reduction.blocks
-        self.streams = coherency_stream_reduction.streams
-        self.out_name = out_name
-
-    @property
-    def _dict(self):
-        if hasattr(self, "_cached_dict"):
-            return self._cached_dict
-        else:
-            self._cached_dict = self._create_dict()
-            return self._cached_dict
-
-    def __getitem__(self, key):
-        return self._dict[key]
-
-    def __iter__(self):
-        return iter(self._dict)
-
-    def __len__(self):
-        (source, row, _, chan), corrs = self.blocks[:4], self.blocks[4:]
-        return reduce(mul, (source, row, chan) + corrs, 1)
-
-    def _create_dict(self):
-        (source, row, _, chan), corrs = self.blocks[:4], self.blocks[4:]
-
-        # Iterator of block id's for row, channel and correlation blocks
-        # We don't reduce over these dimensions
-        block_ids = enumerate(product(range(row), range(chan),
-                                      *[range(cb) for cb in corrs]))
-
-        source_block_chunks = _source_stream_blocks(source, self.streams)
-
-        layers = {}
-
-        # This looping structure should match
-        for flat_bid, bid in block_ids:
-            rb, fb = bid[0:2]
-            cb = bid[2:]
-
-            last_stream_keys = []
-
-            for sb_start in range(0, source, source_block_chunks):
-                sb_end = min(sb_start + source_block_chunks, source)
-                key = (sb_end - 1, flat_bid)
-                last_stream_keys.append((self.in_name, sb_end - 1, flat_bid))
-
-            key = (self.out_name, rb, fb) + cb
-            task = (sum, last_stream_keys)
-            layers[key] = task
-
-        return layers
-
-
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
-                         die1_jones, base_vis, die2_jones):
+                         die1_jones, base_vis, die2_jones,
+                         reduce_source=False):
 
-    return (np_predict_vis(time_index, antenna1, antenna2,
-                           # dde1_jones loses the 'ant' dim
-                           dde1_jones[0] if dde1_jones else None,
-                           # source_coh loses the 'source' dim
-                           source_coh,
-                           # dde2_jones loses the 'source' and 'ant' dims
-                           dde2_jones[0] if dde2_jones else None,
-                           # die1_jones loses the 'ant' dim
-                           die1_jones[0] if die1_jones else None,
-                           base_vis,
-                           # die2_jones loses the 'ant' dim
-                           die2_jones[0] if die2_jones else None)
-            # Introduce an extra dimension (source dim reduced to 1)
-            [None, ...])
+    if reduce_source:
+        dde1_jones = dde1_jones[0] if dde1_jones else None
+        source_coh = source_coh[0] if isinstance(source_coh, list) else None
+        dde2_jones = dde2_jones[0] if dde2_jones else None
+
+    vis = np_predict_vis(time_index, antenna1, antenna2,
+                         # dde1_jones loses the 'ant' dim
+                         dde1_jones[0] if dde1_jones else None,
+                         # source_coh loses the 'source' dim
+                         source_coh,
+                         # dde2_jones loses the 'source' and 'ant' dims
+                         dde2_jones[0] if dde2_jones else None,
+                         # die1_jones loses the 'ant' dim
+                         die1_jones[0] if die1_jones else None,
+                         base_vis,
+                         # die2_jones loses the 'ant' dim
+                         die2_jones[0] if die2_jones else None)
+
+    if reduce_source:
+        return vis
+
+    return vis[None, ...]
 
 
 def _predict_dies_wrapper(time_index, antenna1, antenna2,
@@ -280,55 +77,80 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
 
 def stream_reduction(time_index, antenna1, antenna2,
                      dde1_jones, source_coh, dde2_jones,
-                     predict_check_tup, out_dtype, streams):
-    """
-    Reduces source coherencies + ddes over the source dimension in
-    ``N`` parallel streams.
+                     predict_check_tup, out_dtype):
 
-    This is accomplished by calling predict_vis on on ddes and source
-    coherencies to produce visibilities which are passed into
-    the `base_vis` argument of ``predict_vis`` for the next chunk.
-    """
+    (have_ddes1, have_coh, have_ddes2,
+     have_dies1, have_bvis, have_dies2) = predict_check_tup
 
-    # Unique name and token for this operation
-    token = tokenize(time_index, antenna1, antenna2,
-                     dde1_jones, source_coh, dde2_jones,
-                     streams)
+    have_ddes = have_ddes1 and have_ddes2
 
-    name = 'stream-coherency-reduction-' + token
+    if have_ddes:
+        cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
+        src_blocks = dde1_jones.numblocks[0]
+    elif have_coh:
+        cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
+        src_blocks = source_coh.numblocks[0]
+    else:
+        raise ValueError("need ddes or source coherencies")
 
-    # Number of dim blocks
-    blocks = _extract_blocks(time_index, dde1_jones, source_coh, dde2_jones)
-    (src_blocks, row_blocks, _,
-     chan_blocks), corr_blocks = blocks[:4], blocks[4:]
+    ajones_dims = ("src", "row", "ant", "chan") + cdims
+    vis_dims = ("row", "chan") + cdims
+    src_coh_dims = ("src", "row", "chan") + cdims
 
-    # Total number of other dimension blocks
-    nblocks = reduce(mul, (row_blocks, chan_blocks) + corr_blocks, 1)
+    base_vis = da.blockwise(
+        _predict_coh_wrapper, vis_dims,
+        time_index, ("row",),
+        antenna1, ("row",),
+        antenna2, ("row",),
+        None if dde1_jones is None else dde1_jones.blocks[0, ...],
+        None if dde1_jones is None else ajones_dims,
 
-    # Create the compressed mapping
-    layers = CoherencyStreamReduction(time_index, antenna1, antenna2,
-                                      dde1_jones, source_coh, dde2_jones,
-                                      name, streams)
+        None if source_coh is None else source_coh.blocks[0, ...],
+        None if source_coh is None else src_coh_dims,
 
-    # Create the graph
-    extra_deps = [a for a in (dde1_jones, source_coh, dde2_jones)
-                  if a is not None]
-    deps = [time_index, antenna1, antenna2] + extra_deps
+        None if dde2_jones is None else dde2_jones.blocks[0, ...],
+        None if dde2_jones is None else ajones_dims,
 
-    graph = HighLevelGraph.from_collections(name, layers, deps)
+        None, None,
+        None, None,
+        None, None,
+        reduce_source=True,
+        # time+row dimension chunks are equivalent but differently sized
+        align_arrays=False,
+        # Force row dimension to take row chunking scheme,
+        # instead of time chunking scheme
+        adjust_chunks={'row': time_index.chunks[0]},
+        meta=np.empty((0,)*len(vis_dims), dtype=out_dtype),
+        dtype=out_dtype)
 
-    chunks = ((1,) * src_blocks, (1,)*nblocks)
-    # This should never be directly computed, reported chunks
-    # and dtype don't match the actual data. We create it
-    # because it makes chaining HighLevelGraphs easier
-    stream_reduction = da.Array(graph, name, chunks, dtype=np.int8)
+    for sb in range(1, src_blocks):
+        base_vis = da.blockwise(
+            _predict_coh_wrapper, vis_dims,
+            time_index, ("row",),
+            antenna1, ("row",),
+            antenna2, ("row",),
+            None if dde1_jones is None else dde1_jones.blocks[sb, ...],
+            None if dde1_jones is None else ajones_dims,
 
-    name = "coherency-reduction-" + tokenize(stream_reduction)
-    layers = CoherencyFinalReduction(name, layers)
-    graph = HighLevelGraph.from_collections(name, layers, [stream_reduction])
+            None if source_coh is None else source_coh.blocks[sb, ...],
+            None if source_coh is None else src_coh_dims,
 
-    chunks = _extract_chunks(time_index, dde1_jones, source_coh, dde2_jones)
-    return da.Array(graph, name, chunks[1:], dtype=out_dtype)
+            None if dde2_jones is None else dde2_jones.blocks[sb, ...],
+            None if dde2_jones is None else ajones_dims,
+
+            None, None,
+            base_vis, ("row", "chan") + cdims,
+            None, None,
+            reduce_source=True,
+            # time+row dimension chunks are equivalent but differently sized
+            align_arrays=False,
+            # Force row dimension to take row chunking scheme,
+            # instead of time chunking scheme
+            adjust_chunks={'row': time_index.chunks[0]},
+            meta=np.empty((0,)*len(vis_dims), dtype=out_dtype),
+            dtype=out_dtype)
+
+    return base_vis
 
 
 def fan_reduction(time_index, antenna1, antenna2,
@@ -348,75 +170,28 @@ def fan_reduction(time_index, antenna1, antenna2,
         raise ValueError("need ddes or source coherencies")
 
     ajones_dims = ("src", "row", "ant", "chan") + cdims
+    src_coh_dims = ("src", "row", "chan") + cdims
 
-    # Setup
-    # 1. Optional blockwise arguments
-    # 2. Optional numblocks kwarg
-    # 3. HighLevelGraph dependencies
-    bw_args = [time_index.name, ("row",),
-               antenna1.name, ("row",),
-               antenna2.name, ("row",)]
-    numblocks = {
-        time_index.name: time_index.numblocks,
-        antenna1.name: antenna1.numblocks,
-        antenna2.name: antenna2.numblocks
-    }
+    coherencies = da.blockwise(
+        _predict_coh_wrapper, src_coh_dims,
+        time_index, ("row",),
+        antenna1, ("row",),
+        antenna2, ("row",),
+        dde1_jones, None if dde1_jones is None else ajones_dims,
+        source_coh, None if source_coh is None else src_coh_dims,
+        dde2_jones, None if dde2_jones is None else ajones_dims,
+        None, None,
+        None, None,
+        None, None,
+        # time+row dimension chunks are equivalent but differently sized
+        align_arrays=False,
+        # Force row dimension to take row chunking scheme,
+        # instead of time chunking scheme
+        adjust_chunks={'row': time_index.chunks[0]},
+        meta=np.empty((0,)*len(src_coh_dims), dtype=out_dtype),
+        dtype=out_dtype)
 
-    # Dependencies
-    deps = [time_index, antenna1, antenna2]
-
-    # Handle presence/absence of dde1_jones
-    if have_ddes:
-        bw_args.extend([dde1_jones.name, ajones_dims])
-        numblocks[dde1_jones.name] = dde1_jones.numblocks
-        deps.append(dde1_jones)
-        other_chunks = dde1_jones.chunks[3:]
-        src_chunks = dde1_jones.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # Handle presence/absence of source_coh
-    if have_coh:
-        bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
-        numblocks[source_coh.name] = source_coh.numblocks
-        deps.append(source_coh)
-        other_chunks = source_coh.chunks[2:]
-        src_chunks = source_coh.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # Handle presence/absence of dde2_jones
-    if have_ddes:
-        bw_args.extend([dde2_jones.name, ajones_dims])
-        numblocks[dde2_jones.name] = dde2_jones.numblocks
-        deps.append(dde2_jones)
-        other_chunks = dde2_jones.chunks[3:]
-        src_chunks = dde2_jones.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # die1_jones, base_vis and die2_jones absent for this part of the graph
-    bw_args.extend([None, None, None, None, None, None])
-
-    assert len(bw_args) // 2 == 9, len(bw_args) // 2
-
-    token = da.core.tokenize(time_index, antenna1, antenna2,
-                             dde1_jones, source_coh, dde2_jones)
-    name = "-".join(("predict-vis-sum-coh", token))
-    layer = blockwise(_predict_coh_wrapper,
-                      name, ("src", "row", "chan") + cdims,
-                      *bw_args, numblocks=numblocks)
-
-    graph = HighLevelGraph.from_collections(name, layer, deps)
-
-    # We can infer output chunk sizes from source_coh
-    chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
-
-    # Create array
-    sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
-
-    # Reduce source axis
-    return sum_coherencies.sum(axis=0)
+    return coherencies.sum(axis=0)
 
 
 def apply_dies(time_index, antenna1, antenna2,
@@ -449,63 +224,25 @@ def apply_dies(time_index, antenna1, antenna2,
     # substitute "row" for "time" in arrays such as dde1_jones
     # and die1_jones.
     gjones_dims = ("row", "ant", "chan") + cdims
+    vis_dims = ("row", "chan") + cdims
 
-    # Setup
-    # 1. Optional blockwise arguments
-    # 2. Optional numblocks kwarg
-    # 3. HighLevelGraph dependencies
-    bw_args = [time_index.name, ("row",),
-               antenna1.name, ("row",),
-               antenna2.name, ("row",)]
-    numblocks = {
-        time_index.name: time_index.numblocks,
-        antenna1.name: antenna1.numblocks,
-        antenna2.name: antenna2.numblocks
-    }
-
-    deps = [time_index, antenna1, antenna2]
-
-    # dde1_jones, source_coh and dde2_jones not present
-    # these are already applied into sum_coherencies
-    bw_args.extend([None, None, None, None, None, None])
-
-    if have_dies:
-        bw_args.extend([die1_jones.name, gjones_dims])
-        numblocks[die1_jones.name] = die1_jones.numblocks
-        deps.append(die1_jones)
-        other_chunks = die1_jones.chunks[2:]
-    else:
-        bw_args.extend([None, None])
-
-    if have_bvis:
-        bw_args.extend([base_vis.name, ("row", "chan") + cdims])
-        numblocks[base_vis.name] = base_vis.numblocks
-        deps.append(base_vis)
-        other_chunks = base_vis.chunks[1:]
-    else:
-        bw_args.extend([None, None])
-
-    if have_dies:
-        bw_args.extend([die2_jones.name, gjones_dims])
-        numblocks[die2_jones.name] = die2_jones.numblocks
-        deps.append(die2_jones)
-        other_chunks = die2_jones.chunks[2:]
-    else:
-        bw_args.extend([None, None])
-
-    assert len(bw_args) // 2 == 9
-
-    token = da.core.tokenize(time_index, antenna1, antenna2,
-                             die1_jones, base_vis, die2_jones)
-    name = '-'.join(("predict-vis-apply-dies", token))
-    layer = blockwise(_predict_dies_wrapper,
-                      name, ("row", "chan") + cdims,
-                      *bw_args, numblocks=numblocks)
-
-    graph = HighLevelGraph.from_collections(name, layer, deps)
-    chunks = (time_index.chunks[0],) + other_chunks
-
-    return da.Array(graph, name, chunks, dtype=out_dtype)
+    return da.blockwise(
+        _predict_dies_wrapper, vis_dims,
+        time_index, ("row",),
+        antenna1, ("row",),
+        antenna2, ("row",),
+        None, None,
+        None, None,
+        None, None,
+        die1_jones, None if die1_jones is None else gjones_dims,
+        base_vis, None if base_vis is None else vis_dims,
+        die2_jones, None if die2_jones is None else gjones_dims,
+        # time+row dimension chunks are equivalent but differently sized
+        align_arrays=False,
+        # Force row dimension to take row chunking scheme,
+        # instead of time chunking scheme
+        adjust_chunks={'row': time_index.chunks[0]},
+        dtype=out_dtype)
 
 
 @requires_optional('dask.array', opt_import_error)
@@ -562,18 +299,19 @@ def predict_vis(time_index, antenna1, antenna2,
     # Infer the output dtype
     dtype_arrays = [dde1_jones, source_coh, dde2_jones, die1_jones, die2_jones]
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
-                                 for a in dtype_arrays if a is not None))
+                                 for a in dtype_arrays
+                                 if a is not None))
 
     # Apply direction dependent effects
     if have_coh or have_ddes:
         # We create separate graphs for computing coherencies and applying
         # the gains because coherencies are chunked over source which
         # must be summed and added to the (possibly present) base visibilities
-        if streams is not None:
+        if streams is True:
             sum_coherencies = stream_reduction(time_index, antenna1, antenna2,
                                                dde1_jones, source_coh,
                                                dde2_jones, predict_check_tup,
-                                               out_dtype, streams=streams)
+                                               out_dtype)
         else:
             sum_coherencies = fan_reduction(time_index, antenna1, antenna2,
                                             dde1_jones, source_coh, dde2_jones,
@@ -603,19 +341,9 @@ def predict_vis(time_index, antenna1, antenna2,
 
 
 EXTRA_DASK_ARGS = """
-streams : int, optional
-    Specifies the degree of parallelism along the source dimension.
-    By default, dask uses a tree style reduction algorithm which can
-    require large amounts of memory. Specifying this parameter
-    constrains the dask graph to serially sum coherencies in a
-    specified number of streams, reducing overall memory usage.
-
-    If ``None``, defaults to a standard, memory-intensive tree style
-    algorithm.
-
-    Defaults to 1, which means that the source coherencies for each
-    visibility chunk are serially summed, meaning that parallelism
-    will only exists along the row and chan dimensions.
+streams : {False, True}
+    If ``True`` the coherencies are serially summed in a linear chain.
+    If ``False``, dask uses a tree style reduction algorithm.
 """
 
 EXTRA_DASK_NOTES = """
