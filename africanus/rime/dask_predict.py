@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from functools import reduce
+from itertools import product
+from operator import mul
+
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 import numpy as np
 
@@ -8,12 +16,206 @@ from africanus.util.requirements import requires_optional
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 
+
 try:
     import dask.array as da
+    from dask.base import tokenize
+    import dask.blockwise as db
+    from dask.utils import funcname
+    from dask.highlevelgraph import HighLevelGraph
 except ImportError as e:
     opt_import_error = e
 else:
     opt_import_error = None
+
+
+def _ind_map(arg, ind, out_ind, dim_map, dim_blocks):
+    # Yield name as first tuple element
+    yield arg
+
+    for j in ind:
+        try:
+            dim_idx = dim_map[j]
+        except KeyError:
+            # The blockid is not in the output key.
+            # Assume (and check for a single blockid)
+            try:
+                db = dim_blocks[j]
+            except KeyError:
+                raise ValueError("%s not in block mapping" % j)
+            else:
+                if db != 1:
+                    raise ValueError("Dimension %s must be a single block" % j)
+
+                yield 0
+        else:
+            # Extract blockid for this index from the output key
+            yield out_ind[dim_idx]
+
+
+class LinearReduction(Mapping):
+    def __init__(
+        self,
+        func,
+        output_indices,
+        indices,
+        numblocks,
+        feed_index=0,
+        axis=None,
+    ):
+        self.func = func
+        self.output_indices = tuple(output_indices)
+        self.indices = tuple((name, tuple(ind) if ind is not None else ind)
+                             for name, ind in indices)
+        self.numblocks = numblocks
+
+        if axis is None:
+            raise ValueError("axis not set")
+
+        if axis in self.output_indices:
+            raise ValueError("axis in output_indices")
+
+        self.feed_index = feed_index
+        self.axis = axis
+
+        token = tokenize(self.func,
+                         self.output_indices,
+                         self.indices,
+                         self.numblocks,
+                         self.feed_index,
+                         self.axis)
+
+        self.func_name = funcname(self.func)
+        self.name = "-".join((self.func_name, token))
+
+    @property
+    def _dict(self):
+        if hasattr(self, "_cached_dict"):
+            return self._cached_dict
+        else:
+            # Reduction axis
+            ax = self.axis
+            feed_index = self.feed_index
+
+            # Number of blocks for each dimension, derived from the input
+            dim_blocks = db.broadcast_dimensions(self.indices, self.numblocks)
+            last_block = dim_blocks[ax] - 1
+
+            out_dims = (ax,) + self.output_indices
+            dim_map = {k: i for i, k in enumerate(out_dims)}
+
+            dsk = {}
+            int_name = "-".join((self.func_name,
+                                 "intermediate",
+                                 tokenize(self.name)))
+
+            # Iterate over the output keys creating associated task
+            for out_ind in product(*[range(dim_blocks[d]) for d in out_dims]):
+                task = [self.func]
+
+                for i, (arg, ind) in enumerate(self.indices):
+                    if i == feed_index:
+                        # First reduction block, feed in None
+                        if out_ind[0] == 0:
+                            task.append(None)
+
+                        # Otherwise feed in the result of the last operation
+                        else:
+                            task.append((int_name,) +
+                                        # Index last reduction block
+                                        # always in first axis
+                                        (out_ind[0] - 1,) +
+                                        out_ind[1:])
+
+                    elif ind is None:
+                        # Literal arg, embed
+                        task.append(arg)
+                    else:
+                        # Derive input key from output key indices
+                        task.append(tuple(_ind_map(arg, ind, out_ind,
+                                                   dim_map, dim_blocks)))
+
+                # Final block
+                if out_ind[0] == last_block:
+                    dsk[(self.name,) + out_ind[1:]] = tuple(task)
+                # Intermediate block
+                else:
+                    dsk[(int_name,) + out_ind] = tuple(task)
+
+            self._cached_dict = dsk
+
+        return self._cached_dict
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        return reduce(mul, self._out_numblocks().values(), 1)
+
+    def _out_numblocks(self):
+        d = {}
+        indices = {k: v for k, v in self.indices if v is not None}
+        for k, v in self.numblocks.items():
+            for a, b in zip(indices[k], v):
+                d[a] = max(d.get(a, 0), b)
+
+        return {k: v for k, v in d.items() if k in self.output_indices}
+
+
+def linear_reduction(time_index, antenna1, antenna2,
+                     dde1_jones, source_coh, dde2_jones,
+                     predict_check_tup, out_dtype):
+
+    (have_ddes1, have_coh, have_ddes2,
+     have_dies1, have_bvis, have_dies2) = predict_check_tup
+
+    have_ddes = have_ddes1 and have_ddes2
+
+    if have_ddes:
+        cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
+    elif have_coh:
+        cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
+    else:
+        raise ValueError("need ddes or source coherencies")
+
+    args = [(time_index, ("row",)),
+            (antenna1, ("row",)),
+            (antenna2, ("row",)),
+            (dde1_jones, ("source", "row", "ant", "chan") + cdims),
+            (source_coh, ("source", "row", "chan") + cdims),
+            (dde2_jones, ("source", "row", "ant", "chan") + cdims),
+            (None, None),
+            (None, None),
+            (None, None)]
+
+    name_args = [(None, None) if a is None else
+                 (a.name, i) if isinstance(a, da.Array) else
+                 (a, i) for a, i in args]
+
+    numblocks = {a.name: a.numblocks
+                 for a, i in args
+                 if a is not None}
+
+    lr = LinearReduction(np_predict_vis, ("row", "chan") + cdims,
+                         name_args,
+                         numblocks=numblocks,
+                         feed_index=7,
+                         axis='source')
+
+    graph = HighLevelGraph.from_collections(lr.name, lr,
+                                            [a for a, i in args
+                                             if a is not None])
+
+    chunk_map = {d: arg.chunks[i] for arg, ind in args
+                 if arg is not None and ind is not None
+                 for i, d in enumerate(ind)}
+    chunk_map['row'] = time_index.chunks[0]  # Override
+
+    chunks = tuple(chunk_map[d] for d in ('row', 'chan') + cdims)
+    return da.Array(graph, lr.name, chunks, dtype=out_dtype)
 
 
 def _predict_coh_wrapper(time_index, antenna1, antenna2,
@@ -57,83 +259,9 @@ def _predict_dies_wrapper(time_index, antenna1, antenna2,
                           die2_jones[0] if die2_jones else None)
 
 
-def stream_reduction(time_index, antenna1, antenna2,
-                     dde1_jones, source_coh, dde2_jones,
-                     predict_check_tup, out_dtype):
-
-    (have_ddes1, have_coh, have_ddes2,
-     have_dies1, have_bvis, have_dies2) = predict_check_tup
-
-    have_ddes = have_ddes1 and have_ddes2
-
-    if have_ddes:
-        cdims = tuple("corr-%d" % i for i in range(len(dde1_jones.shape[4:])))
-        src_blocks = dde1_jones.numblocks[0]
-    elif have_coh:
-        cdims = tuple("corr-%d" % i for i in range(len(source_coh.shape[3:])))
-        src_blocks = source_coh.numblocks[0]
-    else:
-        raise ValueError("need ddes or source coherencies")
-
-    ajones_dims = ("src", "row", "ant", "chan") + cdims
-    vis_dims = ("row", "chan") + cdims
-    src_coh_dims = ("src", "row", "chan") + cdims
-
-    base_vis = da.blockwise(
-        _predict_coh_wrapper, vis_dims,
-        time_index, ("row",),
-        antenna1, ("row",),
-        antenna2, ("row",),
-        None if dde1_jones is None else dde1_jones.blocks[0, ...],
-        None if dde1_jones is None else ajones_dims,
-
-        None if source_coh is None else source_coh.blocks[0, ...],
-        None if source_coh is None else src_coh_dims,
-
-        None if dde2_jones is None else dde2_jones.blocks[0, ...],
-        None if dde2_jones is None else ajones_dims,
-
-        None, None,
-        reduce_single_source=True,
-        # time+row dimension chunks are equivalent but differently sized
-        align_arrays=False,
-        # Force row dimension to take row chunking scheme,
-        # instead of time chunking scheme
-        adjust_chunks={'row': time_index.chunks[0]},
-        meta=np.empty((0,)*len(vis_dims), dtype=out_dtype),
-        dtype=out_dtype)
-
-    for sb in range(1, src_blocks):
-        base_vis = da.blockwise(
-            _predict_coh_wrapper, vis_dims,
-            time_index, ("row",),
-            antenna1, ("row",),
-            antenna2, ("row",),
-            None if dde1_jones is None else dde1_jones.blocks[sb, ...],
-            None if dde1_jones is None else ajones_dims,
-
-            None if source_coh is None else source_coh.blocks[sb, ...],
-            None if source_coh is None else src_coh_dims,
-
-            None if dde2_jones is None else dde2_jones.blocks[sb, ...],
-            None if dde2_jones is None else ajones_dims,
-
-            base_vis, ("row", "chan") + cdims,
-            reduce_single_source=True,
-            # time+row dimension chunks are equivalent but differently sized
-            align_arrays=False,
-            # Force row dimension to take row chunking scheme,
-            # instead of time chunking scheme
-            adjust_chunks={'row': time_index.chunks[0]},
-            meta=np.empty((0,)*len(vis_dims), dtype=out_dtype),
-            dtype=out_dtype)
-
-    return base_vis
-
-
-def fan_reduction(time_index, antenna1, antenna2,
-                  dde1_jones, source_coh, dde2_jones,
-                  predict_check_tup, out_dtype):
+def parallel_reduction(time_index, antenna1, antenna2,
+                       dde1_jones, source_coh, dde2_jones,
+                       predict_check_tup, out_dtype):
     """ Does a standard dask tree reduction over source coherencies """
     (have_ddes1, have_coh, have_ddes2,
      have_dies1, have_bvis, have_dies2) = predict_check_tup
@@ -282,14 +410,23 @@ def predict_vis(time_index, antenna1, antenna2,
         # the gains because coherencies are chunked over source which
         # must be summed and added to the (possibly present) base visibilities
         if streams is True:
-            sum_coherencies = stream_reduction(time_index, antenna1, antenna2,
-                                               dde1_jones, source_coh,
-                                               dde2_jones, predict_check_tup,
+            sum_coherencies = linear_reduction(time_index,
+                                               antenna1,
+                                               antenna2,
+                                               dde1_jones,
+                                               source_coh,
+                                               dde2_jones,
+                                               predict_check_tup,
                                                out_dtype)
         else:
-            sum_coherencies = fan_reduction(time_index, antenna1, antenna2,
-                                            dde1_jones, source_coh, dde2_jones,
-                                            predict_check_tup, out_dtype)
+            sum_coherencies = parallel_reduction(time_index,
+                                                 antenna1,
+                                                 antenna2,
+                                                 dde1_jones,
+                                                 source_coh,
+                                                 dde2_jones,
+                                                 predict_check_tup,
+                                                 out_dtype)
     else:
         assert have_dies or have_bvis
         sum_coherencies = None
