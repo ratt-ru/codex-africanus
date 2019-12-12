@@ -25,7 +25,7 @@ else:
 from africanus.util.beams import beam_filenames, beam_grids
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
-                                 beam_cube_dde, feed_rotation)
+                                 zernike_dde, feed_rotation)
 from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
@@ -222,9 +222,7 @@ def load_beams(beam_file_schema, corr_types):
     beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
     beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
     beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
-    print(beam_freq_grid.compute())
-    # quit()
-
+    
     return beam, beam_lm_ext, beam_freq_grid
 
 
@@ -380,93 +378,75 @@ def _unity_ant_scales(parangles, frequency, dtype_):
     return np.ones((na, nchan, 2), dtype=dtype_)
 
 
-def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
+# def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
+#     if args.beam is None:
+#         return None
 
-    if args.beam is None:
-        return None
+#     # Beam is requested
+#     corr_type = tuple(pol.CORR_TYPE.data[0])
 
-    # Beam is requested
-    corr_type = tuple(pol.CORR_TYPE.data[0])
+#     if not len(corr_type) == 4:
+#         raise ValueError("Need four correlations for DDEs")
 
-    if not len(corr_type) == 4:
-        raise ValueError("Need four correlations for DDEs")
+#     parangles = parallactic_angles(utime, ant.POSITION.data,
+#                                    field.PHASE_DIR.data[0][0])
 
-    parangles = parallactic_angles(utime, ant.POSITION.data,
-                                   field.PHASE_DIR.data[0][0])
-    # print(parangles.compute())
-    # quit()
+#     corr_type_set = set(corr_type)
 
+#     if corr_type_set.issubset(set([9, 10, 11, 12])):
+#         pol_type = 'linear'
+#     elif corr_type_set.issubset(set([5, 6, 7, 8])):
+#         pol_type = 'circular'
+#     else:
+#         raise ValueError("Cannot determine polarisation type "
+#                          "from correlations %s. Constructing "
+#                          "a feed rotation matrix will not be "
+#                          "possible." % (corr_type,))
 
-    corr_type_set = set(corr_type)
+#     # Construct feed rotation
+#     feed_rot = feed_rotation(parangles, pol_type)
 
-    if corr_type_set.issubset(set([9, 10, 11, 12])):
-        pol_type = 'linear'
-    elif corr_type_set.issubset(set([5, 6, 7, 8])):
-        pol_type = 'circular'
-    else:
-        raise ValueError("Cannot determine polarisation type "
-                         "from correlations %s. Constructing "
-                         "a feed rotation matrix will not be "
-                         "possible." % (corr_type,))
+#     dtype = np.result_type(parangles, frequency)
 
-    # Construct feed rotation
-    feed_rot = feed_rotation(parangles, pol_type)
+#     # Create zeroed pointing errors
+#     zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
+#                        parangles, ("time", "ant"),
+#                        frequency, ("chan",),
+#                        dtype, None,
+#                        new_axes={"comp": 2},
+#                        dtype=dtype)
 
-    dtype = np.result_type(parangles, frequency)
+#     # Created zeroed antenna scaling factors
+#     zas = da.blockwise(_unity_ant_scales, ("ant", "chan", "comp"),
+#                        parangles, ("time", "ant"),
+#                        frequency, ("chan",),
+#                        dtype, None,
+#                        new_axes={"comp": 2},
+#                        dtype=dtype)
 
-    # Create zeroed pointing errors
-    zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
-                       parangles, ("time", "ant"),
-                       frequency, ("chan",),
-                       dtype, None,
-                       new_axes={"comp": 2},
-                       dtype=dtype)
+#     # Load the beam information
+#     beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
 
-    # Created zeroed antenna scaling factors
-    zas = da.blockwise(_unity_ant_scales, ("ant", "chan", "comp"),
-                       parangles, ("time", "ant"),
-                       frequency, ("chan",),
-                       dtype, None,
-                       new_axes={"comp": 2},
-                       dtype=dtype)
+#     # Introduce the correlation axis
+#     beam = beam.reshape(beam.shape[:3] + (2, 2))
+#     b = beam.compute()
+#     power = (b[:,:,:,0,0].real**2 + b[:,:,:,0,0].imag**2 + b[:,:,:,1,1].real**2 + b[:,:,:,1,1].imag**2) / 2
+#     half = np.max(power) / 2
+#     prox = b - half
+#     beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
+#                              zpe, zas,
+#                              frequency)
+#     print(beam_dde.compute())
+#     quit()
+#     b = beam_dde.compute()[0,0,0,0,:,:]
+#     power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
 
-    # Load the beam information
-    beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
-
-    # Introduce the correlation axis
-    beam = beam.reshape(beam.shape[:3] + (2, 2))
-    b = beam.compute()
-    power = (b[:,:,:,0,0].real**2 + b[:,:,:,0,0].imag**2 + b[:,:,:,1,1].real**2 + b[:,:,:,1,1].imag**2) / 2
-    half = np.max(power) / 2
-    prox = b - half
-    # print(b[np.where(prox ==np.min(prox))])
-    # print("half is ", half)
-    # quit()
-    print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency, "freq_map", freq_map.compute())
-    # quit()
-    print("coords beam_cube : ", lm.compute()/5)
-    # quit()
-    beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
-                             zpe, zas,
-                             frequency)
-    # print(beam_dde.compute())
-    # quit()
-    # print(lm.compute()[0,0]**2 + lm.compute()[0,1]**2)
-    # quit()
-    b = beam_dde.compute()[0,0,0,0,:,:]
-    power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
-
-    print(power, lm.compute())
-    # quit()
+#     print(power, lm.compute())
+#     quit()
 
 
-    # Multiply the beam by the feed rotation to form the DDE term
-    dde = da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
-    d=dde.compute()[0,0,0,0,:,:]
-    dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
-    print(dde_power)
-    # quit()
-    return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
+#     # Multiply the beam by the feed rotation to form the DDE term
+#     return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
 
 
 def vis_factory(args, source_type, sky_model,
@@ -479,9 +459,13 @@ def vis_factory(args, source_type, sky_model,
     # Select single dataset rows
     corrs = pol.NUM_CORR.data[0]
     frequency = spw.CHAN_FREQ.data[0]
+    # print(frequency)
+    # quit()
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
 
-    lm = radec_to_lm(source.radec, phase_dir)
+    lm = radec_to_lm(source.radec, phase_dir) 
+    # print(source.radec.compute() * 180 / np.pi, lm.compute())
+    # quit()
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
     # (source, row, frequency)
@@ -501,16 +485,11 @@ def vis_factory(args, source_type, sky_model,
     bl_jones_args = ["phase_delay", phase]
 
     # Add any visibility amplitude terms
-    print(source_type)
-    # quit()
     if source_type == "gauss":
         bl_jones_args.append("gauss_shape")
         bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
-        print("gauss shape")
 
     bl_jones_args.extend(["brightness", brightness])
-    print(phase.compute().shape)
-    # quit()    
 
     # Unique times and time index for each row chunk
     # The index is not global
@@ -523,13 +502,118 @@ def vis_factory(args, source_type, sky_model,
                                  chunks=(np.nan,),
                                  dtype=ms.TIME.dtype)
 
+
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
-    dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
-    print(lm.compute() * 180 / np.pi)
-    print(phase_dir * 180 / np.pi)
-    print(jones.compute())
+    # dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
+    nsrc = 1
+    ntime = len(utime.compute())
+    na = 64
+    nchan = 1
+    corr1 = 2
+    corr2 = 2
+    npoly = 20
+    print(args.row_chunks)
+    # quit()
+    time_chunks = (ntime // len(jones.chunks[1])) + 1
+    # print(ntime, jones.chunks, ntime // len(jones.chunks[1]))
+    # quit()
+
+
+    zernike_coords = np.empty((3,nsrc, ntime, na, nchan))
+    coeffs_r = np.empty((na, nchan, 2,2,npoly))
+    coeffs_i = np.empty((na, nchan, 2,2,npoly))
+    noll_index_r = np.empty((na, nchan, 2,2,npoly))
+    noll_index_i = np.empty((na, nchan, 2,2,npoly))
+    frequency_scaling = da.from_array(np.ones((nchan,)), chunks=(nchan,))
+    pointing_errors = da.from_array(np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2))
+    antenna_scaling = da.from_array(np.ones((na, nchan, 2)), chunks=(na, nchan, 2))
+    # parangles = da.from_array(parallactic_angles(np.array(utime.compute()), ant.POSITION.data,
+    #                                    field.PHASE_DIR.data[0][0]).compute(), chunks=(time_chunks, na))
+    parangles = da.from_array(np.zeros((ntime, na)), chunks=(time_chunks, na))
+    print(len(jones.chunks[1]), len(parangles.chunks[0]))
+    # quit()
+    # print(parangles.chunks, parangles.shape)
+    # quit()
+    # 
+    # par_vals = [0] * ntime
+    # parangles[0, :] = par_vals
+    # print(parangles.compute()[:,:].shape)
+    # print(parangles)
+    # quit()
+
+    # print(lm.compute()*180/np.pi/5, phase_dir)
+    l = lm[0,1]*180/np.pi/5
+    m = lm[0,0]*180/np.pi/5
+    # print(np.sqrt(l**2 + m**2).compute())
+    # quit()
+
+    zernike_coords[0,:,:,:,:], zernike_coords[1, :,:,:,:], zernike_coords[2,:,:,:,:] = lm[0,1]*180/np.pi/5, lm[0,0]*180/np.pi/5,0
+    # print("ratio to use is ", np.sqrt(0.167968**2 + (-0.00390625)**2) / np.sqrt(lm.compute()[0,0]**2 + lm.compute()[0,1]**2))
+    # quit()
+    coeffs_file = np.load("./zernike_coeffs.npz", allow_pickle=True)
+    c_freqs = coeffs_file['freqs']
+    ch = [abs(c_freqs-i).argmin() for i in (frequency/1e06)]
+    # print(ch)
+    # quit()
+    params = coeffs_file['params'][ch,:]
+    # print(coeffs_file[b'coeffs'][b'real'][b'xx'].shape)
+    # quit()
+    for ant in range(na):
+        for chan in range(nchan):
+            coeffs_r[ant, chan, :,:,:] = params[chan,0][0,:,:,:]#coeffs_file[b'coeffs'][b'real'][corr_index][:]
+            coeffs_i[ant, chan, :,:,:] = params[chan,0][1,:,:,:]#coeffs_file[b'coeffs'][b'imag'][corr_index][:]
+            noll_index_r[ant, chan, :,:,:] = params[chan,1][0,:,:,:]#coeffs_file[b'noll_index'][b'real'][corr_index][:]
+            noll_index_i[ant, chan, :,:,:] = params[chan,1][1,:,:,:]#coeffs_file[b'noll_index'][b'imag'][corr_index][:]
+    # print("coords ", zernike_coords)
+    # print("coeffs ", coeffs_r[0,0,0,0,:])#[0,0,1,1,:])
+    # print("noll indices : ", noll_index_r)
+    # quit()
+    dde_r = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
+                        da.from_array(coeffs_r, chunks=coeffs_r.shape),
+                        da.from_array(noll_index_r, chunks=noll_index_r.shape),
+                        parangles, frequency_scaling, antenna_scaling, pointing_errors)
+    dde_i = zernike_dde(da.from_array(zernike_coords, chunks=zernike_coords.shape),
+                        da.from_array(coeffs_i, chunks=coeffs_i.shape),
+                        da.from_array(noll_index_i, chunks=noll_index_i.shape),
+                        parangles, frequency_scaling, antenna_scaling, pointing_errors)
+
+    # print(dde_r.compute() + 1j * dde_i.compute())
+    # quit()
+    d_r = dde_r[0,0,0,0,:,:]
+    d_i = dde_i[0,0,0,0,:,:]
+    # quit()
+
+    power = (d_r[0,0] ** 2 + d_i[0,0]**2 + d_r[1,1]**2 + d_i[1,1]**2) / 2
+    print("DDE power : ", power.compute(), "Coordinates : ", zernike_coords[:2, 0, 0, 0, 0])
+    # quit()
+    z_dde = dde_r + 1j * dde_i
+    
+    feed_rot = feed_rotation(parangles, 'linear')
+    dde = da.einsum("stafij,tajk->stafik", z_dde, feed_rot)
+    d=dde[0,0,0,0,:,:]
+    dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
+    # print(dde_power.compute())
+    # quit()
+    # print(parangles)
+    # # quit()
+    dde = z_dde
+    # j=jones.compute()[0,:,0,:,:]
+    # jones_power = (j[:,0,0].real**2 + j[:,0,0].imag**2 + j[:,1,1].real**2 + j[:,1,1].imag**2) / 2
+    # print(np.max(jones_power) * power.compute())
+    # quit()
+    # print(j.shape)
+    # p = predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
+    #                    dde, jones, dde, None, None, None).compute()[:,0,:,:]
+    # # print(p.shape)
+    # # quit()
+    # p_pow = (p[:,0,0].real**2 + p[:,0,0].imag**2 + p[:,1,1].real**2 + p[:,1,1].imag**2)/2
+    # print(np.max(p_pow))
+    # quit()  
+
+    # print(predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
+    #                    dde, jones, dde, None, None, None))
     # quit()
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
@@ -577,18 +661,17 @@ def predict(args):
 
         # Sum visibilities together
         vis = sum(source_vis)
+        print(vis.compute())
+        # quit()
 
         # Reshape (2, 2) correlation to shape (4,)
         if corrs == 4:
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
-        # xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
         # Create a write to the table
-        write = xds_to_table(xds, args.ms, ['CORRECTED_DATA'])
-        # write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
-        # print("write to corrected data")
+        write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
 
