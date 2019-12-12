@@ -497,6 +497,7 @@ def predict_vis(time_index, antenna1, antenna2,
         apply_dies_fn(time_index, antenna1, antenna2,
                       die1_jones, die2_jones,
                       tmin, out)
+        
 
         return out
 
