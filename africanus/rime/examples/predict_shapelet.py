@@ -401,6 +401,14 @@ def vis_factory(args, source_type, sky_model,
     lm = radec_to_lm(source.radec, phase_dir)
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
+    plt.figure()
+    plt.scatter(uvw.compute()[:,0], uvw[:,1],s=1, c="red")
+    plt.xlabel("u")
+    plt.ylabel("v")
+    plt.savefig("uvw_tracks.png")
+    plt.close()
+    quit()
+
     # (source, row, frequency)
     phase = phase_delay(lm, uvw, frequency)
 
