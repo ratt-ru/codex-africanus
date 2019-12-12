@@ -117,7 +117,7 @@ def duvw_dtime(time, antenna1, antenna2, uvw):
     ant1[mirror_bl] = antenna2[mirror_bl]
     ant2[mirror_bl] = antenna1[mirror_bl]
 
-    baselines = np.stack([antenna1, antenna2], axis=1)
+    baselines = np.stack([ant1, ant2], axis=1)
     ubl, inv = np.unique(baselines, return_inverse=True, axis=0)
 
     # Generate a mask for each row containing the unique baseline
