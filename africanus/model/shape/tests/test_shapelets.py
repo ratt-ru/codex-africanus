@@ -58,18 +58,21 @@ def test_N6251_vals():
         ca_coeffs = d['coeffs'].reshape((1, 16,16))[:,:npoly, :npoly]
         ca_beta = np.array(d['beta']).reshape((1,2))
         ca_frequency = np.array([lightspeed / (2 * np.pi)])
+        # ca_frequency = np.array([1e06])
         # delta_lm = np.array([1/(10 * np.max(ca_coords[:,0])), 1/(10 * np.max(ca_coords[:,1]))])
-        delta_lm = np.array([ca_coords[1,0] - ca_coords[0,0], ca_coords[d['size'][1],1] - ca_coords[0,1]])
+        delta_lm = np.array([(ca_coords[1,0] - ca_coords[0,0])/1000, (ca_coords[d['size'][1],1] - ca_coords[0,1])/1000])
         print(delta_lm)
         # print("coords shape is : ",ca_coords.shape)
         # quit()
 
         row_chunks = ca_coords.shape[0] // 5
 
+        print("calling incorrect shapelet with coordinate range ",np.max(ca_coords[:,0]) - np.min(ca_coords[:,0]), np.max(ca_coords[:,1]) - np.min(ca_coords[:,1])," frequency ", ca_frequency, " \n coeffs ", ca_coeffs, "\n beta ", ca_beta, "\n and deltas ", delta_lm)
+
         c_computations = ca_shapelet(da.from_array(ca_coords, chunks=(row_chunks, 3)),
                         da.from_array(ca_frequency, chunks=ca_frequency.shape),
                         da.from_array(ca_coeffs, chunks=ca_coeffs.shape),
-                        da.from_array(ca_beta, chunks=ca_beta.shape),
+                        da.from_array(ca_beta[:,::-1], chunks=ca_beta.shape),
                         da.from_array(delta_lm, chunks=delta_lm.shape))
         c_computations = c_computations / np.max(np.abs(c_computations))
         c = None
@@ -93,7 +96,7 @@ def test_N6251_vals():
         
         
 
-def _test_N6251():
+def test_N6251():
         da = pytest.importorskip('dask.array')
 
         from africanus.model.shape.dask import shapelet
@@ -120,11 +123,11 @@ def _test_N6251():
         mm, ll = np.meshgrid(l,m)
 
         lm=np.vstack((ll.flatten(), mm.flatten())).T
-        # plt.figure()
-        # plt.imshow(mm)
-        # plt.colorbar()
-        # plt.savefig("./ll.png")
-        # plt.close()
+        plt.figure()
+        plt.imshow(mm)
+        plt.colorbar()
+        plt.savefig("./ll.png")
+        plt.close()
 
         freq = Fs(np.fft.fftfreq(npix, d=delta_l))
         uu, vv = np.meshgrid(freq, freq)
@@ -169,6 +172,8 @@ def _test_N6251():
         da_beta = da.from_array(np_beta, chunks=(source_chunks, 2))
         delta_lm = da.from_array(np_delta_lm, chunks=(2))
 
+
+        print("calling correct shapelet with coordinate range ",np.max(np_coords[:,0]) - np.min(np_coords[:,0]), np.max(np_coords[:,1]) - np.min(np_coords[:,1])," frequency ", np_frequency, " \n coeffs ", np_coeffs, "\n beta ", np_beta, "\n and deltas ", np_delta_lm)
 
         da_shapelets = shapelet(da_coords,da_frequency, da_coeffs, da_beta, delta_lm)
         print(da_shapelets.shape)
