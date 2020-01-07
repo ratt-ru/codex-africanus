@@ -162,6 +162,10 @@ im_to_vis_docs = _DFT_DOCSTRING(
         l and m components in the last dimension.
     frequency : :class:`numpy.ndarray`
         frequencies of shape :code:`(chan,)`
+    convention : {'fourier', 'casa'}
+        Uses the :math:`e^{-2 \pi \mathit{i}}` sign convention
+        if ``fourier`` and :math:`e^{2 \pi \mathit{i}}` if
+        ``casa``.
     dtype : np.dtype, optional
         Datatype of result. Should be either np.complex64 or np.complex128.
         If ``None``, :func:`numpy.result_type` is used to infer the data type
@@ -212,6 +216,10 @@ vis_to_im_docs = _DFT_DOCSTRING(
         Note that if one correlation is flagged we discard
         all of them otherwise we end up irretrievably
         mixing Stokes terms.
+    convention : {'fourier', 'casa'}
+        Uses the :math:`e^{-2 \pi \mathit{i}}` sign convention
+        if ``fourier`` and :math:`e^{2 \pi \mathit{i}}` if
+        ``casa``.
     dtype : np.dtype, optional
         Datatype of result. Should be either np.float32 or np.float64.
         If ``None``, :func:`numpy.result_type` is used to infer the data type
