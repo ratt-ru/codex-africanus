@@ -202,7 +202,8 @@ def test_vis_to_im_flagged():
                               decimal=13)
 
 
-def test_im_to_vis_dask():
+@pytest.mark.parametrize("convention",  ['fourier', 'casa'])
+def test_im_to_vis_dask(convention):
     """
     Tests against numpy version
     """
@@ -228,9 +229,10 @@ def test_im_to_vis_dask():
     frequency_dask = da.from_array(frequency, chunks=nchan//2)
     image_dask = da.from_array(image, chunks=(nsource, nchan//2, ncorr))
 
-    vis = np_im_to_vis(image, uvw, lm, frequency)
+    vis = np_im_to_vis(image, uvw, lm, frequency, convention=convention)
     vis_dask = dask_im_to_vis(image_dask, uvw_dask,
-                              lm_dask, frequency_dask).compute()
+                              lm_dask, frequency_dask,
+                              convention=convention).compute()
 
     assert_array_almost_equal(vis, vis_dask, decimal=13)
 

@@ -27,8 +27,8 @@ else:
     da_import_error = None
 
 
-def _phase_delay_wrap(lm, uvw, frequency, convention='fourier'):
-    return np_phase_delay(lm[0], uvw[0], frequency, convention)
+def _phase_delay_wrap(lm, uvw, frequency, convention):
+    return np_phase_delay(lm[0], uvw[0], frequency, convention=convention)
 
 
 @requires_optional('dask.array', da_import_error)
