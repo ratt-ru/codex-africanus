@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
-import math
-
-import numba
 import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
@@ -33,7 +29,7 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
-            n = math.sqrt(one - l**2 - m**2) - one
+            n = np.sqrt(one - l**2 - m**2) - one
 
             # For each uvw coordinate
             for row in range(uvw.shape[0]):
@@ -48,8 +44,8 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
                     # Our phase input is purely imaginary
                     # so we can can elide a call to exp
                     # and just compute the cos and sin
-                    complex_phase.real[source, row, chan] = math.cos(p)
-                    complex_phase.imag[source, row, chan] = math.sin(p)
+                    complex_phase.real[source, row, chan] = np.cos(p)
+                    complex_phase.imag[source, row, chan] = np.sin(p)
 
         return complex_phase
 
