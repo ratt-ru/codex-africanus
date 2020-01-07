@@ -69,7 +69,11 @@ def test_feed_rotation():
     assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
 
-def test_dask_phase_delay():
+@pytest.mark.parametrize("convention, sign",  [
+    ('fourier', 1),
+    ('casa', -1)
+])
+def test_dask_phase_delay(convention, sign):
     da = pytest.importorskip('dask.array')
     from africanus.rime import phase_delay as np_phase_delay
     from africanus.rime.dask import phase_delay as dask_phase_delay
@@ -83,8 +87,9 @@ def test_dask_phase_delay():
     dask_uvw = da.from_array(uvw, chunks=(25, 3))
     dask_frequency = da.from_array(frequency, chunks=16)
 
-    dask_phase = dask_phase_delay(dask_lm, dask_uvw, dask_frequency)
-    np_phase = np_phase_delay(lm, uvw, frequency)
+    dask_phase = dask_phase_delay(dask_lm, dask_uvw, dask_frequency,
+                                  convention=convention)
+    np_phase = np_phase_delay(lm, uvw, frequency, convention=convention)
 
     # Should agree completely
     assert np.all(np_phase == dask_phase.compute())

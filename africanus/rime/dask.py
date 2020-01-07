@@ -27,17 +27,18 @@ else:
     da_import_error = None
 
 
-def _phase_delay_wrap(lm, uvw, frequency):
-    return np_phase_delay(lm[0], uvw[0], frequency)
+def _phase_delay_wrap(lm, uvw, frequency, convention='fourier'):
+    return np_phase_delay(lm[0], uvw[0], frequency, convention)
 
 
 @requires_optional('dask.array', da_import_error)
-def phase_delay(lm, uvw, frequency):
+def phase_delay(lm, uvw, frequency, convention='fourier'):
     """ Dask wrapper for phase_delay function """
     return da.core.blockwise(_phase_delay_wrap, ("source", "row", "chan"),
                              lm, ("source", "(l,m)"),
                              uvw, ("row", "(u,v,w)"),
                              frequency, ("chan",),
+                             convention=convention,
                              dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
