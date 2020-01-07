@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from africanus.averaging.bda_support import duvw_dtime, decorrelation
+from africanus.averaging.bda_support import Δuvw_Δtime, decorrelation
 from africanus.coordinates import radec_to_lm
 
 import numpy as np
@@ -134,19 +134,28 @@ def test_bda_decorrelation(time, interval, uvw, phase_dir):
     ant1 = np.full(time.shape, 0, dtype=np.int32)
     ant2 = np.full(time.shape, 1, dtype=np.int32)
 
-    duvw_dt = duvw_dtime(time, ant1, ant2, uvw)
-    assert duvw_dt.shape == uvw.shape
+    Δuvw_Δt = Δuvw_Δtime(time, ant1, ant2, uvw)
+    assert Δuvw_Δt.shape == uvw.shape
 
     # Source offset from phase centre
     radec = np.deg2rad([[0.25, 0.01]])
 
     lm = radec_to_lm(radec, phase_dir)
 
-    factor = decorrelation(uvw, duvw_dt, interval,
+    factor = decorrelation(uvw, Δuvw_Δt, interval,
                            freq, chan_width,
                            lm.squeeze(),
                            True, True)
 
-    print(factor)
-    print(factor.shape)
+    chan_freq = np.linspace(.856e9, 2*.856e9, 4)
+    chan_width = (chan_freq[-1] - chan_freq[0]) / chan_freq.shape[0]
+    chan_width = np.full_like(chan_freq, chan_width)
 
+    from africanus.averaging.bda_support import decorrelation_map
+
+    ubl = np.unique(np.stack([ant1, ant2], axis=1), axis=0)
+
+    for a1, a2 in ubl:
+        decorrelation_map(time, uvw, ant1, ant2,
+                          chan_freq, chan_width,
+                          a1, a2, l_max=0.015)
