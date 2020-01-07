@@ -8,12 +8,12 @@ from collections import namedtuple
 import numba
 import numpy as np
 
-from africanus.constants import minus_two_pi_over_c
-two_pi_over_c = - minus_two_pi_over_c
+from africanus.constants import minus_two_pi_over_c, two_pi_over_c
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def im_to_vis(image, uvw, lm, frequency, dtype=None):
+def im_to_vis(image, uvw, lm, frequency,
+              convention='fourier', dtype=None):
     # Infer complex output dtype if none provided
     if is_numba_type_none(dtype):
         out_dtype = np.result_type(np.complex64,
@@ -22,7 +22,15 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
     else:
         out_dtype = dtype.dtype
 
-    def _im_to_vis_impl(image, uvw, lm, frequency, dtype=None):
+    def impl(image, uvw, lm, frequency,
+             convention='fourier', dtype=None):
+        if convention == 'fourier':
+            constant = minus_two_pi_over_c
+        elif convention == 'casa':
+            constant = two_pi_over_c
+        else:
+            raise ValueError("convention not in ('fourier', 'casa')")
+
         nrows = uvw.shape[0]
         nsrc = lm.shape[0]
         nchan = frequency.shape[0]
@@ -39,7 +47,7 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
                 n = np.sqrt(1.0 - l**2 - m**2) - 1.0
 
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = minus_two_pi_over_c * (l * u + m * v + n * w)
+                real_phase = constant * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
                 for nu in range(nchan):
@@ -51,11 +59,12 @@ def im_to_vis(image, uvw, lm, frequency, dtype=None):
 
         return vis_of_im
 
-    return _im_to_vis_impl
+    return impl
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
+def vis_to_im(vis, uvw, lm, frequency, flags,
+              convention='fourier', dtype=None):
     # Infer output dtype if none provided
     if is_numba_type_none(dtype):
         # Support both real and complex visibilities...
@@ -75,11 +84,19 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
 
     assert np.shape(vis) == np.shape(flags)
 
-    def _vis_to_im_impl(vis, uvw, lm, frequency, flags, dtype=None):
+    def impl(vis, uvw, lm, frequency, flags,
+             convention='fourier', dtype=None):
         nrows = uvw.shape[0]
         nsrc = lm.shape[0]
         nchan = frequency.shape[0]
         ncorr = vis.shape[-1]
+
+        if convention == 'fourier':
+            constant = two_pi_over_c
+        elif convention == 'casa':
+            constant = minus_two_pi_over_c
+        else:
+            raise ValueError("convention not in ('fourier', 'casa')")
 
         im_of_vis = np.zeros((nsrc, nchan, ncorr), dtype=out_dtype)
 
@@ -92,7 +109,7 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
                 u, v, w = uvw[r]
 
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
-                real_phase = two_pi_over_c * (l * u + m * v + n * w)
+                real_phase = constant * (l * u + m * v + n * w)
 
                 # Multiple in frequency for each channel
                 for nu in range(nchan):
@@ -112,7 +129,7 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=None):
 
         return im_of_vis
 
-    return _vis_to_im_impl
+    return impl
 
 
 _DFT_DOCSTRING = namedtuple(

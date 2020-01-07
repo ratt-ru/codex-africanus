@@ -78,7 +78,8 @@ def test_im_to_vis_simple():
     assert_array_almost_equal(vis, vis_true, decimal=14)
 
 
-def test_im_to_vis_fft():
+@pytest.mark.parametrize("convention",  ['fourier', 'casa'])
+def test_im_to_vis_fft(convention):
     """
     Test against the fft when uv on regular and w is zero.
     """
@@ -118,8 +119,9 @@ def test_im_to_vis_fft():
     frequency *= lightspeed  # makes result independent of frequency
 
     # take DFT and compare
-    vis = im_to_vis(image, uvw, lm, frequency)
+    vis = im_to_vis(image, uvw, lm, frequency, convention=convention)
     fft_image = fft_image.reshape(npix**2, nchan, ncorr)
+    fft_image = np.conj(fft_image) if convention == 'casa' else fft_image
 
     assert_array_almost_equal(vis, fft_image, decimal=13)
 
