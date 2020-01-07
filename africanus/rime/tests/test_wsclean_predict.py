@@ -4,9 +4,8 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 
 from africanus.rime import phase_delay
-from africanus.model.coherency import convert
 from africanus.model.wsclean.spec_model import spectra
-from africanus.model.wsclean.predict import predict
+from africanus.rime.wsclean_predict import predict
 
 
 def test_wsclean_predict():
