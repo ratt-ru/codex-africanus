@@ -25,9 +25,9 @@ def test_wsclean_predict():
     # WSClean visibilities
     vis = predict(uvw, lm, flux, coeffs, log_poly, freq, ref_freq)
 
-    # Compute it another way.
-    # Note the inverted UVW coordinates to get appropriate sign convention
-    phase = phase_delay(lm, -uvw, freq)
+    # Compute it another way. Note the CASA coordinate convention
+    # used by wsclean
+    phase = phase_delay(lm, uvw, freq, convention='casa')
     spectrum = spectra(flux, coeffs, log_poly, ref_freq, freq)
     np_vis = np.einsum("srf,sf->rf", phase, spectrum)[:, :, None]
 
