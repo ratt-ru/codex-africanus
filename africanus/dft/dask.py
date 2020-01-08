@@ -58,7 +58,7 @@ def _vis_to_im_wrapper(vis, uvw, lm, frequency, flags,
 
 @requires_optional('dask.array', dask_import_error)
 def vis_to_im(vis, uvw, lm, frequency, flags,
-             convention='fourier', dtype=np.float64):
+              convention='fourier', dtype=np.float64):
     """ Dask wrapper for vis_to_im function """
 
     if vis.chunks[0] != uvw.chunks[0]:
