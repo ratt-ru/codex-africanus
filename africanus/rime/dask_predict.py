@@ -15,6 +15,9 @@ from africanus.util.requirements import requires_optional
 
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
+from africanus.rime.wsclean_predict import (
+                                WSCLEAN_PREDICT_DOCS,
+                                wsclean_predict as np_wsclean_predict)
 
 
 try:
@@ -451,6 +454,31 @@ def predict_vis(time_index, antenna1, antenna2,
                       predict_check_tup, out_dtype)
 
 
+def wsclean_wrapper(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+    return np_wsclean_predict(uvw[0], lm[0],
+                              flux, coeffs[0],
+                              log_poly, ref_freq,
+                              frequency)[None, :]
+
+
+@requires_optional('dask.array', opt_import_error)
+def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+    out_dtype = np.result_type(uvw.dtype, np.complex64)
+    vis = da.blockwise(wsclean_wrapper, ("source", "row", "chan", "corr"),
+                       uvw, ("row", "uvw"),
+                       lm, ("source", "lm"),
+                       flux, ("source",),
+                       coeffs, ("source", "coeffs"),
+                       log_poly, ("source",),
+                       ref_freq, ("source",),
+                       frequency, ("chan",),
+                       adjust_chunks={"source": 1},
+                       new_axes={"corr": 1},
+                       dtype=out_dtype)
+
+    return vis.sum(axis=0)
+
+
 EXTRA_DASK_ARGS = """
 streams : {False, True}
     If ``True`` the coherencies are serially summed in a linear chain.
@@ -528,3 +556,6 @@ try:
                                 extra_notes=EXTRA_DASK_NOTES)
 except AttributeError:
     pass
+
+wsclean_predict.__doc__ = WSCLEAN_PREDICT_DOCS.substitute(
+                            array_type=":class:`dask.array.Array`")
