@@ -16,6 +16,7 @@ from africanus.util.requirements import requires_optional
 from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 from africanus.rime.wsclean_predict import (
+                                WSCLEAN_PREDICT_DOCS,
                                 wsclean_predict as np_wsclean_predict)
 
 
@@ -555,3 +556,6 @@ try:
                                 extra_notes=EXTRA_DASK_NOTES)
 except AttributeError:
     pass
+
+wsclean_predict.__doc__ = WSCLEAN_PREDICT_DOCS.substitute(
+                            array_type=":class:`dask.array.Array`")

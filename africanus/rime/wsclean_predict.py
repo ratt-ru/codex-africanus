@@ -3,6 +3,7 @@
 import numpy as np
 
 from africanus.constants import two_pi_over_c
+from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit
 from africanus.model.wsclean.spec_model import spectra
 
@@ -47,3 +48,34 @@ def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
         return vis
 
     return impl
+
+WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
+    Predict visibilities from a WSClean sky model
+
+    Parameters
+    ----------
+    uvw : $(array_type)
+        UVW coordinates of shape :code:`(row, 3)`
+    lm : $(array_type)
+        Source LM coordinates of shape :code:`(source, 2)`
+    flux : $(array_type)
+        Source flux of shape :code:`(source,)`
+    coeffs : $(array_type)
+        Source Polynomial coefficients of shape :code:`(source, coeffs)`
+    log_poly : $(array_type)
+        Source polynomial type of shape :code:`(source,)`.
+        If True, logarithmic polynomials are used.
+        If False, standard polynomials are used.
+    ref_freq: $(array_type)
+        Source Reference frequency of shape :code:(`source,)`
+    frequency: $(array_type)
+        Frequency of shape :code:`(chan,)`
+
+    Returns
+    -------
+    visibilities : $(array_type)
+        Complex visibilities of shape :code:`(row, chan, 1)`
+""")
+
+wsclean_predict.__doc__ = WSCLEAN_PREDICT_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray`")
