@@ -4,6 +4,7 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Implement optimised WSClean predict (:pr:`166`)
 * Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
 * Document and check weight shapes in simple gridder and degridder
   (:pr:`162`, :pr:`163`)
