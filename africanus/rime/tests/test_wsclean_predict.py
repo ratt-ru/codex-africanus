@@ -5,7 +5,7 @@ from numpy.testing import assert_almost_equal
 
 from africanus.rime import phase_delay
 from africanus.model.wsclean.spec_model import spectra
-from africanus.rime.wsclean_predict import predict
+from africanus.rime.wsclean_predict import wsclean_predict
 
 
 def test_wsclean_predict():
@@ -23,7 +23,7 @@ def test_wsclean_predict():
     ref_freq = np.full(src, freq[freq.shape[0] // 2])
 
     # WSClean visibilities
-    vis = predict(uvw, lm, flux, coeffs, log_poly, freq, ref_freq)
+    vis = wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, freq)
 
     # Compute it another way. Note the CASA coordinate convention
     # used by wsclean

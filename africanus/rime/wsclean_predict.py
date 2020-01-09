@@ -8,14 +8,14 @@ from africanus.model.wsclean.spec_model import spectra
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def predict(uvw, lm, flux, coeffs, log_poly, frequency, ref_freq):
+def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
-                       in (uvw, lm, flux, coeffs, frequency))
+                       in (uvw, lm, flux, coeffs, ref_freq, frequency))
     dtype = np.result_type(np.complex64, *arg_dtypes)
 
     n1 = lm.dtype(1)
 
-    def impl(uvw, lm, flux, coeffs, log_poly, frequency, ref_freq):
+    def impl(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
         nrow = uvw.shape[0]
         nchan = frequency.shape[0]
         ncorr = 1
