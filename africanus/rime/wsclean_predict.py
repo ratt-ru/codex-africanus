@@ -49,6 +49,7 @@ def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
 
     return impl
 
+
 WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
     Predict visibilities from a WSClean sky model
 
