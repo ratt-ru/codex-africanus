@@ -67,9 +67,9 @@ WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
         Source polynomial type of shape :code:`(source,)`.
         If True, logarithmic polynomials are used.
         If False, standard polynomials are used.
-    ref_freq: $(array_type)
+    ref_freq : $(array_type)
         Source Reference frequency of shape :code:(`source,)`
-    frequency: $(array_type)
+    frequency : $(array_type)
         Frequency of shape :code:`(chan,)`
 
     Returns
