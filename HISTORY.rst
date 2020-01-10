@@ -4,6 +4,7 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
 * Implement optimised WSClean predict (:pr:`166`, :pr:`167`)
 * Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
 * Document and check weight shapes in simple gridder and degridder
