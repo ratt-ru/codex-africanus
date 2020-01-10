@@ -7,7 +7,6 @@ from __future__ import print_function
 
 """The setup script."""
 
-import os
 from setuptools import setup, find_packages
 
 # Import requirements
@@ -46,7 +45,7 @@ setup(
     keywords='codex-africanus',
     name='codex-africanus',
     packages=find_packages(),
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
