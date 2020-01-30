@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from africanus.averaging.bda_mapping import row_mapper
+from africanus.constants import c as lightspeed
+from africanus.averaging.bda_mapping import row_mapper, duv_dt
 
 import numpy as np
 import pytest
@@ -210,6 +211,72 @@ def chan_freq():
 def test_bda_row_mapper(time, ants, phase_dir, ref_freq, chan_freq, chan_width):
     _, _, uvw = synthesize_uvw(ants, time, phase_dir, auto_correlations=True)
 
-    R = 1.0 - row_mapper(time, uvw, ants, phase_dir, ref_freq, chan_freq, chan_width, 1)
+    R = 1.0 - row_mapper(time, uvw, ants, phase_dir, ref_freq, 1)
     import pdb; pdb.set_trace()
     print(R)
+
+
+def test_duv_dt(time, ants, phase_dir, chan_freq):
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, auto_correlations=False)
+    ntime = time.shape[0]
+    nbl = ant1.shape[0]
+    time = np.repeat(time, nbl)
+    ant1 = np.tile(ant1, ntime)
+    ant2 = np.tile(ant2, ntime)
+
+    from africanus.averaging.bda_mapping import duv_dt
+
+    utime, time_inv = np.unique(time, return_inverse=True)  
+    ubl, bl_inv = np.unique(np.stack([ant1, ant2], axis=1),
+                            axis=0, return_inverse=True)
+
+    𝞓uv𝞓t = duv_dt(utime, ubl, ants, chan_freq, phase_dir)
+
+    l = m =  np.sqrt(0.49)
+    n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+
+    uv = np.zeros((ubl.shape[0], utime.shape[0], 2), dtype=uvw.dtype)
+    uv_counts = np.zeros((ubl.shape[0], utime.shape[0], 2), dtype=np.int32)
+    np.add.at(uv, (bl_inv, time_inv, slice(None)), uvw[:, :2])
+    np.add.at(uv_counts, (bl_inv, time_inv, slice(None)), 1)
+
+    assert np.all(uv_counts < 2)
+
+    # Atemking 2019 notation.
+    # 𝞇 is phase rotation w.r.t. baseline speed
+    # 𝞍 is phase rotation w.r.t. change in frequency
+    phase = np.ones(𝞓uv𝞓t.shape[:3], dtype=𝞓uv𝞓t.dtype)
+    tmp = uvw[:, 0]*l + uvw[:, 1]*m + np.abs(uvw[:, 2])*n
+    tmp = tmp[:, None] * chan_freq[None, :] / lightspeed
+    np.add.at(phase, (bl_inv, time_inv, slice(None)), tmp)
+
+    𝞓𝞇𝞓t = 𝞓uv𝞓t[..., 0]*l + 𝞓uv𝞓t[..., 1]*m
+    𝞓𝞇𝞓t /= phase
+
+    import pdb; pdb.set_trace()
+
+    𝞇_value = np.pi * 𝞓𝞇𝞓t
+    𝞇_value[𝞇_value == 0] = 1.0
+    𝞇_value = np.sin(𝞇_value) / 𝞇_value
+
+    D = 0.98
+    𝞍_value = D * 𝞇_value / np.sin(𝞇_value)
+
+
+
+    𝞓𝞍𝞓t
+
+def test_atemkeng_bda_mapper(time, ants, interval, phase_dir):
+    time = np.unique(time)
+    from africanus.averaging.bda_mapping import atemkeng_mapper
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, True)
+
+    nbl = ant1.shape[0]
+    ntime = time.shape[0]
+
+    time = np.repeat(time, nbl)
+    interval = np.repeat(interval, nbl)
+    ant1 = np.tile(ant1, ntime)
+    ant2 = np.tile(ant2, ntime)
+
+    atemkeng_mapper(time, interval, ant1, ant2, uvw)
