@@ -237,16 +237,16 @@ def _impl(time, interval, ant1, ant2, uvw, lm_max=1, decorrelation=0.98):
                     # Newton Rhapson to find sinc_𝞍
                     y = decorrelation / sinc_𝞇
                     eps = 1.0
-                    x = prev_x = np.pi
+                    x = px = np.pi
 
                     while np.abs(eps) > 1e-12:
-                        sinc_x = 1.0 if prev_x == 0.0 else np.sin(prev_x) / prev_x
-                        dsinc_x = np.cos(prev_x) / x - np.sin(x) / (x ** 2)
+                        sinc_x = 1.0 if px == 0.0 else np.sin(px) / px
+                        dsinc_x = np.cos(px) / x - np.sin(px) / (px ** 2)
 
                         eps = sinc_x - y
-                        x = prev_x - eps / dsinc_x
-                        # print(y, prev_x, x, eps)
-                        prev_x = x
+                        x = px - eps / dsinc_x
+                        # print(y, px, x, eps)
+                        px = x
 
 
                     𝞍 = x / np.pi
