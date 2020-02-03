@@ -164,12 +164,21 @@ def row_mapper(time, uvw, ants, phase_dir, ref_freq, lm_max):
     return R
 
 
-@njit(nogil=True, cache=True)
-def _impl(time, interval, ant1, ant2, uvw, lm_max=1, decorrelation=0.98):
+# @njit(nogil=True, cache=True)
+def _impl(time, interval, ant1, ant2, uvw, ref_freq,
+          chan_freq, chan_width, lm_max=1, decorrelation=0.98):
+    # 𝞓 𝝿 𝞇 𝞍 𝝼
     l = m = np.sqrt(0.5 * lm_max)
+    n_term = 1.0 - l**2 - m**2
+    n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
+    ref_wave = ref_freq / lightspeed
+
+    bandwidth = np.sum(chan_width)
+
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     utime, _, time_inv, _ = unique_time(time)
 
+    nrow = time.shape[0]
     ntime = utime.shape[0]
     nbl = ubl.shape[0]
 
@@ -178,7 +187,7 @@ def _impl(time, interval, ant1, ant2, uvw, lm_max=1, decorrelation=0.98):
     shape = (nbl, ntime)
     row_lookup = np.full(shape, -1, dtype=np.int32)
 
-    for r in range(uvw.shape[0]):
+    for r in range(nrow):
         t = time_inv[r]
         bl = bl_inv[r]
 
@@ -194,6 +203,8 @@ def _impl(time, interval, ant1, ant2, uvw, lm_max=1, decorrelation=0.98):
         bin_time_low = time.dtype.type(0)
         bin_u_low = uvw.dtype.type(0)
         bin_v_low = uvw.dtype.type(0)
+        bin_w_low = uvw.dtype.type(0)
+        bin_sinc_𝞓𝞇 = uvw.dtype.type(0)
 
         for t in range(ntime):
             r = row_lookup[bl ,t]
@@ -209,55 +220,109 @@ def _impl(time, interval, ant1, ant2, uvw, lm_max=1, decorrelation=0.98):
                 bin_time_low = time[r] - half_int
                 bin_u_low = uvw[r, 0]
                 bin_v_low = uvw[r, 1]
-            # If we exceed decorrelation in the bin
-            # normalise and start a new bin
+                bin_w_low = uvw[r, 2]
+                bin_sinc_𝞓𝞇 = 0
             else:
+                # Evaluate the degree of decorrelation
+                # the sample would add to the bin
                 dt = time[r] + half_int - bin_time_low
-                du_dt = l * (uvw[r, 0] - bin_u_low) / dt
-                dv_dt = m * (uvw[r, 1] - bin_v_low) / dt
+                du = uvw[r, 0] - bin_u_low
+                dv = uvw[r, 1] - bin_v_low
+                dw = uvw[r, 2] - bin_w_low
 
-                𝞇 = np.pi * (du_dt + dv_dt)
-                sinc_𝞇 = 1.0 if 𝞇 == 0.0 else np.sin(𝞇) / 𝞇
+                du_dt = l * du / dt
+                dv_dt = m * dv / dt
 
-                # Contents of the bin are decorrelated anyway,
-                # finish it off and start a new one
-                if sinc_𝞇 < decorrelation:
-                    print(bl, t, tbin, "outside", sinc_𝞇)
+                # Derive phase difference in time
+                # from Equation (33) in Atemkeng
+                𝞓𝞇 = np.pi * (du_dt + dv_dt)
+                sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
+
+                # We're still not decorrelated,
+                # add more samples to the bin
+                if sinc_𝞓𝞇 > decorrelation:
+                    bin_sinc_𝞓𝞇 = sinc_𝞓𝞇
+                else:
+                    # Contents of the bin exceed decorrelation tolerance
+                    # Finish it off and start a new one
+
+                    # For the purposes of computing channel mapping,
+                    # re-use sinc_𝞓𝞇 if there's only one sample in the bin
+                    bin_sinc_𝞓𝞇 = sinc_𝞓𝞇 if bin_count == 1 else bin_sinc_𝞓𝞇
+
+                    # Central UV points of the bin
+                    cu = du / 2
+                    cv = dv / 2
+
+                    # Phase at the centre of the bin and reference frequency
+                    phase = np.abs(np.exp(-2*np.pi*1j*ref_wave*(cu*l + cv*m)))
+
+                    # Given
+                    #   (1) acceptable decorrelation
+                    #   (2) time phase difference
+                    #   (3) phase at bin centre,
+                    # derive the frequency phase difference
+                    # from Equation (32) in Atemkeng
+                    sinc_𝞓𝞍 = decorrelation / (bin_sinc_𝞓𝞇 * phase)
+
+                    # Use Newton Raphson to find frequency phase difference 𝞍
+                    # https://stackoverflow.com/a/30205309/1611416
+                    eps = 1.0
+                    𝞓𝞍 = np.pi  # Starting guess. sinc Taylor series maybe appropriate
+
+                    while np.abs(eps) > 1e-12:
+                        # compute sinc of 𝞓𝞍 and derivative at this iteration
+                        it_sinc_𝞓𝞍 = 1.0 if 𝞓𝞍 == 0.0 else np.sin(𝞓𝞍) / 𝞓𝞍
+                        dit_sinc_𝞓𝞍 = (np.cos(𝞓𝞍) - it_sinc_𝞓𝞍) / 𝞓𝞍
+
+                        # Difference at this iteration
+                        eps = it_sinc_𝞓𝞍 - sinc_𝞓𝞍
+                        # Newton Raphson update
+                        𝞓𝞍 = 𝞓𝞍 - eps / dit_sinc_𝞓𝞍
+
+                    # Derive fractional bandwidth 𝞓𝝼/𝝼
+                    # from Equation (44) in Atemkeng
+                    max_abs_dist = np.sqrt(np.abs(du)*np.abs(l) + 
+                                            np.abs(dv)*np.abs(m) +
+                                            np.abs(dw)*np.abs(n_max))
+
+                    if max_abs_dist == 0.0:
+                        raise ValueError("max_abs_dist == 0.0")
+
+
+                    fractional_bandwidth = 𝞓𝞍 / max_abs_dist
+
+                    # Derive 𝞓𝝼, the maximum change in bandwidth
+                    max_𝞓𝝼 = bandwidth * fractional_bandwidth
+
+                    bin_freq_low = chan_freq[0] - chan_width[0] / 2
+                    bin_chan_low = 0
+
+                    for c in range(1, chan_freq.shape[0]):
+                        # Bin bandwidth
+                        𝞓𝝼 = chan_freq[c] + chan_width[c] / 2 - bin_freq_low
+
+                        # Exceeds, start new bin
+                        if 𝞓𝝼 > max_𝞓𝝼:
+                            print(bin_chan_low, c)
+                            bin_chan_low = c
+                            bin_freq_low = chan_freq[c] - chan_width[c] / 2
+
+                    print(bin_chan_low, chan_freq.shape[0])
+
                     tbin += 1
                     bin_count = 0
                     bin_time_low = time[r] - half_int
                     bin_u_low = uvw[r, 0]
                     bin_v_low = uvw[r, 1]
+                    bin_w_low = uvw[r, 2]
                     bin_flag_count = 0
-                else:
-                    u = (uvw[r, 0] - bin_u_low) / 2
-                    v = (uvw[r, 1] - bin_v_low) / 2
-                    phase = np.exp(-2 * np.pi * 1j * (u*l + v*m)).real
-
-                    # Newton Rhapson to find sinc_𝞍
-                    y = decorrelation / sinc_𝞇
-                    eps = 1.0
-                    x = px = np.pi
-
-                    while np.abs(eps) > 1e-12:
-                        sinc_x = 1.0 if px == 0.0 else np.sin(px) / px
-                        dsinc_x = np.cos(px) / x - np.sin(px) / (px ** 2)
-
-                        eps = sinc_x - y
-                        x = px - eps / dsinc_x
-                        # print(y, px, x, eps)
-                        px = x
-
-
-                    𝞍 = x / np.pi
-                    #sinc_𝞍 = 1.0 if 𝞍 == 0.0 else np.sin(𝞍) / 𝞍
-                    sinc_𝞍 = sinc_x
-                    
-                    print(bl, t, tbin, y, "within", decorrelation, sinc_𝞇, sinc_𝞍, sinc_𝞇*sinc_𝞍, phase)
 
 
             bin_count += 1
             
 
-def atemkeng_mapper(time, interval, ant1, ant2, uvw):
-    _impl(time, interval, ant1, ant2, uvw)
+def atemkeng_mapper(time, interval, ant1, ant2, uvw,
+                    ref_freq, chan_freq, chan_width):
+    _impl(time, interval, ant1, ant2, uvw,
+          ref_freq, chan_freq, chan_width)

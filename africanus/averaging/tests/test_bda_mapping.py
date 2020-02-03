@@ -202,11 +202,15 @@ def ref_freq():
 
 @pytest.fixture
 def chan_width():
-    return np.full(5, 208984.375)
+    return np.full(128, 208984.375)
 
 @pytest.fixture
-def chan_freq():
-    return .856e9 + 208984.375 * np.array([2, 1, 0, 1, 2])
+def chan_freq(chan_width):
+    return .856e9 + np.cumsum(np.concatenate([[0], chan_width[1:]]))
+
+@pytest.fixture
+def ref_freq():
+    return 1.284e9
 
 def test_bda_row_mapper(time, ants, phase_dir, ref_freq, chan_freq, chan_width):
     _, _, uvw = synthesize_uvw(ants, time, phase_dir, auto_correlations=True)
@@ -266,10 +270,11 @@ def test_duv_dt(time, ants, phase_dir, chan_freq):
 
     𝞓𝞍𝞓t
 
-def test_atemkeng_bda_mapper(time, ants, interval, phase_dir):
+def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
+                             ref_freq, chan_freq, chan_width):
     time = np.unique(time)
     from africanus.averaging.bda_mapping import atemkeng_mapper
-    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, True)
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -279,4 +284,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir):
     ant1 = np.tile(ant1, ntime)
     ant2 = np.tile(ant2, ntime)
 
-    atemkeng_mapper(time, interval, ant1, ant2, uvw)
+    atemkeng_mapper(time, interval, ant1, ant2, uvw,
+                    ref_freq, chan_freq, chan_width)
+
+    print(chan_width)

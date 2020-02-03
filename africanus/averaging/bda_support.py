@@ -89,7 +89,7 @@ def decorrelation_map(time, uvw, ant1, ant2,
     # We're still missing a a frequency factor,
     # also missing from max_𝞍 below where it
     # would presumably be the same (𝝼_max for e.g.)
-    𝞓𝞍 = 2 * np.sqrt(6 * decorrelation)
+    𝞓𝞇 = 2 * np.sqrt(6 * decorrelation)
 
     # max phase \vec{u}\cdot\vec{l} is ||(u,v)||*l_max +|w|*n_max
     # Note missing frequency, also missing from 𝞓𝞍.
@@ -98,7 +98,7 @@ def decorrelation_map(time, uvw, ant1, ant2,
               np.abs(uvw[:, 2])*n_max))
     # Derive max bandwith rate (delta nu) for each row, corresponding to 𝞓𝞍
     # This might correspond to Equation (36) in DDFacet
-    𝞓𝝼 = 𝞓𝞍 / max_𝞍
+    𝞓𝝼 = 𝞓𝞇 / max_𝞍
 
     # Maximum delta phase for each row
     # Occurs when 𝞓uvw lines up with lmn - 1.
@@ -119,7 +119,7 @@ def decorrelation_map(time, uvw, ant1, ant2,
         row_𝞓𝞍_sum += row_𝞓𝞍
 
         # if more than critical, then block is [start,row + 1)
-        if row_𝞓𝞍_sum > 𝞓𝞍:
+        if row_𝞓𝞍_sum > 𝞓𝞇:
             block_slices.append(slice(start, row + 1))
             row_𝞓𝞍_sum = 0.0
             start = row + 1
