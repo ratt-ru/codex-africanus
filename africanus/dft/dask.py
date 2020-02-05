@@ -17,13 +17,14 @@ else:
     dask_import_error = None
 
 
-def _im_to_vis_wrapper(image, uvw, lm, frequency, dtype_):
-    return np_im_to_vis(image[0], uvw[0], lm[0][0],
-                        frequency, dtype=dtype_)
+def _im_to_vis_wrapper(image, uvw, lm, frequency, convention, dtype_):
+    return np_im_to_vis(image[0], uvw[0], lm[0][0], frequency,
+                        convention=convention, dtype=dtype_)
 
 
 @requires_optional('dask.array', dask_import_error)
-def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
+def im_to_vis(image, uvw, lm, frequency,
+              convention='fourier', dtype=np.complex128):
     """ Dask wrapper for im_to_vis function """
     if lm.chunks[0][0] != lm.shape[0]:
         raise ValueError("lm chunks must match lm shape "
@@ -42,18 +43,22 @@ def im_to_vis(image, uvw, lm, frequency, dtype=np.complex128):
                              uvw, ("row", "(u,v,w)"),
                              lm, ("source", "(l,m)"),
                              frequency, ("chan",),
+                             convention=convention,
                              dtype=dtype,
                              dtype_=dtype)
 
 
-def _vis_to_im_wrapper(vis, uvw, lm, frequency, flags, dtype_):
+def _vis_to_im_wrapper(vis, uvw, lm, frequency, flags,
+                       convention, dtype_):
     return np_vis_to_im(vis, uvw[0], lm[0],
                         frequency, flags,
+                        convention=convention,
                         dtype=dtype_)[None, :]
 
 
 @requires_optional('dask.array', dask_import_error)
-def vis_to_im(vis, uvw, lm, frequency, flags, dtype=np.float64):
+def vis_to_im(vis, uvw, lm, frequency, flags,
+              convention='fourier', dtype=np.float64):
     """ Dask wrapper for vis_to_im function """
 
     if vis.chunks[0] != uvw.chunks[0]:
@@ -74,6 +79,7 @@ def vis_to_im(vis, uvw, lm, frequency, flags, dtype=np.float64):
                             frequency, ("chan",),
                             flags, ("row", "chan", "corr"),
                             adjust_chunks={"row": 1},
+                            convention=convention,
                             dtype=dtype,
                             dtype_=dtype)
 
