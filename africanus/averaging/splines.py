@@ -24,6 +24,7 @@ def solve_trid_system(x, y, left_type=2, right_type=2,
 
     n = x.shape[0]
 
+    # Construct tridiagonal matrix
     for i in range(1, n-1):
         diag[i, A] = (1.0 / 3.0) * (x[i] - x[i-1])
         diag[i, B] = (2.0 / 3.0) * (x[i+1] - x[i-1])
@@ -54,24 +55,20 @@ def solve_trid_system(x, y, left_type=2, right_type=2,
     else:
         raise ValueError("right_type not in (1, 2)")
 
-    cp = np.zeros_like(x)
-    vp = np.zeros_like(v)
-    x = np.zeros_like(v)
-
-    # c prime and v prime
-    cp[0] = diag[0, C] / diag[0, B]
-    vp[0] = v[0] / diag[0, B]
-
+    # Solve tridiagonal system in place
     for i in range(1, n):
-        cp[i] = diag[i, C] / (diag[i, B] - diag[i, A] * cp[i-1])
-        vp[i] = (v[i] - diag[i, A]*vp[i-1]) / (diag[i, B] - diag[i, A]*cp[i-1])
+        w = diag[i, A] - diag[i-1, B]
+        diag[i, B] -= w*diag[i-1, C]
+        v[i] -= w*v[i-1]
 
-    x[n-1] = vp[n-1]
+    # Compute solution
+    z = np.zeros_like(v)
+    z[n-1] = v[n-1] / diag[n-1, B]
 
     for i in range(n - 1, -1, -1):
-        x[i] = vp[i] - cp[i] * x[i+1]
+        z[i] = (v[i] - diag[i, C]*z[i+1])/diag[i, B]
 
-    return x
+    return z
 
 
 @njit(nogil=True, cache=True)
