@@ -4,20 +4,32 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 import pytest
 
-from africanus.averaging.splines import fit_cubic_spline, evaluate_cubic_spline
+from africanus.averaging.splines import (fit_cubic_spline,
+                                         evaluate_spline)
 
 
-@pytest.fixture
-def x():
-    return np.array([1.0, 2.3, 3.5, 4.0, 4.2, 5.6])
+# Generate y,z coords from given x coords
+def generate_y_coords(x):
+    y = -0.5 * x**2 - 0.3 * x + 5
+    # z = 0.1 * x**3 + 5
+    return y
 
-@pytest.fixture
-def y():
-    return np.array([1.1, 1.5, 1.8, 2.2, 3.7, 9.5])
 
-def test_fit_cubic_spline(x, y):
+@pytest.mark.parametrize("order", [0])
+def test_fit_cubic_spline(order):
+    # Generate function y for x
+    x = np.linspace(-2, 2, 16)
+    y = generate_y_coords(x)
+
     spline = fit_cubic_spline(x, y)
-    ny = evaluate_cubic_spline(spline, x)
-    assert_almost_equal(y, ny)
 
-    
+    # Evaluation of spline at knot points is exact
+    sy = evaluate_spline(spline, x, order=order)
+    assert_almost_equal(sy, y)
+
+    # Evaluate spline at points between knots is pretty inaccurate
+    dx = np.diff(x) / 2
+    dx += x[:-1]
+    dy = generate_y_coords(dx)
+    sdy = evaluate_spline(spline, dx, order=order)
+    assert_almost_equal(sdy, dy, decimal=2)

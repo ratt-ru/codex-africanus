@@ -9,19 +9,17 @@ from africanus.util.numba import njit
 A, B, C = range(3)
 Spline = namedtuple("Spline", "ma mb mc mx my")
 
+
 @njit(nogil=True, cache=True)
 def solve_trid_system(x, y, left_type=2, right_type=2,
-                     left_value=0.0, right_value=0.0):
+                      left_value=0.0, right_value=0.0):
     """
     Solves a tridiagonal matrix
 
     https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm
     """
-
-    diag = np.zeros((x.shape[0],3), dtype=x.dtype)
-
+    diag = np.zeros((x.shape[0], 3), dtype=x.dtype)
     v = np.zeros_like(y)
-
     n = x.shape[0]
 
     # Construct tridiagonal matrix
@@ -29,7 +27,8 @@ def solve_trid_system(x, y, left_type=2, right_type=2,
         diag[i, A] = (1.0 / 3.0) * (x[i] - x[i-1])
         diag[i, B] = (2.0 / 3.0) * (x[i+1] - x[i-1])
         diag[i, C] = (1.0 / 3.0) * (x[i+1] - x[i])
-        v[i] = (y[i+1] - y[i])/(x[i+1] - x[i]) - (y[i] - y[i-1])/(x[i] - x[i-1])
+        v[i] = ((y[i+1] - y[i])/(x[i+1] - x[i]) -
+                (y[i] - y[i-1])/(x[i] - x[i-1]))
 
     # Configure left end point
     if left_type == 2:
@@ -39,7 +38,7 @@ def solve_trid_system(x, y, left_type=2, right_type=2,
     elif left_type == 1:
         diag[0, A] = 1.0 * (x[1] - x[0])
         diag[0, B] = 2.0 * (x[1] - x[0])
-        v[0] = 3.0 * ((y[1] - y[0]) / (x[1] - x[0]) - left_value)
+        v[0] = 3.0 * (-left_value + (y[1] - y[0]) / (x[1] - x[0]))
     else:
         raise ValueError("left_type not in (1, 2)")
 
@@ -82,8 +81,8 @@ def fit_cubic_spline(x, y, left_type=2, right_type=2,
 
     for i in range(n - 1):
         a[i] = (b[i+1] - b[i]) / (3*(x[i+1] - x[i]))
-        c[i] = ((y[i+1] - y[i]) / (x[i+1] - x[i])
-                 - 1.0/3.0*(2.0*b[i] + b[i+1])*(x[i+1] - x[i]))
+        c[i] = ((y[i+1] - y[i]) / (x[i+1] - x[i]) -
+                (2.0*b[i] + b[i+1]) * (x[i+1] - x[i]) / 3.0)
 
     h = x[n-2] - x[n-1]
     a[n-1] = 0
@@ -91,28 +90,53 @@ def fit_cubic_spline(x, y, left_type=2, right_type=2,
 
     return Spline(a, b, c, x, y)
 
+
 @njit(nogil=True, cache=True)
-def evaluate_cubic_spline(spline, x):
+def evaluate_spline(spline, x, order=0):
     ma, mb, mc, mx, my = spline
 
     force_linear_extrapolation = False
     mb0 = mb[0] if not force_linear_extrapolation else 0.0
     mc0 = mc[0]
 
+    n = x.shape[0]
     values = np.empty_like(x)
 
-    for i, p in enumerate(x):
-        j = max(np.searchsorted(mx, p), 0)
+    if order == 0:
+        for i, p in enumerate(x):
+            j = max(np.searchsorted(mx, p, side='right') - 1, 0)
+            h = p - mx[j]
 
-        h = x[i] - mx[j]
+            if p < x[0]:
+                values[i] = (mb0*h + mc0)*h + my[0]
+            elif p > x[n-1]:
+                values[i] = (mb[n-1]*h + mc[n-1])*h + my[n-1]
+            else:
+                values[i] = ((ma[j]*h + mb[j])*h + mc[j])*h + my[j]
 
-        if p < x[0]:
-            values[i] = (mb0*h + mc0)*h + my[0]
-        elif p > x[-1]:
-            values[i] = (mb[-1]*h + mc[-1])*h + my[-1]
-        else:
-            values[i] = ((ma[i]*h + mb[i])*h + mc[i])*h + my[i]
+    elif order == 1:
+        for i, p in enumerate(x):
+            j = max(np.searchsorted(mx, p, side='right') - 1, 0)
+            h = p - mx[j]
+
+            if p < x[0]:
+                values[i] = 2.0*mb0*h + mc0
+            elif p > x[n-1]:
+                values[i] = 2.0*mb[n-1]*h + mc[n-1]
+            else:
+                values[i] = (3.0*ma[j]*h + 2.0*mb[j])*h + mc[j]
+    elif order == 2:
+        for i, p in enumerate(x):
+            j = max(np.searchsorted(mx, p, side='right') - 1, 0)
+            h = p - mx[j]
+
+            if p < x[0]:
+                values[i] = 2.0*mb0*h
+            elif p > x[n-1]:
+                values[i] = 2.0*mb[n-1]
+            else:
+                values[i] = 6.0*ma[j]*h + 2.0*mb[j]
+    else:
+        raise ValueError("order not in (0, 1, 2)")
 
     return values
-
-
