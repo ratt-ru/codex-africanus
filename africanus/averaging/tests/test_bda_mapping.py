@@ -202,7 +202,7 @@ def ref_freq():
 
 @pytest.fixture
 def chan_width():
-    return np.full(128, 208984.375)
+    return np.full(4096, 208984.375)
 
 @pytest.fixture
 def chan_freq(chan_width):

@@ -164,16 +164,17 @@ def row_mapper(time, uvw, ants, phase_dir, ref_freq, lm_max):
     return R
 
 
-# @njit(nogil=True, cache=True)
+@njit(nogil=True, cache=True)
 def _impl(time, interval, ant1, ant2, uvw, ref_freq,
           chan_freq, chan_width, lm_max=1, decorrelation=0.98):
     # 𝞓 𝝿 𝞇 𝞍 𝝼
+
+    if decorrelation < 0.0 or decorrelation > 1.0:
+        raise ValueError("0.0 <= decorrelation <= 1.0 must hold")
+
     l = m = np.sqrt(0.5 * lm_max)
     n_term = 1.0 - l**2 - m**2
     n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
-    ref_wave = ref_freq / lightspeed
-
-    bandwidth = np.sum(chan_width)
 
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     utime, _, time_inv, _ = unique_time(time)
@@ -238,77 +239,102 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                 𝞓𝞇 = np.pi * (du_dt + dv_dt)
                 sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
 
-                # We're still not decorrelated,
-                # add more samples to the bin
+                # We're not decorrelated at this point,
+                # but keep a record of the sinc_𝞓𝞇
                 if sinc_𝞓𝞇 > decorrelation:
                     bin_sinc_𝞓𝞇 = sinc_𝞓𝞇
                 else:
                     # Contents of the bin exceed decorrelation tolerance
-                    # Finish it off and start a new one
+                    # Finalise it and start a new one
 
-                    # For the purposes of computing channel mapping,
-                    # re-use sinc_𝞓𝞇 if there's only one sample in the bin
-                    bin_sinc_𝞓𝞇 = sinc_𝞓𝞇 if bin_count == 1 else bin_sinc_𝞓𝞇
+                    # Handle special case of bin containing a single sample.
+                    # Change in baseline speed 𝞓𝞇 == 0
+                    if bin_count == 1:
+                        du = bin_u_low
+                        dv = bin_v_low
+                        dw = bin_w_low
+                        bin_sinc_𝞓𝞇 = sinc_𝞓𝞇 = 1.0
+                        sinc_𝞓𝞍 = decorrelation
+                    else:
+                        # Phase at the centre of the bin and reference frequency
+                        phase = 1.0
 
-                    # Central UV points of the bin
-                    cu = du / 2
-                    cv = dv / 2
+                        # Given
+                        #   (1) acceptable decorrelation
+                        #   (2) change in baseline speed
+                        # derive the frequency phase difference
+                        # from Equation (35) in Atemkeng
+                        sinc_𝞓𝞍 = decorrelation / bin_sinc_𝞓𝞇
 
-                    # Phase at the centre of the bin and reference frequency
-                    phase = np.abs(np.exp(-2*np.pi*1j*ref_wave*(cu*l + cv*m)))
+                        # Use Newton Raphson to find frequency phase difference 𝞍
+                        # https://stackoverflow.com/a/30205309/1611416
+                        eps = 1.0
+                        𝞓𝞍 = np.pi  # Starting guess. sinc Taylor series maybe appropriate
 
-                    # Given
-                    #   (1) acceptable decorrelation
-                    #   (2) time phase difference
-                    #   (3) phase at bin centre,
-                    # derive the frequency phase difference
-                    # from Equation (32) in Atemkeng
-                    sinc_𝞓𝞍 = decorrelation / (bin_sinc_𝞓𝞇 * phase)
+                        while np.abs(eps) > 1e-12:
+                            # Try negative range if we hit zero
+                            if 𝞓𝞍 == 0.0:
+                                𝞓𝞍 = -np.pi
 
-                    # Use Newton Raphson to find frequency phase difference 𝞍
-                    # https://stackoverflow.com/a/30205309/1611416
-                    eps = 1.0
-                    𝞓𝞍 = np.pi  # Starting guess. sinc Taylor series maybe appropriate
+                            # compute sinc of 𝞓𝞍 on this iteration
+                            it_sinc_𝞓𝞍 = np.sin(𝞓𝞍) / 𝞓𝞍
 
-                    while np.abs(eps) > 1e-12:
-                        # compute sinc of 𝞓𝞍 and derivative at this iteration
-                        it_sinc_𝞓𝞍 = 1.0 if 𝞓𝞍 == 0.0 else np.sin(𝞓𝞍) / 𝞓𝞍
-                        dit_sinc_𝞓𝞍 = (np.cos(𝞓𝞍) - it_sinc_𝞓𝞍) / 𝞓𝞍
+                            # For very small 𝞓𝞍, sinc(𝞓𝞍) == 𝞓𝞍 can hold
+                            # We've found a solution when it does
+                            if it_sinc_𝞓𝞍 == 1.0:
+                                break
 
-                        # Difference at this iteration
-                        eps = it_sinc_𝞓𝞍 - sinc_𝞓𝞍
-                        # Newton Raphson update
-                        𝞓𝞍 = 𝞓𝞍 - eps / dit_sinc_𝞓𝞍
+                            # derivative of sinc of 𝞓𝞍 on this iteration
+                            dit_sinc_𝞓𝞍 = (np.cos(𝞓𝞍) - it_sinc_𝞓𝞍) / 𝞓𝞍
+
+                            # Difference at this iteration
+                            eps = it_sinc_𝞓𝞍 - sinc_𝞓𝞍
+                            # Newton Raphson update
+                            𝞓𝞍 = 𝞓𝞍 - eps / dit_sinc_𝞓𝞍
 
                     # Derive fractional bandwidth 𝞓𝝼/𝝼
                     # from Equation (44) in Atemkeng
                     max_abs_dist = np.sqrt(np.abs(du)*np.abs(l) + 
-                                            np.abs(dv)*np.abs(m) +
-                                            np.abs(dw)*np.abs(n_max))
+                                           np.abs(dv)*np.abs(m) +
+                                           np.abs(dw)*np.abs(n_max))
 
                     if max_abs_dist == 0.0:
                         raise ValueError("max_abs_dist == 0.0")
 
-
                     fractional_bandwidth = 𝞓𝞍 / max_abs_dist
 
-                    # Derive 𝞓𝝼, the maximum change in bandwidth
-                    max_𝞓𝝼 = bandwidth * fractional_bandwidth
+                    # Derive max_𝞓𝝼, the maximum change in bandwidth
+                    # before decorrelation occurs in frequency
+                    #
+                    # fractional bandwidth is defined by
+                    # https://en.wikipedia.org/wiki/Bandwidth_(signal_processing)
+                    # for wideband antennas as:
+                    #   (1) 𝞓𝝼/𝝼 = fb = (fh - fl) / (fh + fl)
+                    # where fh and fl are the high and low frequencies
+                    # of the band.
+                    # We set fh = ref_freq + 𝞓𝝼/2, fl = ref_freq - 𝞓𝝼/2
+                    # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
+                    max_𝞓𝝼 = 2 * ref_freq * fractional_bandwidth
 
                     bin_freq_low = chan_freq[0] - chan_width[0] / 2
                     bin_chan_low = 0
+                    bin_𝞓𝝼 = 0
+
+                    chan_bins = 0
 
                     for c in range(1, chan_freq.shape[0]):
                         # Bin bandwidth
                         𝞓𝝼 = chan_freq[c] + chan_width[c] / 2 - bin_freq_low
 
-                        # Exceeds, start new bin
+                        # Exceeds, start new channel bin
                         if 𝞓𝝼 > max_𝞓𝝼:
-                            print(bin_chan_low, c)
                             bin_chan_low = c
                             bin_freq_low = chan_freq[c] - chan_width[c] / 2
+                            chan_bins += 1
 
-                    print(bin_chan_low, chan_freq.shape[0])
+                    chan_bins += 1            
+
+                    print(bl, bin_count, tbin, "max_𝞓𝝼", max_𝞓𝝼, "dist", max_abs_dist, chan_bins)
 
                     tbin += 1
                     bin_count = 0
@@ -320,7 +346,6 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
 
 
             bin_count += 1
-            
 
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     ref_freq, chan_freq, chan_width):
