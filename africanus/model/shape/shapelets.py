@@ -37,18 +37,20 @@ def basis_function(n, xx, beta, fourier=False, delta_x=None):
     basis_component = 1.0/np.sqrt(2.0**n * np.sqrt(np.pi) * factorial(n) * scale)
     exponential_component = hermite(n, x / scale) * np.exp(-x**2 / (2.0*scale**2))
     if fourier:
+        # print("basis_component: ", np.sqrt(scale), basis_component)
+        # print("exponential_component: ", exponential_component)
         return 1.0j**n * basis_component * exponential_component * np.sqrt(2*np.pi)/delta_x
     else:
         return basis_component * exponential_component
-"""
-#@numba.jit(nogil=True, nopython=True, cache=True)
+
+@numba.jit(nogil=True, nopython=True, cache=True)
 def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     l0, m0 = lm_source_center
     n0 = np.sqrt(1.0-l0**2-m0**2)
     u, v, w = uvw
     real_phase = minus_two_pi_over_c * frequency * (u*l0 + v*m0 + w*(n0-1))
     return np.exp(1.0j*real_phase)
-"""
+
 
 @numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
@@ -87,6 +89,47 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
                         tmp_shapelet += 0 if coeffs[src][n1,n2] == 0 else coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
                             * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                 out_shapelets[row, chan, src] = tmp_shapelet
+    return out_shapelets
+
+@numba.jit(nogil=True, nopython=True, cache=True)
+def shapelet_with_w_term(coords, frequency, coeffs, beta, delta_lm, lm, dtype=np.complex128):
+    """
+    shapelet: outputs visibilities corresponding to that of a shapelet
+    Inputs:
+        coords: coordinates in (u,v) space with shape (nrow, 3)
+        frequency: frequency values with shape (nchan,)
+        coeffs: shapelet coefficients with shape, where coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
+        beta: characteristic shapelet size with shape (nsrc, 2)
+        delta_l: pixel size in l dim
+        delta_m: pixel size in m dim
+        lm: source center coordinates of shape (nsource, 2)
+    Returns:
+        out_shapelets: Shapelet with shape (nrow, nchan, nsrc)
+    """
+    nrow = coords.shape[0]
+    nsrc = coeffs.shape[0]
+    nchan = frequency.shape[0]
+    out_shapelets = np.empty((nrow, nchan, nsrc), dtype=np.complex128)
+    delta_l, delta_m = delta_lm
+    for row in range(nrow):
+        u, v, w = coords[row, :]
+        for chan in range(nchan):
+            fu = u * 2 * np.pi * frequency[chan] / lightspeed
+            fv = v * 2 * np.pi * frequency[chan] / lightspeed
+            for src in range(nsrc):
+                nmax1, nmax2 = coeffs[src,:,:].shape
+                beta_u, beta_v = beta[src, :]
+                l, m = lm[src,:]
+                if beta_u == 0 or beta_v==0:
+                    out_shapelets[row, chan, src] = 1
+                    continue
+                tmp_shapelet = 0+0j
+                for n1 in range(nmax1):
+                    for n2 in range(nmax2):
+                        tmp_shapelet += 0 if coeffs[src][n1,n2] == 0 else coeffs[src][n1, n2] * basis_function(n1, fu, beta_u, True, delta_x=delta_l) \
+                            * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
+                w_term = phase_steer_and_w_correct((u,v,w), (l,m), frequency[chan])
+                out_shapelets[row, chan, src] = tmp_shapelet * w_term
     return out_shapelets
 
 #@numba.jit(nogil=True, nopython=True, cache=True)

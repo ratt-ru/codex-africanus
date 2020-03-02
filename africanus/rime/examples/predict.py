@@ -74,7 +74,6 @@ def corr_schema(pol):
     Parameters
     ----------
     pol : Dataset
-
     Returns
     -------
     corr_schema : list of list
@@ -114,6 +113,7 @@ def baseline_jones_multiply(corrs, *args):
             # Extract it and the next corr index
             einsum_schema, corr_index = schema_fn(corrs, corr_index)
             input_einsum_schemas.append(einsum_schema)
+            print(name, einsum_schema)
 
             if not len(einsum_schema) == array.ndim:
                 raise ValueError("%s len(%s) == %d != %s.ndim"
@@ -122,6 +122,8 @@ def baseline_jones_multiply(corrs, *args):
 
     output_schema = _bl_jones_output_schema(corrs, corr_index)
     schema = ",".join(input_einsum_schemas) + output_schema
+    print(schema)
+    quit()
 
     return da.einsum(schema, *arrays)
 
@@ -192,7 +194,7 @@ def load_beams(beam_file_schema, corr_types):
                          "L or X, M or Y and FREQ. NAXIS != 3")
 
     (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
-    
+
     # Shape of each correlation
     shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
 
@@ -212,18 +214,14 @@ def load_beams(beam_file_schema, corr_types):
     beam_corrs = [da.from_delayed(bc, shape=shape, dtype=dtype)
                   for bc in beam_corrs]
 
-
     # Stack correlations and rechunk to one great big block
     beam = da.stack(beam_corrs, axis=3)
     beam = beam.rechunk(shape + (len(corr_types),))
-
 
     # Dask arrays for the beam extents and beam frequency grid
     beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
     beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
     beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
-    print(beam_freq_grid.compute())
-    # quit()
 
     return beam, beam_lm_ext, beam_freq_grid
 
@@ -231,14 +229,12 @@ def load_beams(beam_file_schema, corr_types):
 def parse_sky_model(filename, chunks):
     """
     Parses a Tigger sky model
-
     Parameters
     ----------
     filename : str
         Sky Model filename
     chunks : tuple of ints or int
         Source chunking strategy
-
     Returns
     -------
     source_data : dict
@@ -336,7 +332,6 @@ def support_tables(args):
     ----------
     args : object
         Script argument objects
-
     Returns
     -------
     table_map : dict of Dataset
@@ -381,7 +376,6 @@ def _unity_ant_scales(parangles, frequency, dtype_):
 
 
 def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
-
     if args.beam is None:
         return None
 
@@ -393,9 +387,6 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
 
     parangles = parallactic_angles(utime, ant.POSITION.data,
                                    field.PHASE_DIR.data[0][0])
-    # print(parangles.compute())
-    # quit()
-
 
     corr_type_set = set(corr_type)
 
@@ -435,37 +426,12 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
 
     # Introduce the correlation axis
     beam = beam.reshape(beam.shape[:3] + (2, 2))
-    b = beam.compute()
-    power = (b[:,:,:,0,0].real**2 + b[:,:,:,0,0].imag**2 + b[:,:,:,1,1].real**2 + b[:,:,:,1,1].imag**2) / 2
-    half = np.max(power) / 2
-    prox = b - half
-    # print(b[np.where(prox ==np.min(prox))])
-    # print("half is ", half)
-    # quit()
-    print("calling beam_cube_dde with lm_ext ", lm_ext.compute(), "lm ", lm.compute(), "frequency ", frequency, "freq_map", freq_map.compute())
-    # quit()
-    print("coords beam_cube : ", lm.compute()/5)
-    # quit()
+
     beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
                              zpe, zas,
                              frequency)
-    # print(beam_dde.compute())
-    # quit()
-    # print(lm.compute()[0,0]**2 + lm.compute()[0,1]**2)
-    # quit()
-    b = beam_dde.compute()[0,0,0,0,:,:]
-    power = (b[0,0].real**2 + b[0,0].imag**2 + b[1,1].real**2 + b[1,1].imag**2) / 2
-
-    print(power, lm.compute())
-    # quit()
-
 
     # Multiply the beam by the feed rotation to form the DDE term
-    dde = da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
-    d=dde.compute()[0,0,0,0,:,:]
-    dde_power = (d[0,0].real**2 + d[0,0].imag**2 + d[1,1].real**2 + d[1,1].imag**2)/2
-    print(dde_power)
-    # quit()
     return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
 
 
@@ -485,7 +451,7 @@ def vis_factory(args, source_type, sky_model,
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
     # (source, row, frequency)
-    phase = phase_delay(lm, uvw, frequency)
+    phase = phase_delay(lm*np.array([[0,0]]) + np.array([[0,0.000]]), uvw, frequency)
 
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
@@ -501,16 +467,11 @@ def vis_factory(args, source_type, sky_model,
     bl_jones_args = ["phase_delay", phase]
 
     # Add any visibility amplitude terms
-    print(source_type)
-    # quit()
     if source_type == "gauss":
         bl_jones_args.append("gauss_shape")
         bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
-        print("gauss shape")
 
     bl_jones_args.extend(["brightness", brightness])
-    print(phase.compute().shape)
-    # quit()    
 
     # Unique times and time index for each row chunk
     # The index is not global
@@ -526,11 +487,9 @@ def vis_factory(args, source_type, sky_model,
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
+    print(jones.compute().imag)
+    quit()
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
-    print(lm.compute() * 180 / np.pi)
-    print(phase_dir * 180 / np.pi)
-    print(jones.compute())
-    # quit()
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
@@ -583,12 +542,9 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
-        # xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
         # Create a write to the table
-        write = xds_to_table(xds, args.ms, ['CORRECTED_DATA'])
-        # write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
-        # print("write to corrected data")
+        write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
 

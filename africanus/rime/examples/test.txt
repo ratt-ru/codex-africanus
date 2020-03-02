@@ -1,0 +1,1 @@
+#format: name ra_d dec_d i spi freq0 sbetal_s sbetam_s shapelet_coeffs
