@@ -21,7 +21,7 @@ ifft = fftpack.ifft
 fft2 = fftpack.fft2
 ifft2 = fftpack.ifft2
 
-def test_N6251_vals():
+def _test_N6251_vals():
         da = pytest.importorskip("dask.array")
         from africanus.model.shape.dask import shapelet as ca_shapelet
 
@@ -96,7 +96,7 @@ def test_N6251_vals():
         
         
 
-def test_N6251():
+def _test_N6251():
         da = pytest.importorskip('dask.array')
 
         from africanus.model.shape.dask import shapelet
@@ -193,7 +193,7 @@ def test_N6251():
         plt.close()
 
 
-def _test_1d_shapelet():
+def test_1d_shapelet():
     # set signal space coords
     beta = 1.0
     npix = 513
@@ -319,7 +319,7 @@ def _test_shapelets_against_gaussian():
 
 
 
-def _test_2d_shapelet():
+def test_2d_shapelet():
 	beta=1.0
 	npix=129
 	ncoeffs_l = 1
@@ -364,8 +364,74 @@ def _test_2d_shapelet():
 
 	plt.show()
 
+def _test_2d_shapelet():
+        # Define all respective values for nrow, ncoeff, etc
+        beta = [.01, .01]
+        nchan = 1
+        ncoeffs = [1, 1]
+        nsrc = 1
 
-def _test_image_space():
+        # Define the range of uv values
+        u_range = [-3 * np.sqrt(2) * (beta[0] ** (-1)), 3 * np.sqrt(2) * (beta[0] ** (-1))]
+        v_range = [-3 * np.sqrt(2) * (beta[1] ** (-1)), 3 * np.sqrt(2) * (beta[1] ** (-1))]
+
+        # Create an lm grid from the regular uv grid
+        max_u = u_range[1]
+        max_v = v_range[1]
+        delta_x = 1/(2 * max_u) if max_u > max_v else 1/(2 * max_v)
+        x_range = [-3 * np.sqrt(2) * beta[0], 3 * np.sqrt(2) * beta[0]]
+        y_range = [-3 * np.sqrt(2) * beta[1], 3 * np.sqrt(2) * beta[1]]
+        npix_x = int((x_range[1] - x_range[0]) / delta_x)
+        npix_y = int((y_range[1] - y_range[0]) / delta_x)
+        l_vals = np.linspace(x_range[0], x_range[1], npix_x)
+        m_vals = np.linspace(y_range[0], y_range[1], npix_y)
+        ll, mm = np.meshgrid(l_vals, m_vals)
+        lm = np.vstack((ll.flatten(), mm.flatten())).T
+        nrow = lm.shape[0]
+
+        # Create regular uv grid
+        freqs_u = Fs(np.fft.fftfreq(npix_x, d=delta_x))
+        freqs_v = Fs(np.fft.fftfreq(npix_y, d=delta_x))
+        uu, vv = np.meshgrid(freqs_u, freqs_v)
+        uv = np.vstack((uu.flatten(), vv.flatten())).T
+
+        # Create input arrays
+        img_coords = np.zeros((nrow, 3))
+        img_coeffs = np.random.randn(nsrc, ncoeffs[0], ncoeffs[1])
+        img_beta = np.zeros((nsrc, 2))
+        frequency = np.empty((nchan), dtype=np.float)
+
+        # Assign values to input arrays
+        img_coords[:, :2], img_coords[:, 2] = lm[:,:], 0
+        img_beta[0, :] = beta[:]
+        frequency[:] = 1
+        img_coeffs[:, :, :] = 1
+
+        # Create output arrays
+        gf_shapelets = np.zeros((nrow), dtype=np.float)
+        pt_shapelets = np.zeros((nrow))
+
+        for row in range(nrow):
+                pt_tmp_shapelet = 0
+                l, m = img_coords[row, :2]
+                for n1 in range(ncoeffs[0]):
+                        for n2 in range(ncoeffs[1]):
+                                c = img_coeffs[0, n1, n2]
+                                pt_basis_func = shapelet_img_space(l, n1, beta[0]) * shapelet_img_space(m, n2, beta[1])
+                                pt_tmp_shapelet += c * pt_basis_func
+                pt_shapelets[row] = pt_tmp_shapelet
+
+        for n1 in range(ncoeffs[0]):
+                for n2 in range(ncoeffs[1]):
+                        sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
+                        shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
+                        gf_shapelets[:] += c * shapelets_basis_func[:]
+
+        assert np.allclose(gf_shapelets, pt_shapelets)
+
+
+
+def test_image_space():
         # Define all respective values for nrow, ncoeff, etc
         beta = [.01, .01]
         nchan = 1
@@ -537,7 +603,7 @@ def _test_image_space():
         #####################################################
         #####################################################
 
-def _test_fourier_space_shapelets():
+def test_fourier_space_shapelets():
     # set overall scale
     beta_l = 1.0
     beta_m = 1.0

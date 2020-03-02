@@ -82,7 +82,6 @@ def radec_to_lm(radec, phase_centre=None):
         lm = np.empty(shape=(sources, 2), dtype=dtype)
 
         pc_ra, pc_dec = _maybe_create_phase_centre(phase_centre, dtype)
-        print(pc_ra, pc_dec)
         sin_pc_dec = np.sin(pc_dec)
         cos_pc_dec = np.cos(pc_dec)
 

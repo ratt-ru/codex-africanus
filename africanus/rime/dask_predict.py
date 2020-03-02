@@ -377,6 +377,7 @@ def fan_reduction(time_index, antenna1, antenna2,
 
     # Handle presence/absence of source_coh
     if have_coh:
+        print(source_coh)
         bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
         numblocks[source_coh.name] = source_coh.numblocks
         deps.append(source_coh)
