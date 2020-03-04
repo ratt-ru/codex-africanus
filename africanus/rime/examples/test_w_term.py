@@ -361,7 +361,7 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
     
     # Create Gaussian shape function
     gaussian_null_frequency = (2.0 * lightspeed * np.sqrt(np.log(2.0))) / (np.pi * f)
-    gaussian_shape_function = nb_gaussian(uvw, phase_frequency, (source2.shape.compute() * gaussian_null_frequency))
+    gaussian_shape_function = nb_gaussian(uvw, phase_frequency, (source2.shape.compute() * gaussian_null_frequency)) # We multiply with a nullifying frequency parameter to cancel the effects of frequency scaling
     
     # Generate Gaussian source coherency
     gaussian_source_coherence = np.einsum("srf,srf,sij->srfij", phase.compute(), gaussian_shape_function, brightness.compute())
@@ -371,13 +371,12 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
     # Write shapelet_with_w_term here
     delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
     shapelet_null_frequency =  (lightspeed / (2 * np.pi * f))
-    shapelet_beta = np.array([[np.sqrt(2 * source2.shape.compute()[0,0]**2),np.sqrt(2 * source2.shape.compute()[0,0]**2)]] ) * shapelet_null_frequency
+    shapelet_beta = source1.beta.compute()
+    shapelet_beta *= shapelet_null_frequency # To nullify frequency scaling to match Gaussian
     shapelet_beta *= 1 / (2.0 * np.pi) # To correct for the xx * 2 * np.pi
 
     # Get Shapelet Source Coherence with W-Term
-    shapelet_shape_function = shapelet_with_w_term(uvw, phase_frequency, source1.coeffs.compute(), shapelet_beta, delta_lm, lm.compute(), phase_frequency) # shape (nrow, 1, 1)
-    # print(shapelet_shape_function)
-    # quit()
+    shapelet_shape_function = shapelet_with_w_term(uvw, phase_frequency, source1.coeffs.compute(), shapelet_beta, delta_lm, lm.compute()) # shape (nrow, 1, 1)
     shapelet_source_coherence = np.einsum("rsf,sij->srfij", shapelet_shape_function, brightness.compute())
     shapelet_source_coherence = shapelet_source_coherence[0,:,0,:,:]
 
@@ -420,6 +419,7 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
 def predict(args):
     # Convert source data into dask arrays
     sky_model_1 = parse_sky_model(args.sky_model_1, args.model_chunks)
+
     sky_model_2 = parse_sky_model(args.sky_model_2, args.model_chunks)
 
     # Get the support tables
