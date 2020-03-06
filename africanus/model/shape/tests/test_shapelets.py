@@ -1,21 +1,13 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
-#import pytest
-from scipy.special import factorial, hermite
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import pytest
 from africanus.model.shape import shapelet, basis_function, shapelet_1d, shapelet_2d
 from africanus.constants import c as lightspeed
-from dask.diagnostics import ProgressBar
-import pickle
-# import shapelets as sl
 import importlib.util
 spec = importlib.util.spec_from_file_location("shapelets", "/home/vanstanden/shapelets/shapelets/shapelet.py")
 shapelets = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(shapelets)
 sl = shapelets
-# from shapelets import *
 
 Fs = np.fft.fftshift
 iFs = np.fft.ifftshift
@@ -134,12 +126,6 @@ def test_fourier_space_shapelets():
 
 
 	img_space_shape = shapelet_1d(lm[:,0], coeffs_l[0,:], False, beta=beta_l) * shapelet_1d(lm[:,1], coeffs_m[0,:], False, beta=beta_m)
-
-	plt.figure()
-	plt.imshow(img_space_shape.reshape((npix,npix)))
-	plt.colorbar()
-	plt.savefig("./img_space_shape.png")
-	plt.close()
 
 	# next take FFT
 	fft_shapelet = Fs(fft2(iFs(img_space_shape.reshape(npix,npix))))
