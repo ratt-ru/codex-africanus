@@ -46,16 +46,78 @@ visibilities are used for calibration. This is
 simply refered to as calibration. The specific
 scenario is determined from the shapes of the input
 gains and the input data.
+
+This module also provides a number of utilities which
+are useful for calibration. 
+
+Utils
++++++
+
 Numpy
 ~~~~~
 
-.. currentmodule:: africanus.calibration
+.. currentmodule:: africanus.calibration.utils
 
 .. autosummary::
+    corrupt_vis
     residual_vis
     correct_vis
-    phase_only_gauss_newton
+    compute_and_corrupt_vis
+    
 
+.. autofunction:: corrupt_vis
 .. autofunction:: residual_vis
 .. autofunction:: correct_vis
-.. autofunction:: phase_only_gauss_newton
+.. autofunction:: compute_and_corrupt_vis
+
+Dask
+~~~~
+
+.. currentmodule:: africanus.calibration.utils.dask
+
+.. autosummary::
+    corrupt_vis
+    residual_vis
+    correct_vis
+    compute_and_corrupt_vis
+    
+
+.. autofunction:: corrupt_vis
+.. autofunction:: residual_vis
+.. autofunction:: correct_vis
+.. autofunction:: compute_and_corrupt_vis
+
+
+Phase only
+++++++++++
+
+Numpy
+~~~~~
+
+.. currentmodule:: africanus.calibration.phase_only
+
+.. autosummary::
+    compute_jhr
+    compute_jhj
+    compute_jhj_and_jhr
+    gauss_newton
+
+
+.. autofunction:: compute_jhr
+.. autofunction:: compute_jhj
+.. autofunction:: compute_jhj_and_jhr
+.. autofunction:: gauss_newton
+
+
+Dask
+~~~~~
+
+.. currentmodule:: africanus.calibration.phase_only.dask
+
+.. autosummary::
+    compute_jhr
+    compute_jhj
+
+
+.. autofunction:: compute_jhr
+.. autofunction:: compute_jhj

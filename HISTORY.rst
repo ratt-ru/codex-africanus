@@ -4,6 +4,16 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Added Cubic Spline support (:pr:`174`)
+* Depend on python-casacore >= 3.2.0 (:pr:`172`)
+* Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
+* Implement optimised WSClean predict (:pr:`166`, :pr:`167`)
+* Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
+* Document and check weight shapes in simple gridder and degridder
+  (:pr:`162`, :pr:`163`)
+* Restructuring calibration module (:pr:`127`)
+* Upgrade to numba 0.46.0, using new inlining functionality
+  in the RIME and averaging code.
 * Modified predict to be compatible with eidos fits headers (:pr:`158`)
 
 0.2.0 (2019-09-30)

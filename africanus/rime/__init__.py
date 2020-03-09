@@ -7,4 +7,4 @@ from africanus.rime.parangles import parallactic_angles
 from africanus.rime.transform import transform_sources
 from africanus.rime.zernike import zernike_dde
 from africanus.rime.predict import predict_vis, apply_gains
-from africanus.rime.shapelet_dde import shapelet_dde
+from africanus.rime.wsclean_predict import wsclean_predict

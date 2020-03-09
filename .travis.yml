@@ -1,10 +1,10 @@
 language: python
 matrix:
   include:
-  - env: TARGET=python35 REQUIREMENTS=base
   - env: TARGET=python36 REQUIREMENTS=base
-  - env: TARGET=python35 REQUIREMENTS=all
+  - env: TARGET=python37 REQUIREMENTS=base
   - env: TARGET=python36 REQUIREMENTS=all
+  - env: TARGET=python37 REQUIREMENTS=all
 sudo: required
 services:
 - docker

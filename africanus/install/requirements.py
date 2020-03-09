@@ -20,7 +20,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.43.0']
+        'numba >= 0.46.0']
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
@@ -29,7 +29,7 @@ extras_require = {
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 2.0.0, < 3.0; python_version <= "2.7"',
                 'astropy >= 3.0; python_version >= "3.0"'],
-    'python-casacore': ['python-casacore == 3.0.0'],
+    'python-casacore': ['python-casacore >= 3.2.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8']
 }
 
