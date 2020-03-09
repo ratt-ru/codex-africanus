@@ -33,7 +33,7 @@ from africanus.model.shape.dask import gaussian as gaussian_shape
 from africanus.model.shape import gaussian as nb_gaussian
 from africanus.model.shape.dask import shapelet as shapelet_fn
 from africanus.model.shape import phase_steer_and_w_correct
-from africanus.model.shape import shapelet_with_w_term
+from africanus.model.shape.dask import shapelet_with_w_term
 from africanus.model.shape import shapelet as nb_shapelet
 from africanus.util.requirements import requires_optional
 from africanus.constants import c as lightspeed
@@ -151,8 +151,9 @@ def create_parser():
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-oc", "--output-coherence", action="store_true")
     p.add_argument("-mc", "--model-chunks", type=int, default=10)
-    p.add_argument("-n", "--num-shapelet", type=int, default=15)
+    p.add_argument("-n", "--num-shapelet", type=int, default=30)
     p.add_argument("-b", "--beam", default=None)
+    p.add_argument("-t", "--times", type=int, default=10)
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
@@ -357,7 +358,7 @@ def my_timeit_shapelets(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_l
     times = np.empty((num_times,))
     for i in range(num_times):
         t0 = time.time()
-        s_fn = shapelet_with_w_term(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_lm, shapelet_lm)
+        s_fn = shapelet_with_w_term(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_lm, shapelet_lm).compute()
         t1 = time.time()
         times[i] = t1 - t0
     return (np.sum(times) / times.shape[0]), s_fn
@@ -394,9 +395,24 @@ def shapelet_factory(args, source_type, sky_model, ms, ant, field, spw, pol, ret
     shapelet_lm = lm.compute()
     no_components = num_components
     code_timings = np.empty((no_components,))
+    uvw_chunks = (args.row_chunks, 3)
+    frequency_chunks = (1,)
+    beta_chunks = (1,2)
+    delta_lm_chunks = (2,)
+    shapelet_lm_chunks = (1,2)
+
+
+    uvw = da.from_array(uvw, chunks=uvw_chunks)
+    frequency = da.from_array(frequency, chunks=frequency_chunks)
+    shapelet_beta = da.from_array(shapelet_beta, chunks=beta_chunks)
+    delta_lm = da.from_array(delta_lm, chunks=delta_lm_chunks)
+    shapelet_lm = da.from_array(shapelet_lm, chunks=shapelet_lm_chunks)
+
+
     for i in range(no_components):
         shapelet_coeffs = findLargest(sky_model.coeffs.compute(), i+1)
-        code_timings[i], s_fn = my_timeit_shapelets(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_lm, shapelet_lm, 10)
+        shapelet_coeffs = da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape)
+        code_timings[i], s_fn = my_timeit_shapelets(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_lm, shapelet_lm, args.times)
     
     if ret_coherence:
         shapelet_source_coherence = np.einsum("rsf,sij->srfij", s_fn, brightness.compute())
@@ -442,7 +458,7 @@ def nifty_factory(args, source_type, sky_model, ms, ant, field, spw, pol, fits_f
     for i in range(args.num_shapelet):
         # Gather data for nifty-gridder
         dirty_image = fits.open(fits_files[i])[0].data[0,0,:,:]
-        code_timings[i], ng_output = my_timeit_nifty(uvw, frequency, dirty_image, weight, pixsize_x, pixsize_y, precision, nthreads, 10)
+        code_timings[i], ng_output = my_timeit_nifty(uvw, frequency, dirty_image, weight, pixsize_x, pixsize_y, precision, nthreads, args.times)
     print("DONE WITH NIFTY")
 
     if ret_coherence:
@@ -555,7 +571,8 @@ def predict(args):
             print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - nifty_norm)**2))
             print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
             print("------------------------------------------------------")
-
+    if args.output_coherence:
+        quit()
     for xds in xds_from_ms(args.ms_two_hours,
                         columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                         group_cols=["FIELD_ID", "DATA_DESC_ID"],
@@ -580,32 +597,27 @@ def predict(args):
         print([stype for stype in sky_model.keys()])
 
         shapelet_result = shapelet_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol, ret_coherence=args.output_coherence, num_components=args.num_shapelet)
-        nifty_result = nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-middle-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+        nifty_result = None if args.output_coherence else nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-middle-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
 
         if args.output_coherence:
             # Get correct coherence shape
             shapelet_coh = shapelet_result.reshape((1, shapelet_result.shape[0], 1) + (2,2))
             shapelet_coh = da.from_array(shapelet_coh)
-            nifty_coh = nifty_result.reshape((1, nifty_result.shape[0],1) + (2,2))
-            nifty_coh = da.from_array(nifty_coh)
             
             # Write visibilities for shapelets
             shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-            nifty_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, nifty_coh, None, None, None, None)
             
             vis = shapelet_vis
             
             # Reshape (2, 2) correlation to shape (4,)
             if corrs == 4:
                 vis = vis.reshape(vis.shape[:2] + (4,))
-                nifty_vis = nifty_vis.reshape(nifty_vis.shape[:2] + (4,))
-
+               
             # Assign visibilities to MODEL_DATA array on the dataset
             xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
-            xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), nifty_vis))
-
+            
             # Create a write to the table
-            write = xds_to_table(xds, args.ms_two_hours, ["MODEL_DATA", "CORRECTED_DATA"])
+            write = xds_to_table(xds, args.ms_two_hours, ["MODEL_DATA"])
             
             # Compute write
             with ProgressBar():
@@ -710,9 +722,19 @@ def predict(args):
             print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
             print("-----------------------------------------------------")
     plt.figure()
+    # fig, ax = plt.subplots()
+    plot_labels = [[""] * 2] * 3
+    plot_labels[0][0] = "Shapelet (1 hour)"
+    plot_labels[0][1] = "Nifty (1 hour)"
+    plot_labels[1][0] = "Shapelet (2 hours)"
+    plot_labels[1][1] = "Nifty (2 hours)"
+    plot_labels[2][0] = "Shapelet (3 hours)"
+    plot_labels[2][1] = "Nifty (3 hours)"
     for i in range(3):
         for j in range(2):
-            plt.plot(code_timings[:,i,j])
+            print(code_timings[:,i,j])
+            plt.plot(code_timings[:,i,j], label=plot_labels[i][j])
+    plt.legend(loc='upper left', frameon=True)
     plt.xlabel("Number of shapelet components")
     plt.ylabel("Code timing (seconds)")
     plt.title("Shapelets vs Nifty Gridder")
