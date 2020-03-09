@@ -27,7 +27,7 @@ def factorial(n):
     return ans * n
 
 @numba.jit(nogil=True, nopython=True, cache=True)
-def basis_function(n, xx, beta, fourier=False, delta_x=None):
+def basis_function(n, xx, beta, fourier=False, delta_x=-1):
     if fourier:
         x = 2*np.pi*xx
         scale = 1.0/beta
@@ -37,8 +37,6 @@ def basis_function(n, xx, beta, fourier=False, delta_x=None):
     basis_component = 1.0/np.sqrt(2.0**n * np.sqrt(np.pi) * factorial(n) * scale)
     exponential_component = hermite(n, x / scale) * np.exp(-x**2 / (2.0*scale**2))
     if fourier:
-        # print("basis_component: ", np.sqrt(scale), basis_component)
-        # print("exponential_component: ", exponential_component)
         return 1.0j**n * basis_component * exponential_component * np.sqrt(2*np.pi)/delta_x
     else:
         return basis_component * exponential_component
@@ -133,7 +131,7 @@ def shapelet_with_w_term(coords, frequency, coeffs, beta, delta_lm, lm, dtype=np
     return out_shapelets
 
 #@numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
+def shapelet_1d(u, coeffs, fourier, delta_x=1, beta=1.0):
     """
     The one dimensional shapelet. Default is to return the
     dimensionless version. 
@@ -143,7 +141,7 @@ def shapelet_1d(u, coeffs, fourier, delta_x=None, beta=1.0):
         Array of coordinates at which to evaluate the shapelet
         of shape (nrow)
     coeffs : :class:`numpy.ndarray`
-        Array of shapelet coefficients of chape (ncoeff)
+        Array of shapelet coefficients of shape (ncoeff)
     fourier : bool
         Whether to evaluate the shapelet in Fourier space
         or in signal space

@@ -386,29 +386,13 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
     for r in range(uvw.shape[0]):
         freq_coords = uvw[r,:]
         w_term[r] = phase_steer_and_w_correct(freq_coords, lm, phase_frequency)
-    print("W-terms match: ",np.allclose(phase.compute()[0,:,0], w_term))
-    # quit()
-
-    
-    # Get Shapelet Source Coherence without W-term
-    # shapelet_shape_function = nb_shapelet(uvw, shapelet_null_frequency, source1.coeffs.compute(), shapelet_beta, delta_lm)
-    # shapelet_source_coherence = np.einsum("srf,rsf,sij->srfij", phase.compute(), shapelet_shape_function, brightness.compute())
-    # shapelet_source_coherence = shapelet_source_coherence[0,:,0,:,:]
-
-
-
     if ret_shapelet or ret_gauss:
         return (shapelet_source_coherence if ret_shapelet else None, gaussian_source_coherence if ret_gauss else None)
     else:
         gauss_norm = gaussian_source_coherence / np.max(np.abs(gaussian_source_coherence))
         shapelet_norm = shapelet_source_coherence / np.max(np.abs(shapelet_source_coherence))
-        print("------------------------------------------------------")
-        print("Shapelet and Gaussian Test (Normalized): ", np.allclose(shapelet_norm, gauss_norm))
-        print("Phase Test: ", np.allclose(shapelet_norm.imag, gauss_norm.imag))
-        print("Shapelet and Gaussian Test: ", np.allclose(shapelet_source_coherence, gaussian_source_coherence))
-        print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - gauss_norm)**2), np.average((shapelet_source_coherence - gaussian_source_coherence)**2))
-        print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - gauss_norm)**2), np.max((shapelet_source_coherence - gaussian_source_coherence)**2))
-        print("------------------------------------------------------")
+        assert np.allclose(gauss_norm, shapelet_norm)
+        print("Phase delays match.")
         quit()
 
 
@@ -434,103 +418,87 @@ def predict(args):
     # List of write operations
     writes = []
 
-    # Construct a graph for each DATA_DESC_ID
-    sm_visibilities = [None, None]
-    i = 0
-    for sky_model in [sky_model_1, sky_model_2]:
-        for xds in xds_from_ms(args.ms,
-                            columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
-                            group_cols=["FIELD_ID", "DATA_DESC_ID"],
-                            chunks={"row": args.row_chunks}):
+    for xds in xds_from_ms(args.ms,
+                        columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
+                        group_cols=["FIELD_ID", "DATA_DESC_ID"],
+                        chunks={"row": args.row_chunks}):
 
-            # Perform subtable joins
-            ant = ant_ds[0]
-            field = field_ds[xds.attrs['FIELD_ID']]
-            ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
-            spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
-            pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
+        # Perform subtable joins
+        ant = ant_ds[0]
+        field = field_ds[xds.attrs['FIELD_ID']]
+        ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
+        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
+        pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
 
-            # Select single dataset row out
-            corrs = pol.NUM_CORR.data[0]
+        # Select single dataset row out
+        corrs = pol.NUM_CORR.data[0]
 
-            meta = np.empty((0,), dtype=tuple)
-            utime_inv = xds.TIME.data.map_blocks(np.unique, return_inverse=True,
-                                        meta=meta, dtype=tuple)
-            time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
-            print(time_idx)
+        meta = np.empty((0,), dtype=tuple)
+        utime_inv = xds.TIME.data.map_blocks(np.unique, return_inverse=True,
+                                    meta=meta, dtype=tuple)
+        time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
+        
+        ret_shapelet = args.vis_shapelet
+        ret_gauss = args.vis_gauss
 
-            print([stype for stype in sky_model_2.keys()])
-            ret_shapelet = args.vis_shapelet
-            ret_gauss = args.vis_gauss
+        shapelet_coh, gauss_coh = coherence_factory(args, 'shapelet', sky_model_1, 'gauss', sky_model_2, xds, ant, field, spw, pol, ret_shapelet=ret_shapelet, ret_gauss=ret_gauss)
+        if ret_shapelet:
+            # Get correct coherence shape
+            shapelet_coh = shapelet_coh.reshape((1, shapelet_coh.shape[0], 1) + (2,2))
+            shapelet_coh = da.from_array(shapelet_coh)
+            
+            # Write visibilities for shapelets
+            shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
+            
+            # Generate visibility expressions for each source type
+            # source_vis = [vis_factory(args, stype, sky_model,
+            #                         xds, ant, field, spw, pol)
+            #             for stype in sky_model.keys()]
 
-            shapelet_coh, gauss_coh = coherence_factory(args, 'shapelet', sky_model_1, 'gauss', sky_model_2, xds, ant, field, spw, pol, ret_shapelet=ret_shapelet, ret_gauss=ret_gauss)
-            if ret_shapelet:
-                # Get correct coherence shape
-                shapelet_coh = shapelet_coh.reshape((1, shapelet_coh.shape[0], 1) + (2,2))
-                shapelet_coh = da.from_array(shapelet_coh)
-                
-                # Write visibilities for shapelets
-                shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-              
-                # Generate visibility expressions for each source type
-                # source_vis = [vis_factory(args, stype, sky_model,
-                #                         xds, ant, field, spw, pol)
-                #             for stype in sky_model.keys()]
+            vis = shapelet_vis#sum(source_vis)
+            
+            # Reshape (2, 2) correlation to shape (4,)
+            if corrs == 4:
+                vis = vis.reshape(vis.shape[:2] + (4,))
 
-                vis = shapelet_vis#sum(source_vis)
-                
-                # Reshape (2, 2) correlation to shape (4,)
-                if corrs == 4:
-                    vis = vis.reshape(vis.shape[:2] + (4,))
+            # Assign visibilities to MODEL_DATA array on the dataset
+            xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
 
-                # Assign visibilities to MODEL_DATA array on the dataset
-                xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+            # Create a write to the table
+            write = xds_to_table(xds, args.ms, ["MODEL_DATA"])
+            
+            # Compute write
+            with ProgressBar():
+                da.compute(write)
+        if ret_gauss:
+            # Get correct coherence shape
+            gauss_coh = gauss_coh.reshape((1, gauss_coh.shape[0], 1) + (2,2))
+            gauss_coh = da.from_array(gauss_coh)
+            
+            # Write visibilities for Gaussians
+            gauss_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, gauss_coh, None, None, None, None)
+            
+            # Generate visibility expressions for each source type
+            # source_vis = [vis_factory(args, stype, sky_model,
+            #                         xds, ant, field, spw, pol)
+            #             for stype in sky_model.keys()]
 
-                # Create a write to the table
-                write = xds_to_table(xds, args.ms, ["MODEL_DATA"])
-                print("WRITING SHAPELETS TO MODEL_DATA")
+            vis = gauss_vis#sum(source_vis)
+            
+            # Reshape (2, 2) correlation to shape (4,)
+            if corrs == 4:
+                vis = vis.reshape(vis.shape[:2] + (4,))
 
-                # Compute write
-                with ProgressBar():
-                    da.compute(write)
-            if ret_gauss:
-                # Get correct coherence shape
-                gauss_coh = gauss_coh.reshape((1, gauss_coh.shape[0], 1) + (2,2))
-                gauss_coh = da.from_array(gauss_coh)
-                
-                # Write visibilities for Gaussians
-                gauss_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, gauss_coh, None, None, None, None)
-              
-                # Generate visibility expressions for each source type
-                # source_vis = [vis_factory(args, stype, sky_model,
-                #                         xds, ant, field, spw, pol)
-                #             for stype in sky_model.keys()]
+            # Assign visibilities to MODEL_DATA array on the dataset
+            xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
 
-                vis = gauss_vis#sum(source_vis)
-                
-                # Reshape (2, 2) correlation to shape (4,)
-                if corrs == 4:
-                    vis = vis.reshape(vis.shape[:2] + (4,))
+            # Create a write to the table
+            write = xds_to_table(xds, args.ms, ["CORRECTED_DATA"])
 
-                # Assign visibilities to MODEL_DATA array on the dataset
-                xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
+            # Compute write
+            with ProgressBar():
+                da.compute(write)
 
-                # Create a write to the table
-                write = xds_to_table(xds, args.ms, ["CORRECTED_DATA"])
-                print("WRITING GAUSSIAN TO CORRECTED_DATA")
-
-                # Compute write
-                with ProgressBar():
-                    da.compute(write)
-            quit()
-
-            # Add to the list of writes
-            writes.append(write)
-
-
-    # Submit all graph computations in parallel
-    with ProgressBar():
-        dask.compute(writes)
 
 
 if __name__ == "__main__":
