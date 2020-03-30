@@ -163,6 +163,58 @@ def row_mapper(time, uvw, ants, phase_dir, ref_freq, lm_max):
 
     return R
 
+_SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
+
+@njit(nogil=True, cache=True, inline='always')
+def inv_sinc(sinc_x, tol=1e-12):
+    # Initial guess from reversion of Taylor series
+    # https://math.stackexchange.com/questions/3189307/inverse-of-frac-sinxx
+    x = t_pow = np.sqrt(6*(1 - sinc_x))
+    t_squared = t_pow*t_pow
+
+    for coeff in _SERIES_COEFFS:
+        t_pow *= t_squared
+        x += coeff * t_pow 
+
+    # Use Newton Raphson to go the rest of the way
+    # https://www.wolframalpha.com/input/?i=simplify+%28sinc%5Bx%5D+-+c%29+%2F+D%5Bsinc%5Bx%5D%2Cx%5D
+    while True:
+      # evaluate delta between this iteration sinc(x) and original
+        sinx = np.sin(x)
+        𝞓sinc_x = (1.0 if x == 0.0 else sinx/x) - sinc_x
+
+        # Stop if converged
+        if np.abs(𝞓sinc_x) < tol:
+            break
+
+        # Next iteration
+        x -= (x*x*𝞓sinc_x) / (x*np.cos(x) - sinx)
+
+    return x
+
+def blah(x):
+    eps = 1.0
+    while np.abs(eps) > 1e-12:
+        sinx = np.sin(x)
+
+        # For very small x, the denominator in the gauss newtown
+        # evaluates to zero. In any case
+        if x == sinx:
+            print("Failure")
+            break
+
+        cosx = np.cos(x)
+
+        print(x, sinx/x, np.abs(eps), sinx, cosx, (x*x - 2) * sinx + 2*x*cosx)
+        # https://www.wolframalpha.com/input/?i=simplify+D%5BSinc%5Bx%5D%2C+x%5D%2FD%5BSinc%5Bx%5D%2C+%7Bx%2C+2%7D%5D
+        eps = - (x*(sinx - x*cosx))/((x*x - 2)*sinx + 2*x*cosx)
+        x += eps
+
+    final_sinc_x = 1.0 if x == 0.0 else sinx / x
+
+    print(x, sinc_x, final_sinc_x)
+
+    return x
 
 @njit(nogil=True, cache=True)
 def _impl(time, interval, ant1, ant2, uvw, ref_freq,
@@ -184,6 +236,8 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
     nbl = ubl.shape[0]
 
     sentinel = np.finfo(time.dtype).max
+
+    # unique_chan_bins = set()
 
     shape = (nbl, ntime)
     row_lookup = np.full(shape, -1, dtype=np.int32)
@@ -236,6 +290,7 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
 
                 # Derive phase difference in time
                 # from Equation (33) in Atemkeng
+                # without factor of 2
                 𝞓𝞇 = np.pi * (du_dt + dv_dt)
                 sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
 
@@ -256,9 +311,6 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                         bin_sinc_𝞓𝞇 = sinc_𝞓𝞇 = 1.0
                         sinc_𝞓𝞍 = decorrelation
                     else:
-                        # Phase at the centre of the bin and reference frequency
-                        phase = 1.0
-
                         # Given
                         #   (1) acceptable decorrelation
                         #   (2) change in baseline speed
@@ -266,31 +318,7 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                         # from Equation (35) in Atemkeng
                         sinc_𝞓𝞍 = decorrelation / bin_sinc_𝞓𝞇
 
-                        # Use Newton Raphson to find frequency phase difference 𝞍
-                        # https://stackoverflow.com/a/30205309/1611416
-                        eps = 1.0
-                        𝞓𝞍 = np.pi  # Starting guess. sinc Taylor series maybe appropriate
-
-                        while np.abs(eps) > 1e-12:
-                            # Try negative range if we hit zero
-                            if 𝞓𝞍 == 0.0:
-                                𝞓𝞍 = -np.pi
-
-                            # compute sinc of 𝞓𝞍 on this iteration
-                            it_sinc_𝞓𝞍 = np.sin(𝞓𝞍) / 𝞓𝞍
-
-                            # For very small 𝞓𝞍, sinc(𝞓𝞍) == 𝞓𝞍 can hold
-                            # We've found a solution when it does
-                            if it_sinc_𝞓𝞍 == 1.0:
-                                break
-
-                            # derivative of sinc of 𝞓𝞍 on this iteration
-                            dit_sinc_𝞓𝞍 = (np.cos(𝞓𝞍) - it_sinc_𝞓𝞍) / 𝞓𝞍
-
-                            # Difference at this iteration
-                            eps = it_sinc_𝞓𝞍 - sinc_𝞓𝞍
-                            # Newton Raphson update
-                            𝞓𝞍 = 𝞓𝞍 - eps / dit_sinc_𝞓𝞍
+                    𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
 
                     # Derive fractional bandwidth 𝞓𝝼/𝝼
                     # from Equation (44) in Atemkeng
@@ -306,9 +334,9 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                     # Derive max_𝞓𝝼, the maximum change in bandwidth
                     # before decorrelation occurs in frequency
                     #
-                    # fractional bandwidth is defined by
+                    # Fractional Bandwidth is defined by
                     # https://en.wikipedia.org/wiki/Bandwidth_(signal_processing)
-                    # for wideband antennas as:
+                    # for Wideband Antennas as:
                     #   (1) 𝞓𝝼/𝝼 = fb = (fh - fl) / (fh + fl)
                     # where fh and fl are the high and low frequencies
                     # of the band.
@@ -318,16 +346,15 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
 
                     bin_freq_low = chan_freq[0] - chan_width[0] / 2
                     bin_chan_low = 0
-                    bin_𝞓𝝼 = 0
 
                     chan_bins = 0
 
                     for c in range(1, chan_freq.shape[0]):
                         # Bin bandwidth
-                        𝞓𝝼 = chan_freq[c] + chan_width[c] / 2 - bin_freq_low
+                        bin_𝞓𝝼 = chan_freq[c] + chan_width[c] / 2 - bin_freq_low
 
                         # Exceeds, start new channel bin
-                        if 𝞓𝝼 > max_𝞓𝝼:
+                        if bin_𝞓𝝼 > max_𝞓𝝼:
                             bin_chan_low = c
                             bin_freq_low = chan_freq[c] - chan_width[c] / 2
                             chan_bins += 1
@@ -343,7 +370,6 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                     bin_v_low = uvw[r, 1]
                     bin_w_low = uvw[r, 2]
                     bin_flag_count = 0
-
 
             bin_count += 1
 
