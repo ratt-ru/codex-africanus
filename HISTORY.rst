@@ -4,6 +4,7 @@ History
 
 0.2.1 (YYYY-MM-DD)
 ------------------
+* Update trove to latest master commit (:pr:`178`)
 * Added Cubic Spline support (:pr:`174`)
 * Depend on python-casacore >= 3.2.0 (:pr:`172`)
 * Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
