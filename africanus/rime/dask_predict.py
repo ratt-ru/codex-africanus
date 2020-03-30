@@ -17,7 +17,8 @@ from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 from africanus.rime.wsclean_predict import (
                                 WSCLEAN_PREDICT_DOCS,
-                                wsclean_predict as np_wsclean_predict)
+                                wsclean_predict_impl as wsclean_predict_body)
+from africanus.model.wsclean.spec_model import spectra as wsclean_spectra
 
 
 try:
@@ -454,24 +455,39 @@ def predict_vis(time_index, antenna1, antenna2,
                       predict_check_tup, out_dtype)
 
 
-def wsclean_wrapper(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
-    return np_wsclean_predict(uvw[0], lm[0],
-                              flux, coeffs[0],
-                              log_poly, ref_freq,
-                              frequency)[None, :]
+def wsclean_spectrum_wrapper(flux, coeffs, log_poly, ref_freq, frequency):
+    return wsclean_spectra(flux, coeffs[0], log_poly, ref_freq, frequency)
+
+
+def wsclean_body_wrapper(uvw, lm, frequency, spectrum, dtype_):
+    return wsclean_predict_body(uvw[0], lm[0],
+                                frequency, spectrum,
+                                dtype_)[None, :]
 
 
 @requires_optional('dask.array', opt_import_error)
 def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
-    out_dtype = np.result_type(uvw.dtype, np.complex64)
-    vis = da.blockwise(wsclean_wrapper, ("source", "row", "chan", "corr"),
+    spectrum_dtype = np.result_type(*(a.dtype for a in (flux, coeffs,
+                                                        log_poly, ref_freq,
+                                                        frequency)))
+
+    spectrum = da.blockwise(wsclean_spectrum_wrapper, ("source", "chan"),
+                            flux, ("source",),
+                            coeffs, ("source", "comp"),
+                            log_poly, ("source",),
+                            ref_freq, ("source",),
+                            frequency, ("chan",),
+                            dtype=spectrum_dtype)
+
+    out_dtype = np.result_type(uvw.dtype, lm.dtype, frequency.dtype,
+                               spectrum.dtype, np.complex64)
+
+    vis = da.blockwise(wsclean_body_wrapper, ("source", "row", "chan", "corr"),
                        uvw, ("row", "uvw"),
                        lm, ("source", "lm"),
-                       flux, ("source",),
-                       coeffs, ("source", "coeffs"),
-                       log_poly, ("source",),
-                       ref_freq, ("source",),
                        frequency, ("chan",),
+                       spectrum, ("source", "chan"),
+                       out_dtype, None,
                        adjust_chunks={"source": 1},
                        new_axes={"corr": 1},
                        dtype=out_dtype)
