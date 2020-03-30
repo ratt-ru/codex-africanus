@@ -18,8 +18,8 @@ if on_rtd():
         return decorator
 
     cfunc = _fake_decorator
-    generated_jit = _fake_decorator
     jit = _fake_decorator
+    generated_jit = _fake_decorator
     njit = _fake_decorator
     stencil = _fake_decorator
 
