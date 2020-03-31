@@ -8,7 +8,7 @@ History
 * Added Cubic Spline support (:pr:`174`)
 * Depend on python-casacore >= 3.2.0 (:pr:`172`)
 * Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
-* Implement optimised WSClean predict (:pr:`166`, :pr:`167`, :pr:`177`)
+* Implement optimised WSClean predict (:pr:`166`, :pr:`167`, :pr:`177`, :pr:`179`)
 * Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
 * Document and check weight shapes in simple gridder and degridder
   (:pr:`162`, :pr:`163`)
