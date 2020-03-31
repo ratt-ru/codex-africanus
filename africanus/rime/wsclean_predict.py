@@ -2,20 +2,28 @@
 
 import numpy as np
 
-from africanus.constants import two_pi_over_c
+from africanus.constants import two_pi_over_c, c as lightspeed
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit, jit
 from africanus.model.wsclean.spec_model import spectra
 
 
-@jit(nopython=True, nogil=True, cache=True, inline='always')
-def wsclean_predict_impl(uvw, lm, frequency, spectrum, dtype):
+fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+fwhminv = 1.0 / fwhm
+gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
+
+
+@jit(nopython=True, nogil=True, cache=True)
+def wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
+                         frequency, spectrum, dtype):
     nrow = uvw.shape[0]
     nchan = frequency.shape[0]
     ncorr = 1
 
     nsrc = spectrum.shape[0]
     n1 = lm.dtype.type(1)
+
+    scaled_freq = frequency * frequency.dtype.type(gauss_scale)
 
     vis = np.zeros((nrow, nchan, ncorr), dtype=dtype)
 
@@ -24,32 +32,72 @@ def wsclean_predict_impl(uvw, lm, frequency, spectrum, dtype):
         m = lm[s, 1]
         n = np.sqrt(n1 - l*l - m*m) - n1
 
-        for r in range(nrow):
-            u = uvw[r, 0]
-            v = uvw[r, 1]
-            w = uvw[r, 2]
+        if source_type[s] == "POINT":
+            for r in range(nrow):
+                u = uvw[r, 0]
+                v = uvw[r, 1]
+                w = uvw[r, 2]
 
-            real_phase = two_pi_over_c*(u*l + v*m + w*n)
+                real_phase = two_pi_over_c*(u*l + v*m + w*n)
 
-            for f in range(nchan):
-                p = real_phase * frequency[f]
-                re = np.cos(p) * spectrum[s, f]
-                im = np.sin(p) * spectrum[s, f]
+                for f in range(nchan):
+                    p = real_phase * frequency[f]
+                    re = np.cos(p) * spectrum[s, f]
+                    im = np.sin(p) * spectrum[s, f]
 
-                vis[r, f, 0] += re + im*1j
+                    vis[r, f, 0] += re + im*1j
+        elif source_type[s] == "GAUSSIAN":
+            emaj, emin, angle = gauss_shape[s]
+
+            # Convert to l-projection, m-projection, ratio
+            el = emaj * np.sin(angle)
+            em = emaj * np.cos(angle)
+            er = emin / (1.0 if emaj == 0.0 else emaj)
+
+            for r in range(nrow):
+                u = uvw[r, 0]
+                v = uvw[r, 1]
+                w = uvw[r, 2]
+
+                # Compute phase term
+                real_phase = two_pi_over_c*(u*l + v*m + w*n)
+
+                # Gaussian shape term bits
+                u1 = (u*em - v*el)*er
+                v1 = u*el + v*em
+
+                for f in range(nchan):
+                    p = real_phase * frequency[f]
+                    re = np.cos(p) * spectrum[s, f]
+                    im = np.sin(p) * spectrum[s, f]
+
+                    # Calculate gaussian shape component and multiply in
+                    fu1 = u1*scaled_freq[f]
+                    fv1 = v1*scaled_freq[f]
+                    shape = np.exp(-(fu1*fu1 + fv1*fv1))
+                    re *= shape
+                    im *= shape
+
+                    vis[r, f, 0] += re + im*1j
+        else:
+            raise ValueError("source_type must be "
+                             "POINT or GAUSSIAN")
 
     return vis
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+def wsclean_predict(uvw, lm, source_type, flux, coeffs,
+                    log_poly, ref_freq, gauss_shape, frequency):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (uvw, lm, flux, coeffs, ref_freq, frequency))
     dtype = np.result_type(np.complex64, *arg_dtypes)
 
-    def impl(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+    def impl(uvw, lm, source_type, flux, coeffs, log_poly,
+             ref_freq, gauss_shape, frequency):
         spectrum = spectra(flux, coeffs, log_poly, ref_freq, frequency)
-        return wsclean_predict_impl(uvw, lm, frequency, spectrum, dtype)
+        return wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
+                                    frequency, spectrum, dtype)
 
     return impl
 
@@ -63,6 +111,9 @@ WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
         UVW coordinates of shape :code:`(row, 3)`
     lm : $(array_type)
         Source LM coordinates of shape :code:`(source, 2)`
+    source_type : $(array_type)
+        Strings defining the source type of shape :code:`(source,)`.
+        Should be either ``"POINT"`` or ``"GAUSSIAN"``.
     flux : $(array_type)
         Source flux of shape :code:`(source,)`
     coeffs : $(array_type)
@@ -73,6 +124,9 @@ WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
         If False, standard polynomials are used.
     ref_freq : $(array_type)
         Source Reference frequency of shape :code:(`source,)`
+    gauss_shape : $(array_type)
+        Gaussian shape parameters of shape :code:`(source, 3)`
+        used when the corresponding ``source_type`` is ``"GAUSSIAN"``.
     frequency : $(array_type)
         Frequency of shape :code:`(chan,)`
 
