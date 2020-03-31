@@ -459,14 +459,16 @@ def wsclean_spectrum_wrapper(flux, coeffs, log_poly, ref_freq, frequency):
     return wsclean_spectra(flux, coeffs[0], log_poly, ref_freq, frequency)
 
 
-def wsclean_body_wrapper(uvw, lm, frequency, spectrum, dtype_):
-    return wsclean_predict_body(uvw[0], lm[0],
-                                frequency, spectrum,
+def wsclean_body_wrapper(uvw, lm, source_type, gauss_shape,
+                         frequency, spectrum, dtype_):
+    return wsclean_predict_body(uvw[0], lm[0], source_type,
+                                gauss_shape[0], frequency, spectrum,
                                 dtype_)[None, :]
 
 
 @requires_optional('dask.array', opt_import_error)
-def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+def wsclean_predict(uvw, lm, source_type, flux, coeffs,
+                    log_poly, ref_freq, gauss_shape, frequency):
     spectrum_dtype = np.result_type(*(a.dtype for a in (flux, coeffs,
                                                         log_poly, ref_freq,
                                                         frequency)))
@@ -485,6 +487,8 @@ def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
     vis = da.blockwise(wsclean_body_wrapper, ("source", "row", "chan", "corr"),
                        uvw, ("row", "uvw"),
                        lm, ("source", "lm"),
+                       source_type, ("source",),
+                       gauss_shape, ("source", "gauss"),
                        frequency, ("chan",),
                        spectrum, ("source", "chan"),
                        out_dtype, None,
