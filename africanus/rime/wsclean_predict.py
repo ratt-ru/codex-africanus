@@ -72,9 +72,9 @@ def wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
                     im = np.sin(p) * spectrum[s, f]
 
                     # Calculate gaussian shape component and multiply in
-                    fu1 = u1*scaled_freq[f]
-                    fv1 = v1*scaled_freq[f]
-                    shape = np.exp(-(fu1*fu1 + fv1*fv1))
+                    fu1 = u1 * scaled_freq[f]
+                    fv1 = v1 * scaled_freq[f]
+                    shape = np.exp(-(fu1 * fu1 + fv1 * fv1))
                     re *= shape
                     im *= shape
 
