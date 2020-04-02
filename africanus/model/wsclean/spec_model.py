@@ -89,7 +89,7 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):
                         raise ValueError("Log polynomial flux must be > 0")
 
                     # Initialise with base polynomial value
-                    spectral_model[s, f] = np.log(I[s])
+                    spectral_model[s, f] = np.log(flux)
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c]
