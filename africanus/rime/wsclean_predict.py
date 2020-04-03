@@ -103,32 +103,41 @@ def wsclean_predict(uvw, lm, source_type, flux, coeffs,
 
 
 WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
-    Predict visibilities from a WSClean sky model
+    Predict visibilities from a `WSClean sky model
+    <https://sourceforge.net/p/wsclean/wiki/ComponentList/>`_.
 
     Parameters
     ----------
     uvw : $(array_type)
         UVW coordinates of shape :code:`(row, 3)`
     lm : $(array_type)
-        Source LM coordinates of shape :code:`(source, 2)`
+        Source LM coordinates of shape :code:`(source, 2)`.
+        Derived from the ``Ra`` and ``Dec`` fields.
     source_type : $(array_type)
         Strings defining the source type of shape :code:`(source,)`.
         Should be either ``"POINT"`` or ``"GAUSSIAN"``.
+        Contains the ``Type`` field.
     flux : $(array_type)
-        Source flux of shape :code:`(source,)`
+        Source flux of shape :code:`(source,)`.
+        Contains the ``I`` field.
     coeffs : $(array_type)
-        Source Polynomial coefficients of shape :code:`(source, coeffs)`
+        Source Polynomial coefficients of shape :code:`(source, coeffs)`.
+        Contains the ``SpectralIndex`` field.
     log_poly : $(array_type)
         Source polynomial type of shape :code:`(source,)`.
         If True, logarithmic polynomials are used.
         If False, standard polynomials are used.
+        Contains the ``LogarithmicSI`` field.
     ref_freq : $(array_type)
-        Source Reference frequency of shape :code:(`source,)`
+        Source Reference frequency of shape :code:`(source,)`.
+        Contains the ``ReferenceFrequency`` field.
     gauss_shape : $(array_type)
         Gaussian shape parameters of shape :code:`(source, 3)`
         used when the corresponding ``source_type`` is ``"GAUSSIAN"``.
+        The 3 components should contain the ``MajorAxis``, ``MinorAxis``
+        and ``Orientation`` fields, respectively.
     frequency : $(array_type)
-        Frequency of shape :code:`(chan,)`
+        Frequency of shape :code:`(chan,)`.
 
     Returns
     -------
