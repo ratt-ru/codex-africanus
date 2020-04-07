@@ -110,6 +110,7 @@ COMPUTE_AND_CORRUPT_VIS_DOCS = DocstringTemplate("""
 Corrupts time variable component model with arbitrary
 Jones terms. Currrently only time variable point source
 models are supported.
+
 Parameters
 ----------
 time_bin_indices : $(array_type)
@@ -134,6 +135,7 @@ uvw : $(array_type)
 lm : $(array_type)
     Source lm coordinates as a function of time
     :code:`(utime, dir, 2)`
+    
 Returns
 -------
 vis : $(array_type)
