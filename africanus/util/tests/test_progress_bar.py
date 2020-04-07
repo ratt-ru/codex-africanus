@@ -1,6 +1,6 @@
 import pytest
 
-from africanus.util.dask import EstimatingProgressBar
+from africanus.util.dask import EstimatingProgressBar, format_time
 
 
 def test_progress_bar():
@@ -11,3 +11,14 @@ def test_progress_bar():
 
     with EstimatingProgressBar(out=None):
         B.compute()
+
+    assert ("    0s") == format_time(0)
+    assert ("   59s") == format_time(59)
+    assert (" 1m 0s") == format_time(60)
+    assert (" 1m 1s") == format_time(61)
+
+    assert (" 2h 6m") == format_time(2*60*60 + 6*60)
+    assert (" 2h 6m") == format_time(2*60*60 + 6*60 + 59)
+    assert (" 2h 7m") == format_time(2*60*60 + 7*60)
+    assert (" 2h 7m") == format_time(2*60*60 + 7*60 + 1)
+

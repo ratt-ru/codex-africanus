@@ -11,6 +11,7 @@ try:
     from dask.utils import ignoring
 except ImportError as e:
     opt_import_err = e
+    Callback = object
 else:
     opt_import_err = None
 
@@ -20,17 +21,20 @@ from africanus.util.requirements import requires_optional
 def format_time(t):
     """Format seconds into a human readable form."""
     m, s = divmod(t, 60)
-    h, m = divmod(m, 60)
-    d, h = divmod(h, 24)
+    h, m = (0, m) if m == 0 else divmod(m, 60)
+    d, h = (0, h) if h == 0 else divmod(h, 24)
+    w, d = (0, d) if d == 0 else divmod(d, 7)
 
-    if d:
+    if w:
+        return ("{0:2.0f}w{0:2.0f}d".format(w, d))
+    elif d:
         return ("{0:2.0f}d{0:2.0f}h".format(d, h))
     elif h:
         return "{0:2.0f}h{1:2.0f}m".format(h, m)
     elif m:
         return "{0:2.0f}m{1:2.0f}s".format(m, s)
     else:
-        return "{0:4.0f}s".format(s)
+        return "{0:5.0f}s".format(s)
 
 
 def key_bin(key):
@@ -135,8 +139,8 @@ def timer_func(pb):
 default_out = object()
 
 
-@requires_optional("dask", opt_import_err)
 class EstimatingProgressBar(Callback):
+    @requires_optional("dask", opt_import_err)
     def __init__(self, minimum=0, width=42, dt=0.1, out=default_out):
         if out is None:
             out = open(os.devnull, "w")
