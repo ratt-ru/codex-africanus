@@ -1,6 +1,6 @@
 import pytest
 
-from africanus.util.dask import EstimatingProgressBar, format_time
+from africanus.util.dask_util import EstimatingProgressBar, format_time
 
 
 def test_progress_bar():
