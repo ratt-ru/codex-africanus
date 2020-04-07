@@ -140,8 +140,39 @@ default_out = object()
 
 
 class EstimatingProgressBar(Callback):
+    """
+    Progress Bar that displays elapsed time as well as an
+    estimate of total time taken.
+
+    Parameters
+    ----------
+    minimum : int, optional
+        Minimum time threshold in seconds before displaying a progress bar.
+        Default is 0 (always display)
+    width : int, optional
+        Width of the bar, default is 42 characters.
+    dt : float, optional
+        Update resolution in seconds, default is 1.0 seconds.
+
+    When starting a dask computation,
+    the bar examines the graph and determines
+    the number of chunks contained by a dask collection.
+
+    During computation the number of completed chunks and
+    their the total time taken to complete them are
+    tracked. The average derived from these numbers are
+    used to estimate total compute time, relative to
+    the current elapsed time.
+
+    The bar is not particularly accurate and will
+    underestimate near the beginning of computation
+    and seems to slightly overestimate during the
+    buk of computation. However, it may be more accurate
+    than the default dask task bar which tracks
+    number of tasks completed by total tasks.
+    """
     @requires_optional("dask", opt_import_err)
-    def __init__(self, minimum=0, width=42, dt=0.1, out=default_out):
+    def __init__(self, minimum=0, width=42, dt=1.0, out=default_out):
         if out is None:
             out = open(os.devnull, "w")
         elif out is default_out:

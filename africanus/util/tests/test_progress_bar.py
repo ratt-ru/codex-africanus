@@ -21,4 +21,3 @@ def test_progress_bar():
     assert (" 2h 6m") == format_time(2*60*60 + 6*60 + 59)
     assert (" 2h 7m") == format_time(2*60*60 + 7*60)
     assert (" 2h 7m") == format_time(2*60*60 + 7*60 + 1)
-
