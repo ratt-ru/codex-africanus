@@ -15,6 +15,7 @@ except ImportError as e:
 else:
     opt_import_err = None
 
+from africanus.util.docs import DefaultOut
 from africanus.util.requirements import requires_optional
 
 
@@ -136,23 +137,13 @@ def timer_func(pb):
         time.sleep(pb._dt)
 
 
-default_out = object()
+default_out = DefaultOut("sys.stdout")
 
 
 class EstimatingProgressBar(Callback):
     """
     Progress Bar that displays elapsed time as well as an
     estimate of total time taken.
-
-    Parameters
-    ----------
-    minimum : int, optional
-        Minimum time threshold in seconds before displaying a progress bar.
-        Default is 0 (always display)
-    width : int, optional
-        Width of the bar, default is 42 characters.
-    dt : float, optional
-        Update resolution in seconds, default is 1.0 seconds.
 
     When starting a dask computation,
     the bar examines the graph and determines
@@ -170,6 +161,17 @@ class EstimatingProgressBar(Callback):
     buk of computation. However, it may be more accurate
     than the default dask task bar which tracks
     number of tasks completed by total tasks.
+
+    Parameters
+    ----------
+    minimum : int, optional
+        Minimum time threshold in seconds before displaying a progress bar.
+        Default is 0 (always display)
+    width : int, optional
+        Width of the bar, default is 42 characters.
+    dt : float, optional
+        Update resolution in seconds, default is 1.0 seconds.
+
     """
     @requires_optional("dask", opt_import_err)
     def __init__(self, minimum=0, width=42, dt=1.0, out=default_out):
