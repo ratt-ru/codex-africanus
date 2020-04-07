@@ -33,6 +33,16 @@ def doc_tuple_to_str(doc_tuple, replacements=None):
     return ''.join(fields)
 
 
+class DefaultOut(object):
+    def __init__(self, arg):
+        self.arg = arg
+
+    def __repr__(self):
+        return self.arg
+
+    __str__ = __repr__
+
+
 class DocstringTemplate(Template):
     """
     Overrides the ${identifer} braced pattern in the string Template

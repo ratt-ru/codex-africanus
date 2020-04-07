@@ -2,6 +2,11 @@
 History
 =======
 
+0.2.2 (YYYY-MM-DD)
+------------------
+
+* Add a dask Estimating Progress Bar (:pr:`182`)
+
 0.2.1 (2019-04-03)
 ------------------
 * Update trove to latest master commit (:pr:`178`)
