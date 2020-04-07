@@ -135,7 +135,7 @@ uvw : $(array_type)
 lm : $(array_type)
     Source lm coordinates as a function of time
     :code:`(utime, dir, 2)`
-    
+
 Returns
 -------
 vis : $(array_type)
