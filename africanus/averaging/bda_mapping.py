@@ -255,10 +255,8 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
         tbin = numba.int32(0)
         bin_count = numba.int32(0)
         bin_flag_count = numba.int32(0)
-        bin_time_low = time.dtype.type(0)
-        bin_u_low = uvw.dtype.type(0)
-        bin_v_low = uvw.dtype.type(0)
-        bin_w_low = uvw.dtype.type(0)
+        rs = 0
+        re = 0
         bin_sinc_𝞓𝞇 = uvw.dtype.type(0)
 
         for t in range(ntime):
@@ -267,23 +265,18 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
             if r == -1:
                 continue
 
-            half_int = interval[r] * 0.5
-
-            # We're starting a new bin anyway,
-            # just set the lower bin value
+            # We're starting a new bin,
+            # set the starting row
             if bin_count == 0:
-                bin_time_low = time[r] - half_int
-                bin_u_low = uvw[r, 0]
-                bin_v_low = uvw[r, 1]
-                bin_w_low = uvw[r, 2]
+                rs = re = r
                 bin_sinc_𝞓𝞇 = 0
             else:
                 # Evaluate the degree of decorrelation
                 # the sample would add to the bin
-                dt = time[r] + half_int - bin_time_low
-                du = uvw[r, 0] - bin_u_low
-                dv = uvw[r, 1] - bin_v_low
-                dw = uvw[r, 2] - bin_w_low
+                dt = time[r] + (interval[r] / 2.0) - (time[rs] - interval[rs] / 2.0)
+                du = uvw[re, 0] - uvw[r, 0]
+                dv = uvw[re, 1] - uvw[r, 1]
+                dw = uvw[re, 2] - uvw[r, 2]
 
                 du_dt = l * du / dt
                 dv_dt = m * dv / dt
@@ -296,8 +289,10 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
 
                 # We're not decorrelated at this point,
                 # but keep a record of the sinc_𝞓𝞇
+                # and the end of the bin
                 if sinc_𝞓𝞇 > decorrelation:
                     bin_sinc_𝞓𝞇 = sinc_𝞓𝞇
+                    re = r
                 else:
                     # Contents of the bin exceed decorrelation tolerance
                     # Finalise it and start a new one
@@ -305,9 +300,10 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                     # Handle special case of bin containing a single sample.
                     # Change in baseline speed 𝞓𝞇 == 0
                     if bin_count == 1:
-                        du = bin_u_low
-                        dv = bin_v_low
-                        dw = bin_w_low
+                        assert rs == re
+                        du = uvw[rs, 0]
+                        dv = uvw[rs, 1]
+                        dw = uvw[rs, 2]
                         bin_sinc_𝞓𝞇 = sinc_𝞓𝞇 = 1.0
                         sinc_𝞓𝞍 = decorrelation
                     else:
@@ -316,6 +312,9 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
                         #   (2) change in baseline speed
                         # derive the frequency phase difference
                         # from Equation (35) in Atemkeng
+                        du = uvw[rs, 0] - uvw[re, 0]
+                        dv = uvw[rs, 1] - uvw[re, 1]
+                        dw = uvw[rs, 2] - uvw[re, 2]
                         sinc_𝞓𝞍 = decorrelation / bin_sinc_𝞓𝞇
 
                     𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
@@ -365,10 +364,6 @@ def _impl(time, interval, ant1, ant2, uvw, ref_freq,
 
                     tbin += 1
                     bin_count = 0
-                    bin_time_low = time[r] - half_int
-                    bin_u_low = uvw[r, 0]
-                    bin_v_low = uvw[r, 1]
-                    bin_w_low = uvw[r, 2]
                     bin_flag_count = 0
 
             bin_count += 1
