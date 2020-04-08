@@ -103,16 +103,22 @@ def update_bar(elapsed, prev_completed, prev_estimated, pb):
     else:
         estimated = prev_estimated
 
-    # Print out the progress bar
-    # fraction = completed / total
-    fraction = elapsed / estimated if estimated > 0.0 else 0.0
-    bar = "#" * int(pb._width * fraction)
+    # For the first 10 seconds, tell the user estimates improve over time
+    # then display the bar
+    if elapsed < 10.0:
+        fraction = 0.0
+        bar = " estimate improves over time"
+    else:
+        # Print out the progress bar
+        fraction = elapsed / estimated if estimated > 0.0 else 0.0
+        bar = "#" * int(pb._width * fraction)
 
     percent = int(100 * fraction)
     msg = "\r[{0:{1}.{1}}] | {2}% Complete (Estimate) | {3} / ~{4}".format(
                 bar, pb._width, percent,
                 format_time(elapsed),
                 "???" if estimated == 0.0 else format_time(estimated))
+
     with ignoring(ValueError):
         pb._file.write(msg)
         pb._file.flush()
