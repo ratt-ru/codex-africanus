@@ -22,14 +22,17 @@ from africanus.util.requirements import requires_optional
 def format_time(t):
     """Format seconds into a human readable form."""
     m, s = divmod(t, 60)
-    h, m = (0, m) if m == 0 else divmod(m, 60)
-    d, h = (0, h) if h == 0 else divmod(h, 24)
-    w, d = (0, d) if d == 0 else divmod(d, 7)
+    # h, m = (0, m) if m == 0 else divmod(m, 60)
+    # d, h = (0, h) if h == 0 else divmod(h, 24)
+    # w, d = (0, d) if d == 0 else divmod(d, 7)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    w, d = divmod(d, 7)
 
     if w:
-        return ("{0:2.0f}w{0:2.0f}d".format(w, d))
+        return "{0:2.0f}w{1:2.0f}d".format(w, d)
     elif d:
-        return ("{0:2.0f}d{0:2.0f}h".format(d, h))
+        return "{0:2.0f}d{1:2.0f}h".format(d, h)
     elif h:
         return "{0:2.0f}h{1:2.0f}m".format(h, m)
     elif m:
