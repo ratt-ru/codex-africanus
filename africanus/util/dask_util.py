@@ -22,9 +22,6 @@ from africanus.util.requirements import requires_optional
 def format_time(t):
     """Format seconds into a human readable form."""
     m, s = divmod(t, 60)
-    # h, m = (0, m) if m == 0 else divmod(m, 60)
-    # d, h = (0, h) if h == 0 else divmod(h, 24)
-    # w, d = (0, d) if d == 0 else divmod(d, 7)
     h, m = divmod(m, 60)
     d, h = divmod(h, 24)
     w, d = divmod(d, 7)
