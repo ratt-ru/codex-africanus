@@ -285,6 +285,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     ant2 = np.tile(ant2, ntime)
 
     atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                    ref_freq, chan_freq, chan_width)
+                    ref_freq, chan_freq, chan_width,
+                    decorrelation=0.8)
 
     print(chan_width)

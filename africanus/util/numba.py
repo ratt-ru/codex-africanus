@@ -23,10 +23,11 @@ if on_rtd():
     njit = _fake_decorator
     stencil = _fake_decorator
     overload = _fake_decorator
+    jitclass = _fake_decorator
 
 else:
-    from numba import (cfunc, jit, njit,
-                       generated_jit,
+    from numba import (cfunc, jit, jitclass,
+                       njit, generated_jit,
                        stencil)  # noqa
 
     from numba.extending import overload  # noqa
