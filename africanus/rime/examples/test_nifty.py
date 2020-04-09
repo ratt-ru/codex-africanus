@@ -42,6 +42,9 @@ import time
 from astropy.io import fits
 import nifty_gridder as ng
 import matplotlib.pyplot as plt
+from multiprocessing.pool import ThreadPool
+
+dask.config.set(pool=ThreadPool(16))
 
 
 _einsum_corr_indices = 'ijkl'
@@ -151,7 +154,7 @@ def create_parser():
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-oc", "--output-coherence", action="store_true")
     p.add_argument("-mc", "--model-chunks", type=int, default=10)
-    p.add_argument("-n", "--num-shapelet", type=int, default=30)
+    p.add_argument("-n", "--num-shapelet", type=int, default=59)
     p.add_argument("-b", "--beam", default=None)
     p.add_argument("-t", "--times", type=int, default=10)
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
@@ -349,7 +352,7 @@ def findLargest(coeffs_array, n):
         # print(np.where(coeffs_copy == highest_coeff)[:])
         # quit()
         highest_ind = np.where(coeffs_copy == highest_coeff)
-        highest_ind = (highest_ind[0], highest_ind[1], highest_ind[2])
+        highest_ind = (highest_ind[0][0], highest_ind[1][0], highest_ind[2][0])
         out_coeffs[highest_ind] = highest_coeff
         coeffs_copy[highest_ind] = 0
     return out_coeffs
@@ -373,6 +376,7 @@ def my_timeit_nifty(uvw, frequency, dirty_image, weight, pixsize_x, pixsize_y, p
     return (np.sum(times) / times.shape[0]), ng_output
 
 def shapelet_factory(args, source_type, sky_model, ms, ant, field, spw, pol, ret_coherence=False, num_components=15):
+    print("Beginning Shapelet Test Now")
     # Get data from measurement set
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
     frequency = np.array(spw.CHAN_FREQ.data[0])
@@ -410,9 +414,11 @@ def shapelet_factory(args, source_type, sky_model, ms, ant, field, spw, pol, ret
 
 
     for i in range(no_components):
+        if args.output_coherence: i = no_components - 1
         shapelet_coeffs = findLargest(sky_model.coeffs.compute(), i+1)
         shapelet_coeffs = da.from_array(shapelet_coeffs, chunks=shapelet_coeffs.shape)
         code_timings[i], s_fn = my_timeit_shapelets(uvw, frequency, shapelet_coeffs , shapelet_beta, delta_lm, shapelet_lm, args.times)
+        if args.output_coherence: break
     
     if ret_coherence:
         shapelet_source_coherence = np.einsum("rsf,sij->srfij", s_fn, brightness.compute())
@@ -424,6 +430,7 @@ def shapelet_factory(args, source_type, sky_model, ms, ant, field, spw, pol, ret
 
 
 def nifty_factory(args, source_type, sky_model, ms, ant, field, spw, pol, fits_files, ret_coherence=False):
+    print("Beginning Nifty Test Now")
     # Get data from measurement set
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
     phase_frequency = np.array(spw.CHAN_FREQ.data[0])
@@ -449,16 +456,17 @@ def nifty_factory(args, source_type, sky_model, ms, ant, field, spw, pol, fits_f
     weight = None
     degree_pix_size = 0.02
     pixsize_x, pixsize_y = degree_pix_size * np.pi / 180 , degree_pix_size * np.pi / 180
-    precision = 0.001
+    precision = 0.01
     nthreads = 16
 
     # Run nifty-gridder
     print("STARTING NIFTY NOW . . . .")
-    code_timings = np.empty((args.num_shapelet,))
-    for i in range(args.num_shapelet):
-        # Gather data for nifty-gridder
-        dirty_image = fits.open(fits_files[i])[0].data[0,0,:,:]
-        code_timings[i], ng_output = my_timeit_nifty(uvw, frequency, dirty_image, weight, pixsize_x, pixsize_y, precision, nthreads, args.times)
+    code_timings = np.ones((args.num_shapelet,))
+
+    dirty_image = fits.open("./final_nifty_test/N6251-model-dirty.fits")[0].data[0,0,:,:]
+    code_time, ng_output = my_timeit_nifty(uvw, frequency, dirty_image, weight, pixsize_x, pixsize_y, precision, nthreads, args.times)
+
+    code_timings = code_timings * code_time
     print("DONE WITH NIFTY")
 
     if ret_coherence:
@@ -493,6 +501,12 @@ def predict(args):
 
     code_timings = np.empty((args.num_shapelet, 3, 2))
 
+    print("-----------------------------------------")
+    print("-----------------------------------------")
+    print("-------------  STARTING 1 HOUR NOW  -----")
+    print("-----------------------------------------")
+    print("-----------------------------------------")
+
     # Construct a graph for each DATA_DESC_ID
     for xds in xds_from_ms(args.ms_one_hour,
                         columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
@@ -518,36 +532,36 @@ def predict(args):
         print([stype for stype in sky_model.keys()])
 
         shapelet_result = shapelet_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol, ret_coherence=args.output_coherence, num_components=args.num_shapelet)
-        nifty_result = nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-middle-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+        nifty_result = None if args.output_coherence else nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-low-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+
+        # print(shapelet_result)
+        # quit()
 
         if args.output_coherence:
             # Get correct coherence shape
             shapelet_coh = shapelet_result.reshape((1, shapelet_result.shape[0], 1) + (2,2))
-            shapelet_coh = da.from_array(shapelet_coh)
-            nifty_coh = nifty_result.reshape((1, nifty_result.shape[0],1) + (2,2))
-            nifty_coh = da.from_array(nifty_coh)
+            shapelet_coh = da.from_array(shapelet_coh, chunks=(1,) + (args.row_chunks,) + (1,2,2))
+
             
             # Write visibilities for shapelets
             shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-            nifty_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, nifty_coh, None, None, None, None)
             
             vis = shapelet_vis
             
             # Reshape (2, 2) correlation to shape (4,)
             if corrs == 4:
                 vis = vis.reshape(vis.shape[:2] + (4,))
-                nifty_vis = nifty_vis.reshape(nifty_vis.shape[:2] + (4,))
-
+                
             # Assign visibilities to MODEL_DATA array on the dataset
             xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
-            xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), nifty_vis))
-
+            
             # Create a write to the table
-            write = xds_to_table(xds, args.ms_one_hour, ["MODEL_DATA", "CORRECTED_DATA"])
+            write = xds_to_table(xds, args.ms_one_hour, ["MODEL_DATA"])
             
             # Compute write
             with ProgressBar():
-                da.compute(write)
+                # da.compute(write)
+                da.compute(shapelet_vis)
         else:
             shapelet_result, shapelet_timings = shapelet_result
             nifty_result, nifty_timings = nifty_result
@@ -573,6 +587,12 @@ def predict(args):
             print("------------------------------------------------------")
     if args.output_coherence:
         quit()
+    
+    print("-----------------------------------------")
+    print("-----------------------------------------")
+    print("-----------  STARTING 2 HOURS NOW  ------")
+    print("-----------------------------------------")
+    print("-----------------------------------------")
     for xds in xds_from_ms(args.ms_two_hours,
                         columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                         group_cols=["FIELD_ID", "DATA_DESC_ID"],
@@ -597,54 +617,36 @@ def predict(args):
         print([stype for stype in sky_model.keys()])
 
         shapelet_result = shapelet_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol, ret_coherence=args.output_coherence, num_components=args.num_shapelet)
-        nifty_result = None if args.output_coherence else nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-middle-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+        nifty_result = nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-low-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+        shapelet_result, shapelet_timings = shapelet_result
+        nifty_result, nifty_timings = nifty_result
+        code_timings[:,1,0], code_timings[:,1,1] = shapelet_timings, nifty_timings
+        # plt.figure()
+        # plt.plot(shapelet_timings)
+        # plt.plot(nifty_timings)
+        # plt.xlabel("Number of shapelet components")
+        # plt.ylabel("Code timing (in seconds)")
+        # plt.title("Shapelets vs Nifty Gridder")
+        # plt.show()
+        # plt.savefig("./nifty_timing_result.png")
+        # plt.close()
+        print(nifty_result.shape)
+        print(shapelet_result.shape)
+        nifty_norm = nifty_result / np.max(np.abs(nifty_result))
+        shapelet_norm = shapelet_result / np.max(np.abs(shapelet_result))
+        print("------------------------------------------------------")
+        print("Shapelet and Gaussian Test (Normalized): ", np.allclose(shapelet_norm, nifty_norm))
+        print("Phase Test: ", np.allclose(shapelet_norm.imag, nifty_norm.imag))
+        print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - nifty_norm)**2))
+        print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
+        print("------------------------------------------------------")
 
-        if args.output_coherence:
-            # Get correct coherence shape
-            shapelet_coh = shapelet_result.reshape((1, shapelet_result.shape[0], 1) + (2,2))
-            shapelet_coh = da.from_array(shapelet_coh)
-            
-            # Write visibilities for shapelets
-            shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-            
-            vis = shapelet_vis
-            
-            # Reshape (2, 2) correlation to shape (4,)
-            if corrs == 4:
-                vis = vis.reshape(vis.shape[:2] + (4,))
-               
-            # Assign visibilities to MODEL_DATA array on the dataset
-            xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
-            
-            # Create a write to the table
-            write = xds_to_table(xds, args.ms_two_hours, ["MODEL_DATA"])
-            
-            # Compute write
-            with ProgressBar():
-                da.compute(write)
-        else:
-            shapelet_result, shapelet_timings = shapelet_result
-            nifty_result, nifty_timings = nifty_result
-            code_timings[:,1,0], code_timings[:,1,1] = shapelet_timings, nifty_timings
-            # plt.figure()
-            # plt.plot(shapelet_timings)
-            # plt.plot(nifty_timings)
-            # plt.xlabel("Number of shapelet components")
-            # plt.ylabel("Code timing (in seconds)")
-            # plt.title("Shapelets vs Nifty Gridder")
-            # plt.show()
-            # plt.savefig("./nifty_timing_result.png")
-            # plt.close()
-            print(nifty_result.shape)
-            print(shapelet_result.shape)
-            nifty_norm = nifty_result / np.max(np.abs(nifty_result))
-            shapelet_norm = shapelet_result / np.max(np.abs(shapelet_result))
-            print("------------------------------------------------------")
-            print("Shapelet and Gaussian Test (Normalized): ", np.allclose(shapelet_norm, nifty_norm))
-            print("Phase Test: ", np.allclose(shapelet_norm.imag, nifty_norm.imag))
-            print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - nifty_norm)**2))
-            print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
-            print("------------------------------------------------------")
+
+    print("-----------------------------------------")
+    print("-----------------------------------------")
+    print("-----------  STARTING 3 HOURS NOW  ------")
+    print("-----------------------------------------")
+    print("-----------------------------------------")
     for xds in xds_from_ms(args.ms_three_hours,
                         columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                         group_cols=["FIELD_ID", "DATA_DESC_ID"],
@@ -669,58 +671,30 @@ def predict(args):
         print([stype for stype in sky_model.keys()])
 
         shapelet_result = shapelet_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol, ret_coherence=args.output_coherence, num_components=args.num_shapelet)
-        nifty_result = nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-middle-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
+        nifty_result = nifty_factory(args, 'shapelet', sky_model['shapelet'], xds, ant, field, spw, pol,["shapelet_nifty_fits_files/shapelet-low-res-%d-dirty.fits" %(n+1) for n in range(args.num_shapelet)], ret_coherence=args.output_coherence)
 
-        if args.output_coherence:
-            # Get correct coherence shape
-            shapelet_coh = shapelet_result.reshape((1, shapelet_result.shape[0], 1) + (2,2))
-            shapelet_coh = da.from_array(shapelet_coh)
-            nifty_coh = nifty_result.reshape((1, nifty_result.shape[0],1) + (2,2))
-            nifty_coh = da.from_array(nifty_coh)
-            
-            # Write visibilities for shapelets
-            shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-            nifty_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, nifty_coh, None, None, None, None)
-            
-            vis = shapelet_vis
-            
-            # Reshape (2, 2) correlation to shape (4,)
-            if corrs == 4:
-                vis = vis.reshape(vis.shape[:2] + (4,))
-                nifty_vis = nifty_vis.reshape(nifty_vis.shape[:2] + (4,))
-
-            # Assign visibilities to MODEL_DATA array on the dataset
-            xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
-            xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), nifty_vis))
-
-            # Create a write to the table
-            write = xds_to_table(xds, args.ms_three_hours, ["MODEL_DATA", "CORRECTED_DATA"])
-            # Compute write
-            with ProgressBar():
-                da.compute(write)
-        else:
-            shapelet_result, shapelet_timings = shapelet_result
-            nifty_result, nifty_timings = nifty_result
-            code_timings[:,2,0], code_timings[:,2,1] = shapelet_timings, nifty_timings
-            # plt.figure()
-            # plt.plot(shapelet_timings)
-            # plt.plot(nifty_timings)
-            # plt.xlabel("Number of shapelet components")
-            # plt.ylabel("Code timing (in seconds)")
-            # plt.title("Shapelets vs Nifty Gridder")
-            # plt.show()
-            # plt.savefig("./nifty_timing_result.png")
-            # plt.close()
-            print(nifty_result.shape)
-            print(shapelet_result.shape)
-            nifty_norm = nifty_result / np.max(np.abs(nifty_result))
-            shapelet_norm = shapelet_result / np.max(np.abs(shapelet_result))
-            print("------------------------------------------------------")
-            print("Shapelet and Gaussian Test (Normalized): ", np.allclose(shapelet_norm, nifty_norm))
-            print("Phase Test: ", np.allclose(shapelet_norm.imag, nifty_norm.imag))
-            print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - nifty_norm)**2))
-            print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
-            print("-----------------------------------------------------")
+        shapelet_result, shapelet_timings = shapelet_result
+        nifty_result, nifty_timings = nifty_result
+        code_timings[:,2,0], code_timings[:,2,1] = shapelet_timings, nifty_timings
+        # plt.figure()
+        # plt.plot(shapelet_timings)
+        # plt.plot(nifty_timings)
+        # plt.xlabel("Number of shapelet components")
+        # plt.ylabel("Code timing (in seconds)")
+        # plt.title("Shapelets vs Nifty Gridder")
+        # plt.show()
+        # plt.savefig("./nifty_timing_result.png")
+        # plt.close()
+        print(nifty_result.shape)
+        print(shapelet_result.shape)
+        nifty_norm = nifty_result / np.max(np.abs(nifty_result))
+        shapelet_norm = shapelet_result / np.max(np.abs(shapelet_result))
+        print("------------------------------------------------------")
+        print("Shapelet and Gaussian Test (Normalized): ", np.allclose(shapelet_norm, nifty_norm))
+        print("Phase Test: ", np.allclose(shapelet_norm.imag, nifty_norm.imag))
+        print("Average difference (normalized, non-normalized):", np.average((shapelet_norm - nifty_norm)**2))
+        print("Maximum difference (normalized, non-normalized):", np.max((shapelet_norm - nifty_norm)**2))
+        print("-----------------------------------------------------")
     plt.figure()
     # fig, ax = plt.subplots()
     plot_labels = [[""] * 2] * 3
@@ -730,10 +704,13 @@ def predict(args):
     plot_labels[1][1] = "Nifty (2 hours)"
     plot_labels[2][0] = "Shapelet (3 hours)"
     plot_labels[2][1] = "Nifty (3 hours)"
+    plot_labels = [["Shapelet (1 hour)", "Nifty (1 hour)"], ["Shapelet (2 hours)", "Nifty (2 hours)"], ["Shapelet (3 hours)", "Nifty (3 hours)"]]
     for i in range(3):
         for j in range(2):
-            print(code_timings[:,i,j])
-            plt.plot(code_timings[:,i,j], label=plot_labels[i][j])
+            line_style = "--" if j == 0 else "-"
+            line_colour = "b" if i == 0 else "r" if i == 1 else "k"
+            print(line_colour + line_style, plot_labels[i][j])
+            plt.plot(code_timings[:,i,j], line_colour + line_style, label=plot_labels[i][j])
     plt.legend(loc='upper left', frameon=True)
     plt.xlabel("Number of shapelet components")
     plt.ylabel("Code timing (seconds)")

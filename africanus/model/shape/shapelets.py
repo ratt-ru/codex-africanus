@@ -4,7 +4,6 @@ from numpy import sqrt, exp
 from africanus.constants import c as lightspeed
 from africanus.constants import minus_two_pi_over_c
 
-e = 2.7182818284590452353602874713527
 square_root_of_pi = 1.77245385091
 
 @numba.jit(nogil=True, nopython=True, cache=True)
@@ -71,7 +70,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     out_shapelets = np.empty((nrow, nchan, nsrc), dtype=np.complex128)
     delta_l, delta_m = delta_lm
     for row in range(nrow):
-        u, v, w = coords[row, :]
+        u, v, _ = coords[row, :]
         for chan in range(nchan):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed

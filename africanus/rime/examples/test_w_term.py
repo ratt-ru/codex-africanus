@@ -335,18 +335,11 @@ def _unity_ant_scales(parangles, frequency, dtype_):
 
 
 
-def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, ms, ant, field, spw, pol, ret_shapelet=False, ret_gauss=False):
+def coherence_factory(args, ms, ant, pol, ret_shapelet=False, ret_gauss=False):
     # Get data from measurement set
-    phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
-    phase_frequency = np.array(spw.CHAN_FREQ.data[0])
-    f = phase_frequency[0]
+    f = 1.085e09
+    phase_frequency = np.array([f])
     uvw = (-ms.UVW.data if args.invert_uvw else ms.UVW.data).compute()
-    # print(phase_frequency)
-    # quit()
-
-    # Get data from sky models
-    source1 = sky_model1[source_type1]
-    source2 = sky_model2[source_type2]
 
     # Create brightness matrix of 1 Jy
     stokes = np.array([[1,0,0,0]])
@@ -354,31 +347,34 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
                         corr_schema(pol))
 
     # Get lm coordinates
-    lm = radec_to_lm(source1.radec, phase_dir) # Same radec for both sources
+    source_coords = np.array([[0.666, 0.0]]) * np.pi / 180 # Convert to radians
+    lm = radec_to_lm(source_coords, np.array([0,0])) # Same radec for both sources
 
     # Generate phase delay for Gaussian
     phase = phase_delay(lm, uvw, phase_frequency) 
     
     # Create Gaussian shape function
     gaussian_null_frequency = (2.0 * lightspeed * np.sqrt(np.log(2.0))) / (np.pi * f)
-    gaussian_shape_function = nb_gaussian(uvw, phase_frequency, (source2.shape.compute() * gaussian_null_frequency)) # We multiply with a nullifying frequency parameter to cancel the effects of frequency scaling
+    gaussian_extent = np.array([[10,10,0]]) * (np.pi/180 * (1/60.)) 
+    gaussian_shape_function = nb_gaussian(uvw, phase_frequency, (gaussian_extent * gaussian_null_frequency)) # We multiply with a nullifying frequency parameter to cancel the effects of frequency scaling
     
     # Generate Gaussian source coherency
     gaussian_source_coherence = np.einsum("srf,srf,sij->srfij", phase.compute(), gaussian_shape_function, brightness.compute())
-    gaussian_source_coherence = gaussian_source_coherence[0,:,0,:,:] # Only interested in the row and correlation dimensions
+    gaussian_source_coherence = gaussian_source_coherence[0,:,0,:,:] / np.max(np.abs(gaussian_source_coherence[0,:,0,:,:])) # Only interested in the row and correlation dimensions
     
 
     # Write shapelet_with_w_term here
     delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
     shapelet_null_frequency =  (lightspeed / (2 * np.pi * f))
-    shapelet_beta = source1.beta.compute()
+    shapelet_beta = gaussian_extent[:,:2] * np.sqrt(2)
     shapelet_beta *= shapelet_null_frequency # To nullify frequency scaling to match Gaussian
     shapelet_beta *= 1 / (2.0 * np.pi) # To correct for the xx * 2 * np.pi
+    shapelet_coeffs = np.array([[[1.]]]) # zero-order shapelet
 
     # Get Shapelet Source Coherence with W-Term
-    shapelet_shape_function = shapelet_with_w_term(uvw, phase_frequency, source1.coeffs.compute(), shapelet_beta, delta_lm, lm.compute()) # shape (nrow, 1, 1)
+    shapelet_shape_function = shapelet_with_w_term(uvw, phase_frequency, shapelet_coeffs, shapelet_beta, delta_lm, lm.compute()) # shape (nrow, 1, 1)
     shapelet_source_coherence = np.einsum("rsf,sij->srfij", shapelet_shape_function, brightness.compute())
-    shapelet_source_coherence = shapelet_source_coherence[0,:,0,:,:]
+    shapelet_source_coherence = shapelet_source_coherence[0,:,0,:,:] / np.max(np.abs(shapelet_source_coherence[0,:,0,:,:]))
 
     # Test w term
     w_term = np.empty((uvw.shape[0],), dtype=np.complex128)
@@ -387,12 +383,10 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
         freq_coords = uvw[r,:]
         w_term[r] = phase_steer_and_w_correct(freq_coords, lm, phase_frequency)
     if ret_shapelet or ret_gauss:
-        return (shapelet_source_coherence if ret_shapelet else None, gaussian_source_coherence if ret_gauss else None)
+        return shapelet_source_coherence if ret_shapelet else None, gaussian_source_coherence if ret_gauss else None
     else:
-        gauss_norm = gaussian_source_coherence / np.max(np.abs(gaussian_source_coherence))
-        shapelet_norm = shapelet_source_coherence / np.max(np.abs(shapelet_source_coherence))
-        assert np.allclose(gauss_norm, shapelet_norm)
-        print("Phase delays match.")
+        print("Shape test: ", np.allclose(gaussian_source_coherence, shapelet_source_coherence))
+        assert np.allclose(gaussian_source_coherence, shapelet_source_coherence)
         quit()
 
 
@@ -400,107 +394,89 @@ def coherence_factory(args, source_type1, sky_model1, source_type2, sky_model2, 
 
 @requires_optional("dask.array", "Tigger",
                    "daskms", opt_import_error)
-def predict(args):
+def test_w_term(args):
     # Convert source data into dask arrays
-    sky_model_1 = parse_sky_model(args.sky_model_1, args.model_chunks)
-
-    sky_model_2 = parse_sky_model(args.sky_model_2, args.model_chunks)
 
     # Get the support tables
     tables = support_tables(args)
 
     ant_ds = tables["ANTENNA"]
-    field_ds = tables["FIELD"]
     ddid_ds = tables["DATA_DESCRIPTION"]
-    spw_ds = tables["SPECTRAL_WINDOW"]
     pol_ds = tables["POLARIZATION"]
 
     # List of write operations
-    writes = []
-
-    for xds in xds_from_ms(args.ms,
+    xds = xds_from_ms(args.ms,
                         columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
                         group_cols=["FIELD_ID", "DATA_DESC_ID"],
-                        chunks={"row": args.row_chunks}):
+                        chunks={"row": args.row_chunks})[0]
+    
+    
+    # Perform subtable joins
+    ant = ant_ds[0]
+    ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
+    pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
 
-        # Perform subtable joins
-        ant = ant_ds[0]
-        field = field_ds[xds.attrs['FIELD_ID']]
-        ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
-        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
-        pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
+    # Select single dataset row out
+    corrs = pol.NUM_CORR.data[0]
 
-        # Select single dataset row out
-        corrs = pol.NUM_CORR.data[0]
+    meta = np.empty((0,), dtype=tuple)
+    utime_inv = xds.TIME.data.map_blocks(np.unique, return_inverse=True,
+                                meta=meta, dtype=tuple)
+    time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
+    
+    ret_shapelet = args.vis_shapelet
+    ret_gauss = args.vis_gauss
 
-        meta = np.empty((0,), dtype=tuple)
-        utime_inv = xds.TIME.data.map_blocks(np.unique, return_inverse=True,
-                                    meta=meta, dtype=tuple)
-        time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
+    shapelet_coh, gauss_coh = coherence_factory(args, xds, ant, pol, ret_shapelet=ret_shapelet, ret_gauss=ret_gauss)
+    if ret_shapelet:
+        # Get correct coherence shape
+        shapelet_coh = shapelet_coh.reshape((1, shapelet_coh.shape[0], 1) + (2,2))
+        shapelet_coh = da.from_array(shapelet_coh)
         
-        ret_shapelet = args.vis_shapelet
-        ret_gauss = args.vis_gauss
+        # Write visibilities for shapelets
+        shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
+        vis = shapelet_vis
+        
+        # Reshape (2, 2) correlation to shape (4,)
+        if corrs == 4:
+            vis = vis.reshape(vis.shape[:2] + (4,))
 
-        shapelet_coh, gauss_coh = coherence_factory(args, 'shapelet', sky_model_1, 'gauss', sky_model_2, xds, ant, field, spw, pol, ret_shapelet=ret_shapelet, ret_gauss=ret_gauss)
-        if ret_shapelet:
-            # Get correct coherence shape
-            shapelet_coh = shapelet_coh.reshape((1, shapelet_coh.shape[0], 1) + (2,2))
-            shapelet_coh = da.from_array(shapelet_coh)
-            
-            # Write visibilities for shapelets
-            shapelet_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, shapelet_coh, None, None, None, None)
-            
-            # Generate visibility expressions for each source type
-            # source_vis = [vis_factory(args, stype, sky_model,
-            #                         xds, ant, field, spw, pol)
-            #             for stype in sky_model.keys()]
+        # Assign visibilities to MODEL_DATA array on the dataset
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
 
-            vis = shapelet_vis#sum(source_vis)
-            
-            # Reshape (2, 2) correlation to shape (4,)
-            if corrs == 4:
-                vis = vis.reshape(vis.shape[:2] + (4,))
+        # Create a write to the table
+        write = xds_to_table(xds, args.ms, ["MODEL_DATA"])
+        
+        # Compute write
+        with ProgressBar():
+            da.compute(write)
 
-            # Assign visibilities to MODEL_DATA array on the dataset
-            xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
+    if ret_gauss:
+        # Get correct coherence shape
+        gauss_coh = gauss_coh.reshape((1, gauss_coh.shape[0], 1) + (2,2))
+        gauss_coh = da.from_array(gauss_coh)
+        
+        # Write visibilities for Gaussians
+        gauss_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, gauss_coh, None, None, None, None)
+        
+        vis = gauss_vis
+        
+        # Reshape (2, 2) correlation to shape (4,)
+        if corrs == 4:
+            vis = vis.reshape(vis.shape[:2] + (4,))
 
-            # Create a write to the table
-            write = xds_to_table(xds, args.ms, ["MODEL_DATA"])
-            
-            # Compute write
-            with ProgressBar():
-                da.compute(write)
-        if ret_gauss:
-            # Get correct coherence shape
-            gauss_coh = gauss_coh.reshape((1, gauss_coh.shape[0], 1) + (2,2))
-            gauss_coh = da.from_array(gauss_coh)
-            
-            # Write visibilities for Gaussians
-            gauss_vis = predict_vis(time_idx, xds.ANTENNA1.data, xds.ANTENNA2.data, None, gauss_coh, None, None, None, None)
-            
-            # Generate visibility expressions for each source type
-            # source_vis = [vis_factory(args, stype, sky_model,
-            #                         xds, ant, field, spw, pol)
-            #             for stype in sky_model.keys()]
+        # Assign visibilities to MODEL_DATA array on the dataset
+        xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
 
-            vis = gauss_vis#sum(source_vis)
-            
-            # Reshape (2, 2) correlation to shape (4,)
-            if corrs == 4:
-                vis = vis.reshape(vis.shape[:2] + (4,))
+        # Create a write to the table
+        write = xds_to_table(xds, args.ms, ["CORRECTED_DATA"])
 
-            # Assign visibilities to MODEL_DATA array on the dataset
-            xds = xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
-
-            # Create a write to the table
-            write = xds_to_table(xds, args.ms, ["CORRECTED_DATA"])
-
-            # Compute write
-            with ProgressBar():
-                da.compute(write)
+        # Compute write
+        with ProgressBar():
+            da.compute(write)
 
 
 
 if __name__ == "__main__":
     args = create_parser().parse_args()
-    predict(args)
+    test_w_term(args)
