@@ -123,7 +123,7 @@ def baseline_jones_multiply(corrs, *args):
     output_schema = _bl_jones_output_schema(corrs, corr_index)
     schema = ",".join(input_einsum_schemas) + output_schema
     print(schema)
-    quit()
+    # quit()
 
     return da.einsum(schema, *arrays)
 
@@ -487,8 +487,7 @@ def vis_factory(args, source_type, sky_model,
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
-    print(jones.compute().imag)
-    quit()
+
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
@@ -547,7 +546,6 @@ def predict(args):
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
-
     # Submit all graph computations in parallel
     with ProgressBar():
         dask.compute(writes)

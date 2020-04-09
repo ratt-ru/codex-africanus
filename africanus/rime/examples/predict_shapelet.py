@@ -30,8 +30,9 @@ from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
 from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
-from africanus.model.shape.dask import shapelet as shapelet_fn
+from africanus.model.shape.dask import shapelet_with_w_term as shapelet_fn
 from africanus.util.requirements import requires_optional
+import matplotlib.pyplot as plt
 
 
 _einsum_corr_indices = 'ijkl'
@@ -404,8 +405,6 @@ def vis_factory(args, source_type, sky_model,
     lm = radec_to_lm(source.radec, phase_dir)
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
-    # (source, row, frequency)
-    phase = phase_delay(lm, uvw, frequency)
 
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
@@ -418,18 +417,10 @@ def vis_factory(args, source_type, sky_model,
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
 
-    bl_jones_args = ["phase_delay", phase]
-
     # Add any visibility amplitude terms
-    if source_type == "gauss":
-        bl_jones_args.append("gauss_shape")
-        bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
-    elif source_type == "shapelet":
-        delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
-        bl_jones_args.append("shapelet_shape")
-        s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm)
-        bl_jones_args.append(s_fn)
-
+    delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
+    s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm, lm)
+    bl_jones_args = ["shapelet_shape", s_fn]
 
     bl_jones_args.extend(["brightness", brightness])
 

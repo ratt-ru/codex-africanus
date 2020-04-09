@@ -1,33 +1,6 @@
 import numpy as np
 import pytest
 
-
-from astropy.io import fits
-import time
-
-
-def write_fits(beam, timestamp, filename):
-    hdr = fits.Header()
-    ctypes = ['px', 'py']
-    beam = beam
-    crvals = [0.0, 0.0]
-    crpix = [beam.shape[0] // 2, beam.shape[1] // 2]
-    cunits = ["deg", "deg"]
-    for i in range(len(beam.shape)):
-        ii = str(i + 1)
-        hdr['CTYPE' + ii] = ctypes[i]
-        hdr['CRPIX' + ii] = crpix[i]
-        print(crvals[i])
-        hdr['CRVAL' + ii] = crvals[i]
-        hdr['CUNIT' + ii] = cunits[i]
-    hdr['TELESCOP'] = 'MeerKAT'
-    hdr['DATE'] = time.ctime()
-    print("COMPUTING BEAM")
-    hdu = fits.PrimaryHDU(beam.real, header=hdr)
-    print("HDU IS ", hdu.header)
-    print("BEAM DONE")
-    hdu.writeto(filename, overwrite=True)
-
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     """ Tests reconstruction of xx correlation against eidos """
     from africanus.rime import zernike_dde
@@ -68,8 +41,6 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)[:, 0, 0, 0]
                     .reshape((npix, npix)))
-    write_fits(zernike_vals.real, [0], 'test_script_fits_beam.fits')
-    write_fits(eidos_data_xx, [0], "eidos_fits_beam.fits")
     assert np.allclose(eidos_data_xx, zernike_vals)
 
 

@@ -3,6 +3,7 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 from africanus.model.shape import shapelet, basis_function, shapelet_1d, shapelet_2d
 from africanus.constants import c as lightspeed
+
 import importlib.util
 spec = importlib.util.spec_from_file_location("shapelets", "/home/vanstanden/shapelets/shapelets/shapelet.py")
 shapelets = importlib.util.module_from_spec(spec)
@@ -90,6 +91,7 @@ def test_2d_shapelet():
 					sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
 					shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
 					gf_shapelets[:] += c * shapelets_basis_func[:]
+	# Compare griffinfoster (gf) shapelets to codex-africanus (ca) shapelets
 	assert np.allclose(gf_shapelets, ca_shapelets)
 
 def test_fourier_space_shapelets():
