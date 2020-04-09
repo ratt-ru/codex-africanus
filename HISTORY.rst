@@ -5,7 +5,7 @@ History
 0.2.2 (YYYY-MM-DD)
 ------------------
 
-* Add a dask Estimating Progress Bar (:pr:`182`)
+* Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
 
 0.2.1 (2019-04-03)
 ------------------
