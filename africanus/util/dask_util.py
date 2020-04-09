@@ -22,14 +22,14 @@ from africanus.util.requirements import requires_optional
 def format_time(t):
     """Format seconds into a human readable form."""
     m, s = divmod(t, 60)
-    h, m = (0, m) if m == 0 else divmod(m, 60)
-    d, h = (0, h) if h == 0 else divmod(h, 24)
-    w, d = (0, d) if d == 0 else divmod(d, 7)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    w, d = divmod(d, 7)
 
     if w:
-        return ("{0:2.0f}w{0:2.0f}d".format(w, d))
+        return "{0:2.0f}w{1:2.0f}d".format(w, d)
     elif d:
-        return ("{0:2.0f}d{0:2.0f}h".format(d, h))
+        return "{0:2.0f}d{1:2.0f}h".format(d, h)
     elif h:
         return "{0:2.0f}h{1:2.0f}m".format(h, m)
     elif m:
@@ -103,16 +103,22 @@ def update_bar(elapsed, prev_completed, prev_estimated, pb):
     else:
         estimated = prev_estimated
 
-    # Print out the progress bar
-    # fraction = completed / total
-    fraction = elapsed / estimated if estimated > 0.0 else 0.0
-    bar = "#" * int(pb._width * fraction)
+    # For the first 10 seconds, tell the user estimates improve over time
+    # then display the bar
+    if elapsed < 10.0:
+        fraction = 0.0
+        bar = " estimate improves over time"
+    else:
+        # Print out the progress bar
+        fraction = elapsed / estimated if estimated > 0.0 else 0.0
+        bar = "#" * int(pb._width * fraction)
 
     percent = int(100 * fraction)
     msg = "\r[{0:{1}.{1}}] | {2}% Complete (Estimate) | {3} / ~{4}".format(
                 bar, pb._width, percent,
                 format_time(elapsed),
                 "???" if estimated == 0.0 else format_time(estimated))
+
     with ignoring(ValueError):
         pb._file.write(msg)
         pb._file.flush()
