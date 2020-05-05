@@ -230,7 +230,7 @@ def test_duv_dt(time, ants, phase_dir, chan_freq):
 
     from africanus.averaging.bda_mapping import duv_dt
 
-    utime, time_inv = np.unique(time, return_inverse=True)  
+    utime, time_inv = np.unique(time, return_inverse=True)
     ubl, bl_inv = np.unique(np.stack([ant1, ant2], axis=1),
                             axis=0, return_inverse=True)
 
@@ -270,6 +270,7 @@ def test_duv_dt(time, ants, phase_dir, chan_freq):
 
     𝞓𝞍𝞓t
 
+
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                              ref_freq, chan_freq, chan_width):
     time = np.unique(time)
@@ -287,5 +288,3 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     ref_freq, chan_freq, chan_width,
                     decorrelation=0.8)
-
-    print(chan_width)
