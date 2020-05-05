@@ -244,6 +244,15 @@ class Binner(object):
         self.bin_count = 1
 
     def add_row(self, row, time, interval, uvw):
+        """
+        Attempts to add ``row`` to the current bin.
+
+        Returns
+        -------
+        success : bool
+            True if the decorrelation tolerance was not exceeded
+            and the row was added to the bin.
+        """
         rs = self.rs
         re = self.re
         # Evaluate the degree of decorrelation
@@ -264,16 +273,17 @@ class Binner(object):
         sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
 
         # We're not decorrelated at this point,
-        # but keep a record of the sinc_𝞓𝞇
-        # and the end of the bin
+        # Add the row by making it the end of the bin
+        # and keep a record of the sinc_𝞓𝞇
         if sinc_𝞓𝞇 > self.decorrelation:
             self.bin_sinc_Δψ = sinc_𝞓𝞇
             self.re = row
             self.bin_count += 1
-            return False
+            return True
 
-        # Adding row to the bin would decorrelate it
-        return True
+        # Adding row to the bin would decorrelate it,
+        # so we indicate we did not
+        return False
 
     def finalise_bin(self, uvw, chan_freq, chan_width):
         # Contents of the bin exceed decorrelation tolerance
@@ -436,8 +446,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if binner.bin_count == 0:
                     binner.start_bin(r)
                 # Try add the row to the bin
-                # If this fails, finalise the bin and start a new one
-                elif binner.add_row(r, time, interval, uvw):
+                # If this fails, finalise the current bin and start a new one
+                elif not binner.add_row(r, time, interval, uvw):
                     binner.finalise_bin(uvw, chan_freq, chan_width)
                     binner.start_bin(r)
 
