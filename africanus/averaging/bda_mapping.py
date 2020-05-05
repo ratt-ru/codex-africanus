@@ -286,8 +286,9 @@ class Binner(object):
         return False
 
     def finalise_bin(self, uvw, chan_freq, chan_width):
-        # Contents of the bin exceed decorrelation tolerance
-        # Finalise it and start a new one
+        """ Finalise the contents of this bin """
+        if self.bin_count == 0:
+            return
 
         rs = self.rs
         re = self.re
@@ -302,13 +303,13 @@ class Binner(object):
             du = uvw[rs, 0]
             dv = uvw[rs, 1]
             dw = uvw[rs, 2]
-            bin_sinc_Δψ =  1.0
+            bin_sinc_𝞓𝞇 =  1.0
         else:
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
             dv = uvw[rs, 1] - uvw[re, 1]
             dw = uvw[rs, 2] - uvw[re, 2]
-            bin_sinc_Δψ = self.bin_sinc_Δψ
+            bin_sinc_𝞓𝞇 = self.bin_sinc_Δψ
 
         # Derive fractional bandwidth 𝞓𝝼/𝝼
         # from Equation (44) in Atemkeng
@@ -324,7 +325,7 @@ class Binner(object):
         #   (2) change in baseline speed
         # derive the frequency phase difference
         # from Equation (35) in Atemkeng
-        sinc_𝞓𝞍 = self.decorrelation / bin_sinc_Δψ
+        sinc_𝞓𝞍 = self.decorrelation / bin_sinc_𝞓𝞇
         𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
         fractional_bandwidth = 𝞓𝞍 / max_abs_dist
 
@@ -452,7 +453,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     binner.start_bin(r)
 
             # Finalise any remaining data in the bin
-            if binner.bin_count > 1:
-                binner.finalise_bin(uvw, chan_freq, chan_width)
+            binner.finalise_bin(uvw, chan_freq, chan_width)
 
     return _impl
