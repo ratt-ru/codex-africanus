@@ -2,12 +2,18 @@
 History
 =======
 
-0.2.1 (YYYY-MM-DD)
+0.2.2 (2019-04-09)
 ------------------
+
+* Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
+
+0.2.1 (2019-04-03)
+------------------
+* Update trove to latest master commit (:pr:`178`)
 * Added Cubic Spline support (:pr:`174`)
 * Depend on python-casacore >= 3.2.0 (:pr:`172`)
 * Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
-* Implement optimised WSClean predict (:pr:`166`, :pr:`167`)
+* Implement optimised WSClean predict (:pr:`166`, :pr:`167`, :pr:`177`, :pr:`179`, :pr:`180`, :pr:`181`)
 * Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
 * Document and check weight shapes in simple gridder and degridder
   (:pr:`162`, :pr:`163`)

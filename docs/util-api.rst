@@ -10,7 +10,7 @@ Command Line
 .. autosummary::
     parse_python_assigns
 
-.. autofunction:: africanus.util.cmdline.parse_python_assigns
+.. autofunction:: parse_python_assigns
 
 
 Requirements Handling
@@ -21,7 +21,7 @@ Requirements Handling
 .. autosummary::
     requires_optional
 
-.. autofunction:: africanus.util.requirements.requires_optional
+.. autofunction:: requires_optional
 
 Shapes
 ~~~~~~
@@ -32,8 +32,8 @@ Shapes
     aggregate_chunks
     corr_shape
 
-.. autofunction:: africanus.util.shapes.aggregate_chunks
-.. autofunction:: africanus.util.shapes.corr_shape
+.. autofunction:: aggregate_chunks
+.. autofunction:: corr_shape
 
 
 Beams
@@ -46,8 +46,8 @@ Beams
     beam_grids
 
 
-.. autofunction:: africanus.util.beams.beam_filenames
-.. autofunction:: africanus.util.beams.beam_grids
+.. autofunction:: beam_filenames
+.. autofunction:: beam_grids
 
 Code
 ~~~~
@@ -58,9 +58,22 @@ Code
     format_code
     memoize_on_key
 
-.. autofunction:: africanus.util.code.format_code
-.. autoclass:: africanus.util.code.memoize_on_key
+.. autofunction:: format_code
+.. autoclass:: memoize_on_key
 
+
+dask
+~~~~
+
+.. currentmodule:: africanus.util.dask_util
+
+.. autosummary::
+    EstimatingProgressBar
+
+.. autoclass:: EstimatingProgressBar
+    :members:
+    :no-inherited-members:
+    :exclude-members: register, unregister
 
 CUDA
 ~~~~
@@ -70,4 +83,4 @@ CUDA
 .. autosummary::
     grids
 
-.. autofunction:: africanus.util.cuda.grids
+.. autofunction:: grids
