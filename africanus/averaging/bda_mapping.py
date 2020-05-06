@@ -43,7 +43,6 @@ def inv_sinc(sinc_x, tol=1e-12):
 
     return x
 
-
 class Binner(object):
     def __init__(self, row_start, row_end,
                  ref_freq, l, m, n_max,
@@ -86,8 +85,8 @@ class Binner(object):
         # the sample would add to existing bin
         dt = (time[row] + (interval[row] / 2.0) -
               (time[rs] - interval[rs] / 2.0))
-        du = uvw[re, 0] - uvw[row, 0]
-        dv = uvw[re, 1] - uvw[row, 1]
+        du = uvw[row, 0] - uvw[rs, 0]
+        dv = uvw[row, 1] - uvw[rs, 1]
 
         du_dt = self.l * du / dt
         dv_dt = self.m * dv / dt
