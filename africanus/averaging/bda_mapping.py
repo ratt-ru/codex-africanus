@@ -2,18 +2,19 @@
 
 import numpy as np
 import numba
+from numba.experimental import jitclass
+import numba.types
 
-from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation
-
-from africanus.constants import c as lightspeed
 from africanus.util.numba import generated_jit, njit
 from africanus.averaging.support import unique_time, unique_baselines
+
 
 class RowMapperError(Exception):
     pass
 
+
 _SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
+
 
 @njit(nogil=True, cache=True, inline='always')
 def inv_sinc(sinc_x, tol=1e-12):
@@ -29,7 +30,7 @@ def inv_sinc(sinc_x, tol=1e-12):
     # Use Newton Raphson to go the rest of the way
     # https://www.wolframalpha.com/input/?i=simplify+%28sinc%5Bx%5D+-+c%29+%2F+D%5Bsinc%5Bx%5D%2Cx%5D
     while True:
-      # evaluate delta between this iteration sinc(x) and original
+        # evaluate delta between this iteration sinc(x) and original
         sinx = np.sin(x)
         𝞓sinc_x = (1.0 if x == 0.0 else sinx/x) - sinc_x
 
@@ -38,7 +39,7 @@ def inv_sinc(sinc_x, tol=1e-12):
             break
 
         # Next iteration
-        x -= (x*x*𝞓sinc_x) / (x*np.cos(x) - sinx)
+        x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
 
     return x
 
@@ -54,7 +55,7 @@ class Binner(object):
         self.re = row_end
         self.bin_sinc_Δψ = 0.0
         self.ref_freq = ref_freq
-        self.l = l
+        self.l = l  # noqa
         self.m = m
         self.n_max = n_max
         self.decorrelation = decorrelation
@@ -84,10 +85,9 @@ class Binner(object):
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
         dt = (time[row] + (interval[row] / 2.0) -
-            (time[rs] - interval[rs] / 2.0))
+              (time[rs] - interval[rs] / 2.0))
         du = uvw[re, 0] - uvw[row, 0]
         dv = uvw[re, 1] - uvw[row, 1]
-        dw = uvw[re, 2] - uvw[row, 2]
 
         du_dt = self.l * du / dt
         dv_dt = self.m * dv / dt
@@ -129,7 +129,7 @@ class Binner(object):
             du = uvw[rs, 0]
             dv = uvw[rs, 1]
             dw = uvw[rs, 2]
-            bin_sinc_𝞓𝞇 =  1.0
+            bin_sinc_𝞓𝞇 = 1.0
         else:
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
@@ -191,8 +191,6 @@ class Binner(object):
         self.bin_count = 0
         self.bin_flag_count = 0
 
-from numba.experimental import jitclass
-import numba.types
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
@@ -225,14 +223,14 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
     JitBinner = jitclass(spec)(Binner)
 
     def _impl(time, interval, ant1, ant2, uvw,
-            ref_freq, chan_freq, chan_width,
-            lm_max=1, decorrelation=0.98):
+              ref_freq, chan_freq, chan_width,
+              lm_max=1, decorrelation=0.98):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
             raise ValueError("0.0 <= decorrelation <= 1.0 must hold")
 
-        l = m = np.sqrt(0.5 * lm_max)
+        l = m = np.sqrt(0.5 * lm_max)  # noqa
         n_term = 1.0 - l**2 - m**2
         n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
 
@@ -264,7 +262,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             for t in range(ntime):
                 # Lookup row, continue if non-existent
-                r = row_lookup[bl ,t]
+                r = row_lookup[bl, t]
 
                 if r == -1:
                     continue
