@@ -13,7 +13,8 @@ on_rtd = os.environ.get('READTHEDOCS') == 'True'
 # Basic requirements containing no C extensions.
 # This is necessary for building on RTD
 requirements = ['appdirs >= 1.4.3',
-                'decorator']
+                'decorator',
+                'donfig']
 
 if not on_rtd:
     requirements += [
