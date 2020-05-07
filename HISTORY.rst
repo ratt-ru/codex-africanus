@@ -5,6 +5,7 @@ History
 0.2.2 (2019-04-09)
 ------------------
 
+* Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
 * Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
 
 0.2.1 (2019-04-03)
