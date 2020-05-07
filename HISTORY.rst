@@ -7,11 +7,11 @@ History
 * Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
 
 
-0.2.2 (2019-04-09)
+0.2.2 (2020-04-09)
 ------------------
 * Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
 
-0.2.1 (2019-04-03)
+0.2.1 (2020-04-03)
 ------------------
 * Update trove to latest master commit (:pr:`178`)
 * Added Cubic Spline support (:pr:`174`)
