@@ -1,3 +1,3 @@
 from donfig import Config
 
-config = Config("codex-africanus")
+config = Config("africanus")
