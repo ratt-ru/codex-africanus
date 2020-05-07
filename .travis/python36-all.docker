@@ -3,7 +3,7 @@ FROM kernsuite/base:5
 # Install base requirements
 RUN DEBIAN_FRONTEND=noninteractive add-apt-repository ppa:deadsnakes/ppa -y
 RUN DEBIAN_FRONTEND=noninteractive apt update -y
-RUN DEBIAN_FRONTEND=noninteractive apt install -y build-essential curl git python3-casacore python3-distutils  python3.6 python3.6-dev 
+RUN DEBIAN_FRONTEND=noninteractive apt install -y build-essential curl git python3-distutils  python3.6 python3.6-dev
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3.6 get-pip.py
 ADD . /code
