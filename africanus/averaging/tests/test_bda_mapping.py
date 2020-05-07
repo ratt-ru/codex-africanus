@@ -173,8 +173,17 @@ def ref_freq():
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                              ref_freq, chan_freq, chan_width):
     time = np.unique(time)
-    from africanus.averaging.bda_mapping import atemkeng_mapper
+    from africanus.averaging.bda_mapping import atemkeng_mapper, partition_frequency
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
+
+    decorrelation = 0.95
+    max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
+
+    spw_chan_freqs = partition_frequency(16, chan_freq, chan_width,
+                                         ref_freq, max_uvw_dist,
+                                         decorrelation=decorrelation)
+
+    print(spw_chan_freqs)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -186,4 +195,4 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
 
     atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     ref_freq, chan_freq, chan_width,
-                    decorrelation=0.8)
+                    decorrelation=decorrelation)

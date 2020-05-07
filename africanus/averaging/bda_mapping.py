@@ -43,16 +43,72 @@ def inv_sinc(sinc_x, tol=1e-12):
 
     return x
 
+@njit(nogil=True, cache=True, inline='always')
+def partition_frequency(spws, chan_freq, chan_width, ref_freq,
+                        max_uvw_dist, decorrelation):
+
+    uvw_dists = np.linspace(max_uvw_dist, 1e-5, spws)
+    𝞓𝞍 = inv_sinc(decorrelation)
+
+    spw_chan_widths = []
+
+    for s in range(uvw_dists.shape[0]):
+        fractional_bandwidth = 𝞓𝞍 / uvw_dists[s]
+
+        # Derive max_𝞓𝝼, the maximum change in bandwidth
+        # before decorrelation occurs in frequency
+        #
+        # Fractional Bandwidth is defined by
+        # https://en.wikipedia.org/wiki/Bandwidth_(signal_processing)
+        # for Wideband Antennas as:
+        #   (1) 𝞓𝝼/𝝼 = fb = (fh - fl) / (fh + fl)
+        # where fh and fl are the high and low frequencies
+        # of the band.
+        # We set fh = ref_freq + 𝞓𝝼/2, fl = ref_freq - 𝞓𝝼/2
+        # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
+        max_𝞓𝝼 = 2 * ref_freq * fractional_bandwidth
+        print("max_𝞓𝝼", max_𝞓𝝼, "uvd", uvw_dists[s],
+              "bandwidth", chan_freq[-1] - chan_freq[0],
+              "chan_width", chan_width[0])
+
+        𝞓𝝼_sum = chan_width[0]
+        new_chan_widths = []
+
+        for f in range(1, chan_width.shape[0] - 1):
+            new_𝞓𝝼_sum = 𝞓𝝼_sum + chan_width[f]
+
+            if new_𝞓𝝼_sum > max_𝞓𝝼:
+                new_chan_widths.append(𝞓𝝼_sum)
+                𝞓𝝼_sum = chan_width[f]
+            else:
+                𝞓𝝼_sum = new_𝞓𝝼_sum
+
+        new_chan_widths.append(𝞓𝝼_sum)
+        spw_chan_widths.append(np.array(new_chan_widths))
+
+    return spw_chan_widths
+
+
+
+
 class Binner(object):
     def __init__(self, row_start, row_end,
                  ref_freq, l, m, n_max,
                  decorrelation):
+        # Index of the time bin to which all rows in the bin will contribute
         self.tbin = 0
+        # Number of rows in the bin
         self.bin_count = 0
+        # Number of flagged rows in the bin
         self.bin_flag_count = 0
+        # Starting row of the bin
         self.rs = row_start
+        # Ending row of the bin
         self.re = row_end
+        # Sinc of baseline speed
         self.bin_sinc_Δψ = 0.0
+
+        # Quantities cached to make functions arguments smaller
         self.ref_freq = ref_freq
         self.l = l  # noqa
         self.m = m
@@ -151,6 +207,7 @@ class Binner(object):
         # derive the frequency phase difference
         # from Equation (35) in Atemkeng
         sinc_𝞓𝞍 = self.decorrelation / bin_sinc_𝞓𝞇
+
         𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
         fractional_bandwidth = 𝞓𝞍 / max_abs_dist
 
