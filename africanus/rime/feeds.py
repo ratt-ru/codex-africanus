@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
-from functools import reduce
-from operator import mul
-
 import numpy as np
 
 from africanus.config import config
