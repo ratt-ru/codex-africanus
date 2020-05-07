@@ -14,26 +14,31 @@ cfg = config.get("rime.feed_rotation.parallel", False)
 parallel = cfg is not False
 cfg = {} if cfg is True else cfg
 
+
 @generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def feed_rotation(parallactic_angles, feed_type='linear'):
     pa_np_dtype = np.dtype(parallactic_angles.dtype.name)
     dtype = np.result_type(pa_np_dtype, np.complex64)
 
-    from numba import config as nbcfg, prange, set_num_threads
-    nthreads = cfg.get("threads", nbcfg.NUMBA_NUM_THREADS) if parallel else 1
+    import numba
+    nthreads = (cfg.get("threads", numba.config.NUMBA_NUM_THREADS)
+                if parallel else 1)
 
     def impl(parallactic_angles, feed_type='linear'):
         if parallel:
-            set_num_threads(nthreads)
+            numba.set_num_threads(nthreads)
 
-        parangles = parallactic_angles.flat
+        elements = numba.int64(1)
 
-        shape = (reduce(lambda x, y: x*y, parallactic_angles.shape, 1),)
-        result = np.zeros(shape + (2, 2), dtype=dtype)
+        for d in parallactic_angles.shape:
+            elements *= d
+
+        parangles = parallactic_angles.ravel()
+        result = np.zeros((elements, 2, 2), dtype=dtype)
 
         # Linear feeds
         if feed_type == 'linear':
-            for i in prange(shape[0]):
+            for i in numba.prange(elements):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)
@@ -45,7 +50,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
 
         # Circular feeds
         elif feed_type == 'circular':
-            for i in prange(shape[0]):
+            for i in numba.prange(elements):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)
@@ -58,7 +63,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
             raise ValueError("feed_type not in ('linear', 'circular')")
 
         if parallel:
-            set_num_threads(max_threads)
+            numba.set_num_threads(numba.config.NUMBA_NUM_THREADS)
 
         return result.reshape(parallactic_angles.shape + (2, 2))
 
