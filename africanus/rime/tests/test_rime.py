@@ -3,6 +3,7 @@
 
 """Tests for `codex-africanus` package."""
 
+import importlib
 import numpy as np
 
 import pytest
@@ -50,23 +51,34 @@ def test_phase_delay(convention, sign):
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-def test_feed_rotation():
-    import numpy as np
-    from africanus.rime import feed_rotation
+@pytest.mark.parametrize("parallel", [True, False])
+def test_feed_rotation(parallel):
+    import africanus
+    from africanus.config import config
 
-    parangles = np.random.random((10, 5))
-    pa_sin = np.sin(parangles)
-    pa_cos = np.cos(parangles)
+    with config.set({"rime.feed_rotation.parallel": parallel}):
+        importlib.reload(africanus.rime.feeds)
+        from africanus.rime.feeds import feed_rotation
 
-    fr = feed_rotation(parangles, feed_type='linear')
-    np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+        if parallel:
+            assert 'parallel' in feed_rotation.targetoptions
+            assert feed_rotation.targetoptions['parallel'] is True
+        else:
+            assert parallel not in feed_rotation.targetoptions
 
-    fr = feed_rotation(parangles, feed_type='circular')
-    zeros = np.zeros_like(pa_sin)
-    np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
-                        zeros, pa_cos + 1j*pa_sin], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+        parangles = np.random.random((10, 5))
+        pa_sin = np.sin(parangles)
+        pa_cos = np.cos(parangles)
+
+        fr = feed_rotation(parangles, feed_type='linear')
+        np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
+        assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+
+        fr = feed_rotation(parangles, feed_type='circular')
+        zeros = np.zeros_like(pa_sin)
+        np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
+                            zeros, pa_cos + 1j*pa_sin], axis=2)
+        assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
 
 @pytest.mark.parametrize("convention, sign",  [

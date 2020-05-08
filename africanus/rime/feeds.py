@@ -6,10 +6,8 @@ from africanus.config import config
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit
 
-cfg = config.get("rime.feed_rotation.parallel", False)
-parallel = cfg is not False
-cfg = {} if cfg is True else cfg
-
+cfg = config.numba_parallel("rime.feed_rotation.parallel")
+parallel = cfg.get('parallel', False)
 
 @generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def feed_rotation(parallactic_angles, feed_type='linear'):
@@ -17,19 +15,28 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
     dtype = np.result_type(pa_np_dtype, np.complex64)
 
     import numba
-    nthreads = (cfg.get("threads", numba.config.NUMBA_NUM_THREADS)
-                if parallel else 1)
+    nthreads = (1 if not parallel else
+                cfg.get("threads", numba.config.NUMBA_NUM_THREADS))
 
     def impl(parallactic_angles, feed_type='linear'):
         if parallel:
+            prev_nthreads = numba.get_num_threads()
             numba.set_num_threads(nthreads)
 
+        # Can't use parangles.shape lower down
+        # until this is resolved
+        # https://github.com/numba/numba/issues/5439
+        elements = 1
+
+        for d in parallactic_angles.shape:
+            elements *= d
+
         parangles = parallactic_angles.ravel()
-        result = np.zeros(parangles.shape + (2, 2), dtype=dtype)
+        result = np.zeros((elements, 2, 2), dtype=dtype)
 
         # Linear feeds
         if feed_type == 'linear':
-            for i in numba.prange(parangles.shape[0]):
+            for i in numba.prange(elements):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)
@@ -41,7 +48,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
 
         # Circular feeds
         elif feed_type == 'circular':
-            for i in numba.prange(parangles.shape[0]):
+            for i in numba.prange(elements):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)
@@ -54,7 +61,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
             raise ValueError("feed_type not in ('linear', 'circular')")
 
         if parallel:
-            numba.set_num_threads(numba.config.NUMBA_NUM_THREADS)
+            numba.set_num_threads(prev_nthreads)
 
         return result.reshape(parallactic_angles.shape + (2, 2))
 
