@@ -17,7 +17,4 @@ class AfricanusConfig(Config):
                             key, value)
 
 
-
-
-
 config = AfricanusConfig("africanus")

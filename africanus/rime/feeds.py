@@ -9,6 +9,7 @@ from africanus.util.numba import generated_jit
 cfg = config.numba_parallel("rime.feed_rotation.parallel")
 parallel = cfg.get('parallel', False)
 
+
 @generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def feed_rotation(parallactic_angles, feed_type='linear'):
     pa_np_dtype = np.dtype(parallactic_angles.dtype.name)
