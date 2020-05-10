@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 """The setup script."""
 
+from pathlib import Path
+from shutil import copyfile
 from setuptools import setup, find_packages
 
 # Import requirements
-from africanus.install.requirements import (requirements,
-                                            extras_require,
-                                            setup_requirements,
-                                            test_requirements)
+from requirements import (requirements,
+                          extras_require,
+                          setup_requirements,
+                          test_requirements)
+
+copyfile("requirements.py", Path("africanus", "install", "requirements.py"))
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
