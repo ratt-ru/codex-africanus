@@ -487,15 +487,16 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
-    from numba import config as nbcfg, prange, set_num_threads
-    nthreads = cfg.get("threads", nbcfg.NUMBA_NUM_THREADS) if parallel else 1
+    from numba import prange, set_num_threads, get_num_threads
+    threads = cfg.get("threads", None) if parallel else None
 
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
 
-        if parallel:
-            set_num_threads(nthreads)
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
 
         # Get the output shape
         out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
@@ -517,8 +518,8 @@ def predict_vis(time_index, antenna1, antenna2,
                       die1_jones, die2_jones,
                       tmin, out)
 
-        if parallel:
-            set_num_threads(nbcfg.NUMBA_NUM_THREADS)
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
 
         return out
 

@@ -24,7 +24,14 @@ def cfg_rime_parallel(request):
     with config.set(cfg):
         importlib.reload(mod)
 
-        yield cfg.copy().popitem()[1]
+        cfg = cfg.copy().popitem()[1]
+
+        if isinstance(cfg, dict):
+            yield cfg['parallel']
+        elif isinstance(cfg, bool):
+            yield cfg
+        else:
+            raise TypeError("Unhandled cfg type %s" % type(cfg))
 
     importlib.reload(mod)
 

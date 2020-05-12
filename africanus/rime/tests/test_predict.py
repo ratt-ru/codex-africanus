@@ -56,8 +56,9 @@ die_presence_parametrization = pytest.mark.parametrize('g1j,bvis,g2j', [
 @chunk_parametrization
 @pytest.mark.parametrize("cfg_rime_parallel", [
     ("africanus.rime.predict", {"rime.predict_vis.parallel": True}),
+    ("africanus.rime.predict", {"rime.predict_vis.parallel": {'threads': 2}}),
     ("africanus.rime.predict", {"rime.predict_vis.parallel": False}),
-    ], ids=["parallel", "serial"], indirect=True)
+    ], ids=["parallel", "parallel-2", "serial"], indirect=True)
 def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                      a1j, blj, a2j, g1j, bvis, g2j,
                      chunks, cfg_rime_parallel):

@@ -16,13 +16,12 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
     dtype = np.result_type(pa_np_dtype, np.complex64)
 
     import numba
-    nthreads = (1 if not parallel else
-                cfg.get("threads", numba.config.NUMBA_NUM_THREADS))
+    threads = cfg.get("threads", None) if parallel else None
 
     def impl(parallactic_angles, feed_type='linear'):
-        if parallel:
-            prev_nthreads = numba.get_num_threads()
-            numba.set_num_threads(nthreads)
+        if parallel and threads is not None:
+            prev_threads = numba.get_num_threads()
+            numba.set_num_threads(threads)
 
         parangles = parallactic_angles.ravel()
         # Can't prepend shape tuple till the following is fixed
@@ -57,8 +56,8 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
         else:
             raise ValueError("feed_type not in ('linear', 'circular')")
 
-        if parallel:
-            numba.set_num_threads(prev_nthreads)
+        if parallel and threads is not None:
+            numba.set_num_threads(prev_threads)
 
         return result.reshape(parallactic_angles.shape + (2, 2))
 

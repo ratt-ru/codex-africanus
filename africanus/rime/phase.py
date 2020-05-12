@@ -19,12 +19,17 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
     neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
-    from numba import prange
+    from numba import prange, set_num_threads, get_num_threads
 
     srange = prange if 'source' in axes else range
     rrange = prange if 'row' in axes else range
+    threads = cfg.get('threads', None) if parallel else None
 
     def _phase_delay_impl(lm, uvw, frequency, convention='fourier'):
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
+
         if convention == 'fourier':
             constant = neg_two_pi_over_c
         elif convention == 'casa':
@@ -54,6 +59,9 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
                     # so we can can elide a call to exp
                     # and just compute the cos and sin
                     complex_phase[source, row, chan] = np.cos(p) + np.sin(p)*1j
+
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
 
         return complex_phase
 

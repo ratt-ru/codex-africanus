@@ -20,8 +20,9 @@ def rc(*a, **kw):
 ])
 @pytest.mark.parametrize("cfg_rime_parallel", [
     ("africanus.rime.phase", {"rime.phase_delay.parallel": True}),
+    ("africanus.rime.phase", {"rime.phase_delay.parallel": {"threads": 2}}),
     ("africanus.rime.phase", {"rime.phase_delay.parallel": False}),
-    ], ids=["parallel", "serial"], indirect=True)
+    ], ids=["parallel", "parallel-2", "serial"], indirect=True)
 def test_phase_delay(convention, sign, cfg_rime_parallel):
     from africanus.rime.phase import phase_delay
 
