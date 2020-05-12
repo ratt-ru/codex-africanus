@@ -31,8 +31,8 @@ extras_require = {
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.2.0'],
     # TODO(sjperkins)
-    # Modify flake8 < 3.8.0 once https://github.com/tholo/pytest-flake8/issues/66
-    # is fixed
+    # Modify flake8 < 3.8.0 once
+    # https://github.com/tholo/pytest-flake8/issues/66 is fixed
     'testing': ['pytest', 'flaky', 'pytest-flake8', 'flake8 < 3.8.0']
 }
 
