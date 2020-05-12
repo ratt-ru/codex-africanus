@@ -3,9 +3,6 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
 
-from africanus.rime.fast_beam_cubes import beam_cube_dde, freq_grid_interp
-
-
 def rf(*a, **kw):
     return np.random.random(*a, **kw)
 
@@ -39,10 +36,18 @@ def freqs():
 
     return np.array([.4, .5, .6, .7, .8, .9, 1.0, 1.1])
 
-
-def test_fast_beam_small():
+@pytest.mark.parametrize("cfg_rime_parallel", [
+    ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": True}),
+    ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": {'threads': 2}}),
+    ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": False}),
+    ], ids=["parallel", "parallel-2", "serial"], indirect=True)
+def test_fast_beam_small(cfg_rime_parallel):
     """ Small beam test, interpolation of one soure at [0.1, 0.1] """
+    from africanus.rime.fast_beam_cubes import beam_cube_dde
+    assert beam_cube_dde.targetoptions['parallel'] == cfg_rime_parallel
+
     np.random.seed(42)
+
 
     # One frequency, to the lower side of the beam frequency map
     freq = np.asarray([.3])
@@ -121,6 +126,8 @@ def test_fast_beam_small():
 
 
 def test_grid_interpolate(freqs, beam_freq_map):
+    from africanus.rime.fast_beam_cubes import freq_grid_interp
+
     freq_data = freq_grid_interp(freqs, beam_freq_map)
 
     freq_scale = freq_data[:, 0]
@@ -153,6 +160,7 @@ def test_grid_interpolate(freqs, beam_freq_map):
 
 def test_dask_fast_beams(freqs, beam_freq_map):
     da = pytest.importorskip("dask.array")
+    from africanus.rime.fast_beam_cubes import beam_cube_dde
     from africanus.rime.dask import beam_cube_dde as dask_beam_cube_dde
 
     beam_lw = 10
