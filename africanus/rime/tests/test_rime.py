@@ -60,11 +60,7 @@ def test_feed_rotation(parallel):
         importlib.reload(africanus.rime.feeds)
         from africanus.rime.feeds import feed_rotation
 
-        if parallel:
-            assert 'parallel' in feed_rotation.targetoptions
-            assert feed_rotation.targetoptions['parallel'] is True
-        else:
-            assert parallel not in feed_rotation.targetoptions
+        assert feed_rotation.targetoptions['parallel'] == parallel
 
         parangles = np.random.random((10, 5))
         pa_sin = np.sin(parangles)
