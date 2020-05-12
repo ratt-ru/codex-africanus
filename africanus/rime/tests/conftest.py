@@ -3,9 +3,30 @@
 
 """Tests for `codex-africanus` package."""
 
+import importlib
 
 import numpy as np
 import pytest
+
+
+@pytest.fixture
+def cfg_rime_parallel(request):
+    """ Performs parallel configuration setting and module reloading """
+    from africanus.config import config
+
+    module, cfg = request.param
+
+    assert isinstance(cfg, dict) and len(cfg) == 1
+
+    # Get module object, because importlib.reload doesn't take strings
+    mod = importlib.import_module(module)
+
+    with config.set(cfg):
+        importlib.reload(mod)
+
+        yield cfg.copy().popitem()[1]
+
+    importlib.reload(mod)
 
 
 @pytest.fixture

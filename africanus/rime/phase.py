@@ -2,18 +2,27 @@
 
 import numpy as np
 
+from africanus.config import config
 from africanus.constants import minus_two_pi_over_c
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit
 from africanus.util.type_inference import infer_complex_dtype
 
+cfg = config.numba_parallel("rime.phase_delay.parallel")
+parallel = cfg.get('parallel', False)
+axes = cfg.get('axes', set(('source', 'row')) if parallel else ())
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def phase_delay(lm, uvw, frequency, convention='fourier'):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
     neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
+
+    from numba import prange
+
+    srange = prange if 'source' in axes else range
+    rrange = prange if 'row' in axes else range
 
     def _phase_delay_impl(lm, uvw, frequency, convention='fourier'):
         if convention == 'fourier':
@@ -27,12 +36,12 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
         complex_phase = np.zeros(shape, dtype=out_dtype)
 
         # For each source
-        for source in range(lm.shape[0]):
+        for source in srange(lm.shape[0]):
             l, m = lm[source]
             n = np.sqrt(one - l**2 - m**2) - one
 
             # For each uvw coordinate
-            for row in range(uvw.shape[0]):
+            for row in rrange(uvw.shape[0]):
                 u, v, w = uvw[row]
                 # e^(-2*pi*(l*u + m*v + n*w)/c)
                 real_phase = constant * (l * u + m * v + n * w)
@@ -44,8 +53,7 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
                     # Our phase input is purely imaginary
                     # so we can can elide a call to exp
                     # and just compute the cos and sin
-                    complex_phase.real[source, row, chan] = np.cos(p)
-                    complex_phase.imag[source, row, chan] = np.sin(p)
+                    complex_phase[source, row, chan] = np.cos(p) + np.sin(p)*1j
 
         return complex_phase
 

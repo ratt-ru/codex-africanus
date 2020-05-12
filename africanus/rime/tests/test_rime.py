@@ -3,11 +3,8 @@
 
 """Tests for `codex-africanus` package."""
 
-import importlib
 import numpy as np
-
 import pytest
-
 
 def rf(*a, **kw):
     return np.random.random(*a, **kw)
@@ -21,8 +18,14 @@ def rc(*a, **kw):
     ('fourier', 1),
     ('casa', -1)
 ])
-def test_phase_delay(convention, sign):
-    from africanus.rime import phase_delay
+@pytest.mark.parametrize("cfg_rime_parallel", [
+    ("africanus.rime.phase", {"rime.phase_delay.parallel": True}),
+    ("africanus.rime.phase", {"rime.phase_delay.parallel": False}),
+    ], ids=["parallel", "serial"], indirect=True)
+def test_phase_delay(convention, sign, cfg_rime_parallel):
+    from africanus.rime.phase import phase_delay
+
+    assert phase_delay.targetoptions['parallel'] == cfg_rime_parallel
 
     uvw = np.random.random(size=(100, 3))
     lm = np.random.random(size=(10, 2))
@@ -51,30 +54,28 @@ def test_phase_delay(convention, sign):
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-@pytest.mark.parametrize("parallel", [True, False])
-def test_feed_rotation(parallel):
-    import africanus
-    from africanus.config import config
+@pytest.mark.parametrize("cfg_rime_parallel", [
+    ("africanus.rime.feeds", {"rime.feed_rotation.parallel": True}),
+    ("africanus.rime.feeds", {"rime.feed_rotation.parallel": False}),
+    ], ids=["parallel", "serial"], indirect=True)
+def test_feed_rotation(cfg_rime_parallel):
+    from africanus.rime.feeds import feed_rotation
 
-    with config.set({"rime.feed_rotation.parallel": parallel}):
-        importlib.reload(africanus.rime.feeds)
-        from africanus.rime.feeds import feed_rotation
+    assert feed_rotation.targetoptions['parallel'] == cfg_rime_parallel
 
-        assert feed_rotation.targetoptions['parallel'] == parallel
+    parangles = np.random.random((10, 5))
+    pa_sin = np.sin(parangles)
+    pa_cos = np.cos(parangles)
 
-        parangles = np.random.random((10, 5))
-        pa_sin = np.sin(parangles)
-        pa_cos = np.cos(parangles)
+    fr = feed_rotation(parangles, feed_type='linear')
+    np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
+    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
-        fr = feed_rotation(parangles, feed_type='linear')
-        np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
-        assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
-
-        fr = feed_rotation(parangles, feed_type='circular')
-        zeros = np.zeros_like(pa_sin)
-        np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
-                            zeros, pa_cos + 1j*pa_sin], axis=2)
-        assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+    fr = feed_rotation(parangles, feed_type='circular')
+    zeros = np.zeros_like(pa_sin)
+    np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
+                        zeros, pa_cos + 1j*pa_sin], axis=2)
+    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
 
 
 @pytest.mark.parametrize("convention, sign",  [
