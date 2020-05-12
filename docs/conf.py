@@ -184,6 +184,7 @@ man_pages = [
      [author], 1)
 ]
 
+numpydoc_class_members_toctree = False
 
 # -- Options for Texinfo output ----------------------------------------
 
