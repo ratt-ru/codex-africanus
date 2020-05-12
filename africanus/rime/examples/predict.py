@@ -164,8 +164,10 @@ def load_beams(beam_file_schema, corr_types):
     flat_headers = []
 
     for corr, (re_header, im_header) in headers:
-        del re_header["DATE"]
-        del im_header["DATE"]
+        if "DATE" in re_header:
+            del re_header["DATE"]
+        if "DATE" in im_header:
+            del im_header["DATE"]
         flat_headers.append(re_header)
         flat_headers.append(im_header)
 
@@ -481,8 +483,9 @@ def vis_factory(args, source_type, sky_model,
                                         meta=meta, dtype=tuple)
 
     # Need unique times for parallactic angles
+    nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
     utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
+                                 chunks=nan_chunks,
                                  dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)

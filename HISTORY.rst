@@ -4,6 +4,7 @@ History
 
 0.2.3 (YYYY-MM-DD)
 ------------------
+* MeqTrees Comparison Script Updates (:pr:`160`)
 * Improve requirements and work around broken pytest-flake8 (:pr:`187`)
 * Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
 
