@@ -22,9 +22,10 @@ if on_rtd():
     jit = _fake_decorator
     njit = _fake_decorator
     stencil = _fake_decorator
+    prange = _fake_decorator
 
 else:
-    from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
+    from numba import cfunc, jit, njit, generated_jit, stencil, prange  # noqa
 
 
 def is_numba_type_none(arg):
