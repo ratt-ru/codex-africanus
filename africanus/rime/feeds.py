@@ -24,20 +24,16 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
             prev_nthreads = numba.get_num_threads()
             numba.set_num_threads(nthreads)
 
-        # Can't use parangles.shape lower down
-        # until this is resolved
-        # https://github.com/numba/numba/issues/5439
-        elements = 1
-
-        for d in parallactic_angles.shape:
-            elements *= d
-
         parangles = parallactic_angles.ravel()
-        result = np.zeros((elements, 2, 2), dtype=dtype)
+        # Can't prepend shape tuple till the following is fixed
+        # https://github.com/numba/numba/issues/5439
+        # We know parangles.ndim == 1 though
+        result = np.zeros((parangles.shape[0], 2, 2), dtype=dtype)
+
 
         # Linear feeds
         if feed_type == 'linear':
-            for i in numba.prange(elements):
+            for i in numba.prange(parangles.shape[0]):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)
@@ -49,7 +45,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
 
         # Circular feeds
         elif feed_type == 'circular':
-            for i in numba.prange(elements):
+            for i in numba.prange(parangles.shape[0]):
                 pa = parangles[i]
                 pa_cos = np.cos(pa)
                 pa_sin = np.sin(pa)

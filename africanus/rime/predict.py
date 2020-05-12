@@ -3,8 +3,13 @@
 
 import numpy as np
 
+from africanus.config import config
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
+
+cfg = config.get("rime.predict_vis.parallel", False)
+parallel = cfg is not False
+cfg = {} if cfg is True else cfg
 
 
 JONES_NOT_PRESENT = 0
@@ -426,7 +431,7 @@ def predict_checks(time_index, antenna1, antenna2,
             have_dies1, have_bvis, have_dies2)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
@@ -474,9 +479,15 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
+    from numba import config as nbcfg, prange, set_num_threads
+    nthreads = cfg.get("threads", nbcfg.NUMBA_NUM_THREADS) if parallel else 1
+
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
+
+        if parallel:
+            set_num_threads(nthreads)
 
         # Get the output shape
         out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
@@ -497,6 +508,9 @@ def predict_vis(time_index, antenna1, antenna2,
         apply_dies_fn(time_index, antenna1, antenna2,
                       die1_jones, die2_jones,
                       tmin, out)
+
+        if parallel:
+            set_num_threads(nbcfg.NUMBA_NUM_THREADS)
 
         return out
 
