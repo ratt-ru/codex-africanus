@@ -3,6 +3,8 @@
 
 """Tests for `codex-africanus` package."""
 
+import importlib
+
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
@@ -52,11 +54,10 @@ die_presence_parametrization = pytest.mark.parametrize('g1j,bvis,g2j', [
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
+@pytest.mark.parametrize("parallel", [True, False])
 def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                      a1j, blj, a2j, g1j, bvis, g2j,
-                     chunks):
-    from africanus.rime.predict import predict_vis
-
+                     chunks, parallel):
     s = sum(chunks['source'])
     t = sum(chunks['time'])
     a = sum(chunks['antenna'])
@@ -77,38 +78,47 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 
     assert ant1.size == r
 
-    model_vis = predict_vis(time_idx, ant1, ant2,
-                            a1_jones if a1j else None,
-                            bl_jones if blj else None,
-                            a2_jones if a2j else None,
-                            g1_jones if g1j else None,
-                            base_vis if bvis else None,
-                            g2_jones if g2j else None)
+    from africanus.config import config
 
-    assert model_vis.shape == (r, c) + corr_shape
+    with config.set({"rime.predict_vis.parallel": parallel}):
+        import africanus
+        importlib.reload(africanus.rime.predict)
+        from africanus.rime.predict import predict_vis
 
-    def _id(array):
-        return np.broadcast_to(idm, array.shape)
+        assert predict_vis.targetoptions['parallel'] == parallel
 
-    # For einsum, convert (time, ant) dimensions to row
-    # or ID matrices if the input is present
-    a1_jones = a1_jones[:, time_idx, ant1] if a1j else _id(bl_jones)
-    bl_jones = bl_jones if blj else _id(bl_jones)
-    a2_jones = a2_jones[:, time_idx, ant2].conj() if a2j else _id(bl_jones)
+        model_vis = predict_vis(time_idx, ant1, ant2,
+                                a1_jones if a1j else None,
+                                bl_jones if blj else None,
+                                a2_jones if a2j else None,
+                                g1_jones if g1j else None,
+                                base_vis if bvis else None,
+                                g2_jones if g2j else None)
 
-    v = np.einsum(einsum_sig1, a1_jones, bl_jones, a2_jones)
+        assert model_vis.shape == (r, c) + corr_shape
 
-    if bvis:
-        v += base_vis
+        def _id(array):
+            return np.broadcast_to(idm, array.shape)
 
-    # Convert (time, ant) dimensions to row or
-    # or ID matrices if input is not present
-    g1_jones = g1_jones[time_idx, ant1] if g1j else _id(v)
-    g2_jones = g2_jones[time_idx, ant2].conj() if g2j else _id(v)
+        # For einsum, convert (time, ant) dimensions to row
+        # or ID matrices if the input is present
+        a1_jones = a1_jones[:, time_idx, ant1] if a1j else _id(bl_jones)
+        bl_jones = bl_jones if blj else _id(bl_jones)
+        a2_jones = a2_jones[:, time_idx, ant2].conj() if a2j else _id(bl_jones)
 
-    v = np.einsum(einsum_sig2, g1_jones, v, g2_jones)
+        v = np.einsum(einsum_sig1, a1_jones, bl_jones, a2_jones)
 
-    assert_array_almost_equal(v, model_vis)
+        if bvis:
+            v += base_vis
+
+        # Convert (time, ant) dimensions to row or
+        # or ID matrices if input is not present
+        g1_jones = g1_jones[time_idx, ant1] if g1j else _id(v)
+        g2_jones = g2_jones[time_idx, ant2].conj() if g2j else _id(v)
+
+        v = np.einsum(einsum_sig2, g1_jones, v, g2_jones)
+
+        assert_array_almost_equal(v, model_vis)
 
 
 @corr_shape_parametrization
