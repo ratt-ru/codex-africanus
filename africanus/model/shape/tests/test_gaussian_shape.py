@@ -5,12 +5,20 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.shape import gaussian as np_gaussian
-
-
-def test_gauss_shape():
+@pytest.mark.parametrize("cfg_parallel", [
+    ("africanus.model.shape.gaussian_shape",
+        {"model.shape.gaussian.parallel": True}),
+    ("africanus.model.shape.gaussian_shape", {
+        "model.shape.gaussian.parallel": {'threads': 2}}),
+    ("africanus.model.shape.gaussian_shape",
+        {"model.shape.gaussian.parallel": False}),
+    ], ids=["parallel", "parallel-2", "serial"], indirect=True)
+def test_gauss_shape(cfg_parallel):
+    from africanus.model.shape.gaussian_shape import gaussian as np_gaussian
     row = 10
     chan = 16
+
+    assert np_gaussian.targetoptions['parallel'] == cfg_parallel
 
     shape_params = np.array([[.4, .3, .2],
                              [.4, .3, .2]])
@@ -24,6 +32,7 @@ def test_gauss_shape():
 
 def test_dask_gauss_shape():
     da = pytest.importorskip('dask.array')
+    from africanus.model.shape import gaussian as np_gaussian
     from africanus.model.shape.dask import gaussian as da_gaussian
 
     row_chunks = (5, 5)
