@@ -10,7 +10,7 @@ from africanus.util.numba import njit, generated_jit
 
 cfg = config.numba_parallel("rime.beam_cube_dde.parallel")
 parallel = cfg.get('parallel', False)
-axes = cfg.get("axes", set(('source','row')) if parallel else set())
+axes = cfg.get("axes", set(('source', 'row')) if parallel else set())
 
 
 @njit(nogil=True, cache=True)
@@ -73,8 +73,8 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     threads = cfg.get('threads', None) if parallel else None
 
     def impl(beam, beam_lm_extents, beam_freq_map,
-            lm, parallactic_angles, point_errors, antenna_scaling,
-            frequency):
+             lm, parallactic_angles, point_errors, antenna_scaling,
+             frequency):
 
         if parallel and threads is not None:
             prev_threads = get_num_threads()
@@ -114,7 +114,8 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
         fbeam = beam.reshape((beam_lw, beam_mh, beam_nud, ncorrs))
 
         # Allocate output array with correlations flattened
-        fjones = np.empty((nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
+        fjones = np.empty(
+            (nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
 
         # Compute frequency interpolation stuff
         freq_data = freq_grid_interp(frequency, beam_freq_map)
@@ -259,6 +260,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
         return fjones.reshape((nsrc, ntime, nants, nchan) + corrs)
 
     return impl
+
 
 BEAM_CUBE_DOCS = DocstringTemplate(
     r"""

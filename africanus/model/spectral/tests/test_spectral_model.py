@@ -43,8 +43,10 @@ def spi():
 @pytest.mark.parametrize("npol", [0, 1, 2, 4])
 @pytest.mark.parametrize("cfg_parallel", [
     ("africanus.model.spectral.spec_model", {"model.spectral.parallel": True}),
-    ("africanus.model.spectral.spec_model", {"model.spectral.parallel": {'threads': 2}}),
-    ("africanus.model.spectral.spec_model", {"model.spectral.parallel": False}),
+    ("africanus.model.spectral.spec_model", {
+     "model.spectral.parallel": {'threads': 2}}),
+    ("africanus.model.spectral.spec_model",
+     {"model.spectral.parallel": False}),
     ], ids=["parallel", "parallel-2", "serial"], indirect=True)
 def test_spectral_model_multiple_spi(flux, ref_freq, frequency,
                                      base, npol, cfg_parallel):
@@ -53,7 +55,6 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency,
                                                      numpy_spectral_model)
 
     assert spectral_model.targetoptions['parallel'] == cfg_parallel
-
 
     nsrc = 10
     nchan = 16

@@ -36,9 +36,11 @@ def freqs():
 
     return np.array([.4, .5, .6, .7, .8, .9, 1.0, 1.1])
 
+
 @pytest.mark.parametrize("cfg_parallel", [
     ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": True}),
-    ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": {'threads': 2}}),
+    ("africanus.rime.fast_beam_cubes", {
+     "rime.beam_cube_dde.parallel": {'threads': 2}}),
     ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": False}),
     ], ids=["parallel", "parallel-2", "serial"], indirect=True)
 def test_fast_beam_small(cfg_parallel):
@@ -47,7 +49,6 @@ def test_fast_beam_small(cfg_parallel):
     assert beam_cube_dde.targetoptions['parallel'] == cfg_parallel
 
     np.random.seed(42)
-
 
     # One frequency, to the lower side of the beam frequency map
     freq = np.asarray([.3])
@@ -223,6 +224,7 @@ def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
     """ Test that the numba beam matches montblanc implementation """
     mb_tf_mod = pytest.importorskip("montblanc.impl.rime.tensorflow")
     tf = pytest.importorskip("tensorflow")
+    from africanus.rime.fast_beam_cubes import beam_cube_dde
 
     freqs = freqs.astype(dtype)
     beam_freq_map = beam_freq_map_montblanc.astype(dtype)

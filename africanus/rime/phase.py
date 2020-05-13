@@ -12,6 +12,7 @@ cfg = config.numba_parallel("rime.phase_delay.parallel")
 parallel = cfg.get('parallel', False)
 axes = cfg.get('axes', set(('source', 'row')) if parallel else ())
 
+
 @generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
 def phase_delay(lm, uvw, frequency, convention='fourier'):
     # Bake constants in with the correct type

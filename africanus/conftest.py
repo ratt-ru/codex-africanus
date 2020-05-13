@@ -33,7 +33,6 @@ def cfg_parallel(request):
     importlib.reload(mod)
 
 
-
 # content of conftest.py
 def pytest_configure(config):
     mark_in_pytest(True)

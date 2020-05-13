@@ -29,7 +29,6 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
         # We know parangles.ndim == 1 though
         result = np.zeros((parangles.shape[0], 2, 2), dtype=dtype)
 
-
         # Linear feeds
         if feed_type == 'linear':
             for i in numba.prange(parangles.shape[0]):

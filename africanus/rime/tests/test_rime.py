@@ -6,6 +6,7 @@
 import numpy as np
 import pytest
 
+
 def rf(*a, **kw):
     return np.random.random(*a, **kw)
 

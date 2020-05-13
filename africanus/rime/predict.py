@@ -9,7 +9,7 @@ from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 cfg = config.numba_parallel("rime.predict_vis.parallel")
 parallel = cfg.get('parallel', False)
-axes = cfg.get("axes", set(('source','row')) if parallel else set())
+axes = cfg.get("axes", set(('source', 'row')) if parallel else set())
 
 JONES_NOT_PRESENT = 0
 JONES_1_OR_2 = 1
@@ -487,7 +487,7 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
-    from numba import prange, set_num_threads, get_num_threads
+    from numba import set_num_threads, get_num_threads
     threads = cfg.get("threads", None) if parallel else None
 
     def _predict_vis_fn(time_index, antenna1, antenna2,

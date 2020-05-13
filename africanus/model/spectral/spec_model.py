@@ -13,6 +13,7 @@ cfg = config.numba_parallel('model.spectral.parallel')
 parallel = cfg.get('parallel', False)
 axes = cfg.get('axes', ('source', 'chan') if parallel else ())
 
+
 def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     out_shape = (stokes.shape[0], frequency.shape[0]) + stokes.shape[1:]
 
@@ -146,6 +147,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
     from numba import prange, set_num_threads, get_num_threads
     threads = cfg.get('threads', None) if parallel else None
+    srange = prange if 'source' in axes else range
+    crange = prange if 'chan' in axes else range
 
     def impl(stokes, spi, ref_freq, frequency, base=0):
         if parallel and threads is not None:
@@ -174,10 +177,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         # The output cache patterns could be improved.
         for p, b in enumerate(list_base[:npol]):
             if is_std(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = (frequency[f] / rf) - 1.0
                         spec_model = estokes[s, p]
 
@@ -188,10 +191,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                         spectral_model[s, f, p] = spec_model
 
             elif is_log(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
                         spec_model = np.log(estokes[s, p])
 
@@ -202,10 +205,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                         spectral_model[s, f, p] = np.exp(spec_model)
 
             elif is_log10(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
                         spec_model = np.log10(estokes[s, p])
 
