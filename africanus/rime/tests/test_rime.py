@@ -18,15 +18,15 @@ def rc(*a, **kw):
     ('fourier', 1),
     ('casa', -1)
 ])
-@pytest.mark.parametrize("cfg_rime_parallel", [
+@pytest.mark.parametrize("cfg_parallel", [
     ("africanus.rime.phase", {"rime.phase_delay.parallel": True}),
     ("africanus.rime.phase", {"rime.phase_delay.parallel": {"threads": 2}}),
     ("africanus.rime.phase", {"rime.phase_delay.parallel": False}),
     ], ids=["parallel", "parallel-2", "serial"], indirect=True)
-def test_phase_delay(convention, sign, cfg_rime_parallel):
+def test_phase_delay(convention, sign, cfg_parallel):
     from africanus.rime.phase import phase_delay
 
-    assert phase_delay.targetoptions['parallel'] == cfg_rime_parallel
+    assert phase_delay.targetoptions['parallel'] == cfg_parallel
 
     uvw = np.random.random(size=(100, 3))
     lm = np.random.random(size=(10, 2))
@@ -55,14 +55,14 @@ def test_phase_delay(convention, sign, cfg_rime_parallel):
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-@pytest.mark.parametrize("cfg_rime_parallel", [
+@pytest.mark.parametrize("cfg_parallel", [
     ("africanus.rime.feeds", {"rime.feed_rotation.parallel": True}),
     ("africanus.rime.feeds", {"rime.feed_rotation.parallel": False}),
     ], ids=["parallel", "serial"], indirect=True)
-def test_feed_rotation(cfg_rime_parallel):
+def test_feed_rotation(cfg_parallel):
     from africanus.rime.feeds import feed_rotation
 
-    assert feed_rotation.targetoptions['parallel'] == cfg_rime_parallel
+    assert feed_rotation.targetoptions['parallel'] == cfg_parallel
 
     parangles = np.random.random((10, 5))
     pa_sin = np.sin(parangles)

@@ -36,15 +36,15 @@ def freqs():
 
     return np.array([.4, .5, .6, .7, .8, .9, 1.0, 1.1])
 
-@pytest.mark.parametrize("cfg_rime_parallel", [
+@pytest.mark.parametrize("cfg_parallel", [
     ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": True}),
     ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": {'threads': 2}}),
     ("africanus.rime.fast_beam_cubes", {"rime.beam_cube_dde.parallel": False}),
     ], ids=["parallel", "parallel-2", "serial"], indirect=True)
-def test_fast_beam_small(cfg_rime_parallel):
+def test_fast_beam_small(cfg_parallel):
     """ Small beam test, interpolation of one soure at [0.1, 0.1] """
     from africanus.rime.fast_beam_cubes import beam_cube_dde
-    assert beam_cube_dde.targetoptions['parallel'] == cfg_rime_parallel
+    assert beam_cube_dde.targetoptions['parallel'] == cfg_parallel
 
     np.random.seed(42)
 
