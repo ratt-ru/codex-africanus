@@ -13,7 +13,7 @@ parallel = cfg.get('parallel', False)
 axes = cfg.get('axes', set(('source', 'row')) if parallel else ())
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
 def gaussian(uvw, frequency, shape_params):
     # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))

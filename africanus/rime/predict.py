@@ -439,7 +439,7 @@ def predict_checks(time_index, antenna1, antenna2,
             have_dies1, have_bvis, have_dies2)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):

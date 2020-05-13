@@ -13,7 +13,7 @@ parallel = cfg.get('parallel', False)
 axes = cfg.get('axes', set(('source', 'row')) if parallel else ())
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
 def phase_delay(lm, uvw, frequency, convention='fourier'):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)

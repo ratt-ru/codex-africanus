@@ -103,7 +103,7 @@ def add_pol_dim_factory(have_pol_dim):
 
     return impl
 
-@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
@@ -156,7 +156,6 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     threads = cfg.get('threads', None) if parallel else None
     srange = prange if parallel and 'source' in axes else range
     crange = prange if parallel and 'chan' in axes else range
-    print("source", srange, "chan", crange)
 
     def impl(stokes, spi, ref_freq, frequency, base=0):
         if parallel and threads is not None:

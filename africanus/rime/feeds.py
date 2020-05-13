@@ -10,7 +10,7 @@ cfg = config.numba_parallel("rime.feed_rotation.parallel")
 parallel = cfg.get('parallel', False)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
 def feed_rotation(parallactic_angles, feed_type='linear'):
     pa_np_dtype = np.dtype(parallactic_angles.dtype.name)
     dtype = np.result_type(pa_np_dtype, np.complex64)

@@ -61,15 +61,15 @@ def freq_grid_interp(frequency, beam_freq_map):
     return freq_data
 
 
-@generated_jit(nogil=True, cache=True, parallel=parallel)
+@generated_jit(nopython=not parallel, nogil=True, cache=not parallel, parallel=parallel)
 def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                   lm, parallactic_angles, point_errors, antenna_scaling,
                   frequency):
 
-    from numba import prange, set_num_threads, get_num_threads
+    from numba import prange, set_num_threads, get_num_threads, literal_unroll
 
-    srange = prange if 'source' in axes else range
-    rrange = prange if 'row' in axes else range
+    srange = prange if parallel and 'source' in axes else range
+    rrange = prange if parallel and 'row' in axes else range
     threads = cfg.get('threads', None) if parallel else None
 
     def impl(beam, beam_lm_extents, beam_freq_map,
@@ -91,7 +91,10 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                              "must be >= 2")
 
         # Flatten correlations
-        ncorrs = reduce(lambda x, y: x*y, corrs, 1)
+        ncorrs = 1
+
+        for c in literal_unroll(corrs):
+            ncorrs *= c
 
         lower_l, upper_l = beam_lm_extents[0]
         lower_m, upper_m = beam_lm_extents[1]
@@ -129,7 +132,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                 sin_pa = np.sin(parallactic_angles[t, a])
                 cos_pa = np.cos(parallactic_angles[t, a])
 
-                for s in srange(nsrc):
+                for s in range(nsrc):
                     # Extract lm coordinates
                     l, m = lm[s]
 
