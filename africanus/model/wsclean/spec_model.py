@@ -6,7 +6,7 @@ from africanus.util.numba import generated_jit
 from africanus.util.docs import DocstringTemplate
 
 
-def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):
+def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
     """ Numpy ordinary polynomial implementation """
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
@@ -16,10 +16,10 @@ def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):
     return I[:, None] + term.sum(axis=2)
 
 
-def log_spectral_model(I, coeffs, log_poly, freq, ref_freq):
+def log_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
     """ Numpy logarithmic polynomial implementation """
     # No negative flux
-    I = np.where(log_poly == False, 1.0, I)  # noqa
+    I = np.where(log_poly == False, 1.0, I)  # noqa: E741, E712
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = np.log(freq[None, :, None] / ref_freq[:, None, None])
@@ -58,12 +58,12 @@ def _log_polynomial(log_poly, s):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def spectra(I, coeffs, log_poly, ref_freq, frequency):
+def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
 
-    def impl(I, coeffs, log_poly, ref_freq, frequency):
+    def impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
         if not (I.shape[0] == coeffs.shape[0] == ref_freq.shape[0]):
             raise ValueError("first dimensions of I, coeffs "
                              "and ref_freq don't match.")

@@ -146,7 +146,7 @@ im_to_vis_docs = _DFT_DOCSTRING(
 
     """,  # noqa
 
-    parameters="""
+    parameters=r"""
     Parameters
     ----------
 
@@ -194,7 +194,7 @@ vis_to_im_docs = _DFT_DOCSTRING(
 
     """,  # noqa
 
-    parameters="""
+    parameters=r"""
     Parameters
     ----------
 
