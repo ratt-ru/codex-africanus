@@ -30,10 +30,7 @@ extras_require = {
     'scipy': ['scipy >= 1.0.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.2.0'],
-    # TODO(sjperkins)
-    # Modify flake8 < 3.8.0 once
-    # https://github.com/tholo/pytest-flake8/issues/66 is fixed
-    'testing': ['pytest', 'flaky', 'pytest-flake8', 'flake8 < 3.8.0']
+    'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:
