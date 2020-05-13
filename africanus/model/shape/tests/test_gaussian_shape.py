@@ -5,6 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
+
 @pytest.mark.parametrize("cfg_parallel", [
     ("africanus.model.shape.gaussian_shape",
         {"model.shape.gaussian.parallel": True}),

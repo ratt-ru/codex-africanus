@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from functools import reduce
-
 import numpy as np
 
 from africanus.config import config
@@ -61,14 +59,14 @@ def freq_grid_interp(frequency, beam_freq_map):
     return freq_data
 
 
-@generated_jit(nopython=not parallel, nogil=True, cache=not parallel, parallel=parallel)
+@generated_jit(nopython=not parallel, nogil=True,
+               cache=not parallel, parallel=parallel)
 def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                   lm, parallactic_angles, point_errors, antenna_scaling,
                   frequency):
 
     from numba import prange, set_num_threads, get_num_threads, literal_unroll
 
-    srange = prange if parallel and 'source' in axes else range
     rrange = prange if parallel and 'row' in axes else range
     threads = cfg.get('threads', None) if parallel else None
 

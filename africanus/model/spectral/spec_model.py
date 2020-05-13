@@ -103,7 +103,9 @@ def add_pol_dim_factory(have_pol_dim):
 
     return impl
 
-@generated_jit(nopython=True, nogil=True, cache=not parallel, parallel=parallel)
+
+@generated_jit(nopython=True, nogil=True,
+               cache=not parallel, parallel=parallel)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
