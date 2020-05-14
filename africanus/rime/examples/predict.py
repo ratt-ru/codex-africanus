@@ -280,10 +280,10 @@ def parse_sky_model(filename, chunks):
         try:
             # Extract SPI for I.
             # Zero Q, U and V to get 1 on the exponential
-            spi = [[spectrum.spi, 0, 0, 0]]
+            spi = [[spectrum.spi]*4]
         except AttributeError:
             # Default I SPI to -0.7
-            spi = [[-0.7, 0, 0, 0]]
+            spi = [[0, 0, 0, 0]]
 
         if typecode == "gau":
             emaj = source.shape.ex
@@ -462,7 +462,7 @@ def vis_factory(args, source_type, sky_model,
                             source.spi,
                             source.ref_freq,
                             frequency,
-                            base=[1, 0, 0, 0])
+                            base=0)
 
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
