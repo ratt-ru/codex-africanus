@@ -8,7 +8,7 @@ History
 * MeqTrees Comparison Script Updates (:pr:`160`)
 * Improve requirements handling (:pr:`187`)
 * Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
-
+* Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
 
 0.2.2 (2020-04-09)
 ------------------

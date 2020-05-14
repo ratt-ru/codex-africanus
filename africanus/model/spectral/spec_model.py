@@ -167,11 +167,11 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                     rf = ref_freq[s]
 
                     for f in range(nchan):
-                        freq_ratio = (frequency[f] / rf) - 1.0
+                        freq_ratio = frequency[f] / rf
                         spec_model = estokes[s, p]
 
                         for si in range(0, nspi):
-                            term = (freq_ratio + 1) ** espi[s, si, p]
+                            term = freq_ratio ** espi[s, si, p]
                             spec_model *= term
 
                         spectral_model[s, f, p] = spec_model
