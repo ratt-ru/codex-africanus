@@ -170,8 +170,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                         spec_model = estokes[s, p]
 
                         for si in range(0, nspi):
-                            term = espi[s, si, p] * freq_ratio**(si + 1)
-                            spec_model += term
+                            term = (freq_ratio + 1) ** espi[s, si, p]
+                            spec_model *= term
 
                         spectral_model[s, f, p] = spec_model
 
