@@ -30,12 +30,13 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     spectral_model = np.empty((stokes.shape[0], frequency.shape[0], npol),
                               dtype=stokes.dtype)
 
+    spectral_model[:, :, :] = stokes[:, None, :]
+
     for p, b in enumerate(base):
         if b in ("std", 0):
-            freq_ratio = (frequency[None, :] / ref_freq[:, None]) - 1.0
-            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
-            term = spi[:, :, p, None] * term
-            spectral_model[:, :, p] = stokes[:, p, None] + term.sum(axis=1)
+            freq_ratio = (frequency[None, :] / ref_freq[:, None])
+            term = freq_ratio[:, None, :]**spi[:, :, p, None]
+            spectral_model[:, :, p] *= term.prod(axis=1)
         elif b in ("log", 1):
             freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
             term = freq_ratio[:, None, :]**spi_exps[None, :, None]
