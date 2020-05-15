@@ -220,8 +220,7 @@ Compute a spectral model, per polarisation.
     :nowrap:
 
     \begin{eqnarray}
-    I(\lambda) & = & \sum_{i=0} \alpha_{i} (\lambda / \lambda_0 - 1)^i
-      \, \textrm{where} \, \alpha_0 = I(\lambda_0) \\
+    I(\lambda) & = & I_0 \prod_{i=1} (\lambda / \lambda_0 - 1)^{\alpha_{i}} \\
     \ln( I(\lambda) ) & = & \sum_{i=0} \alpha_{i}
       \ln (\lambda / \lambda_0)^i
       \, \textrm{where} \, \alpha_0 = \ln I_0 \\
