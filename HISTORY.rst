@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
+
 0.2.3 (2020-05-14)
 ------------------
 * Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
