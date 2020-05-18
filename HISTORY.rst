@@ -2,10 +2,17 @@
 History
 =======
 
-0.2.3 (YYYY-MM-DD)
+X.Y.Z (YYYY-MM-DD)
 ------------------
-* Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
+* Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
 
+0.2.3 (2020-05-14)
+------------------
+* Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
+* Depend on pytest-flake8 >= 1.0.6 (:pr:`187`, :pr:`188`)
+* MeqTrees Comparison Script Updates (:pr:`160`)
+* Improve requirements handling (:pr:`187`)
+* Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
 
 0.2.2 (2020-04-09)
 ------------------
