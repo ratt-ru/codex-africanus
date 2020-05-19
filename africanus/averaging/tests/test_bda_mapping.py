@@ -9,13 +9,14 @@ import numpy as np
 import pytest
 
 from astropy.coordinates import (EarthLocation,
-                                    SkyCoord,
-                                    AltAz, CIRS)
+                                 SkyCoord,
+                                 AltAz, CIRS)
 from astropy.time import Time
 from astropy import units
 
 from pyrap.measures import measures
 from pyrap.quanta import quantity as q
+
 
 def synthesize_uvw(antenna_positions, time, phase_dir,
                    auto_correlations=True):
@@ -157,13 +158,16 @@ def phase_dir():
 def ref_freq():
     return 1.284e9
 
+
 @pytest.fixture
 def chan_width():
     return np.full(4096, 208984.375)
 
+
 @pytest.fixture
 def chan_freq(chan_width):
     return .856e9 + np.cumsum(np.concatenate([[0], chan_width[1:]]))
+
 
 @pytest.fixture
 def ref_freq():

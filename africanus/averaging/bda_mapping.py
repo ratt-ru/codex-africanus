@@ -9,6 +9,9 @@ from africanus.util.numba import generated_jit, njit
 from africanus.averaging.support import unique_time, unique_baselines
 
 
+bin_spw_dt = numba.int16
+
+
 class RowMapperError(Exception):
     pass
 
@@ -42,6 +45,7 @@ def inv_sinc(sinc_x, tol=1e-12):
         x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
 
     return x
+
 
 @njit
 def partition_frequency(spws, chan_freq, chan_width, ref_freq,
@@ -89,10 +93,7 @@ def partition_frequency(spws, chan_freq, chan_width, ref_freq,
 
         spw_chan_freqs.append(new_chan_freqs)
 
-
     return np.asarray(spw_chan_widths), spw_chan_freqs
-
-
 
 
 class Binner(object):
@@ -124,7 +125,7 @@ class Binner(object):
 
         # TODO(sjperkins)
         # Document this
-        self.spw = -1
+        self.spw = bin_spw_dt(-1)
 
     def reset(self):
         self.__init__(0, 0,
@@ -207,8 +208,8 @@ class Binner(object):
             bin_sinc_𝞓𝞇 = self.bin_sinc_Δψ
 
         max_abs_dist = np.sqrt(np.abs(du)*np.abs(self.l) +
-                            np.abs(dv)*np.abs(self.m) +
-                            np.abs(dw)*np.abs(self.n_max))
+                               np.abs(dv)*np.abs(self.m) +
+                               np.abs(dw)*np.abs(self.n_max))
 
         # Derive fractional bandwidth 𝞓𝝼/𝝼
         # from Equation (44) in Atemkeng
@@ -293,7 +294,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('ref_freq', ref_freq),
         ('decorrelation', decorr_type),
         ('max_uvw_dist', max_uvw_dist),
-        ('bin_spw', numba.intp)]
+        ('spw', bin_spw_dt)]
 
     JitBinner = jitclass(spec)(Binner)
 
@@ -336,7 +337,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         # CLAIM(sjperkins)
         # We'll never have more than 2**16 SPW's!
-        bin_spw = np.full((nbl, ntime), -1, dtype=np.int32)
+        bin_spw = np.full((nbl, ntime), -1, dtype=bin_spw_dt)
         out_rows = 0
 
         for r in range(nrow):
@@ -372,14 +373,14 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
                 # Record the bin and spw associated with this row
                 bin_lookup[t, bl] = binner.tbin
-                bin_spw[t, bl] = binner.bin_spw
+                bin_spw[t, bl] = binner.spw
 
             # Finalise any remaining data in the bin
             binner.finalise_bin(uvw, chan_width, chan_freq,
                                 spw_chan_width)
 
             bin_lookup[t, bl] = binner.tbin
-            bin_spw[t, bl] = binner.bin_spw
+            bin_spw[t, bl] = binner.spw
             out_rows += binner.tbin
 
     return _impl

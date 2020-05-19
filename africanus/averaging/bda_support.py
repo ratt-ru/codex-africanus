@@ -83,7 +83,7 @@ def decorrelation_map(time, uvw, ant1, ant2,
     𝞓uvw[-1, :] = 𝞓uvw[-2, :]
 
     # This looks like the phase rate
-    # in Synthesis and Imaging Equation 18-30 
+    # in Synthesis and Imaging Equation 18-30
     # obtained via the decorrelation factor
     # approximation in Equation 18-31.
     # We're still missing a a frequency factor,
@@ -158,10 +158,12 @@ def decorrelation_map(time, uvw, ant1, ant2,
     chan_range = np.arange(nchan, dtype=np.int32)
 
     chan_pairs = np.zeros((nuniq_blocks, nchan + 1, 2), dtype=np.intp)
-    chan_pairs[:, :-1, 0] = chan_range[None, :] // unique_chan_block_sizes[:, None]
+    chan_pairs[:, :-1, 0] = chan_range[None,
+                                       :] // unique_chan_block_sizes[:, None]
     chan_pairs[:, :-1, 1] = chan_pairs[:, :-1, 0] + 1
 
-    import pdb; pdb.set_trace()
+    import pdb
+    pdb.set_trace()
     print(frac_chan_block_min)
     print(num_chan_blocks)
     print(size_chan_block)
