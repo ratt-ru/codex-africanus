@@ -43,14 +43,18 @@ def inv_sinc(sinc_x, tol=1e-12):
 
     return x
 
-@njit(nogil=True, cache=True, inline='always')
+@njit
 def partition_frequency(spws, chan_freq, chan_width, ref_freq,
                         max_uvw_dist, decorrelation):
 
-    uvw_dists = np.linspace(max_uvw_dist, 1e-5, spws)
+    # Reversed as this produces monotically increasing
+    # fractional bandwidth
+    uvw_dists = np.linspace(max_uvw_dist, 1e-12, spws)
     𝞓𝞍 = inv_sinc(decorrelation)
 
+    bandwidth = chan_width.sum()
     spw_chan_widths = []
+    spw_chan_freqs = []
 
     for s in range(uvw_dists.shape[0]):
         fractional_bandwidth = 𝞓𝞍 / uvw_dists[s]
@@ -67,34 +71,36 @@ def partition_frequency(spws, chan_freq, chan_width, ref_freq,
         # We set fh = ref_freq + 𝞓𝝼/2, fl = ref_freq - 𝞓𝝼/2
         # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
         max_𝞓𝝼 = 2 * ref_freq * fractional_bandwidth
-        print("max_𝞓𝝼", max_𝞓𝝼, "uvd", uvw_dists[s],
-              "bandwidth", chan_freq[-1] - chan_freq[0],
-              "chan_width", chan_width[0])
 
-        𝞓𝝼_sum = chan_width[0]
-        new_chan_widths = []
+        chans = np.intp(np.floor(bandwidth / max_𝞓𝝼))
+        chans = min(max(1, chans), chan_width.shape[0])
 
-        for f in range(1, chan_width.shape[0] - 1):
-            new_𝞓𝝼_sum = 𝞓𝝼_sum + chan_width[f]
+        # Don't re-add if number of channels match previous ones
+        if len(spw_chan_freqs) > 0 and spw_chan_freqs[-1].shape[0] == chans:
+            continue
 
-            if new_𝞓𝝼_sum > max_𝞓𝝼:
-                new_chan_widths.append(𝞓𝝼_sum)
-                𝞓𝝼_sum = chan_width[f]
-            else:
-                𝞓𝝼_sum = new_𝞓𝝼_sum
+        chans = 1 if chans == 0 else chans
+        𝞓𝝼 = bandwidth / chans
+        spw_chan_widths.append(𝞓𝝼)
 
-        new_chan_widths.append(𝞓𝝼_sum)
-        spw_chan_widths.append(np.array(new_chan_widths))
+        start_freq = ref_freq - (bandwidth / 2.0)
+        end_freq = ref_freq + (bandwidth / 2.0)
+        new_chan_freqs = np.linspace(start_freq, end_freq, chans)
 
-    return spw_chan_widths
+        spw_chan_freqs.append(new_chan_freqs)
+
+
+    return np.asarray(spw_chan_widths), spw_chan_freqs
 
 
 
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 ref_freq, l, m, n_max,
-                 decorrelation):
+                 l, m, n_max,
+                 ref_freq,
+                 decorrelation,
+                 max_uvw_dist):
         # Index of the time bin to which all rows in the bin will contribute
         self.tbin = 0
         # Number of rows in the bin
@@ -108,17 +114,19 @@ class Binner(object):
         # Sinc of baseline speed
         self.bin_sinc_Δψ = 0.0
 
-        # Quantities cached to make functions arguments smaller
+        # Quantities cached to make Binner.method arguments smaller
         self.ref_freq = ref_freq
         self.l = l  # noqa
         self.m = m
         self.n_max = n_max
         self.decorrelation = decorrelation
+        self.max_uvw_dist = max_uvw_dist
 
     def reset(self):
-        self.__init__(0, 0, self.ref_freq,
+        self.__init__(0, 0,
                       self.l, self.m, self.n_max,
-                      self.decorrelation)
+                      self.ref_freq,
+                      self.decorrelation, self.max_uvw_dist)
 
     def start_bin(self, row):
         self.rs = row
@@ -166,7 +174,9 @@ class Binner(object):
         # so we indicate we did not
         return False
 
-    def finalise_bin(self, uvw, chan_freq, chan_width):
+    def finalise_bin(self, uvw,
+                     chan_width, chan_freq,
+                     spw_chan_width):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             return
@@ -185,6 +195,8 @@ class Binner(object):
             dv = uvw[rs, 1]
             dw = uvw[rs, 2]
             bin_sinc_𝞓𝞇 = 1.0
+
+            # max_abs_dist = self.max_uvw_dist
         else:
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
@@ -192,12 +204,12 @@ class Binner(object):
             dw = uvw[rs, 2] - uvw[re, 2]
             bin_sinc_𝞓𝞇 = self.bin_sinc_Δψ
 
+        max_abs_dist = np.sqrt(np.abs(du)*np.abs(self.l) +
+                            np.abs(dv)*np.abs(self.m) +
+                            np.abs(dw)*np.abs(self.n_max))
+
         # Derive fractional bandwidth 𝞓𝝼/𝝼
         # from Equation (44) in Atemkeng
-        max_abs_dist = np.sqrt(np.abs(du)*np.abs(self.l) +
-                               np.abs(dv)*np.abs(self.m) +
-                               np.abs(dw)*np.abs(self.n_max))
-
         if max_abs_dist == 0.0:
             raise ValueError("max_abs_dist == 0.0")
 
@@ -224,24 +236,24 @@ class Binner(object):
         # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
         max_𝞓𝝼 = 2 * self.ref_freq * fractional_bandwidth
 
-        bin_freq_low = chan_freq[0] - chan_width[0] / 2
-        bin_chan_low = 0
+        i = np.searchsorted(spw_chan_width, max_𝞓𝝼, side='right') - 1
+        # print(i, max_𝞓𝝼, fractional_bandwidth, max_abs_dist)
+        assert spw_chan_width[i] <= max_𝞓𝝼
 
-        chan_bins = 0
+        chan_bin = 0
+        nbins = 1
+        bin_𝞓𝝼 = chan_width.dtype.type(0)
 
         for c in range(1, chan_freq.shape[0]):
-            # Bin bandwidth
-            bin_𝞓𝝼 = chan_freq[c] + chan_width[c] / 2 - bin_freq_low
+            bin_𝞓𝝼 = chan_width[c] - chan_width[chan_bin]
 
-            # Exceeds, start new channel bin
-            if bin_𝞓𝝼 > max_𝞓𝝼:
-                bin_chan_low = c
-                bin_freq_low = chan_freq[c] - chan_width[c] / 2
-                chan_bins += 1
+            if bin_𝞓𝝼 > spw_chan_width[i]:
+                chan_bin = c
+                nbins += 1
 
         if bin_𝞓𝝼 > max_𝞓𝝼:
-            chan_bins += 1
-            bin_freq_low = chan_freq[c] - chan_width[c] / 2
+            chan_bin = c
+            nbins += 1
 
         self.tbin += 1
         self.bin_count = 0
@@ -251,6 +263,7 @@ class Binner(object):
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     ref_freq, chan_freq, chan_width,
+                    max_uvw_dist,
                     lm_max=1.0, decorrelation=0.98):
 
     Omitted = numba.types.misc.Omitted
@@ -274,12 +287,14 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('m', lm_type),
         ('n_max', lm_type),
         ('ref_freq', ref_freq),
-        ('decorrelation', decorr_type)]
+        ('decorrelation', decorr_type),
+        ('max_uvw_dist', max_uvw_dist)]
 
     JitBinner = jitclass(spec)(Binner)
 
     def _impl(time, interval, ant1, ant2, uvw,
               ref_freq, chan_freq, chan_width,
+              max_uvw_dist,
               lm_max=1, decorrelation=0.98):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
@@ -297,8 +312,17 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
 
+        res = partition_frequency(16, chan_freq, chan_width, ref_freq,
+                                  max_uvw_dist, decorrelation)
+
+        spw_chan_width, spw_chan_freqs = res
+
+        for scw, schans in list(zip(spw_chan_width, [scf.shape[0] for scf in spw_chan_freqs])):
+            print(schans, scw)
+
         sentinel = np.finfo(time.dtype).max
-        binner = JitBinner(0, 0, l, m, n_max, ref_freq, decorrelation)
+        binner = JitBinner(0, 0, l, m, n_max, ref_freq,
+                           decorrelation, max_uvw_dist)
 
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
@@ -329,10 +353,12 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
                 elif not binner.add_row(r, time, interval, uvw):
-                    binner.finalise_bin(uvw, chan_freq, chan_width)
+                    binner.finalise_bin(uvw, chan_width, chan_freq,
+                                        spw_chan_width)
                     binner.start_bin(r)
 
             # Finalise any remaining data in the bin
-            binner.finalise_bin(uvw, chan_freq, chan_width)
+            binner.finalise_bin(uvw, chan_width, chan_freq,
+                                spw_chan_width)
 
     return _impl
