@@ -240,20 +240,20 @@ class Binner(object):
         # print(i, max_𝞓𝝼, fractional_bandwidth, max_abs_dist)
         assert spw_chan_width[i] <= max_𝞓𝝼
 
+        start_chan = 0
         chan_bin = 0
-        nbins = 1
         bin_𝞓𝝼 = chan_width.dtype.type(0)
 
         for c in range(1, chan_freq.shape[0]):
-            bin_𝞓𝝼 = chan_width[c] - chan_width[chan_bin]
+            bin_𝞓𝝼 = chan_width[c] - chan_width[start_chan]
 
             if bin_𝞓𝝼 > spw_chan_width[i]:
-                chan_bin = c
-                nbins += 1
+                start_chan = c
+                chan_bin += 1
 
-        if bin_𝞓𝝼 > max_𝞓𝝼:
-            chan_bin = c
-            nbins += 1
+        if bin_𝞓𝝼 > 0:
+            start_chan = c
+            chan_bin += 1
 
         self.tbin += 1
         self.bin_count = 0
