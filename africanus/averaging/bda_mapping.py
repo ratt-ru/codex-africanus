@@ -122,6 +122,10 @@ class Binner(object):
         self.decorrelation = decorrelation
         self.max_uvw_dist = max_uvw_dist
 
+        # TODO(sjperkins)
+        # Document this
+        self.spw = -1
+
     def reset(self):
         self.__init__(0, 0,
                       self.l, self.m, self.n_max,
@@ -179,7 +183,7 @@ class Binner(object):
                      spw_chan_width):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
-            return
+            return False
 
         rs = self.rs
         re = self.re
@@ -195,8 +199,6 @@ class Binner(object):
             dv = uvw[rs, 1]
             dw = uvw[rs, 2]
             bin_sinc_𝞓𝞇 = 1.0
-
-            # max_abs_dist = self.max_uvw_dist
         else:
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
@@ -236,9 +238,8 @@ class Binner(object):
         # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
         max_𝞓𝝼 = 2 * self.ref_freq * fractional_bandwidth
 
-        i = np.searchsorted(spw_chan_width, max_𝞓𝝼, side='right') - 1
-        # print(i, max_𝞓𝝼, fractional_bandwidth, max_abs_dist)
-        assert spw_chan_width[i] <= max_𝞓𝝼
+        s = np.searchsorted(spw_chan_width, max_𝞓𝝼, side='right') - 1
+        assert spw_chan_width[s] <= max_𝞓𝝼
 
         start_chan = 0
         chan_bin = 0
@@ -247,7 +248,7 @@ class Binner(object):
         for c in range(1, chan_freq.shape[0]):
             bin_𝞓𝝼 = chan_width[c] - chan_width[start_chan]
 
-            if bin_𝞓𝝼 > spw_chan_width[i]:
+            if bin_𝞓𝝼 > spw_chan_width[s]:
                 start_chan = c
                 chan_bin += 1
 
@@ -256,8 +257,11 @@ class Binner(object):
             chan_bin += 1
 
         self.tbin += 1
+        self.spw = s
         self.bin_count = 0
         self.bin_flag_count = 0
+
+        return True
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -288,7 +292,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('n_max', lm_type),
         ('ref_freq', ref_freq),
         ('decorrelation', decorr_type),
-        ('max_uvw_dist', max_uvw_dist)]
+        ('max_uvw_dist', max_uvw_dist),
+        ('bin_spw', numba.intp)]
 
     JitBinner = jitclass(spec)(Binner)
 
@@ -312,20 +317,27 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
 
-        res = partition_frequency(16, chan_freq, chan_width, ref_freq,
+        nspws = 16
+        res = partition_frequency(nspws, chan_freq, chan_width, ref_freq,
                                   max_uvw_dist, decorrelation)
 
         spw_chan_width, spw_chan_freqs = res
 
-        for scw, schans in list(zip(spw_chan_width, [scf.shape[0] for scf in spw_chan_freqs])):
-            print(schans, scw)
+        # for scw, schans in list(zip(spw_chan_width, [scf.shape[0] for scf in spw_chan_freqs])):
+        #     print(schans, scw)
 
         sentinel = np.finfo(time.dtype).max
+
         binner = JitBinner(0, 0, l, m, n_max, ref_freq,
                            decorrelation, max_uvw_dist)
 
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
+        bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
+        # CLAIM(sjperkins)
+        # We'll never have more than 2**16 SPW's!
+        bin_spw = np.full((nbl, ntime), -1, dtype=np.int32)
+        out_rows = 0
 
         for r in range(nrow):
             t = time_inv[r]
@@ -353,12 +365,21 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
                 elif not binner.add_row(r, time, interval, uvw):
-                    binner.finalise_bin(uvw, chan_width, chan_freq,
-                                        spw_chan_width)
-                    binner.start_bin(r)
+                    if binner.finalise_bin(uvw, chan_width,
+                                           chan_freq, spw_chan_width):
+
+                        binner.start_bin(r)
+
+                # Record the bin and spw associated with this row
+                bin_lookup[t, bl] = binner.tbin
+                bin_spw[t, bl] = binner.bin_spw
 
             # Finalise any remaining data in the bin
             binner.finalise_bin(uvw, chan_width, chan_freq,
                                 spw_chan_width)
+
+            bin_lookup[t, bl] = binner.tbin
+            bin_spw[t, bl] = binner.bin_spw
+            out_rows += binner.tbin
 
     return _impl
