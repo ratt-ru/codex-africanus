@@ -156,6 +156,9 @@ class Binner(object):
                       self.ref_freq, self.decorrelation)
 
     def start_bin(self, row, time, interval, flag_row):
+        """
+        Starts a new bin
+        """
         self.rs = row
         self.re = row
         self.bin_count = 1
@@ -264,7 +267,7 @@ class Binner(object):
 
             max_𝞓𝝼 = max_chan_width(self.ref_freq, fractional_bandwidth)
 
-        # Finalise time and interval values for this bin
+        # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
                              self.time_sum / self.bin_count,
                              self.interval_sum,
@@ -393,8 +396,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if r == -1:
                     continue
 
-                # We're starting a new bin,
-                if binner.bin_count == 0:
+                # Start a new bin
+                if binner.empty:
                     binner.start_bin(r, time, interval, flag_row)
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
@@ -405,6 +408,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     bin_flagged[bl, f.tbin] = f.flag
                     bin_chan_width[bl, f.tbin] = f.chan_width
 
+                    # Post-finalisation, the bin is empty, start a new bin
+                    assert binner.empty
                     binner.start_bin(r, time, interval, flag_row)
 
                 # Record the time bin associated with this row
