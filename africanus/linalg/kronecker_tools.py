@@ -183,3 +183,11 @@ def kron_cholesky(A):
         except Exception:  # add jitter
             L[i] = np.linalg.cholesky(A[i] + 1e-13*np.eye(A[i].shape[0]))
     return L
+
+
+def kron_inv(A):
+    D = A.shape[0]
+    Kinv = np.zeros_like(A)
+    for i in range(D):
+        Kinv[i] = np.linalg.inv(A[i] + 1e-13*np.eye(A[i].shape[0]))
+    return Kinv
