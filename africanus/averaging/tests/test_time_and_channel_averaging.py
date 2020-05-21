@@ -392,7 +392,7 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_weight_spectrum = da.from_array(weight_spectrum,
                                        chunks=(rows, chans, corrs))
     da_sigma_spectrum = da.from_array(sigma_spectrum,
-                                       chunks=(rows, chans, corrs))
+                                      chunks=(rows, chans, corrs))
     da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
     da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
 

@@ -4,7 +4,6 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.averaging.bda_mapping import atemkeng_mapper
 from africanus.averaging.shared import (flags_match,
                                         is_chan_flagged,
                                         chan_add,
@@ -155,8 +154,6 @@ class RowChannelAverageException(Exception):
     pass
 
 
-
-
 @generated_jit(nopython=True, nogil=True, cache=True)
 def row_chan_average(row_meta, chan_meta,
                      flag_row=None, weight=None,
@@ -195,7 +192,8 @@ def row_chan_average(row_meta, chan_meta,
             weight_spectrum_avg = None
             flagged_weight_spectrum_avg = None
         else:
-            weight_spectrum_avg = np.zeros(out_shape, dtype=weight_spectrum.dtype)
+            weight_spectrum_avg = np.zeros(
+                out_shape, dtype=weight_spectrum.dtype)
             flagged_weight_spectrum_avg = np.zeros_like(weight_spectrum_avg)
 
         if sigma_spectrum is None:
@@ -204,10 +202,12 @@ def row_chan_average(row_meta, chan_meta,
             flagged_sigma_spectrum_avg = None
             flagged_sigma_spectrum_weight_sum = None
         else:
-            sigma_spectrum_avg = np.zeros(out_shape, dtype=sigma_spectrum.dtype)
+            sigma_spectrum_avg = np.zeros(
+                out_shape, dtype=sigma_spectrum.dtype)
             sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
             flagged_sigma_spectrum_avg = np.zeros_like(sigma_spectrum_avg)
-            flagged_sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
+            flagged_sigma_spectrum_weight_sum = np.zeros_like(
+                sigma_spectrum_avg)
 
         if flag is None:
             flag_avg = None
@@ -230,33 +230,33 @@ def row_chan_average(row_meta, chan_meta,
                         # Increment flagged averages and counts
                         flag_counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(flagged_vis_avg, flagged_vis_weight_sum, vis,
-                                  weight, weight_spectrum,
+                        vis_add(flagged_vis_avg, flagged_vis_weight_sum, vis,
+                                weight, weight_spectrum,
+                                out_row, out_chan, in_row, in_chan, corr)
+                        weight_add(flagged_weight_spectrum_avg,
+                                   weight_spectrum,
+                                   out_row, out_chan, in_row, in_chan, corr)
+                        sigma_add(flagged_sigma_spectrum_avg,
+                                  flagged_sigma_spectrum_weight_sum,
+                                  sigma_spectrum,
+                                  weight,
+                                  weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
-                        weight_adder(flagged_weight_spectrum_avg,
-                                     weight_spectrum,
-                                     out_row, out_chan, in_row, in_chan, corr)
-                        sigma_adder(flagged_sigma_spectrum_avg,
-                                    flagged_sigma_spectrum_weight_sum,
-                                    sigma_spectrum,
-                                    weight,
-                                    weight_spectrum,
-                                    out_row, out_chan, in_row, in_chan, corr)
                     else:
                         # Increment unflagged averages and counts
                         counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(vis_avg, vis_weight_sum, vis,
-                                  weight, weight_spectrum,
+                        vis_add(vis_avg, vis_weight_sum, vis,
+                                weight, weight_spectrum,
+                                out_row, out_chan, in_row, in_chan, corr)
+                        weight_add(weight_spectrum_avg, weight_spectrum,
+                                   out_row, out_chan, in_row, in_chan, corr)
+                        sigma_add(sigma_spectrum_avg,
+                                  sigma_spectrum_weight_sum,
+                                  sigma_spectrum,
+                                  weight,
+                                  weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
-                        weight_adder(weight_spectrum_avg, weight_spectrum,
-                                     out_row, out_chan, in_row, in_chan, corr)
-                        sigma_adder(sigma_spectrum_avg,
-                                    sigma_spectrum_weight_sum,
-                                    sigma_spectrum,
-                                    weight,
-                                    weight_spectrum,
-                                    out_row, out_chan, in_row, in_chan, corr)
 
         for r in range(out_rows):
             for f in range(out_chans):

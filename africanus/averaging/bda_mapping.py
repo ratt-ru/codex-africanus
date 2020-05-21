@@ -150,7 +150,6 @@ class Binner(object):
         self.n_max = n_max
         self.decorrelation = decorrelation
 
-
     def reset(self):
         self.__init__(0, 0,
                       self.l, self.m, self.n_max,
@@ -164,7 +163,6 @@ class Binner(object):
         self.interval_sum = interval[row]
         self.bin_flag_count = (1 if flag_row is not None and flag_row[row] != 0
                                else 0)
-
 
     def add_row(self, row, time, interval, uvw, flag_row):
         """
@@ -246,8 +244,8 @@ class Binner(object):
             bin_sinc_𝞓𝞇 = self.bin_sinc_Δψ
 
             max_abs_dist = np.sqrt(np.abs(du)*np.abs(self.l) +
-                                np.abs(dv)*np.abs(self.m) +
-                                np.abs(dw)*np.abs(self.n_max))
+                                   np.abs(dv)*np.abs(self.m) +
+                                   np.abs(dw)*np.abs(self.n_max))
 
             # Derive fractional bandwidth 𝞓𝝼/𝝼
             # from Equation (44) in Atemkeng
@@ -303,6 +301,7 @@ class Binner(object):
 RowMapOutput = namedtuple("RowMapOutput",
                           ["map", "time", "interval",
                            "chan_width", "flag_row"])
+
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
@@ -464,8 +463,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 flagged = bin_flagged[bl, t]
                 if flag_row[in_row] == 0 and flagged:
                     raise RowMapperError("Unflagged input row contributing "
-                                        "to flagged output row. "
-                                        "This should never happen!")
+                                         "to flagged output row. "
+                                         "This should never happen!")
 
                 out_flag_row[out_row] = (1 if flagged else 0)
 

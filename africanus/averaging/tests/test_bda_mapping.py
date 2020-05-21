@@ -3,17 +3,6 @@
 import numpy as np
 import pytest
 
-from africanus.constants import c as lightspeed
-
-import numpy as np
-import pytest
-
-from astropy.coordinates import (EarthLocation,
-                                 SkyCoord,
-                                 AltAz, CIRS)
-from astropy.time import Time
-from astropy import units
-
 from pyrap.measures import measures
 from pyrap.quanta import quantity as q
 
@@ -177,7 +166,7 @@ def ref_freq():
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                              ref_freq, chan_freq, chan_width):
     time = np.unique(time)
-    from africanus.averaging.bda_mapping import atemkeng_mapper, partition_frequency
+    from africanus.averaging.bda_mapping import atemkeng_mapper
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
 
     nbl = ant1.shape[0]

@@ -171,11 +171,6 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
-
-
-
-
-
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
 RowChanAverageOutput = namedtuple("RowChanAverageOutput",
                                   _rowchan_output_fields)
@@ -234,7 +229,8 @@ def row_chan_average(row_meta, chan_meta,
             weight_spectrum_avg = None
             flagged_weight_spectrum_avg = None
         else:
-            weight_spectrum_avg = np.zeros(out_shape, dtype=weight_spectrum.dtype)
+            weight_spectrum_avg = np.zeros(
+                out_shape, dtype=weight_spectrum.dtype)
             flagged_weight_spectrum_avg = np.zeros_like(weight_spectrum_avg)
 
         # Sigma spectrum output and intermediate arrays
@@ -244,10 +240,12 @@ def row_chan_average(row_meta, chan_meta,
             flagged_sigma_spectrum_avg = None
             flagged_sigma_spectrum_weight_sum = None
         else:
-            sigma_spectrum_avg = np.zeros(out_shape, dtype=sigma_spectrum.dtype)
+            sigma_spectrum_avg = np.zeros(
+                out_shape, dtype=sigma_spectrum.dtype)
             sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
             flagged_sigma_spectrum_avg = np.zeros_like(sigma_spectrum_avg)
-            flagged_sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
+            flagged_sigma_spectrum_weight_sum = np.zeros_like(
+                sigma_spectrum_avg)
 
         counts = np.zeros(out_shape, dtype=np.uint32)
         flag_counts = np.zeros(out_shape, dtype=np.uint32)

@@ -135,6 +135,7 @@ def flags_match(flag_row, ri, out_flag_row, ro):
     else:
         return flag_row[ri] == out_flag_row[ro]
 
+
 @njit(nogil=True)
 def is_chan_flagged(flag, r, f, c):
     return False if flag is None else flag[r, f, c]
@@ -198,7 +199,6 @@ def sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
         # sum(sigma**2 * weight**2)
         out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
         out_weight_sum[orow, ochan, corr] += 1.0
-
 
 
 @njit(nogil=True)
@@ -265,5 +265,3 @@ def normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
 def normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, chan, corr):
     if wt_spec_in is not None:
         wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
-
-

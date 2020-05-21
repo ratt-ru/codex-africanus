@@ -14,6 +14,7 @@ from africanus.averaging.tests.test_bda_mapping import (synthesize_uvw,
 from africanus.averaging.bda_mapping import atemkeng_mapper
 from africanus.averaging.bda_avg import row_average
 
+
 def test_bda_avg(time, interval, ants, phase_dir, ref_freq, chan_freq, chan_width):
     time = np.unique(time)
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
@@ -33,7 +34,6 @@ def test_bda_avg(time, interval, ants, phase_dir, ref_freq, chan_freq, chan_widt
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                            ref_freq, max_uvw_dist, flag_row,
                            lm_max=1.0, decorrelation=decorrelation)
-
 
     time_centroid = time
     exposure = interval
