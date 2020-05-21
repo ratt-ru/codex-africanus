@@ -200,8 +200,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
     atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                    ref_freq, chan_freq, chan_width,
-                    max_uvw_dist,
+                    ref_freq, max_uvw_dist,
                     lm_max=1.0, decorrelation=decorrelation)
 
     print(max_uvw_dist)
