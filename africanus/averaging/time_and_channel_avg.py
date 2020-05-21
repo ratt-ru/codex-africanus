@@ -8,6 +8,17 @@ import numpy as np
 
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
+from africanus.averaging.shared import (chan_corrs,
+                                        shape_or_invalid_shape,
+                                        flags_match,
+                                        is_chan_flagged,
+                                        chan_add,
+                                        vis_add,
+                                        sigma_spectrum_add,
+                                        normalise_sigma_spectrum,
+                                        normalise_vis,
+                                        normalise_weight_spectrum)
+
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
@@ -160,324 +171,9 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
-def weight_sum_output_factory(present):
-    """ Returns function producing vis weight sum if vis present """
-    if present:
-        def impl(shape, array):
-            return np.zeros(shape, dtype=array.real.dtype)
-    else:
-        def impl(shape, array):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
-def chan_output_factory(present):
-    """ Returns function producing outputs if the array is present """
-    if present:
-        def impl(shape, array):
-            return np.zeros(shape, dtype=array.dtype)
-    else:
-        def impl(shape, array):
-            pass
 
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def vis_add_factory(have_vis, have_weight, have_weight_spectrum):
-    """ Returns function adding weighted visibilities to a bin """
-    if not have_vis:
-        def impl(out_vis, out_weight_sum, in_vis, weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-            pass
-    elif have_weight_spectrum:
-        # Always prefer more accurate weight spectrum if we have it
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            wt = weight_spectrum[irow, ichan, corr]
-            iv = in_vis[irow, ichan, corr] * wt
-            out_vis[orow, ochan, corr] += iv
-            out_weight_sum[orow, ochan, corr] += wt
-
-    elif have_weight:
-        # Otherwise fall back to row weights
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            wt = weight[irow, corr]
-            iv = in_vis[irow, ichan, corr] * wt
-            out_vis[orow, ochan, corr] += iv
-            out_weight_sum[orow, ochan, corr] += wt
-    else:
-        # Natural weights
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            iv = in_vis[irow, ichan, corr]
-            out_vis[orow, ochan, corr] += iv
-            out_weight_sum[orow, ochan, corr] += 1.0
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def sigma_spectrum_add_factory(have_sigma, have_weight, have_weight_spectrum):
-    """ Returns function adding weighted sigma to a bin """
-    if not have_sigma:
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-            pass
-
-    elif have_weight_spectrum:
-        # Always prefer more accurate weight spectrum if we have it
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            # sum(sigma**2 * weight**2)
-            wt = weight_spectrum[irow, ichan, corr]
-            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-            out_sigma[orow, ochan, corr] += is_
-            out_weight_sum[orow, ochan, corr] += wt
-
-    elif have_weight:
-        # Otherwise fall back to row weights
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            # sum(sigma**2 * weight**2)
-            wt = weight[irow, corr]
-            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-            out_sigma[orow, ochan, corr] += is_
-            out_weight_sum[orow, ochan, corr] += wt
-    else:
-        # Natural weights
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, ochan, irow, ichan, corr):
-
-            # sum(sigma**2 * weight**2)
-            out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
-            out_weight_sum[orow, ochan, corr] += 1.0
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def chan_add_factory(present):
-    """ Returns function for adding data to a bin """
-    if present:
-        def impl(output, input, orow, ochan, irow, ichan, corr):
-            output[orow, ochan, corr] += input[irow, ichan, corr]
-    else:
-        def impl(output, input, orow, ochan, irow, ichan, corr):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def vis_normaliser_factory(present):
-    if present:
-        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
-            wsum = weight_sum[row, chan, corr]
-
-            if wsum != 0.0:
-                vis_out[row, chan, corr] = vis_in[row, chan, corr] / wsum
-    else:
-        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def sigma_spectrum_normaliser_factory(present):
-    if present:
-        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
-            wsum = weight_sum[row, chan, corr]
-
-            if wsum == 0.0:
-                return
-
-            # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-            res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
-            sigma_out[row, chan, corr] = res
-    else:
-        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def weight_spectrum_normaliser_factory(present):
-    if present:
-        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
-            wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
-    else:
-        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def chan_normaliser_factory(present):
-    """ Returns function normalising channel data in a bin """
-    if present:
-        def impl(data_out, data_in, row, chan, corr, bin_size):
-            data_out[row, chan, corr] = data_in[row, chan, corr] / bin_size
-    else:
-        def impl(data_out, data_in, row, chan, corr, bin_size):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-@generated_jit(nopython=True, nogil=True, cache=True)
-def shape_or_invalid_shape(array, ndim):
-    """ Return array shape tuple or (-1,)*ndim if the array is None """
-
-    try:
-        ndim_lit = getattr(ndim, "literal_value")
-    except AttributeError:
-        raise ValueError("ndim must be a integer literal")
-
-    if is_numba_type_none(array):
-        tup = (-1,)*ndim_lit
-
-        def impl(array, ndim):
-            return tup
-    else:
-        def impl(array, ndim):
-            return array.shape
-
-    return impl
-
-
-# TODO(sjperkins)
-# maybe inline='always' if
-# https://github.com/numba/numba/issues/4693 is resolved
-@njit(nogil=True, cache=True)
-def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
-    """
-    1. Get channel and correlation from shape if not set and the shape is valid
-    2. Check they agree if they already agree
-
-    Parameters
-    ----------
-    chan : int
-        Existing channel size
-    corr : int
-        Existing correlation size
-    shape : tuple
-        Array shape tuple
-    chan_idx : int
-        Index of channel dimension in ``shape``.
-    corr_idx : int
-        Index of correlation dimension in ``shape``.
-
-    Returns
-    -------
-    int
-        Modified channel size
-    int
-        Modified correlation size
-    """
-    if chan_idx != -1:
-        array_chan = shape[chan_idx]
-
-        # Corresponds to a None array, ignore
-        if array_chan == -1:
-            pass
-        # chan is not yet set, assign
-        elif chan == 0:
-            chan = array_chan
-        # Check consistency
-        elif chan != array_chan:
-            raise ValueError("Inconsistent Channel Dimension "
-                             "in Input Arrays")
-
-    if corr_idx != -1:
-        array_corr = shape[corr_idx]
-
-        # Corresponds to a None array, ignore
-        if array_corr == -1:
-            pass
-        # corr is not yet set, assign
-        elif corr == 0:
-            corr = array_corr
-        # Check consistency
-        elif corr != array_corr:
-            raise ValueError("Inconsistent Correlation Dimension "
-                             "in Input Arrays")
-
-    return chan, corr
-
-
-# TODO(sjperkins)
-# maybe inline='always' if
-# https://github.com/numba/numba/issues/4693 is resolved
-@njit(nogil=True, cache=True)
-def chan_corrs(vis, flag,
-               weight_spectrum, sigma_spectrum,
-               chan_freq, chan_width,
-               effective_bw, resolution):
-    """
-    Infer channel and correlation size from input dimensions
-
-    Returns
-    -------
-    int
-        channel size
-    int
-        correlation size
-    """
-    vis_shape = shape_or_invalid_shape(vis, 3)
-    flag_shape = shape_or_invalid_shape(flag, 3)
-    weight_spectrum_shape = shape_or_invalid_shape(weight_spectrum, 3)
-    sigma_spectrum_shape = shape_or_invalid_shape(sigma_spectrum, 3)
-    chan_freq_shape = shape_or_invalid_shape(chan_freq, 1)
-    chan_width_shape = shape_or_invalid_shape(chan_width, 1)
-    effective_bw_shape = shape_or_invalid_shape(effective_bw, 1)
-    resolution_shape = shape_or_invalid_shape(resolution, 1)
-
-    chan = 0
-    corr = 0
-
-    chan, corr = find_chan_corr(chan, corr, vis_shape, 1, 2)
-    chan, corr = find_chan_corr(chan, corr, flag_shape, 1, 2)
-    chan, corr = find_chan_corr(chan, corr, weight_spectrum_shape, 1, 2)
-    chan, corr = find_chan_corr(chan, corr, sigma_spectrum_shape, 1, 2)
-    chan, corr = find_chan_corr(chan, corr, chan_freq_shape, 0, -1)
-    chan, corr = find_chan_corr(chan, corr, chan_width_shape, 0, -1)
-    chan, corr = find_chan_corr(chan, corr, effective_bw_shape, 0, -1)
-    chan, corr = find_chan_corr(chan, corr, resolution_shape, 0, -1)
-
-    return chan, corr
-
-
-def is_chan_flagged_factory(present):
-    if present:
-        def impl(flag, r, f, c):
-            return flag[r, f, c]
-    else:
-        def impl(flag, r, f, c):
-            return False
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
-
-
-def set_flagged_factory(present):
-    if present:
-        def impl(flag, r, f, c):
-            flag[r, f, c] = 1
-    else:
-        def impl(flag, r, f, c):
-            pass
-
-    return njit(nogil=True, cache=True, inline='always')(impl)
 
 
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
@@ -494,39 +190,12 @@ def row_chan_average(row_meta, chan_meta,
                      flag_row=None, weight=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
-    have_vis = not is_numba_type_none(vis)
-    have_flag_row = not is_numba_type_none(flag_row)
-    have_flag = not is_numba_type_none(flag)
-    have_weight = not is_numba_type_none(weight)
-    have_weight_spectrum = not is_numba_type_none(weight_spectrum)
-    have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
-
-    flags_match = matching_flag_factory(have_flag_row)
-    is_chan_flagged = is_chan_flagged_factory(have_flag)
-
-    vis_factory = chan_output_factory(have_vis)
-    weight_sum_factory = weight_sum_output_factory(have_vis)
-    flag_factory = chan_output_factory(have_flag)
-    weight_factory = chan_output_factory(have_weight_spectrum)
-    sigma_factory = chan_output_factory(have_sigma_spectrum)
-
-    vis_adder = vis_add_factory(have_vis,
-                                have_weight,
-                                have_weight_spectrum)
-    weight_adder = chan_add_factory(have_weight_spectrum)
-    sigma_adder = sigma_spectrum_add_factory(have_sigma_spectrum,
-                                             have_weight,
-                                             have_weight_spectrum)
-
-    vis_normaliser = vis_normaliser_factory(have_vis)
-    sigma_normaliser = sigma_spectrum_normaliser_factory(have_sigma_spectrum)
-    weight_normaliser = weight_spectrum_normaliser_factory(
-                            have_weight_spectrum)
-
-    set_flagged = set_flagged_factory(have_flag)
 
     dummy_chan_freq = None
     dummy_chan_width = None
+    weight_add = chan_add
+    sigma_add = sigma_spectrum_add
+    normalise_weights = normalise_weight_spectrum
 
     def impl(row_meta, chan_meta, flag_row=None, weight=None,
              vis=None, flag=None,
@@ -542,22 +211,43 @@ def row_chan_average(row_meta, chan_meta,
 
         out_shape = (out_rows, out_chans, ncorrs)
 
-        vis_avg = vis_factory(out_shape, vis)
-        vis_weight_sum = weight_sum_factory(out_shape, vis)
-        weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
-        sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
-        sigma_spectrum_weight_sum = sigma_factory(out_shape, sigma_spectrum)
+        # Visibility output and intermediate arrays
+        if vis is None:
+            vis_avg = None
+            vis_weight_sum = None
+            flagged_vis_avg = None
+            flagged_vis_weight_sum = None
+        else:
+            vis_avg = np.zeros(out_shape, dtype=vis.dtype)
+            vis_weight_sum = np.zeros(out_shape, dtype=vis.dtype)
+            flagged_vis_avg = np.zeros_like(vis_avg)
+            flagged_vis_weight_sum = np.zeros_like(vis_weight_sum)
 
-        flagged_vis_avg = vis_factory(out_shape, vis)
-        flagged_vis_weight_sum = weight_sum_factory(out_shape, vis)
-        flagged_weight_spectrum_avg = weight_factory(out_shape,
-                                                     weight_spectrum)
-        flagged_sigma_spectrum_avg = sigma_factory(out_shape,
-                                                   sigma_spectrum)
-        flagged_sigma_spectrum_weight_sum = sigma_factory(out_shape,
-                                                          sigma_spectrum)
+        # Flagged output and intermediate arrays
+        if flag is None:
+            flag_avg = None
+        else:
+            flag_avg = np.zeros(out_shape, dtype=flag.dtype)
 
-        flag_avg = flag_factory(out_shape, flag)
+        # Weight spectrum output and intermediate arrays
+        if weight_spectrum is None:
+            weight_spectrum_avg = None
+            flagged_weight_spectrum_avg = None
+        else:
+            weight_spectrum_avg = np.zeros(out_shape, dtype=weight_spectrum.dtype)
+            flagged_weight_spectrum_avg = np.zeros_like(weight_spectrum_avg)
+
+        # Sigma spectrum output and intermediate arrays
+        if sigma_spectrum is None:
+            sigma_spectrum_avg = None
+            sigma_spectrum_weight_sum = None
+            flagged_sigma_spectrum_avg = None
+            flagged_sigma_spectrum_weight_sum = None
+        else:
+            sigma_spectrum_avg = np.zeros(out_shape, dtype=sigma_spectrum.dtype)
+            sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
+            flagged_sigma_spectrum_avg = np.zeros_like(sigma_spectrum_avg)
+            flagged_sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
 
         counts = np.zeros(out_shape, dtype=np.uint32)
         flag_counts = np.zeros(out_shape, dtype=np.uint32)
@@ -575,33 +265,33 @@ def row_chan_average(row_meta, chan_meta,
                         # Increment flagged averages and counts
                         flag_counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(flagged_vis_avg, flagged_vis_weight_sum, vis,
-                                  weight, weight_spectrum,
+                        vis_add(flagged_vis_avg, flagged_vis_weight_sum, vis,
+                                weight, weight_spectrum,
+                                out_row, out_chan, in_row, in_chan, corr)
+                        weight_add(flagged_weight_spectrum_avg,
+                                   weight_spectrum,
+                                   out_row, out_chan, in_row, in_chan, corr)
+                        sigma_add(flagged_sigma_spectrum_avg,
+                                  flagged_sigma_spectrum_weight_sum,
+                                  sigma_spectrum,
+                                  weight,
+                                  weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
-                        weight_adder(flagged_weight_spectrum_avg,
-                                     weight_spectrum,
-                                     out_row, out_chan, in_row, in_chan, corr)
-                        sigma_adder(flagged_sigma_spectrum_avg,
-                                    flagged_sigma_spectrum_weight_sum,
-                                    sigma_spectrum,
-                                    weight,
-                                    weight_spectrum,
-                                    out_row, out_chan, in_row, in_chan, corr)
                     else:
                         # Increment unflagged averages and counts
                         counts[out_row, out_chan, corr] += 1
 
-                        vis_adder(vis_avg, vis_weight_sum, vis,
-                                  weight, weight_spectrum,
+                        vis_add(vis_avg, vis_weight_sum, vis,
+                                weight, weight_spectrum,
+                                out_row, out_chan, in_row, in_chan, corr)
+                        weight_add(weight_spectrum_avg, weight_spectrum,
+                                   out_row, out_chan, in_row, in_chan, corr)
+                        sigma_add(sigma_spectrum_avg,
+                                  sigma_spectrum_weight_sum,
+                                  sigma_spectrum,
+                                  weight,
+                                  weight_spectrum,
                                   out_row, out_chan, in_row, in_chan, corr)
-                        weight_adder(weight_spectrum_avg, weight_spectrum,
-                                     out_row, out_chan, in_row, in_chan, corr)
-                        sigma_adder(sigma_spectrum_avg,
-                                    sigma_spectrum_weight_sum,
-                                    sigma_spectrum,
-                                    weight,
-                                    weight_spectrum,
-                                    out_row, out_chan, in_row, in_chan, corr)
 
         for r in range(out_rows):
             for f in range(out_chans):
@@ -609,29 +299,33 @@ def row_chan_average(row_meta, chan_meta,
                     if counts[r, f, c] > 0:
                         # We have some unflagged samples and
                         # only these are used as averaged output
-                        vis_normaliser(vis_avg, vis_avg,
-                                       r, f, c,
-                                       vis_weight_sum)
-                        sigma_normaliser(sigma_spectrum_avg,
-                                         sigma_spectrum_avg,
-                                         r, f, c,
-                                         sigma_spectrum_weight_sum)
+                        normalise_vis(vis_avg, vis_avg,
+                                      r, f, c,
+                                      vis_weight_sum)
+                        normalise_sigma_spectrum(sigma_spectrum_avg,
+                                                 sigma_spectrum_avg,
+                                                 r, f, c,
+                                                 sigma_spectrum_weight_sum)
                     elif flag_counts[r, f, c] > 0:
                         # We only have flagged samples and
                         # these are used as averaged output
-                        vis_normaliser(vis_avg, flagged_vis_avg,
-                                       r, f, c,
-                                       flagged_vis_weight_sum)
-                        sigma_normaliser(sigma_spectrum_avg,
-                                         flagged_sigma_spectrum_avg,
-                                         r, f, c,
-                                         flagged_sigma_spectrum_weight_sum)
-                        weight_normaliser(weight_spectrum_avg,
-                                          flagged_weight_spectrum_avg,
-                                          r, f, c)
+                        normalise_vis(
+                                vis_avg, flagged_vis_avg,
+                                r, f, c,
+                                flagged_vis_weight_sum)
+                        normalise_sigma_spectrum(
+                                sigma_spectrum_avg,
+                                flagged_sigma_spectrum_avg,
+                                r, f, c,
+                                flagged_sigma_spectrum_weight_sum)
+                        normalise_weights(
+                                weight_spectrum_avg,
+                                flagged_weight_spectrum_avg,
+                                r, f, c)
 
                         # Flag the output bin
-                        set_flagged(flag_avg, r, f, c)
+                        if flag_avg is not None:
+                            flag_avg[r, f, c] = 1
                     else:
                         raise RowChannelAverageException("Zero-filled bin")
 
