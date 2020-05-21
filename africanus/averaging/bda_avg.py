@@ -7,7 +7,7 @@ import numpy as np
 from africanus.averaging.bda_mapping import atemkeng_mapper
 from africanus.averaging.shared import (flags_match,
                                         is_chan_flagged,
-                                        chan_adder,
+                                        chan_add,
                                         sigma_spectrum_add,
                                         vis_add,
                                         normalise_sigma_spectrum,
