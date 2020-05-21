@@ -8,7 +8,8 @@ import numba.types
 from africanus.util.numba import generated_jit, njit
 from africanus.averaging.support import unique_time, unique_baselines
 
-
+# CLAIM(sjperkins)
+# 2**15 - 1 SPW's is enough for everyone!
 bin_spw_dt = numba.int16
 
 
@@ -170,8 +171,8 @@ class Binner(object):
         # Add the row by making it the end of the bin
         # and keep a record of the sinc_𝞓𝞇
         if sinc_𝞓𝞇 > self.decorrelation:
-            self.bin_sinc_Δψ = sinc_𝞓𝞇
             self.re = row
+            self.bin_sinc_Δψ = sinc_𝞓𝞇
             self.bin_count += 1
             return True
 
@@ -246,6 +247,9 @@ class Binner(object):
         chan_bin = 0
         bin_𝞓𝝼 = chan_width.dtype.type(0)
 
+        chan_map = np.empty((chan_width.shape[0],), dtype=np.int32)
+        chan_map[0] = chan_bin
+
         for c in range(1, chan_freq.shape[0]):
             bin_𝞓𝝼 = chan_width[c] - chan_width[start_chan]
 
@@ -253,9 +257,7 @@ class Binner(object):
                 start_chan = c
                 chan_bin += 1
 
-        if bin_𝞓𝝼 > 0:
-            start_chan = c
-            chan_bin += 1
+            chan_map[c] = chan_bin
 
         self.tbin += 1
         self.spw = s
@@ -335,8 +337,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
-        # CLAIM(sjperkins)
-        # We'll never have more than 2**16 SPW's!
         bin_spw = np.full((nbl, ntime), -1, dtype=bin_spw_dt)
         out_rows = 0
 
@@ -372,15 +372,15 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                         binner.start_bin(r)
 
                 # Record the bin and spw associated with this row
-                bin_lookup[t, bl] = binner.tbin
-                bin_spw[t, bl] = binner.spw
+                # bin_lookup[t, bl] = binner.tbin
+                # bin_spw[t, bl] = binner.spw
 
             # Finalise any remaining data in the bin
             binner.finalise_bin(uvw, chan_width, chan_freq,
                                 spw_chan_width)
 
-            bin_lookup[t, bl] = binner.tbin
-            bin_spw[t, bl] = binner.spw
+            # bin_lookup[t, bl] = binner.tbin
+            # bin_spw[t, bl] = binner.spw
             out_rows += binner.tbin
 
     return _impl
