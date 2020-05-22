@@ -551,7 +551,7 @@ class BoundingBox(BoundingConvexHull):
             )
         ):
             raise TypeError("Mask must be a sparse mask of 2 element values")
-        if mask == []:
+        if len(mask) == 0:
             self._mask = []
         else:
             lines = np.hstack(
