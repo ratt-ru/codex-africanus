@@ -32,15 +32,21 @@ def timeit(method):
 
 @requires_optional("scipy.stats", opt_import_err)
 class BoundingConvexHull(object):
-    def __init__(
-        self, list_hulls, name="unnamed", mask=None, check_mask_outofbounds=True
-    ):
-        """ Initializes a bounding convex hull around a list of bounding convex hulls or series of
-            points. A unity-weighted mask is computed for the region that falls within this convex hull
-            if a mask of (y, x) coordinates is not provided. Otherwise if a mask is provided and the
-            check_mask_outofbounds value is set the masked coordinates are not verified to fall within
-            the hull. The latter should thus be used with some caution by the user, but can potentially
-            significantly speed up the mask creation process for axis aligned regions.
+    def __init__(self, list_hulls, name="unnamed",
+                 mask=None, check_mask_outofbounds=True):
+        """
+        Initializes a bounding convex hull around a list of bounding
+        convex hulls or series of points.
+        A unity-weighted mask is computed for the region that
+        falls within this convex hull
+        if a mask of (y, x) coordinates is not provided.
+        Otherwise if a mask is provided and the
+        check_mask_outofbounds value is set the
+        masked coordinates are not verified to fall within
+        the hull. The latter should thus be used with some
+        caution by the user, but can potentially
+        significantly speed up the mask creation process for
+        axis aligned regions.
         """
         self._name = name
         self._check_mask_outofbounds = check_mask_outofbounds
@@ -68,7 +74,9 @@ class BoundingConvexHull(object):
         )
 
     def init_mask(self):
-        """ creates a sparse mask of the convex hull of the form (y, x) tuples """
+        """
+        Creates a sparse mask of the convex hull of the form (y, x) tuples
+        """
         lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
         minx = np.min(lines[:, 0:4:2])
         maxx = np.max(lines[:, 0:4:2])
@@ -76,7 +84,6 @@ class BoundingConvexHull(object):
         maxy = np.max(lines[:, 1:4:2])
         x = np.arange(minx, maxx + 1, 1)  # upper limit inclusive
         y = np.arange(miny, maxy + 1, 1)
-        meshgrid = np.meshgrid(y, x)
         bounding_mesh = list(zip(*[np.ravel(x) for x in np.meshgrid(y, x)]))
 
         sparse_mask = (
@@ -96,12 +103,17 @@ class BoundingConvexHull(object):
 
     @property
     def sparse_mask(self):
-        """ returns a sparse mask (y, x) values of all points in the masked region """
+        """
+        Returns a sparse mask (y, x) values of all points in the masked region
+        """
         return self._mask
 
     @sparse_mask.setter
     def sparse_mask(self, mask):
-        """ Sets the mask of the hull from a sparse mask - list of (y, x) coordinates """
+        """
+        Sets the mask of the hull from
+        a sparse mask - list of (y, x) coordinates
+        """
         if not isinstance(mask, list):
             raise TypeError("Mask must be list")
         if not (
@@ -178,8 +190,6 @@ class BoundingConvexHull(object):
         maxx = np.max(lines[:, 0:4:2])
         miny = np.min(lines[:, 1:4:2])
         maxy = np.max(lines[:, 1:4:2])
-        x = np.arange(minx, maxx + 1, 1)
-        y = np.arange(miny, maxy + 1, 1)
 
         pad_left = max(0, 0 - minx)
         pad_bottom = max(0, 0 - miny)
@@ -193,9 +203,8 @@ class BoundingConvexHull(object):
             or maxy < 0
             or maxx < 0
         ):
-            raise ValueError(
-                "Expected a bounding hull that is at least partially within the image"
-            )
+            raise ValueError("Expected a bounding hull that is "
+                             "at least partially within the image")
 
         # extract data, pad if necessary
         slc_data = [slice(None)] * len(data_cube.shape)
@@ -264,10 +273,12 @@ class BoundingConvexHull(object):
 
     @classmethod
     def normalize_masks(cls, regions, only_overlapped_regions=True):
-        """ Normalizes region masks for overlapping pixels. This is necessary to properly coadd
-            overlapping facets. If masks are guarenteed to be initialized to unity (e.g. after
-            bounding region creation) the user can skip normalizing non-overlapping regions with
-            flag only_overlapped_regions.
+        """
+        Normalizes region masks for overlapping pixels. This is necessary to
+        properly coadd overlapping facets.
+        If masks are guarenteed to be initialized to unity (e.g. after
+        bounding region creation) the user can skip normalizing non-overlapping
+        regions with flag only_overlapped_regions.
         """
         if not all([isinstance(reg, BoundingConvexHull) for reg in regions]):
             raise TypeError("Expected a list of bounding convex hulls")
@@ -397,12 +408,11 @@ class BoundingConvexHull(object):
         """ right normals to the edges of the hull """
         return self.normals(left=False)
 
-    def overlaps_with(
-        self, other, min_sep_dist=0.5
-    ):  # less than half a pixel away
+    def overlaps_with(self, other, min_sep_dist=0.5):
+        # less than half a pixel away
         """
-            Implements the separating lines collision detection theorem
-            to test whether the hull intersects with 'other' hull
+        Implements the separating lines collision detection theorem
+        to test whether the hull intersects with 'other' hull
         """
         if not isinstance(other, BoundingConvexHull):
             raise TypeError("rhs must be a BoundingConvexHull")
@@ -447,16 +457,17 @@ class BoundingConvexHull(object):
         """ tests whether a point s(x,y) is in the convex hull """
         # there are three cases to consider
         # CASE 1:
-        # scalar projection  between all inner pointing right normals (clockwise winding)
+        # scalar projection  between all
+        # inner pointing right normals (clockwise winding)
         # and the point must be positive if the point were to lie inside
         # the region (true)
         # CASE 2:
-        # point is on an edge - the scalar projection onto the axis is 0 for that edge
+        # point is on an edge - the scalar projection onto
+        # the axis is 0 for that edge
         # and greater than 0 for the other edges (true)
         # CASE 3:
         # it is outside (false)
         x, y = s
-        isin = True
         normals = self.rnormals
         xyvec = np.array([x, y])[None, :] - np.array(self.corners)
 
@@ -484,7 +495,9 @@ class BoundingBox(BoundingConvexHull):
         )
 
     def init_mask(self):
-        """ creates a sparse mask of the convex hull of the form (y, x) tuples """
+        """
+        creates a sparse mask of the convex hull of the form (y, x) tuples
+        """
         lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
         minx = np.min(lines[:, 0:4:2])
         maxx = np.max(lines[:, 0:4:2])
@@ -492,10 +505,10 @@ class BoundingBox(BoundingConvexHull):
         maxy = np.max(lines[:, 1:4:2])
         x = np.arange(minx, maxx + 1, 1)  # upper limit inclusive
         y = np.arange(miny, maxy + 1, 1)
-        meshgrid = np.meshgrid(y, x)
         bounding_mesh = list(zip(*[np.ravel(x) for x in np.meshgrid(y, x)]))
 
-        # by default for a BB region the mask is always going to be the entire region
+        # by default for a BB region the mask is
+        # always going to be the entire region
         sparse_mask = np.asarray(bounding_mesh)
 
         # initialize to unity, this should be modified when coadding
@@ -517,12 +530,17 @@ class BoundingBox(BoundingConvexHull):
 
     @property
     def sparse_mask(self):
-        """ returns a sparse mask (y, x) values of all points in the masked region """
+        """
+        returns a sparse mask (y, x) values of all points in the masked region
+        """
         return self._mask
 
     @sparse_mask.setter
     def sparse_mask(self, mask):
-        """ Sets the mask of the hull from a sparse mask - list of (y, x) coordinates """
+        """
+        Sets the mask of the hull from a
+        sparse mask - list of (y, x) coordinates
+        """
         if not isinstance(mask, list) and not isinstance(mask, np.ndarray):
             raise TypeError("Mask must be list")
         if not (
@@ -536,13 +554,12 @@ class BoundingBox(BoundingConvexHull):
         if mask == []:
             self._mask = []
         else:
-            lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
+            lines = np.hstack(
+                [self.corners, np.roll(self.corners, -1, axis=0)])
             minx = np.min(lines[:, 0:4:2])
             maxx = np.max(lines[:, 0:4:2])
             miny = np.min(lines[:, 1:4:2])
             maxy = np.max(lines[:, 1:4:2])
-            nx = maxx - minx + 1  # inclusive
-            ny = maxy - miny + 1
             sparse_mask = np.asarray(mask)
             sel = np.logical_and(
                 np.logical_and(
@@ -570,9 +587,8 @@ class BoundingBox(BoundingConvexHull):
             and hasattr(regions_list, "__len__")
             and len(regions_list) == len(regional_data_list)
         ):
-            raise TypeError(
-                "Region data list and regions lists must be lists of equal length"
-            )
+            raise TypeError("Region data list and regions lists "
+                            "must be lists of equal length")
         if not all([isinstance(x, np.ndarray) for x in regional_data_list]):
             raise TypeError("Region data list must be a list of ndarrays")
         if not all([isinstance(x, BoundingBox) for x in regions_list]):
@@ -614,9 +630,9 @@ class BoundingBox(BoundingConvexHull):
             fnx = xu - xl + 1  # inclusive
             fny = yu - yl + 1  # inclusive
             if f.shape[axes[0]] != fny - 1 or f.shape[axes[1]] != fnx - 1:
-                raise ValueError(
-                    "One or more bounding box descriptors does not match shape of corresponding data cubes"
-                )
+                raise ValueError("One or more bounding box descriptors "
+                                 "does not match shape of corresponding "
+                                 "data cubes")
             slc_data = [slice(None)] * len(stitched_img.shape)
             for (start, end), axis in zip([(yl, yu), (xl, xu)], axes):
                 slc_data[axis] = slice(start, end)
@@ -642,9 +658,8 @@ class BoundingBoxFactory(object):
     ):
         """ Constructs an axis aligned bounding box around convex hull """
         if not isinstance(convex_hull_object, BoundingConvexHull):
-            raise TypeError(
-                "Convex hull object passed in constructor is not of type BoundingConvexHull"
-            )
+            raise TypeError("Convex hull object passed in constructor "
+                            "is not of type BoundingConvexHull")
         if square:
             nx = (
                 np.max(convex_hull_object.corners[:, 0])
@@ -688,7 +703,8 @@ class BoundingBoxFactory(object):
         if not isinstance(bounding_box_object, BoundingBox):
             raise TypeError("Expected bounding box object")
         if not (isinstance(nsubboxes, int) and nsubboxes >= 1):
-            raise ValueError("nsubboxes must be integral type and be 1 or more")
+            raise ValueError(
+                "nsubboxes must be integral type and be 1 or more")
         xl = np.min(bounding_box_object.corners[:, 0])
         xu = np.max(bounding_box_object.corners[:, 0])
         yl = np.min(bounding_box_object.corners[:, 1])
@@ -713,7 +729,8 @@ class BoundingBoxFactory(object):
         xus = xus - 1
         yus = yus - 1
 
-        # clamp the final coordinate to the upper end (may result in rectanglular box at the end)
+        # clamp the final coordinate to the upper end
+        # (may result in rectanglular box at the end)
         xus[:, -1] = max(xu, min(xus[0, -1], xu))
         yus[-1, :] = max(yu, min(yus[-1, 0], yu))
 
@@ -747,7 +764,10 @@ class BoundingBoxFactory(object):
 
     @classmethod
     def PadBox(cls, bounding_box_object, desired_nx, desired_ny, **kwargs):
-        """ Creates a box with a padded border around a axis-aligned bounding box """
+        """
+        Creates a box with a padded border
+        around a axis-aligned bounding box
+        """
         if not isinstance(bounding_box_object, BoundingBox):
             raise TypeError("Expected bounding box object")
         nx, ny = bounding_box_object.box_npx

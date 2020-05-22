@@ -34,18 +34,12 @@ def test_hull_construction(debug):
     sinc_npx = 255
     sinc = np.sinc(np.linspace(-7, 7, sinc_npx))
     sinc2d = np.outer(sinc, sinc).reshape((1, 1, sinc_npx, sinc_npx))
-    extracted_data, extracted_window_extents = BoundingConvexHull.regional_data(
+    (extracted_data,
+     extracted_window_extents) = BoundingConvexHull.regional_data(
         bh_extract, sinc2d, oob_value=np.nan
     )
     assert extracted_window_extents == [-10, 293, -30, 268]
     sparse_mask = np.array(bh_extract.sparse_mask)
-    lines = np.hstack(
-        [bh_extract.corners, np.roll(bh_extract.corners, -1, axis=0)]
-    )
-    minx = np.min(lines[:, 0:4:2])
-    maxx = np.max(lines[:, 0:4:2])
-    miny = np.min(lines[:, 1:4:2])
-    maxy = np.max(lines[:, 1:4:2])
     sel = np.logical_and(
         np.logical_and(sparse_mask[:, 1] >= 0, sparse_mask[:, 1] < 255),
         np.logical_and(sparse_mask[:, 0] >= 0, sparse_mask[:, 0] < 255),
