@@ -1,17 +1,15 @@
 import numpy as np
-import scipy.stats as sstats
-import scipy.signal as ssig
-import scipy.spatial as spat
-import copy
+import pytest
+
 from africanus.linalg.geometry import (BoundingConvexHull,
                                        BoundingBox,
                                        BoundingBoxFactory)
-DEBUG=True
-def test_hull_construction():
+@pytest.mark.parametrize("debug", [False])
+def test_hull_construction(debug):
     # test case 1
     vals = np.array([[50, 60], [20, 40], [-74, 50], [-95, +10], [20, 60]])
     bh = BoundingConvexHull(vals)
-    mask = bh.mask 
+    mask = bh.mask
     assert mask.shape == (np.max(vals[:, 1]) - np.min(vals[:, 1]) + 1, np.max(vals[:, 0]) - np.min(vals[:, 0]) + 1)
     assert np.abs(mask.sum() - bh.area) / bh.area < 0.05 # integral mask area needs to be close to true area
     normalized_normals = bh.rnormals / np.linalg.norm(bh.rnormals, axis=1)[:, None]
@@ -36,9 +34,9 @@ def test_hull_construction():
                                         sparse_mask[:, 1] < 255),
                          np.logical_and(sparse_mask[:, 0] >= 0,
                                         sparse_mask[:, 0] < 255))
-    
+
     flat_index = (sparse_mask[sel][:, 0])*sinc_npx + (sparse_mask[sel][:, 1])
-    sinc_integral = np.sum(sinc2d.ravel()[flat_index]) 
+    sinc_integral = np.sum(sinc2d.ravel()[flat_index])
     assert np.abs(sinc_integral - np.nansum(extracted_data.ravel())) < 1.0e-8
     v = np.nanargmax(extracted_data)
     vx = v % extracted_data.shape[3]; vy = v // extracted_data.shape[3]
@@ -46,9 +44,9 @@ def test_hull_construction():
                   extracted_window_extents[2] + vy)
     v = np.nanargmax(sinc2d)
     sincvx = v % sinc_npx; sincvy = v // sinc_npx
-    csinc = tuple([sincvx, sincvy]) 
+    csinc = tuple([sincvx, sincvy])
     assert csinc == cextracted
-    
+
     # test case 4
     vals2 = np.array([[-20, -120], [0, 60], [40, -60]])
     vals3 = np.array([[-20, 58], [-40, 80], [20, 100]])
@@ -70,7 +68,7 @@ def test_hull_construction():
     assert bb.box_npx == (35, 20)
     assert bb.mask.shape == bb.box_npx[::-1]
     assert bb.area == 35 * 20
-    
+
     assert np.sum(bb.mask) == bb.area
     assert (-15, 35) not in bb
     assert (0, 35) in bb
@@ -114,7 +112,7 @@ def test_hull_construction():
     assert np.sum([np.sum(b.mask) for b in bb7s]) == np.sum([np.sum(b.mask) for b in bb4s])
 
     # test case 9
-    facet_regions = list(map(lambda f: BoundingBoxFactory.PadBox(f, 63, 63), 
+    facet_regions = list(map(lambda f: BoundingBoxFactory.PadBox(f, 63, 63),
                              BoundingBoxFactory.SplitBox(BoundingBoxFactory.AxisAlignedBoundingBox(bh_extract), nsubboxes=5)))
     facets = list(map(lambda pf: BoundingConvexHull.regional_data(pf, sinc2d, oob_value=np.nan),
                       facet_regions))
@@ -134,17 +132,17 @@ def test_hull_construction():
     ext1 = BoundingConvexHull.regional_data(olap_box1, sinc2d)[0]
     ext2 = BoundingConvexHull.regional_data(olap_box2, sinc2d)[0]
     ext3 = BoundingConvexHull.regional_data(olap_box3, sinc2d)[0]
-    olaps_stitched_image, olaps_stitched_region = BoundingBox.project_regions([ext1, ext2, ext3], 
+    olaps_stitched_image, olaps_stitched_region = BoundingBox.project_regions([ext1, ext2, ext3],
                                                                               [olap_box1, olap_box2, olap_box3])
     v = np.nanargmax(olaps_stitched_image)
     vx = v % olaps_stitched_image.shape[3]; vy = v // olaps_stitched_image.shape[3]
-    cstitched_olap = (np.min(olaps_stitched_region.corners[:, 0]) + vx, 
+    cstitched_olap = (np.min(olaps_stitched_region.corners[:, 0]) + vx,
                       np.min(olaps_stitched_region.corners[:, 1]) + vy)
     assert cstitched_olap == csinc
     assert np.abs(1.0 - np.nanmax(olaps_stitched_image)) < 1.0e-8
-    
+
     # visual inspection
-    if DEBUG:
+    if debug:
         from matplotlib import pyplot as plt
         plt.figure(figsize=(7, 2.5))
         plt.title("Winding, normals and masking check")
@@ -152,14 +150,14 @@ def test_hull_construction():
             for ei, e in enumerate(h.edges):
                 plt.plot(e[:, 0], e[:, 1], "r--")
                 plt.text(e[0, 0], e[0, 1], str(ei))
-        
+
         plt.plot(bh.edge_midpoints[:, 0], bh.edge_midpoints[:, 1], "ko")
         for e, n in zip(bh.edge_midpoints, normalized_normals):
-            p0 = e 
+            p0 = e
             p = e + n*6
             plt.plot([p0[0], p[0]], [p0[1], p[1]], "b--", lw=2)
-        
-        plt.scatter(vals[:, 0], vals[:, 1])    
+
+        plt.scatter(vals[:, 0], vals[:, 1])
         plt.imshow(mask, extent=[np.min(vals[:, 0]), np.max(vals[:, 0]), np.max(vals[:, 1]), np.min(vals[:, 1])])
 
         plt.grid(True)
@@ -181,7 +179,7 @@ def test_hull_construction():
                 plt.plot(e[:, 0], e[:, 1], "r--")
         plt.imshow(extracted_data[0, 0, :, :],
             extent=[extracted_window_extents[0], extracted_window_extents[1],
-                   extracted_window_extents[3], extracted_window_extents[2]])       
+                   extracted_window_extents[3], extracted_window_extents[2]])
         plt.savefig("/tmp/extract_local.png")
 
         plt.figure(figsize=(7, 2.5))
@@ -192,26 +190,26 @@ def test_hull_construction():
         for f in facet_regions:
             for ei, e in enumerate(f.edges):
                 plt.plot(e[:, 0], e[:, 1], "co--")
-        
 
-        plt.imshow(stitched_image[0, 0, :, :], 
+
+        plt.imshow(stitched_image[0, 0, :, :],
             extent=[np.min(stitched_region.corners[:, 0]), np.max(stitched_region.corners[:, 0]),
                     np.max(stitched_region.corners[:, 1]), np.min(stitched_region.corners[:, 1])])
         plt.savefig("/tmp/facet.png")
-        
+
         plt.figure(figsize=(7, 2.5))
         plt.title("Overlapping faceting check")
         for f in [olap_box1, olap_box2, olap_box3]:
             for ei, e in enumerate(f.edges):
                 plt.plot(e[:, 0], e[:, 1], "co--")
-        
 
-        plt.imshow(olaps_stitched_image[0, 0, :, :], 
+
+        plt.imshow(olaps_stitched_image[0, 0, :, :],
             extent=[np.min(olaps_stitched_region.corners[:, 0]), np.max(olaps_stitched_region.corners[:, 0]),
                     np.max(olaps_stitched_region.corners[:, 1]), np.min(olaps_stitched_region.corners[:, 1])])
-        plt.xlim((np.min(olaps_stitched_region.corners[:, 0]) - 15, 
+        plt.xlim((np.min(olaps_stitched_region.corners[:, 0]) - 15,
                   np.max(olaps_stitched_region.corners[:, 0]) + 15))
-        plt.ylim((np.min(olaps_stitched_region.corners[:, 1]) - 15, 
+        plt.ylim((np.min(olaps_stitched_region.corners[:, 1]) - 15,
                   np.max(olaps_stitched_region.corners[:, 1]) + 15))
         plt.savefig("/tmp/overlap_facet.png")
 
