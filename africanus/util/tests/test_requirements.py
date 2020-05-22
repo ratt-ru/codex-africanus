@@ -19,7 +19,7 @@ def test_requires_optional_missing_import():
     with pytest.raises(MissingPackageException) as e:
         f(1, a=2)
 
-    assert ("f requires installation of the following packages: ('bob',)"
+    assert ("f requires installation of the following packages: ('bob',)."
             in str(e.value))
 
 

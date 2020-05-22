@@ -182,7 +182,7 @@ def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
         def jones_mul():
             pass
 
-    return njit(nogil=True)(jones_mul)
+    return njit(nogil=True, inline='always')(jones_mul)
 
 
 def sum_coherencies_factory(have_ddes, have_coh, jones_type):
@@ -192,8 +192,11 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     if have_ddes and have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             for s in range(a1j.shape[0]):
-                for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
-                    ti -= tmin
+                for r in range(time.shape[0]):
+                    ti = time[r] - tmin
+                    a1 = ant1[r]
+                    a2 = ant2[r]
+
                     for f in range(a1j.shape[3]):
                         jones_mul(a1j[s, ti, a1, f],
                                   blj[s, r, f],
@@ -203,8 +206,11 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     elif have_ddes and not have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             for s in range(a1j.shape[0]):
-                for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
-                    ti -= tmin
+                for r in range(time.shape[0]):
+                    ti = time[r] - tmin
+                    a1 = ant1[r]
+                    a2 = ant2[r]
+
                     for f in range(a1j.shape[3]):
                         jones_mul(a1j[s, ti, a1, f],
                                   a2j[s, ti, a2, f],
@@ -231,7 +237,7 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
             pass
 
-    return njit(nogil=True)(sum_coh_fn)
+    return njit(nogil=True, inline='always')(sum_coh_fn)
 
 
 def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
@@ -269,7 +275,10 @@ def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
         raise ValueError("Insufficient inputs were supplied "
                          "for determining the output shape")
 
-    return njit(nogil=True)(output)
+    # TODO(sjperkins)
+    # perhaps inline='always' on resolution of
+    # https://github.com/numba/numba/issues/4691
+    return njit(nogil=True, inline='never')(output)
 
 
 def add_coh_factory(have_bvis):
@@ -281,7 +290,7 @@ def add_coh_factory(have_bvis):
         def add_coh(base_vis, out):
             pass
 
-    return njit(nogil=True)(add_coh)
+    return njit(nogil=True, inline='always')(add_coh)
 
 
 def apply_dies_factory(have_dies, have_bvis, jones_type):
@@ -298,8 +307,10 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
                        die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
-            for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
-                ti -= tmin
+            for r in range(time.shape[0]):
+                ti = time[r] - tmin
+                a1 = ant1[r]
+                a2 = ant2[r]
 
                 # Iterate over channels
                 for c in range(out.shape[1]):
@@ -311,8 +322,10 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
                        die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
-            for r, (ti, a1, a2) in enumerate(zip(time, ant1, ant2)):
-                ti -= tmin
+            for r in range(time.shape[0]):
+                ti = time[r] - tmin
+                a1 = ant1[r]
+                a2 = ant2[r]
 
                 # Iterate over channels
                 for c in range(out.shape[1]):
@@ -326,7 +339,7 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
                        tmin, out):
             pass
 
-    return njit(nogil=True)(apply_dies)
+    return njit(nogil=True, inline='always')(apply_dies)
 
 
 def _default_none_check(arg):

@@ -160,8 +160,16 @@ def load_beams(beam_file_schema, corr_types):
         beam_files.append((corr, (re_f, im_f)))
         headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
 
-    # All FITS headers should agree
-    flat_headers = [d for k, v in headers for d in v]
+    # All FITS headers should agree (apart from DATE)
+    flat_headers = []
+
+    for corr, (re_header, im_header) in headers:
+        if "DATE" in re_header:
+            del re_header["DATE"]
+        if "DATE" in im_header:
+            del im_header["DATE"]
+        flat_headers.append(re_header)
+        flat_headers.append(im_header)
 
     if not all(flat_headers[0] == h for h in flat_headers[1:]):
         raise ValueError("BEAM FITS Header Files differ")
@@ -272,10 +280,10 @@ def parse_sky_model(filename, chunks):
         try:
             # Extract SPI for I.
             # Zero Q, U and V to get 1 on the exponential
-            spi = [[spectrum.spi, 0, 0, 0]]
+            spi = [[spectrum.spi]*4]
         except AttributeError:
             # Default I SPI to -0.7
-            spi = [[-0.7, 0, 0, 0]]
+            spi = [[0, 0, 0, 0]]
 
         if typecode == "gau":
             emaj = source.shape.ex
@@ -454,7 +462,7 @@ def vis_factory(args, source_type, sky_model,
                             source.spi,
                             source.ref_freq,
                             frequency,
-                            base=[1, 0, 0, 0])
+                            base=0)
 
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
@@ -475,8 +483,9 @@ def vis_factory(args, source_type, sky_model,
                                         meta=meta, dtype=tuple)
 
     # Need unique times for parallactic angles
+    nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
     utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
+                                 chunks=nan_chunks,
                                  dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)

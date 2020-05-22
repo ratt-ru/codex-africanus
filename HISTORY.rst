@@ -2,9 +2,41 @@
 History
 =======
 
-0.1.9 (YYYY-MM-DD)
+X.Y.Z (YYYY-MM-DD)
 ------------------
+* Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
 
+0.2.3 (2020-05-14)
+------------------
+* Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
+* Depend on pytest-flake8 >= 1.0.6 (:pr:`187`, :pr:`188`)
+* MeqTrees Comparison Script Updates (:pr:`160`)
+* Improve requirements handling (:pr:`187`)
+* Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
+
+0.2.2 (2020-04-09)
+------------------
+* Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
+
+0.2.1 (2020-04-03)
+------------------
+* Update trove to latest master commit (:pr:`178`)
+* Added Cubic Spline support (:pr:`174`)
+* Depend on python-casacore >= 3.2.0 (:pr:`172`)
+* Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
+* Implement optimised WSClean predict (:pr:`166`, :pr:`167`, :pr:`177`, :pr:`179`, :pr:`180`, :pr:`181`)
+* Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
+* Document and check weight shapes in simple gridder and degridder
+  (:pr:`162`, :pr:`163`)
+* Restructuring calibration module (:pr:`127`)
+* Upgrade to numba 0.46.0, using new inlining functionality
+  in the RIME and averaging code.
+* Modified predict to be compatible with eidos fits headers (:pr:`158`)
+
+0.2.0 (2019-09-30)
+------------------
+* Added standalone SPI fitter (:pr:`153`)
+* Fail earlier and explain duplicate averaging rows (:pr:`155`)
 * CUDA Beam Implementation (:pr:`152`)
 * Fix documentation package versions (:pr:`151`)
 * Deprecate experimental w-stacking gridder in favour of nifty gridder (:pr:`148`)
