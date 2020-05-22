@@ -134,8 +134,6 @@ class Binner(object):
         self.time_sum = 0.0
         # Interval sum
         self.interval_sum = 0.0
-        # Bin channel width
-        self.chan_width = -1.0
         # Starting row of the bin
         self.rs = row_start
         # Ending row of the bin
@@ -327,7 +325,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('tbin', numba.uintp),
         ('bin_count', numba.uintp),
         ('bin_flag_count', numba.uintp),
-        ('chan_width', ref_freq_dtype),
         ('time_sum', time.dtype),
         ('interval_sum', interval.dtype),
         ('rs', numba.uintp),
