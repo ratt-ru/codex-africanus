@@ -273,10 +273,6 @@ class Binner(object):
                              self.bin_count == self.bin_flag_count)
 
         self.tbin += 1
-        self.time_sum = 0.0
-        self.interval_sum = 0.0
-        self.bin_count = 0
-        self.bin_flag_count = 0
 
         return out
         # s = np.searchsorted(spw_chan_width, max_𝞓𝝼, side='right') - 1
@@ -406,7 +402,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     bin_chan_width[bl, f.tbin] = f.chan_width
 
                     # Post-finalisation, the bin is empty, start a new bin
-                    assert binner.empty
                     binner.start_bin(r, time, interval, flag_row)
 
                 # Record the time bin associated with this row
