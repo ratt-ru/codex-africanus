@@ -2,11 +2,15 @@
 
 import numpy as np
 
-from africanus.util.numba import is_numba_type_none, generated_jit, njit
+from africanus.util.numba import is_numba_type_none, generated_jit, njit, overload
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def shape_or_invalid_shape(array, ndim):
+    pass
+
+
+@overload(shape_or_invalid_shape, inline='always')
+def _shape_or_invalid_shape(array, ndim):
     """ Return array shape tuple or (-1,)*ndim if the array is None """
 
     try:
@@ -128,7 +132,7 @@ def chan_corrs(vis, flag,
     return chan, corr
 
 
-@njit(nogil=True)
+@njit(nogil=True, inline='always')
 def flags_match(flag_row, ri, out_flag_row, ro):
     if flag_row is None:
         return True
@@ -136,132 +140,168 @@ def flags_match(flag_row, ri, out_flag_row, ro):
         return flag_row[ri] == out_flag_row[ro]
 
 
-@njit(nogil=True)
+@njit(nogil=True, inline='always')
 def is_chan_flagged(flag, r, f, c):
     return False if flag is None else flag[r, f, c]
 
 
-@njit(nogil=True)
+@njit(nogil=True, inline='always')
 def chan_add(output, input, orow, ochan, irow, ichan, corr):
     if input is not None:
         output[orow, ochan, corr] += input[irow, ichan, corr]
 
 
-@njit(nogil=True)
 def vis_add(out_vis, out_weight_sum, in_vis,
-            weight, weight_spectrum,
-            orow, ochan, irow, ichan, corr):
+             weight, weight_spectrum,
+             orow, ochan, irow, ichan, corr):
+    pass
+
+@overload(vis_add, inline='always')
+def _vis_add(out_vis, out_weight_sum, in_vis,
+             weight, weight_spectrum,
+             orow, ochan, irow, ichan, corr):
     """ Returns function adding weighted visibilities to a bin """
-    if in_vis is None:
-        pass
-    elif weight_spectrum is not None:
+    if is_numba_type_none(in_vis):
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            pass
+    elif not is_numba_type_none(weight_spectrum):
         # Always prefer more accurate weight spectrum if we have it
-        wt = weight_spectrum[irow, ichan, corr]
-        iv = in_vis[irow, ichan, corr] * wt
-        out_vis[orow, ochan, corr] += iv
-        out_weight_sum[orow, ochan, corr] += wt
-    elif weight is not None:
+
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            wt = weight_spectrum[irow, ichan, corr]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += wt
+    elif not is_numba_type_none(weight):
         # Otherwise fall back to row weights
-        wt = weight[irow, corr]
-        iv = in_vis[irow, ichan, corr] * wt
-        out_vis[orow, ochan, corr] += iv
-        out_weight_sum[orow, ochan, corr] += wt
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            wt = weight[irow, corr]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += wt
     else:
         # Natural weights
-        iv = in_vis[irow, ichan, corr]
-        out_vis[orow, ochan, corr] += iv
-        out_weight_sum[orow, ochan, corr] += 1.0
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
 
+            iv = in_vis[irow, ichan, corr]
+            out_vis[orow, ochan, corr] += iv
+            out_weight_sum[orow, ochan, corr] += 1.0
 
-@njit(nogil=True)
+    return impl
+
 def sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
                        weight, weight_spectrum,
                        orow, ochan, irow, ichan, corr):
-    """ Returns function adding weighted sigma to a bin """
-    if in_sigma is None:
-        pass
-    elif weight_spectrum is not None:
-        # Always prefer more accurate weight spectrum if we have it
-        # sum(sigma**2 * weight**2)
-        wt = weight_spectrum[irow, ichan, corr]
-        is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-        out_sigma[orow, ochan, corr] += is_
-        out_weight_sum[orow, ochan, corr] += wt
+    pass
 
-    elif weight is not None:
-        # sum(sigma**2 * weight**2)
-        wt = weight[irow, corr]
-        is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-        out_sigma[orow, ochan, corr] += is_
-        out_weight_sum[orow, ochan, corr] += wt
+@overload(sigma_spectrum_add, inline="always")
+def _sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
+                        weight, weight_spectrum,
+                        orow, ochan, irow, ichan, corr):
+    """ Returns function adding weighted sigma to a bin """
+    if is_numba_type_none(in_sigma):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+            pass
+    elif not is_numba_type_none(weight_spectrum):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            # Always prefer more accurate weight spectrum if we have it
+            # sum(sigma**2 * weight**2)
+            wt = weight_spectrum[irow, ichan, corr]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, ochan, corr] += is_
+            out_weight_sum[orow, ochan, corr] += wt
+
+    elif not is_numba_type_none(weight):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
+
+            # sum(sigma**2 * weight**2)
+            wt = weight[irow, corr]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, ochan, corr] += is_
+            out_weight_sum[orow, ochan, corr] += wt
     else:
         # Natural weights
         # sum(sigma**2 * weight**2)
-        out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
-        out_weight_sum[orow, ochan, corr] += 1.0
 
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, ochan, irow, ichan, corr):
 
-@njit(nogil=True)
+            out_sigma[orow, ochan, corr] += in_sigma[irow, ichan, corr]**2
+            out_weight_sum[orow, ochan, corr] += 1.0
+
+    return impl
+
 def normalise_vis(vis_out, vis_in, row, chan, corr, weight_sum):
-    if vis_in is not None:
-        wsum = weight_sum[row, chan, corr]
-
-        if wsum != 0.0:
-            vis_out[row, chan, corr] = vis_in[row, chan, corr] / wsum
+    pass
 
 
-@njit(nogil=True)
+@overload(normalise_vis, inline='always')
+def _normalise_vis(vis_out, vis_in, row, chan, corr, weight_sum):
+    if is_numba_type_none(vis_in):
+        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
+            pass
+    else:
+        def impl(vis_out, vis_in, row, chan, corr, weight_sum):
+            wsum = weight_sum[row, chan, corr]
+
+            if wsum != 0.0:
+                vis_out[row, chan, corr] = vis_in[row, chan, corr] / wsum
+    return impl
+
+
 def normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
-    if sigma_in is not None and weight_sum is not None:
-        wsum = weight_sum[row, chan, corr]
-
-        if wsum == 0.0:
-            return
-
-        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-        res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
-        sigma_out[row, chan, corr] = res
+    pass
 
 
-# @generated_jit(nopython=True, nogil=True)
-# def normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
-#     def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
-#         if sigma_in is not None and weight_sum is not None:
-#             wsum = weight_sum[row, chan, corr]
+@overload(normalise_sigma_spectrum, inline='always')
+def _normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
+    if is_numba_type_none(sigma_in) or is_numba_type_none(weight_sum):
+        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
+            pass
+    else:
+        def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
+            wsum = weight_sum[row, chan, corr]
 
-#             if wsum == 0.0:
-#                 return
+            if wsum == 0.0:
+                return
 
-#             # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-#             res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
-#             sigma_out[row, chan, corr] = res
+            # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+            res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
+            sigma_out[row, chan, corr] = res
 
-#     return impl
-
-
-# @generated_jit(nopython=True, nogil=True)
-# def normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, chan, corr):
-#     def impl(wt_spec_out, wt_spec_in, row, chan, corr):
-#         if wt_spec_in is not None:
-#             wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
-
-#     return impl
+    return impl
 
 
-@njit(nogil=True)
-def normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
-    if sigma_in is not None and weight_sum is not None:
-        wsum = weight_sum[row, chan, corr]
-
-        if wsum == 0.0:
-            return
-
-        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-        res = np.sqrt(sigma_in[row, chan, corr] / (wsum**2))
-        sigma_out[row, chan, corr] = res
-
-
-@njit(nogil=True)
 def normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, chan, corr):
-    if wt_spec_in is not None:
-        wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
+    pass
+
+
+@overload(normalise_weight_spectrum, inline='always')
+def _normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, chan, corr):
+    if is_numba_type_none(wt_spec_in):
+        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
+            pass
+    else:
+        def impl(wt_spec_out, wt_spec_in, row, chan, corr):
+            wt_spec_out[row, chan, corr] = wt_spec_in[row, chan, corr]
+
+    return impl
