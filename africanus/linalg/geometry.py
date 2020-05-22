@@ -30,8 +30,8 @@ def timeit(method):
     return timed
 
 
-@requires_optional("scipy.stats", opt_import_err)
 class BoundingConvexHull(object):
+    @requires_optional("scipy.stats", opt_import_err)
     def __init__(self, list_hulls, name="unnamed",
                  mask=None, check_mask_outofbounds=True):
         """
