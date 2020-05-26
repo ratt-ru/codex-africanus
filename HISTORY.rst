@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Make CASA parallactic angles thread-safe (:pr:`195`)
 * Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
 
 0.2.3 (2020-05-14)
