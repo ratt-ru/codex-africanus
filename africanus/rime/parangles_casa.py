@@ -17,6 +17,7 @@ else:
     have_casa_parangles = True
 
     # Create thread local storage for the measures server
+    _server_create_lock = threading.Lock()
     _thread_local = threading.local()
 
 
@@ -28,11 +29,12 @@ def casa_parallactic_angles(times, antenna_positions, field_centre,
     reference antenna position and field centre.
     """
 
-    try:
-        meas_serv = _thread_local.meas_serv
-    except AttributeError:
-        # Create a measures server
-        _thread_local.meas_serv = meas_serv = pyrap.measures.measures()
+    with _server_create_lock:
+        try:
+            meas_serv = _thread_local.meas_serv
+        except AttributeError:
+            # Create a measures server
+            _thread_local.meas_serv = meas_serv = pyrap.measures.measures()
 
     # Create direction measure for the zenith
     zenith = meas_serv.direction(zenith_frame, '0deg', '90deg')
