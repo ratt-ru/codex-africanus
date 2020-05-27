@@ -31,12 +31,12 @@ jobs:
 
       - name: Install complete codex-africanus
         if: matrix.install == 'all'
-        # Need yaml for dask 2.17.0
+        # Need pyyaml for dask 2.17.0
         # See https://github.com/dask/dask/issues/6221
         run: >
           pipenv install
           .[astropy,dask,scipy,testing]
-          yaml
+          pyyaml
           git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Log installed package versions
