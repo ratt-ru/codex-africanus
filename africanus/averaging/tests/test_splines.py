@@ -10,7 +10,7 @@ from africanus.averaging.splines import (fit_cubic_spline,
 
 # Generate y,z coords from given x coords
 def generate_y_coords(x):
-    y = -0.5 * x**2 - 0.3 * x + 5
+    y = -0.5 * x**2 - 0.3 * x + 5.0
     # z = 0.1 * x**3 + 5
     return y
 
@@ -18,7 +18,7 @@ def generate_y_coords(x):
 @pytest.mark.parametrize("order", [0])
 def test_fit_cubic_spline(order):
     # Generate function y for x
-    x = np.linspace(-2, 2, 16)
+    x = np.linspace(-2.0, 2.0, 16)
     y = generate_y_coords(x)
 
     spline = fit_cubic_spline(x, y)
