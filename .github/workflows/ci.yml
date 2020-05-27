@@ -25,15 +25,19 @@ jobs:
         with:
           fetch-depth: 1
 
+
       - name: Install base codex-africanus
         run: pipenv install .[testing]
+
 
       - name: Run base test suite
         run: pipenv run py.test --flake8 -s -vvv africanus/
 
+
       - name: list the measures directory
         if: steps.cache-casa-measures.outputs.cache-hit != 'true'
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
+
 
       # Cache measures data if the measure directory changed
       - name: Cache CASA Measures Data
