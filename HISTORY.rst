@@ -4,7 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
-* Support --{l,m}-axis in MeqTrees comparison script (:pr:`199`)
+* Support --{l,m}-axis in MeqTrees comparison script (:pr:`199`) skip ci
 * Upgrade to python-casacore 3.3.1 (:pr:`197`)
 * Upgrade to jax 0.1.68 and jaxlib 0.1.47 (:pr:`197`)
 * Upgrade to scipy 1.4.0 (:pr:`197`)
