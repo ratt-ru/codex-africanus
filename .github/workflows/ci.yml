@@ -9,8 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8"]
-        install: ["all"]
+        python-version: ["3.6", "3.7", "3.8"]
+        install: ["base", "all"]
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}
