@@ -34,7 +34,7 @@ jobs:
         run: >
           pipenv install
           .[astropy,dask,scipy,testing]
-          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git
+          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Log installed package versions
         run: pipenv graph
