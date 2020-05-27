@@ -44,7 +44,7 @@ jobs:
         run: |
           mkdir -p ~/measures
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
-          echo "measures.directory: ~/opt/casacore/data/" > ~/.casarc
+          echo "measures.directory: ~/measures" > ~/.casarc
 
       - name: Install complete codex-africanus
         if: matrix.install == 'all'
