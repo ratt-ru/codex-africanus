@@ -30,17 +30,8 @@ jobs:
         if: matrix.install == 'base'
         run: pipenv install .[testing]
 
-      - name: Cache Measures Data
-        id: cache-measures
-        uses: actions/cache@v2
-        with:
-          key: casa-measures-data
-          path: |
-            ~/measures
-            ~/.casarc
-
-      - name: Download and install Measures Data
-        if: matrix.install == 'all' && steps.cache-measures.outputs.cache-hit != 'true'
+      - name: Download and install CASA Measures Data
+        if: matrix.install == 'all'
         run: |
           mkdir -p ~/measures
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
@@ -59,7 +50,7 @@ jobs:
       - name: Log installed package versions
         run: pipenv graph
 
-      - name: Run test cases
+      - name: Run test suite
         run: pipenv run py.test --flake8 -s -vvv africanus/
 
   deploy:
