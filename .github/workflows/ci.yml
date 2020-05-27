@@ -42,6 +42,7 @@ jobs:
       - name: Download and install Measures Data
         if: matrix.install == 'all' && steps.cache-measures.outputs.cache-hit != 'true'
         run: |
+          mkdir -p ~/measures
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/opt/casacore/data/" > ~/.casarc
 
