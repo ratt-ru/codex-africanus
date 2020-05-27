@@ -7,7 +7,7 @@ X.Y.Z (YYYY-MM-DD)
 * Upgrade to python-casacore 3.3.1 (:pr:`197`)
 * Upgrade to jax 0.1.68 and jaxlib 0.1.47 (:pr:`197`)
 * Upgrade to scipy 1.4.0 (:pr:`197`)
-* Use github workflows (:pr:`196`, :pr:`197`)
+* Use github workflows (:pr:`196`, :pr:`197`, :pr:`198`)
 * Make CASA parallactic angles thread-safe (:pr:`195`)
 * Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
 
