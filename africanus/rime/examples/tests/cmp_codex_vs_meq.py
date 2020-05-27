@@ -56,7 +56,7 @@ def cmp_script_factory(args, pol_type):
             "--run-predict"]
 
 
-def meqtrees_command_factory(args, pol_type):
+def meqtrees_command_factory(cmp_args, args, pol_type):
     # Directory in which meqtree-related files are read/written
     meq_dir = 'meqtrees'
 
@@ -104,8 +104,8 @@ def meqtrees_command_factory(args, pol_type):
         # Beam FITS file pattern
         'pybeams_fits.filename_pattern="{p}"'.format(p=beam_pattern),
         # FITS L and M AXIS
-        'pybeams_fits.l_axis={lax}'.format(lax=args.l_axis),
-        'pybeams_fits.m_axis={max}'.format(max=args.m_axis),
+        'pybeams_fits.l_axis={lax}'.format(lax=cmp_args.l_axis),
+        'pybeams_fits.m_axis={max}'.format(max=cmp_args.m_axis),
         sim_script,
         '=simulate'
     ]
@@ -209,7 +209,7 @@ def compare():
         beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits",
                                             pol_type)
         args.beam = str(beam_path)
-        meq_cmd = " ".join(meqtrees_command_factory(args, pol_type))
+        meq_cmd = " ".join(meqtrees_command_factory(cmp_args, args, pol_type))
         cmp_cmd = " ".join(cmp_script_factory(args, pol_type))
 
         print("\nRUN THE FOLLOWING COMMAND IN A SEPARATE "
