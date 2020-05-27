@@ -36,7 +36,7 @@ jobs:
         # See https://github.com/dask/dask/issues/6221
         run: >
           pipenv install
-          .[astropy,dask,scipy,testing]
+          .[astropy,dask,python-casacore,scipy,testing]
           pyyaml
           git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
