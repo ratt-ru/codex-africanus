@@ -50,10 +50,11 @@ jobs:
         if: matrix.install == 'all'
         # Need pyyaml for dask 2.17.0
         # See https://github.com/dask/dask/issues/6221
-        run: |
-          pipenv install .[astropy,dask,python-casacore,scipy,testing]
-          pipenv install pyyaml
-          pipenv git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
+        run: >
+          pipenv install
+          .[astropy,dask,python-casacore,scipy,testing]
+          pyyaml
+          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Log installed package versions
         run: pipenv graph
