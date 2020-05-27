@@ -9,8 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.6", "3.7", "3.8"]
-        install: ["base", "all"]
+        python-version: ["3.8"]
+        install: ["all"]
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}
@@ -30,15 +30,29 @@ jobs:
         if: matrix.install == 'base'
         run: pipenv install .[testing]
 
+      - name: Cache Measures Data
+        id: cache-measures
+        uses: actions/cache@v2
+        with:
+          key: casa-measures-data
+          path: |
+            ~/measures
+            ~/.casarc
+
+      - name: Download and install Measures Data
+        if: matrix.install == 'all' && steps.cache-measures.outputs.cache-hit != 'true'
+        run: |
+          curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
+          echo "measures.directory: ~/opt/casacore/data/" > ~/.casarc
+
       - name: Install complete codex-africanus
         if: matrix.install == 'all'
         # Need pyyaml for dask 2.17.0
         # See https://github.com/dask/dask/issues/6221
-        run: >
-          pipenv install
-          .[astropy,dask,python-casacore,scipy,testing]
-          pyyaml
-          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
+        run: |
+          pipenv install .[astropy,dask,python-casacore,scipy,testing]
+          pipenv install pyyaml
+          pipenv git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Log installed package versions
         run: pipenv graph
