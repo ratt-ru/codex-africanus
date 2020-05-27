@@ -34,9 +34,8 @@ jobs:
       - name: List the measures directory
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
 
-      # Cache measures data if the measure directory changed
-      - name: Cache CASA Measures Data
-        id: cache-casa-measures
+      - name: Load cached CASA Measures Data
+        id: load-cached-casa-measures
         uses: actions/cache@v2
         with:
           key: casa-measures-${{ hashFiles('measures_dir.txt')}}
@@ -45,7 +44,7 @@ jobs:
             ~/.casarc
 
       - name: Download and install CASA Measures Data
-        if: steps.cache-casa-measures.outputs.cache-hit != 'true'
+        if: steps.load-cached-casa-measures.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/measures
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
