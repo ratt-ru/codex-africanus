@@ -14,6 +14,7 @@ def generate_y_coords(x):
     # z = 0.1 * x**3 + 5
     return y
 
+
 @pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.parametrize("order", [0])
 def test_fit_cubic_spline(order):
