@@ -10,6 +10,113 @@ import numpy as np
 from africanus.util.casa_types import STOKES_ID_MAP
 
 
+class MBFitsAxes(object):
+    """
+    FitsAxes object, inspired by Tigger's FITSAxes
+    """
+
+    def __init__(self, header):
+        self._ndims = ndims = header['NAXIS']
+
+        # Extract header information for each dimension
+        axr = list(range(1, ndims+1))
+        self._naxis = [header.get('NAXIS%d' % n) for n in axr]
+        self._ctype = [header.get('CTYPE%d' % n, n) for n in axr]
+        self._crval = [header.get('CRVAL%d' % n, 0) for n in axr]
+        self._crpix = [header.get('CRPIX%d' % n)-1 for n in axr]
+        self._cdelta = [header.get('CDELT%d' % n, 1) for n in axr]
+        self._cunit = [header.get('CUNIT%d' % n, '').strip().upper()
+                       for n in axr]
+
+        # Check for custom irregular grid format.
+        # Currently only implemented for FREQ dimension.
+        irregular_grid = [[header.get('G%s%d' % (self._ctype[i], j), None)
+                           for j in range(1, self._naxis[i]+1)]
+                          for i in range(ndims)]
+
+        # Irregular grids are only valid if values exist for all grid points
+        valid = [all(x is not None for x in irregular_grid[i])
+                 for i in range(ndims)]
+
+        def _regular_grid(a, i):
+            """ Construct a regular grid from a FitsAxes object and index """
+            R = np.arange(0.0, float(a.naxis[i]))
+            return (R - a.crpix[i])*a.cdelta[i] + a.crval[i]
+
+        # Set up the grid
+        self._grid = [_regular_grid(self, i) if not valid[i]
+                      else np.asarray(irregular_grid[i]) for i in range(ndims)]
+
+        # Copy original CRVAL and CRDELTA in case they are scaled
+        self._scale = [1.0 for n in axr]
+        self._crval0 = [v for v in self._crval]
+        self._cdelta0 = [v for v in self._cdelta]
+
+        # Map axis names to integers
+        self._iaxis = {n: i for i, n in enumerate(self._ctype)}
+
+    @property
+    def ndims(self):
+        return self._ndims
+
+    def iaxis(self, name):
+        try:
+            return self._iaxis[name]
+        except KeyError:
+            return -1
+
+    @property
+    def grid(self):
+        return self._grid
+
+    @property
+    def crpix(self):
+        return self._crpix
+
+    @property
+    def naxis(self):
+        return self._naxis
+
+    @property
+    def crval(self):
+        return self._crval
+
+    @property
+    def cdelta(self):
+        return self._cdelta
+
+    @property
+    def crval0(self):
+        return self._crval0
+
+    @property
+    def cdelta0(self):
+        return self._cdelta0
+
+    @property
+    def cunit(self):
+        return self._cunit
+
+    @property
+    def ctype(self):
+        return self._ctype
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @property
+    def extents(self):
+        def f(v, i): return (v - self.crpix[i])*self.cdelta[i] + self.crval[i]
+        return [tuple(f(v, i) for v in (0, self.naxis[i]-1))
+                for i in range(self.ndims)]
+
+    def set_axis_scale(self, index, scale):
+        self.scale[index] = scale
+        self.crval[index] = self.crval0[index]*scale
+        self.cdelta[index] = self.cdelta0[index]*scale
+
+
 class FitsAxes(object):
     """
     FitsAxes object, inspired by Tigger's FITSAxes
@@ -84,12 +191,7 @@ class BeamAxes(FitsAxes):
             R = np.arange(0.0, float(self._naxis[i]))
             return (R - self._crpix[i])*self._cdelt[i] + self._crval[i]
 
-        # Set up the grid
-        self._grid = [_regular_grid(i) if not self._irreg[i]
-                      else np.asarray(irregular_grid[i])
-                      for i in range(self._ndims)]
-
-        self._sign = [1.0]*self._ndims
+        self._grid = [None]*self._ndims
 
         for i in range(self._ndims):
             # Convert any degree axes to radians
@@ -97,13 +199,10 @@ class BeamAxes(FitsAxes):
                 self._cunit[i] = 'RAD'
                 self._crval[i] = np.deg2rad(self._crval[i])
                 self._cdelt[i] = np.deg2rad(self._cdelt[i])
-                self._grid[i] = np.deg2rad(self._grid[i])
 
-            # Flip the sign and correct the ctype if necessary
-            ax, sgn = axis_and_sign(self._ctype[i])
-
-            self._ctype[i] = ax
-            self._sign[i] = sgn
+            # Set up the grid
+            self._grid[i] = (_regular_grid(i) if not self._irreg[i]
+                             else np.asarray(irregular_grid[i]))
 
     @property
     def ndims(self):
@@ -136,10 +235,6 @@ class BeamAxes(FitsAxes):
     @property
     def grid(self):
         return self._grid
-
-    @property
-    def sign(self):
-        return self._sign
 
 
 def beam_grids(header, l_axis=None, m_axis=None):
@@ -204,17 +299,13 @@ def beam_grids(header, l_axis=None, m_axis=None):
         raise ValueError("No FREQ axis present in FITS header")
 
     # Sign of L/M axes?
-    l_sign = beam_axes.sign[l] * axis_and_sign(l_axis, "L")[1]
-    m_sign = beam_axes.sign[m] * axis_and_sign(m_axis, "M")[1]
+    l_sign = axis_and_sign(l_axis, "L")[1]
+    m_sign = axis_and_sign(m_axis, "M")[1]
 
     # Obtain axes grids
-    l_grid = beam_axes.grid[l]
-    m_grid = beam_axes.grid[m]
+    l_grid = beam_axes.grid[l] * l_sign
+    m_grid = beam_axes.grid[m] * m_sign
     freq_grid = beam_axes.grid[freq]
-
-    # flip the grid around if signs are different
-    l_grid = np.flipud(l_grid) if l_sign == -1.0 else l_grid
-    m_grid = np.flipud(m_grid) if m_sign == -1.0 else m_grid
 
     return ((l+1, l_grid), (m+1, m_grid), (freq+1, freq_grid))
 
