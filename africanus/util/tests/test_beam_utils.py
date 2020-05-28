@@ -139,6 +139,7 @@ def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
                                                              l_axis, m_axis)
 
     # Check expected L
+    assert hdr['CTYPE%d' % l] == header_l
     crval = hdr['CRVAL%d' % l]
     cdelt = hdr['CDELT%d' % l]
     crpix = hdr['CRPIX%d' % l] - 1  # C-indexing
@@ -151,6 +152,7 @@ def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
 
     assert np.allclose(exp_l, l_grid)
 
+    assert hdr['CTYPE%d' % m] == header_m
     crval = hdr['CRVAL%d' % m]
     cdelt = hdr['CDELT%d' % m]
     crpix = hdr['CRPIX%d' % m] - 1  # C-indexing
