@@ -127,9 +127,6 @@ def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
     hdr['CTYPE1'] = header_l
     hdr['CTYPE2'] = header_m
 
-    hl_ax, hl_sgn = axis_and_sign(header_l)
-    hm_ax, hm_sgn = axis_and_sign(header_m)
-
     l_ax, l_sgn = axis_and_sign(l_axis, "L")
     m_ax, m_sgn = axis_and_sign(m_axis, "M")
 
