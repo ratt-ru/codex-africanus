@@ -45,7 +45,6 @@ def axis_and_sign(ax_str, default=None):
     return (ax_str[1:], -1.0) if ax_str[0] == '-' else (ax_str, 1.0)
 
 
-
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
