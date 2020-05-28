@@ -51,8 +51,8 @@ def test_phase_delay(convention, sign):
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-@pytest.mark.parametrize("second_pa", [False, True])
-def test_feed_rotation(second_pa):
+@pytest.mark.parametrize("second_rotation_angle", [False, True])
+def test_feed_rotation(second_rotation_angle):
     from africanus.rime import feed_rotation
 
     shape = (10, 4)
@@ -61,11 +61,16 @@ def test_feed_rotation(second_pa):
     pa_sin = np.sin(parangles)
     pa_cos = np.cos(parangles)
 
-    parangles2 = np.random.random(shape) if second_pa else parangles
-    pa2_sin = np.sin(parangles2)
-    pa2_cos = np.cos(parangles2)
+    if second_rotation_angle:
+        parangles2 = np.random.random(shape)
+        pa2_sin = np.sin(parangles2)
+        pa2_cos = np.cos(parangles2)
+    else:
+        parangles2 = parangles
+        pa2_sin = pa_sin
+        pa2_cos = pa_cos
 
-    args = (parangles, parangles2) if second_pa else (parangles,)
+    args = (parangles, parangles2) if second_rotation_angle else (parangles,)
 
     fr = feed_rotation(*args, feed_type='linear')
     np_expr = np.stack([pa_cos, pa_sin, -pa2_sin, pa2_cos], axis=2)
@@ -104,21 +109,19 @@ def test_dask_phase_delay(convention, sign):
     assert np.all(np_phase == dask_phase.compute())
 
 
-@pytest.mark.parametrize("second_pa", [False, True])
-def test_dask_feed_rotation(second_pa):
+@pytest.mark.parametrize("second_rotation_angle", [False, True])
+def test_dask_feed_rotation(second_rotation_angle):
     da = pytest.importorskip('dask.array')
     from africanus.rime import feed_rotation as np_feed_rotation
     from africanus.rime.dask import feed_rotation
 
-    dim1_chunks = (5, 5)
-    dim2_chunks = (2, 3)
+    chunks = ((5, 5), (2, 3))
+    shape = tuple(map(sum, chunks))
 
-    shape = (sum(dim1_chunks), sum(dim2_chunks))
-    chunks = (dim1_chunks, dim2_chunks)
     rot_angles = np.random.random(shape)
     dask_rot_angles = da.from_array(rot_angles, chunks=chunks)
 
-    if second_pa:
+    if second_rotation_angle:
         rot_angles2 = np.random.random(shape)
         dask_rot_angles2 = da.from_array(rot_angles2, chunks=chunks)
         np_args = (rot_angles, rot_angles2)
