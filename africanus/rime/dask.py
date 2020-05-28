@@ -58,20 +58,22 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
 
 
 @requires_optional('dask.array', da_import_error)
-def feed_rotation(parallactic_angles, feed_type):
-    pa_dims = tuple("pa-%d" % i for i in range(parallactic_angles.ndim))
+def feed_rotation(rotation_angles, rotation_angles_2=None, feed_type='linear'):
+    ra_dims = tuple("pa-%d" % i for i in range(rotation_angles.ndim))
+    ra2_dims = None if rotation_angles_2 is None else ra_dims
     corr_dims = ('corr-1', 'corr-2')
 
-    if parallactic_angles.dtype == np.float32:
+    if rotation_angles.dtype == np.float32:
         dtype = np.complex64
-    elif parallactic_angles.dtype == np.float64:
+    elif rotation_angles.dtype == np.float64:
         dtype = np.complex128
     else:
-        raise ValueError("parallactic_angles have "
+        raise ValueError("rotation_angles have "
                          "non-floating point dtype")
 
-    return da.core.blockwise(np_feed_rotation, pa_dims + corr_dims,
-                             parallactic_angles, pa_dims,
+    return da.core.blockwise(np_feed_rotation, ra_dims + corr_dims,
+                             rotation_angles, ra_dims,
+                             rotation_angles_2, ra2_dims,
                              feed_type=feed_type,
                              new_axes={'corr-1': 2, 'corr-2': 2},
                              dtype=dtype)

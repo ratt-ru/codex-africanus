@@ -4,6 +4,7 @@
 """Tests for `codex-africanus` package."""
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
 import pytest
 
@@ -50,23 +51,31 @@ def test_phase_delay(convention, sign):
     assert np.all(np.exp(1j*phase) == complex_phase[lm_i, uvw_i, freq_i])
 
 
-def test_feed_rotation():
-    import numpy as np
+@pytest.mark.parametrize("second_pa", [False, True])
+def test_feed_rotation(second_pa):
     from africanus.rime import feed_rotation
 
-    parangles = np.random.random((10, 5))
+    shape = (10, 4)
+
+    parangles = np.random.random(shape)
     pa_sin = np.sin(parangles)
     pa_cos = np.cos(parangles)
 
-    fr = feed_rotation(parangles, feed_type='linear')
-    np_expr = np.stack([pa_cos, pa_sin, -pa_sin, pa_cos], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+    parangles2 = np.random.random(shape) if second_pa else parangles
+    pa2_sin = np.sin(parangles2)
+    pa2_cos = np.cos(parangles2)
 
-    fr = feed_rotation(parangles, feed_type='circular')
+    args = (parangles, parangles2) if second_pa else (parangles,)
+
+    fr = feed_rotation(*args, feed_type='linear')
+    np_expr = np.stack([pa_cos, pa_sin, -pa2_sin, pa2_cos], axis=2)
+    assert_array_almost_equal(fr, np_expr.reshape(shape + (2, 2)))
+
+    fr = feed_rotation(*args, feed_type='circular')
     zeros = np.zeros_like(pa_sin)
     np_expr = np.stack([pa_cos - 1j*pa_sin, zeros,
-                        zeros, pa_cos + 1j*pa_sin], axis=2)
-    assert np.allclose(fr, np_expr.reshape(10, 5, 2, 2))
+                        zeros, pa2_cos + 1j*pa2_sin], axis=2)
+    assert_array_almost_equal(fr, np_expr.reshape(shape + (2, 2)))
 
 
 @pytest.mark.parametrize("convention, sign",  [
@@ -95,17 +104,31 @@ def test_dask_phase_delay(convention, sign):
     assert np.all(np_phase == dask_phase.compute())
 
 
-def test_dask_feed_rotation():
+@pytest.mark.parametrize("second_pa", [False, True])
+def test_dask_feed_rotation(second_pa):
     da = pytest.importorskip('dask.array')
-    import numpy as np
     from africanus.rime import feed_rotation as np_feed_rotation
     from africanus.rime.dask import feed_rotation
 
-    parangles = np.random.random((10, 5))
-    dask_parangles = da.from_array(parangles, chunks=(5, (2, 3)))
+    dim1_chunks = (5, 5)
+    dim2_chunks = (2, 3)
 
-    np_fr = np_feed_rotation(parangles, feed_type='linear')
-    assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='linear'))
+    shape = (sum(dim1_chunks), sum(dim2_chunks))
+    chunks = (dim1_chunks, dim2_chunks)
+    rot_angles = np.random.random(shape)
+    dask_rot_angles = da.from_array(rot_angles, chunks=chunks)
 
-    np_fr = np_feed_rotation(parangles, feed_type='circular')
-    assert np.all(np_fr == feed_rotation(dask_parangles, feed_type='circular'))
+    if second_pa:
+        rot_angles2 = np.random.random(shape)
+        dask_rot_angles2 = da.from_array(rot_angles2, chunks=chunks)
+        np_args = (rot_angles, rot_angles2)
+        dsk_args = (dask_rot_angles, dask_rot_angles2)
+    else:
+        np_args = (rot_angles,)
+        dsk_args = (dask_rot_angles,)
+
+    np_fr = np_feed_rotation(*np_args, feed_type='linear')
+    assert np.all(np_fr == feed_rotation(*dsk_args, feed_type='linear'))
+
+    np_fr = np_feed_rotation(*np_args, feed_type='circular')
+    assert np.all(np_fr == feed_rotation(*dsk_args, feed_type='circular'))
