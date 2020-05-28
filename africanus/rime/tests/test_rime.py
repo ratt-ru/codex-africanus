@@ -4,7 +4,7 @@
 """Tests for `codex-africanus` package."""
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 import pytest
 
@@ -131,7 +131,7 @@ def test_dask_feed_rotation(second_rotation_angle):
         dsk_args = (dask_rot_angles,)
 
     np_fr = np_feed_rotation(*np_args, feed_type='linear')
-    assert np.all(np_fr == feed_rotation(*dsk_args, feed_type='linear'))
+    assert_array_equal(np_fr, feed_rotation(*dsk_args, feed_type='linear'))
 
     np_fr = np_feed_rotation(*np_args, feed_type='circular')
-    assert np.all(np_fr == feed_rotation(*dsk_args, feed_type='circular'))
+    assert_array_equal(np_fr, feed_rotation(*dsk_args, feed_type='circular'))
