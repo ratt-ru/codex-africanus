@@ -31,6 +31,21 @@ class FitsAxes(object):
                        for n in axr]
 
 
+def axis_and_sign(ax_str, default=None):
+    """ Extract axis and sign from given axis string """
+    if not ax_str:
+        if default:
+            return default, 1.0
+
+        raise ValueError("Need default if ax_str is None")
+
+    if not isinstance(ax_str, str):
+        raise TypeError("ax_str must be a string")
+
+    return (ax_str[1:], -1.0) if ax_str[0] == '-' else (ax_str, 1.0)
+
+
+
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
@@ -45,11 +60,15 @@ class BeamAxes(FitsAxes):
     Inversions of the L, M, X and Y grids are supported
     if a minus sign is detected before the CUNIT in
     the FITS header.
+
+    Parameters
+    ----------
+    header : dict, optional
+        FITS file header
     """
 
     def __init__(self, header=None):
         super(BeamAxes, self).__init__(header)
-
         # Check for custom irregular grid format.
         # Currently only implemented for FREQ dimension.
         irregular_grid = np.asarray([
@@ -82,9 +101,10 @@ class BeamAxes(FitsAxes):
                 self._grid[i] = np.deg2rad(self._grid[i])
 
             # Flip the sign and correct the ctype if necessary
-            if self._ctype[i].startswith('-'):
-                self._ctype[i] = self._ctype[i][1]
-                self._sign[i] = -1.0
+            ax, sgn = axis_and_sign(self._ctype[i])
+
+            self._ctype[i] = ax
+            self._sign[i] = sgn
 
     @property
     def ndims(self):
@@ -123,7 +143,7 @@ class BeamAxes(FitsAxes):
         return self._sign
 
 
-def beam_grids(header):
+def beam_grids(header, l_axis=None, m_axis=None):
     """
     Extracts the FITS indices and grids for the beam dimensions
     in the supplied FITS ``header``.
@@ -143,6 +163,15 @@ def beam_grids(header):
     ----------
     header : :class:`~astropy.io.fits.Header` or dict
         FITS header object.
+    l_axis : str
+        FITS axis interpreted as the L axis. `L` and `X` are
+        sensible values here. `-L` will invert the coordinate
+        system on that axis.
+    m_axis : str
+        FITS axis interpreted as the M axis. `M` and `Y` are
+        sensible values here. `-M` will invert the coordinate
+        system on that axis.
+
 
     Returns
     -------
@@ -176,8 +205,8 @@ def beam_grids(header):
         raise ValueError("No FREQ axis present in FITS header")
 
     # Sign of L/M axes?
-    l_sign = beam_axes.sign[l]
-    m_sign = beam_axes.sign[m]
+    l_sign = beam_axes.sign[l] * axis_and_sign(l_axis, "L")[1]
+    m_sign = beam_axes.sign[m] * axis_and_sign(m_axis, "M")[1]
 
     # Obtain axes grids
     l_grid = beam_axes.grid[l]

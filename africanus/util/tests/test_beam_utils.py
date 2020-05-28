@@ -117,13 +117,26 @@ def test_fits_axes(fits_header):
     assert np.all(g == beam_axes.grid[2])
 
 
-def test_beam_grids(fits_header):
-    from africanus.util.beams import beam_grids
+@pytest.mark.parametrize("l_axis", [None, "L", "-L", "X", "-X"])
+@pytest.mark.parametrize("m_axis", [None, "M", "-M", "Y", "-Y"])
+@pytest.mark.parametrize("header_l", ["L", "-L", "X", "-X"])
+@pytest.mark.parametrize("header_m", ["M", "-M", "Y", "-Y"])
+def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
+    from africanus.util.beams import beam_grids, axis_and_sign
 
     hdr = fits_header
+    hdr['CTYPE1'] = header_l
+    hdr['CTYPE2'] = header_m
+
+    hl_ax, hl_sgn = axis_and_sign(header_l)
+    hm_ax, hm_sgn = axis_and_sign(header_m)
+
+    l_ax, l_sgn = axis_and_sign(l_axis, "L")
+    m_ax, m_sgn = axis_and_sign(m_axis, "M")
 
     # Extract l, m and frequency axes and grids
-    (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header)
+    (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header,
+                                                             l_axis, m_axis)
 
     # Check expected L
     crval = hdr['CRVAL%d' % l]
@@ -133,6 +146,8 @@ def test_beam_grids(fits_header):
 
     exp_l = (R - crpix)*cdelt + crval
     exp_l = np.deg2rad(exp_l)
+    if hl_sgn * l_sgn == -1.0:
+        exp_l = np.flipud(exp_l)
 
     assert np.allclose(exp_l, l_grid)
 
@@ -141,11 +156,10 @@ def test_beam_grids(fits_header):
     crpix = hdr['CRPIX%d' % m] - 1  # C-indexing
     R = np.arange(0.0, float(hdr['NAXIS%d' % m]))
 
-    # Check expected M. It's -M in the FITS header
-    # so there's a flip in direction here
     exp_m = (R - crpix)*cdelt + crval
     exp_m = np.deg2rad(exp_m)
-    exp_m = np.flipud(exp_m)
+    if hm_sgn * m_sgn == -1.0:
+        exp_m = np.flipud(exp_m)
 
     assert np.allclose(exp_m, m_grid)
 
