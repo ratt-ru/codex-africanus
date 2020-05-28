@@ -116,28 +116,16 @@ def test_fits_axes(fits_header):
     assert_array_equal(g, beam_axes.grid[2])
 
 
-def _cube_extents(axes, l_ax, m_ax, f_ax, l_sign, m_sign):
-    # List of (lower, upper) extent tuples for the given dimensions
-    it = list(zip((l_ax-1, m_ax-1, f_ax-1), (l_sign, m_sign, 1.0)))
-    # Get the extents, flipping the sign on either end if required
-    extent_list = [tuple(s*e for e in axes.extents[i]) for i, s in it]
-
-    # Return [[l_low, u_low, f_low], [l_high, u_high, f_high]]
-    return extent_list
-
-
 @pytest.mark.parametrize("m_axis", [None, "M", "-M", "Y", "-Y"])
 @pytest.mark.parametrize("l_axis", [None, "L", "-L", "X", "-X"])
 @pytest.mark.parametrize("header_m", ["M", "Y"])
 @pytest.mark.parametrize("header_l", ["L", "X"])
 def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
-    from africanus.util.beams import beam_grids, axis_and_sign, MBFitsAxes
+    from africanus.util.beams import beam_grids, axis_and_sign
 
     hdr = fits_header
     hdr['CTYPE1'] = header_l
     hdr['CTYPE2'] = header_m
-
-    mb_axes = MBFitsAxes(hdr)
 
     hl_ax, hl_sgn = axis_and_sign(header_l)
     hm_ax, hm_sgn = axis_and_sign(header_m)
@@ -148,15 +136,6 @@ def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
     # Extract l, m and frequency axes and grids
     (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header,
                                                              l_axis, m_axis)
-
-    extents = _cube_extents(mb_axes, l, m, freq, l_sgn, m_sgn)
-
-    # Codex Beam Axes extents match Montblanc Beam Axes extents
-    assert_array_almost_equal(np.deg2rad(extents[0]),
-                              [l_grid[0], l_grid[-1]])
-
-    assert_array_almost_equal(np.deg2rad(extents[1]),
-                              [m_grid[0], m_grid[-1]])
 
     # Check expected L
     assert hdr['CTYPE%d' % l] == header_l
