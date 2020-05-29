@@ -4,8 +4,14 @@
 from numba import types
 import numpy as np
 
+from africanus.config import config
 from africanus.util.numba import generated_jit, njit
 from africanus.util.docs import DocstringTemplate
+
+
+cfg = config.numba_parallel('model.spectral_model.parallel')
+parallel = cfg.get('parallel', False)
+axes = cfg.get('axes', set(('source', )) if parallel else ())
 
 
 def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
@@ -57,9 +63,11 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
 
 def pol_getter_factory(npoldims):
     if npoldims == 0:
+        @njit
         def impl(pol_shape):
             return 1
     else:
+        @njit
         def impl(pol_shape):
             npols = 1
 
@@ -68,32 +76,37 @@ def pol_getter_factory(npoldims):
 
             return npols
 
-    return njit(nogil=True, cache=True)(impl)
+    return impl
 
 
 def promote_base_factory(is_base_list):
     if is_base_list:
+        @njit
         def impl(base, npol):
             return base + [base[-1]] * (npol - len(base))
     else:
+        @njit
         def impl(base, npol):
             return [base] * npol
 
-    return njit(nogil=True, cache=True)(impl)
+    return impl
 
 
 def add_pol_dim_factory(have_pol_dim):
     if have_pol_dim:
+        @njit
         def impl(array):
             return array
     else:
+        @njit
         def impl(array):
             return array.reshape(array.shape + (1,))
 
-    return njit(nogil=True, cache=True)(impl)
+    return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True,
+               cache=not parallel, parallel=parallel)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
@@ -108,30 +121,32 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     promote_base = promote_base_factory(is_base_list)
 
     if isinstance(base, types.scalars.Integer):
+        @njit
         def is_std(base):
             return base == 0
 
+        @njit
         def is_log(base):
             return base == 1
 
+        @njit
         def is_log10(base):
             return base == 2
 
     elif isinstance(base, types.misc.UnicodeType):
+        @njit
         def is_std(base):
             return base == "std"
 
+        @njit
         def is_log(base):
             return base == "log"
 
+        @njit
         def is_log10(base):
             return base == "log10"
     else:
         raise TypeError("base '%s' should be a string or integer" % base)
-
-    is_std = njit(nogil=True, cache=True)(is_std)
-    is_log = njit(nogil=True, cache=True)(is_log)
-    is_log10 = njit(nogil=True, cache=True)(is_log10)
 
     npoldims = stokes.ndim - 1
     pol_get_fn = pol_getter_factory(npoldims)
@@ -140,7 +155,16 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     if spi.ndim - 2 != npoldims:
         raise ValueError("Dimensions on stokes and spi don't agree")
 
+    from numba import prange, set_num_threads, get_num_threads
+    threads = cfg.get('threads', None) if parallel else None
+    srange = prange if parallel and 'source' in axes else range
+    crange = prange if parallel and 'chan' in axes else range
+
     def impl(stokes, spi, ref_freq, frequency, base=0):
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
+
         nsrc = stokes.shape[0]
         nchan = frequency.shape[0]
         nspi = spi.shape[1]
@@ -161,12 +185,13 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
         # TODO(sjperkins)
         # Polarisation + associated base on the outer loop
         # The output cache patterns could be improved.
-        for p, b in enumerate(list_base[:npol]):
+        for p in range(npol):
+            b = list_base[p]
             if is_std(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = frequency[f] / rf
                         spec_model = estokes[s, p]
 
@@ -177,10 +202,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                         spectral_model[s, f, p] = spec_model
 
             elif is_log(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
                         spec_model = np.log(estokes[s, p])
 
@@ -191,10 +216,10 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
                         spectral_model[s, f, p] = np.exp(spec_model)
 
             elif is_log10(b):
-                for s in range(nsrc):
+                for s in srange(nsrc):
                     rf = ref_freq[s]
 
-                    for f in range(nchan):
+                    for f in crange(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
                         spec_model = np.log10(estokes[s, p])
 
@@ -207,7 +232,11 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
             else:
                 raise ValueError("Invalid base")
 
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
+
         out_shape = (stokes.shape[0], frequency.shape[0]) + stokes.shape[1:]
+
         return spectral_model.reshape(out_shape)
 
     return impl

@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from functools import reduce
-
 import numpy as np
+
+from africanus.config import config
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import njit
+from africanus.util.numba import njit, generated_jit
+
+cfg = config.numba_parallel("rime.beam_cube_dde.parallel")
+parallel = cfg.get('parallel', False)
+axes = cfg.get("axes", set(('source', 'row')) if parallel else set())
 
 
 @njit(nogil=True, cache=True)
@@ -55,184 +59,208 @@ def freq_grid_interp(frequency, beam_freq_map):
     return freq_data
 
 
-@njit(nogil=True, cache=True)
+@generated_jit(nopython=not parallel, nogil=True,
+               cache=not parallel, parallel=parallel)
 def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                   lm, parallactic_angles, point_errors, antenna_scaling,
                   frequency):
 
-    nsrc = lm.shape[0]
-    ntime, nants = parallactic_angles.shape
-    nchan = frequency.shape[0]
-    beam_lw, beam_mh, beam_nud = beam.shape[:3]
-    corrs = beam.shape[3:]
+    from numba import prange, set_num_threads, get_num_threads, literal_unroll
 
-    if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
-        raise ValueError("beam_lw, beam_mh and beam_nud must be >= 2")
+    rrange = prange if parallel and 'row' in axes else range
+    threads = cfg.get('threads', None) if parallel else None
 
-    # Flatten correlations
-    ncorrs = reduce(lambda x, y: x*y, corrs, 1)
+    def impl(beam, beam_lm_extents, beam_freq_map,
+             lm, parallactic_angles, point_errors, antenna_scaling,
+             frequency):
 
-    lower_l, upper_l = beam_lm_extents[0]
-    lower_m, upper_m = beam_lm_extents[1]
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
 
-    ex_dtype = beam_lm_extents.dtype
+        nsrc = lm.shape[0]
+        ntime, nants = parallactic_angles.shape
+        nchan = frequency.shape[0]
+        beam_lw, beam_mh, beam_nud = beam.shape[:3]
+        corrs = beam.shape[3:]
 
-    # Maximum l and m indices in float and int
-    lmaxf = ex_dtype.type(beam_lw - 1)
-    mmaxf = ex_dtype.type(beam_mh - 1)
-    lmaxi = beam_lw - 1
-    mmaxi = beam_mh - 1
+        if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
+            raise ValueError("beam_lw, beam_mh and beam_nud "
+                             "must be >= 2")
 
-    lscale = lmaxf / (upper_l - lower_l)
-    mscale = mmaxf / (upper_m - lower_m)
+        # Flatten correlations
+        ncorrs = 1
 
-    one = ex_dtype.type(1)
-    zero = ex_dtype.type(0)
+        for c in literal_unroll(corrs):
+            ncorrs *= c
 
-    # Flatten the beam on correlation
-    fbeam = beam.reshape((beam_lw, beam_mh, beam_nud, ncorrs))
+        lower_l, upper_l = beam_lm_extents[0]
+        lower_m, upper_m = beam_lm_extents[1]
 
-    # Allocate output array with correlations flattened
-    fjones = np.empty((nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
+        ex_dtype = beam_lm_extents.dtype
 
-    # Compute frequency interpolation stuff
-    freq_data = freq_grid_interp(frequency, beam_freq_map)
+        # Maximum l and m indices in float and int
+        lmaxf = ex_dtype.type(beam_lw - 1)
+        mmaxf = ex_dtype.type(beam_mh - 1)
+        lmaxi = beam_lw - 1
+        mmaxi = beam_mh - 1
 
-    corr_sum = np.zeros((ncorrs,), dtype=beam.dtype)
-    absc_sum = np.zeros((ncorrs,), dtype=beam.real.dtype)
-    beam_scratch = np.zeros((ncorrs,), dtype=beam.dtype)
+        lscale = lmaxf / (upper_l - lower_l)
+        mscale = mmaxf / (upper_m - lower_m)
 
-    for t in range(ntime):
-        for a in range(nants):
-            sin_pa = np.sin(parallactic_angles[t, a])
-            cos_pa = np.cos(parallactic_angles[t, a])
+        one = ex_dtype.type(1)
+        zero = ex_dtype.type(0)
 
-            for s in range(nsrc):
-                # Extract lm coordinates
-                l, m = lm[s]
+        # Flatten the beam on correlation
+        fbeam = beam.reshape((beam_lw, beam_mh, beam_nud, ncorrs))
 
-                for f in range(nchan):
-                    # Unpack frequency data
-                    freq_scale = freq_data[f, 0]
-                    # lower and upper frequency weights
-                    nud = freq_data[f, 1]
-                    inv_nud = 1.0 - nud
-                    # lower and upper frequency grid position
-                    gc0 = np.int32(freq_data[f, 2])
-                    gc1 = gc0 + 1
+        # Allocate output array with correlations flattened
+        fjones = np.empty(
+            (nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
 
-                    # Apply any frequency scaling
-                    sl = l * freq_scale
-                    sm = m * freq_scale
+        # Compute frequency interpolation stuff
+        freq_data = freq_grid_interp(frequency, beam_freq_map)
 
-                    # Add pointing errors
-                    tl = sl + point_errors[t, a, f, 0]
-                    tm = sm + point_errors[t, a, f, 1]
+        corr_sum = np.zeros((ncorrs,), dtype=beam.dtype)
+        absc_sum = np.zeros((ncorrs,), dtype=beam.real.dtype)
+        beam_scratch = np.zeros((ncorrs,), dtype=beam.dtype)
 
-                    # Rotate lm coordinate angle
-                    vl = tl*cos_pa - tm*sin_pa
-                    vm = tl*sin_pa + tm*cos_pa
+        for t in rrange(ntime):
+            for a in rrange(nants):
+                sin_pa = np.sin(parallactic_angles[t, a])
+                cos_pa = np.cos(parallactic_angles[t, a])
 
-                    # Scale by antenna scaling
-                    vl *= antenna_scaling[a, f, 0]
-                    vm *= antenna_scaling[a, f, 1]
+                for s in range(nsrc):
+                    # Extract lm coordinates
+                    l, m = lm[s]
 
-                    # Shift into the cube coordinate system
-                    vl = lscale*(vl - lower_l)
-                    vm = mscale*(vm - lower_m)
+                    for f in range(nchan):
+                        # Unpack frequency data
+                        freq_scale = freq_data[f, 0]
+                        # lower and upper frequency weights
+                        nud = freq_data[f, 1]
+                        inv_nud = 1.0 - nud
+                        # lower and upper frequency grid position
+                        gc0 = np.int32(freq_data[f, 2])
+                        gc1 = gc0 + 1
 
-                    # Clamp the coordinates to the edges of the cube
-                    vl = max(zero, min(vl, lmaxf))
-                    vm = max(zero, min(vm, mmaxf))
+                        # Apply any frequency scaling
+                        sl = l * freq_scale
+                        sm = m * freq_scale
 
-                    # Snap to the lower grid coordinates
-                    gl0 = np.int32(np.floor(vl))
-                    gm0 = np.int32(np.floor(vm))
+                        # Add pointing errors
+                        tl = sl + point_errors[t, a, f, 0]
+                        tm = sm + point_errors[t, a, f, 1]
 
-                    # Snap to the upper grid coordinates
-                    gl1 = min(gl0 + 1, lmaxi)
-                    gm1 = min(gm0 + 1, mmaxi)
+                        # Rotate lm coordinate angle
+                        vl = tl*cos_pa - tm*sin_pa
+                        vm = tl*sin_pa + tm*cos_pa
 
-                    # Difference between grid and offset coordinates
-                    ld = vl - gl0
-                    md = vm - gm0
+                        # Scale by antenna scaling
+                        vl *= antenna_scaling[a, f, 0]
+                        vm *= antenna_scaling[a, f, 1]
 
-                    # Zero accumulation arrays
-                    corr_sum[:] = 0
-                    absc_sum[:] = 0
+                        # Shift into the cube coordinate system
+                        vl = lscale*(vl - lower_l)
+                        vm = mscale*(vm - lower_m)
 
-                    # Accumulate lower cube correlations
-                    beam_scratch[:] = fbeam[gl0, gm0, gc0, :]
-                    weight = (one - ld)*(one - md)*nud
+                        # Clamp the coordinates to the edges of the cube
+                        vl = max(zero, min(vl, lmaxf))
+                        vm = max(zero, min(vm, mmaxf))
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        # Snap to the lower grid coordinates
+                        gl0 = np.int32(np.floor(vl))
+                        gm0 = np.int32(np.floor(vm))
 
-                    beam_scratch[:] = fbeam[gl1, gm0, gc0, :]
-                    weight = ld*(one - md)*nud
+                        # Snap to the upper grid coordinates
+                        gl1 = min(gl0 + 1, lmaxi)
+                        gm1 = min(gm0 + 1, mmaxi)
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        # Difference between grid and offset coordinates
+                        ld = vl - gl0
+                        md = vm - gm0
 
-                    beam_scratch[:] = fbeam[gl0, gm1, gc0, :]
-                    weight = (one - ld)*md*nud
+                        # Zero accumulation arrays
+                        corr_sum[:] = 0
+                        absc_sum[:] = 0
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        # Accumulate lower cube correlations
+                        beam_scratch[:] = fbeam[gl0, gm0, gc0, :]
+                        weight = (one - ld)*(one - md)*nud
 
-                    beam_scratch[:] = fbeam[gl1, gm1, gc0, :]
-                    weight = ld*md*nud
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        beam_scratch[:] = fbeam[gl1, gm0, gc0, :]
+                        weight = ld*(one - md)*nud
 
-                    # Accumulate upper cube correlations
-                    beam_scratch[:] = fbeam[gl0, gm0, gc1, :]
-                    weight = (one - ld)*(one - md)*inv_nud
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        beam_scratch[:] = fbeam[gl0, gm1, gc0, :]
+                        weight = (one - ld)*md*nud
 
-                    beam_scratch[:] = fbeam[gl1, gm0, gc1, :]
-                    weight = ld*(one - md)*inv_nud
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        beam_scratch[:] = fbeam[gl1, gm1, gc0, :]
+                        weight = ld*md*nud
 
-                    beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
-                    weight = (one - ld)*md*inv_nud
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        # Accumulate upper cube correlations
+                        beam_scratch[:] = fbeam[gl0, gm0, gc1, :]
+                        weight = (one - ld)*(one - md)*inv_nud
 
-                    beam_scratch[:] = fbeam[gl1, gm1, gc1, :]
-                    weight = ld*md*inv_nud
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                    for c in range(ncorrs):
-                        absc_sum[c] += weight * np.abs(beam_scratch[c])
-                        corr_sum[c] += weight * beam_scratch[c]
+                        beam_scratch[:] = fbeam[gl1, gm0, gc1, :]
+                        weight = ld*(one - md)*inv_nud
 
-                    for c in range(ncorrs):
-                        # Added all correlations, normalise
-                        div = np.abs(corr_sum[c])
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-                        if div == 0.0:
-                            # This case probably works out to a zero assign
-                            corr_sum[c] *= absc_sum[c]
-                        else:
-                            corr_sum[c] *= absc_sum[c] / div
+                        beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
+                        weight = (one - ld)*md*inv_nud
 
-                    # Assign normalised values
-                    fjones[s, t, a, f, :] = corr_sum
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
 
-    return fjones.reshape((nsrc, ntime, nants, nchan) + corrs)
+                        beam_scratch[:] = fbeam[gl1, gm1, gc1, :]
+                        weight = ld*md*inv_nud
+
+                        for c in range(ncorrs):
+                            absc_sum[c] += weight * np.abs(beam_scratch[c])
+                            corr_sum[c] += weight * beam_scratch[c]
+
+                        for c in range(ncorrs):
+                            # Added all correlations, normalise
+                            div = np.abs(corr_sum[c])
+
+                            if div == 0.0:
+                                # This case probably works out to a zero assign
+                                corr_sum[c] *= absc_sum[c]
+                            else:
+                                corr_sum[c] *= absc_sum[c] / div
+
+                        # Assign normalised values
+                        fjones[s, t, a, f, :] = corr_sum
+
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
+
+        return fjones.reshape((nsrc, ntime, nants, nchan) + corrs)
+
+    return impl
 
 
 BEAM_CUBE_DOCS = DocstringTemplate(

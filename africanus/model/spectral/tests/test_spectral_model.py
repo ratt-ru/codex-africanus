@@ -5,9 +5,6 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.spectral.spec_model import (spectral_model,
-                                                 numpy_spectral_model)
-
 
 @pytest.fixture
 def flux():
@@ -44,7 +41,22 @@ def spi():
 @pytest.mark.parametrize("base", [0, 1, 2, "std", "log", "log10",
                                   ["log", "std", "std", "std"]])
 @pytest.mark.parametrize("npol", [0, 1, 2, 4])
-def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
+@pytest.mark.parametrize("cfg_parallel", [
+    ("africanus.model.spectral.spec_model",
+        {"model.spectral_model.parallel": True}),
+    ("africanus.model.spectral.spec_model", {
+        "model.spectral_model.parallel": {'threads': 2}}),
+    ("africanus.model.spectral.spec_model",
+        {"model.spectral_model.parallel": False}),
+    ], ids=["parallel", "parallel-2", "serial"], indirect=True)
+def test_spectral_model_multiple_spi(flux, ref_freq, frequency,
+                                     base, npol, cfg_parallel):
+
+    from africanus.model.spectral.spec_model import (spectral_model,
+                                                     numpy_spectral_model)
+
+    assert spectral_model.targetoptions['parallel'] == cfg_parallel
+
     nsrc = 10
     nchan = 16
     nspi = 6

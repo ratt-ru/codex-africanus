@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Parallel Numba RIME Implementation (:pr:`186`)
 * Update classifiers and correct license in setup.py to BSD3
 
 0.2.4 (2020-05-29)
@@ -18,6 +19,7 @@ X.Y.Z (YYYY-MM-DD)
 
 0.2.3 (2020-05-14)
 ------------------
+
 * Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
 * Depend on pytest-flake8 >= 1.0.6 (:pr:`187`, :pr:`188`)
 * MeqTrees Comparison Script Updates (:pr:`160`)

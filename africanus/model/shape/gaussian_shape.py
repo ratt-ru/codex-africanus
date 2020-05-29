@@ -3,12 +3,18 @@
 
 import numpy as np
 
+from africanus.config import config
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import generated_jit
 from africanus.constants import c as lightspeed
 
+cfg = config.numba_parallel('model.shape.gaussian.parallel')
+parallel = cfg.get('parallel', False)
+axes = cfg.get('axes', set(('source', 'row')) if parallel else ())
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+
+@generated_jit(nopython=True, nogil=True,
+               cache=not parallel, parallel=parallel)
 def gaussian(uvw, frequency, shape_params):
     # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
@@ -18,7 +24,16 @@ def gaussian(uvw, frequency, shape_params):
     dtype = np.result_type(*(np.dtype(a.dtype.name) for
                              a in (uvw, frequency, shape_params)))
 
+    from numba import prange, set_num_threads, get_num_threads
+    srange = prange if parallel and 'source' in axes else range
+    rrange = prange if parallel and 'row' in axes else range
+    threads = cfg.get("threads", None) if parallel else None
+
     def impl(uvw, frequency, shape_params):
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
+
         nsrc = shape_params.shape[0]
         nrow = uvw.shape[0]
         nchan = frequency.shape[0]
@@ -30,7 +45,7 @@ def gaussian(uvw, frequency, shape_params):
         for f in range(frequency.shape[0]):
             scaled_freq[f] = frequency[f] * gauss_scale
 
-        for s in range(shape_params.shape[0]):
+        for s in srange(shape_params.shape[0]):
             emaj, emin, angle = shape_params[s]
 
             # Convert to l-projection, m-projection, ratio
@@ -38,7 +53,7 @@ def gaussian(uvw, frequency, shape_params):
             em = emaj * np.cos(angle)
             er = emin / (1.0 if emaj == 0.0 else emaj)
 
-            for r in range(uvw.shape[0]):
+            for r in rrange(uvw.shape[0]):
                 u, v, w = uvw[r]
 
                 u1 = (u*em - v*el)*er
@@ -49,6 +64,9 @@ def gaussian(uvw, frequency, shape_params):
                     fv1 = v1*scaled_freq[f]
 
                     shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
+
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
 
         return shape
 

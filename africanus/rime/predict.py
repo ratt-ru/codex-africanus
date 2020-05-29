@@ -3,9 +3,13 @@
 
 import numpy as np
 
+from africanus.config import config
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
+cfg = config.numba_parallel("rime.predict_vis.parallel")
+parallel = cfg.get('parallel', False)
+axes = cfg.get("axes", set(('source', 'row')) if parallel else set())
 
 JONES_NOT_PRESENT = 0
 JONES_1_OR_2 = 1
@@ -189,10 +193,15 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     """ Factory function generating a function that sums coherencies """
     jones_mul = jones_mul_factory(have_ddes, have_coh, jones_type, True)
 
+    from numba import prange
+
+    srange = prange if 'source' in axes else range
+    rrange = prange if 'row' in axes else range
+
     if have_ddes and have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-            for s in range(a1j.shape[0]):
-                for r in range(time.shape[0]):
+            for s in srange(a1j.shape[0]):
+                for r in rrange(time.shape[0]):
                     ti = time[r] - tmin
                     a1 = ant1[r]
                     a2 = ant2[r]
@@ -205,8 +214,8 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
 
     elif have_ddes and not have_coh:
         def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-            for s in range(a1j.shape[0]):
-                for r in range(time.shape[0]):
+            for s in srange(a1j.shape[0]):
+                for r in rrange(time.shape[0]):
                     ti = time[r] - tmin
                     a1 = ant1[r]
                     a2 = ant2[r]
@@ -219,16 +228,16 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     elif not have_ddes and have_coh:
         if jones_type == JONES_2X2:
             def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-                for s in range(blj.shape[0]):
-                    for r in range(blj.shape[1]):
+                for s in srange(blj.shape[0]):
+                    for r in rrange(blj.shape[1]):
                         for f in range(blj.shape[2]):
                             for c1 in range(blj.shape[3]):
                                 for c2 in range(blj.shape[4]):
                                     out[r, f, c1, c2] += blj[s, r, f, c1, c2]
         else:
             def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
-                for s in range(blj.shape[0]):
-                    for r in range(blj.shape[1]):
+                for s in srange(blj.shape[0]):
+                    for r in rrange(blj.shape[1]):
                         for f in range(blj.shape[2]):
                             for c in range(blj.shape[3]):
                                 out[r, f, c] += blj[s, r, f, c]
@@ -298,16 +307,20 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
     Factory function returning a function that applies
     Direction Independent Effects
     """
+    from numba import prange
 
     # We always "have visibilities", (the output array)
     jones_mul = jones_mul_factory(have_dies, True, jones_type, False)
+
+    # time is rowlike
+    trange = prange if 'row' in axes else range
 
     if have_dies and have_bvis:
         def apply_dies(time, ant1, ant2,
                        die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
-            for r in range(time.shape[0]):
+            for r in trange(time.shape[0]):
                 ti = time[r] - tmin
                 a1 = ant1[r]
                 a2 = ant2[r]
@@ -322,7 +335,7 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
                        die1_jones, die2_jones,
                        tmin, out):
             # Iterate over rows
-            for r in range(time.shape[0]):
+            for r in trange(time.shape[0]):
                 ti = time[r] - tmin
                 a1 = ant1[r]
                 a2 = ant2[r]
@@ -426,7 +439,8 @@ def predict_checks(time_index, antenna1, antenna2,
             have_dies1, have_bvis, have_dies2)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@generated_jit(nopython=True, nogil=True,
+               cache=not parallel, parallel=parallel)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
@@ -474,9 +488,16 @@ def predict_vis(time_index, antenna1, antenna2,
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
+    from numba import set_num_threads, get_num_threads
+    threads = cfg.get("threads", None) if parallel else None
+
     def _predict_vis_fn(time_index, antenna1, antenna2,
                         dde1_jones=None, source_coh=None, dde2_jones=None,
                         die1_jones=None, base_vis=None, die2_jones=None):
+
+        if parallel and threads is not None:
+            prev_threads = get_num_threads()
+            set_num_threads(threads)
 
         # Get the output shape
         out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
@@ -497,6 +518,9 @@ def predict_vis(time_index, antenna1, antenna2,
         apply_dies_fn(time_index, antenna1, antenna2,
                       die1_jones, die2_jones,
                       tmin, out)
+
+        if parallel and threads is not None:
+            set_num_threads(prev_threads)
 
         return out
 
