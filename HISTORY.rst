@@ -4,11 +4,15 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Update classifiers and correct license in setup.py to BSD3
+
+0.2.4 (2020-05-29)
+------------------
 * Support overriding the l and m axis sign in beam_grids (:pr:`199`)
 * Upgrade to python-casacore 3.3.1 (:pr:`197`)
 * Upgrade to jax 0.1.68 and jaxlib 0.1.47 (:pr:`197`)
 * Upgrade to scipy 1.4.0 (:pr:`197`)
-* Use github workflows (:pr:`196`, :pr:`197`, :pr:`198`)
+* Use github workflows (:pr:`196`, :pr:`197`, :pr:`198`, :pr:`199`)
 * Make CASA parallactic angles thread-safe (:pr:`195`)
 * Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
 
