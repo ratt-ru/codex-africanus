@@ -31,6 +31,20 @@ class FitsAxes(object):
                        for n in axr]
 
 
+def axis_and_sign(ax_str, default=None):
+    """ Extract axis and sign from given axis string """
+    if not ax_str:
+        if default:
+            return default, 1.0
+
+        raise ValueError("Need default if ax_str is None")
+
+    if not isinstance(ax_str, str):
+        raise TypeError("ax_str must be a string")
+
+    return (ax_str[1:], -1.0) if ax_str[0] == '-' else (ax_str, 1.0)
+
+
 class BeamAxes(FitsAxes):
     """
     Describes the FITS axes of a BEAM cube.
@@ -45,11 +59,15 @@ class BeamAxes(FitsAxes):
     Inversions of the L, M, X and Y grids are supported
     if a minus sign is detected before the CUNIT in
     the FITS header.
+
+    Parameters
+    ----------
+    header : dict, optional
+        FITS file header
     """
 
     def __init__(self, header=None):
         super(BeamAxes, self).__init__(header)
-
         # Check for custom irregular grid format.
         # Currently only implemented for FREQ dimension.
         irregular_grid = np.asarray([
@@ -66,12 +84,7 @@ class BeamAxes(FitsAxes):
             R = np.arange(0.0, float(self._naxis[i]))
             return (R - self._crpix[i])*self._cdelt[i] + self._crval[i]
 
-        # Set up the grid
-        self._grid = [_regular_grid(i) if not self._irreg[i]
-                      else np.asarray(irregular_grid[i])
-                      for i in range(self._ndims)]
-
-        self._sign = [1.0]*self._ndims
+        self._grid = [None]*self._ndims
 
         for i in range(self._ndims):
             # Convert any degree axes to radians
@@ -79,12 +92,10 @@ class BeamAxes(FitsAxes):
                 self._cunit[i] = 'RAD'
                 self._crval[i] = np.deg2rad(self._crval[i])
                 self._cdelt[i] = np.deg2rad(self._cdelt[i])
-                self._grid[i] = np.deg2rad(self._grid[i])
 
-            # Flip the sign and correct the ctype if necessary
-            if self._ctype[i].startswith('-'):
-                self._ctype[i] = self._ctype[i][1]
-                self._sign[i] = -1.0
+            # Set up the grid
+            self._grid[i] = (_regular_grid(i) if not self._irreg[i]
+                             else np.asarray(irregular_grid[i]))
 
     @property
     def ndims(self):
@@ -118,12 +129,8 @@ class BeamAxes(FitsAxes):
     def grid(self):
         return self._grid
 
-    @property
-    def sign(self):
-        return self._sign
 
-
-def beam_grids(header):
+def beam_grids(header, l_axis=None, m_axis=None):
     """
     Extracts the FITS indices and grids for the beam dimensions
     in the supplied FITS ``header``.
@@ -143,6 +150,15 @@ def beam_grids(header):
     ----------
     header : :class:`~astropy.io.fits.Header` or dict
         FITS header object.
+    l_axis : str
+        FITS axis interpreted as the L axis. `L` and `X` are
+        sensible values here. `-L` will invert the coordinate
+        system on that axis.
+    m_axis : str
+        FITS axis interpreted as the M axis. `M` and `Y` are
+        sensible values here. `-M` will invert the coordinate
+        system on that axis.
+
 
     Returns
     -------
@@ -176,17 +192,13 @@ def beam_grids(header):
         raise ValueError("No FREQ axis present in FITS header")
 
     # Sign of L/M axes?
-    l_sign = beam_axes.sign[l]
-    m_sign = beam_axes.sign[m]
+    l_sign = axis_and_sign(l_axis, "L")[1]
+    m_sign = axis_and_sign(m_axis, "M")[1]
 
     # Obtain axes grids
-    l_grid = beam_axes.grid[l]
-    m_grid = beam_axes.grid[m]
+    l_grid = beam_axes.grid[l] * l_sign
+    m_grid = beam_axes.grid[m] * m_sign
     freq_grid = beam_axes.grid[freq]
-
-    # flip the grid around if signs are different
-    l_grid = np.flipud(l_grid) if l_sign == -1.0 else l_grid
-    m_grid = np.flipud(m_grid) if m_sign == -1.0 else m_grid
 
     return ((l+1, l_grid), (m+1, m_grid), (freq+1, freq_grid))
 
