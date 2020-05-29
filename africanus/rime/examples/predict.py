@@ -133,6 +133,8 @@ def create_parser():
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-mc", "--model-chunks", type=int, default=10)
     p.add_argument("-b", "--beam", default=None)
+    p.add_argument("-l", "--l-axis", default="L")
+    p.add_argument("-m", "--m-axis", default="M")
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
@@ -140,7 +142,7 @@ def create_parser():
 
 
 @lru_cache(maxsize=16)
-def load_beams(beam_file_schema, corr_types):
+def load_beams(beam_file_schema, corr_types, l_axis, m_axis):
 
     class FITSFile(object):
         """ Exists so that fits file is closed when last ref is gc'd """
@@ -193,7 +195,9 @@ def load_beams(beam_file_schema, corr_types):
         raise ValueError("FITS must have exactly three axes. "
                          "L or X, M or Y and FREQ. NAXIS != 3")
 
-    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
+    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header,
+                                                                  l_axis,
+                                                                  m_axis)
 
     # Shape of each correlation
     shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
@@ -425,7 +429,8 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
                        dtype=dtype)
 
     # Load the beam information
-    beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
+    beam, lm_ext, freq_map = load_beams(args.beam, corr_type,
+                                        args.l_axis, args.m_axis)
 
     # Introduce the correlation axis
     beam = beam.reshape(beam.shape[:3] + (2, 2))
