@@ -27,10 +27,10 @@ if not on_rtd:
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
     'dask': ['dask[array] >= 1.1.0'],
-    'jax': ['jax == 0.1.27', 'jaxlib == 0.1.14'],
-    'scipy': ['scipy >= 1.0.0'],
+    'jax': ['jax == 0.1.68', 'jaxlib == 0.1.47'],
+    'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
-    'python-casacore': ['python-casacore >= 3.2.0'],
+    'python-casacore': ['python-casacore >= 3.3.1'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
@@ -62,13 +62,14 @@ setup(
     author="Simon Perkins",
     author_email='sperkins@ska.ac.za',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     description="Radio Astronomy Building Blocks",
     entry_points={
@@ -78,7 +79,7 @@ setup(
     },
     extras_require=extras_require,
     install_requires=requirements,
-    license="GNU General Public License v2",
+    license="BSD-3-Clause",
     long_description=readme,
     long_description_content_type='text/x-rst',
     include_package_data=True,
@@ -90,6 +91,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.2.3',
+    version='0.2.4',
     zip_safe=False,
 )
