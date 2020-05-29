@@ -16,7 +16,6 @@ X.Y.Z (YYYY-MM-DD)
 * Use github workflows (:pr:`196`, :pr:`197`, :pr:`198`, :pr:`199`)
 * Make CASA parallactic angles thread-safe (:pr:`195`)
 * Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
->>>>>>> master
 
 0.2.3 (2020-05-14)
 ------------------
