@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Update classifiers and correct license in setup.py to BSD3
+
 0.2.4 (2020-05-29)
 ------------------
 * Support overriding the l and m axis sign in beam_grids (:pr:`199`)
