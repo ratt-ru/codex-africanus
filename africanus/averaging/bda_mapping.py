@@ -275,24 +275,6 @@ class Binner(object):
         self.tbin += 1
 
         return out
-        # s = np.searchsorted(spw_chan_width, max_𝞓𝝼, side='right') - 1
-        # assert spw_chan_width[s] <= max_𝞓𝝼
-
-        # start_chan = 0
-        # chan_bin = 0
-        # bin_𝞓𝝼 = chan_width.dtype.type(0)
-
-        # chan_map = np.empty((chan_width.shape[0],), dtype=np.int32)
-        # chan_map[0] = chan_bin
-
-        # for c in range(1, chan_freq.shape[0]):
-        #     bin_𝞓𝝼 = chan_width[c] - chan_width[start_chan]
-
-        #     if bin_𝞓𝝼 > spw_chan_width[s]:
-        #         start_chan = c
-        #         chan_bin += 1
-
-        #     chan_map[c] = chan_bin
 
 
 RowMapOutput = namedtuple("RowMapOutput",
