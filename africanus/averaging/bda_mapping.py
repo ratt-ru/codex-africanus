@@ -503,6 +503,13 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             if out_row >= out_rows:
                 raise RowMapperError("out_row >= out_rows")
 
+            # Handle output row flagging
+            if flag_row is not None and flag_row[in_row] == 0 and flagged:
+                raise RowMapperError("Unflagged input row "
+                                        "contributing to "
+                                        "flagged output row. "
+                                        "This should never happen!")
+
             # Set up the row channel map, populate return time and interval
             for c in range(nchan):
                 out_offset = offsets[out_row] + bin_chan_map[bl, tbin, c]
@@ -515,16 +522,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 time_ret[out_offset] = bin_time
                 int_ret[out_offset] = bin_interval
 
-                # Handle output row flagging
                 if flag_row is not None:
-                    if flag_row[in_row] == 0 and flagged:
-                        raise RowMapperError("Unflagged input row "
-                                             "contributing to "
-                                             "flagged output row. "
-                                             "This should never happen!")
-
-                    for c in range(nchan):
-                        out_flag_row[row_chan_map[in_row, c]] = (1 if flagged else 0)
+                    out_flag_row[out_offset] = 1 if flagged else 0
 
         print(row_chan_map.size, time_ret.size)
 
