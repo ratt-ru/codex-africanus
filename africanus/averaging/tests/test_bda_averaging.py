@@ -32,8 +32,9 @@ def test_bda_avg(time, interval, ants, phase_dir, ref_freq, chan_freq, chan_widt
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                           ref_freq, max_uvw_dist, flag_row,
-                           lm_max=1.0, decorrelation=decorrelation)
+                           ref_freq, max_uvw_dist, chan_width,
+                           flag_row=flag_row, lm_max=1.0,
+                           decorrelation=decorrelation)
 
     time_centroid = time
     exposure = interval

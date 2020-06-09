@@ -163,7 +163,8 @@ def row_chan_average(row_meta, chan_meta,
     dummy_chan_freq = None
     dummy_chan_width = None
 
-    def impl(row_meta, chan_meta, flag_row=None, weight=None,
+    def impl(row_meta, chan_meta,
+             flag_row=None, weight=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None):
 

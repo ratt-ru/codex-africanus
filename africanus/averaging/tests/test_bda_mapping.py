@@ -181,9 +181,12 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     decorrelation = 0.95
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
-    mmap = atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                           ref_freq, max_uvw_dist, flag_row,
-                           lm_max=1.0, decorrelation=decorrelation)
+    row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
+                               ref_freq, max_uvw_dist, chan_width, flag_row,
+                               lm_max=1.0, decorrelation=decorrelation)
 
-    print(mmap.time)
-    print(mmap.chan_width)
+    a = np.sort(row_meta.map.ravel())
+    # assert np.all(np.diff(a) == 1)
+
+    import pdb; pdb.set_trace()
+    a = 1

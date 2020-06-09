@@ -99,6 +99,34 @@ def partition_frequency(spws, chan_freq, chan_width, ref_freq,
     return np.asarray(spw_chan_widths), spw_chan_freqs
 
 
+
+@njit
+def inplace_chan_map(chan_map, bandwidth, chan_width, decorr_bandwidth):
+    assert chan_map.shape[0] == chan_width.shape[0]
+
+    # 0.0 is a special no-decorrelation marker (see finalise_bin)
+    if decorr_bandwidth == 0.0:
+        for c in range(chan_width.shape[0]):
+            chan_map[c] = c
+
+        return
+
+    bin_bandwidth = chan_width[0]
+    chan_map[0] = chan_bin = 0
+
+    for c in range(1, chan_width.shape[0]):
+        new_bin_bandwidth = bin_bandwidth + chan_width[c]
+
+        if new_bin_bandwidth >= decorr_bandwidth:
+            # Start a new bin
+            bin_bandwidth = chan_width[c]
+            chan_bin += 1
+        else:
+            bin_bandwidth = new_bin_bandwidth
+
+        chan_map[c] = chan_bin
+
+
 @njit
 def max_chan_width(ref_freq, fractional_bandwidth):
     # Derive max_𝞓𝝼, the maximum change in bandwidth
@@ -116,7 +144,8 @@ def max_chan_width(ref_freq, fractional_bandwidth):
 
 
 FinaliseOutput = namedtuple("FinaliseOutput",
-                            ["tbin", "time", "interval", "chan_width", "flag"])
+                            ["tbin", "time", "interval",
+                             "chan_width", "nchan", "flag"])
 
 
 class Binner(object):
@@ -216,7 +245,7 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, uvw):
+    def finalise_bin(self, uvw, bandwidth, nchan):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
@@ -232,11 +261,9 @@ class Binner(object):
                 raise ValueError("single row in bin, but "
                                  "start row != end row")
 
-            # du = uvw[rs, 0]
-            # dv = uvw[rs, 1]
-            # dw = uvw[rs, 2]
-            # bin_sinc_𝞓𝞇 = 1.0
-            max_𝞓𝝼 = -1
+            # TODO(sjperkins)
+            # This is dodgy, but works for chan_map creation
+            max_𝞓𝝼 = 0.0
         else:
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
@@ -270,6 +297,7 @@ class Binner(object):
                              self.time_sum / self.bin_count,
                              self.interval_sum,
                              max_𝞓𝝼,
+                             nchan,
                              self.bin_count == self.bin_flag_count)
 
         self.tbin += 1
@@ -284,8 +312,8 @@ RowMapOutput = namedtuple("RowMapOutput",
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                    ref_freq, max_uvw_dist, flag_row=None,
-                    lm_max=1.0, decorrelation=0.98):
+                    ref_freq, max_uvw_dist, chan_width,
+                    flag_row=None, lm_max=1.0, decorrelation=0.98):
 
     Omitted = numba.types.misc.Omitted
 
@@ -318,8 +346,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
     JitBinner = jitclass(spec)(Binner)
 
     def _impl(time, interval, ant1, ant2, uvw,
-              ref_freq, max_uvw_dist, flag_row=None,
-              lm_max=1, decorrelation=0.98):
+              ref_freq, max_uvw_dist, chan_width,
+              flag_row=None, lm_max=1, decorrelation=0.98):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
@@ -329,12 +357,18 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         n_term = 1.0 - l**2 - m**2
         n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
 
+        bandwidth = chan_width.sum()
+
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
 
         nrow = time.shape[0]
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
+        nchan = chan_width.shape[0]
+
+        if nchan == 0:
+            raise ValueError("zero channels")
 
         binner = JitBinner(0, 0, l, m, n_max,
                            ref_freq, decorrelation)
@@ -342,14 +376,17 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
-        bin_chan_width = np.full((nbl, ntime), -1.0, dtype=ref_freq_dtype)
+        bin_chan_width = np.full((nbl, ntime), 0.0, dtype=ref_freq_dtype)
         sentinel = np.finfo(time.dtype).max
         time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
         interval_lookup = np.full((nbl, ntime), sentinel, dtype=interval.dtype)
         # Is the entire bin flagged?
         bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
+        bin_chan_map = np.empty((nbl, ntime, nchan), dtype=np.int32)
 
         out_rows = 0
+        nr_of_time_bins = 0
+        out_row_chans = 0
 
         for r in range(nrow):
             t = time_inv[r]
@@ -377,11 +414,18 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
                 elif not binner.add_row(r, time, interval, uvw, flag_row):
-                    f = binner.finalise_bin(uvw)
+                    f = binner.finalise_bin(uvw, bandwidth, nchan)
                     time_lookup[bl, f.tbin] = f.time
                     interval_lookup[bl, f.tbin] = f.interval
                     bin_flagged[bl, f.tbin] = f.flag
                     bin_chan_width[bl, f.tbin] = f.chan_width
+
+                    inplace_chan_map(bin_chan_map[bl, f.tbin],
+                                     bandwidth, chan_width,
+                                     f.chan_width)
+
+                    out_rows += 1
+                    out_row_chans += f.nchan
 
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -391,22 +435,30 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(uvw)
+                f = binner.finalise_bin(uvw, bandwidth, nchan)
                 time_lookup[bl, f.tbin] = f.time
                 interval_lookup[bl, f.tbin] = f.interval
                 bin_flagged[bl, f.tbin] = f.flag
                 bin_chan_width[bl, f.tbin] = f.chan_width
 
-            out_rows += binner.tbin
+                inplace_chan_map(bin_chan_map[bl, f.tbin],
+                                 bandwidth, chan_width,
+                                 f.chan_width)
+
+                out_rows += 1
+                out_row_chans += f.nchan
+
+            nr_of_time_bins += binner.tbin
 
             # Mark remaining bins as unoccupied and unflagged
             for tbin in range(binner.tbin, ntime):
                 time_lookup[bl, tbin] = sentinel
                 bin_flagged[bl, tbin] = False
 
+        assert out_rows == nr_of_time_bins
+
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
-        flat_int = interval_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
         inv_argsort = np.empty_like(argsort)
 
@@ -414,14 +466,25 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         for i, a in enumerate(argsort):
             inv_argsort[a] = i
 
+        # Generate row offsets
+        fbin_chan_map = bin_chan_map.reshape((-1, nchan))
+        offsets = np.empty(out_rows, dtype=np.uint32)
+
+        if out_rows > 0:
+            offsets[0] = 0
+            for r in range(1, out_rows):
+                prev_bin_chans = fbin_chan_map[argsort[r - 1]].max() + 1
+                offsets[r] = offsets[r - 1] + prev_bin_chans
+                # print(r, offsets[r], prev_bin_chans)
+
         # Construct the final row map
-        row_map = np.empty((time.shape[0]), dtype=np.uint32)
+        row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
+        time_ret = np.empty(out_row_chans, dtype=time.dtype)
+        int_ret = np.empty(out_row_chans, dtype=interval.dtype)
 
         # Construct output flag row, if necessary
-        out_flag_row = (None if flag_row is None
-                        else np.empty(out_rows, dtype=flag_row.dtype))
-
-        chan_width = np.empty(time.shape[0], dtype=ref_freq_dtype)
+        out_flag_row = (None if flag_row is None else
+                        np.empty(out_row_chans, dtype=flag_row.dtype))
 
         # foreach input row
         for in_row in range(time.shape[0]):
@@ -429,31 +492,43 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             bl = bl_inv[in_row]
             t = time_inv[in_row]
 
-            # lookup time bin and output row
+            # lookup time bin and output row in inv_argsort
             tbin = bin_lookup[bl, t]
-            # lookup output row in inv_argsort
+            bin_time = time_lookup[bl, tbin]
+            bin_interval = interval_lookup[bl, tbin]
+            flagged = bin_flagged[bl, tbin]
             out_row = inv_argsort[bl*ntime + tbin]
 
+            # Should never happen, but check
             if out_row >= out_rows:
                 raise RowMapperError("out_row >= out_rows")
 
-            # Handle output row flagging
-            if flag_row is not None:
-                flagged = bin_flagged[bl, t]
-                if flag_row[in_row] == 0 and flagged:
-                    raise RowMapperError("Unflagged input row contributing "
-                                         "to flagged output row. "
-                                         "This should never happen!")
+            # Set up the row channel map, populate return time and interval
+            for c in range(nchan):
+                out_offset = offsets[out_row] + bin_chan_map[bl, tbin, c]
 
-                out_flag_row[out_row] = (1 if flagged else 0)
+                # Should never happen, but check
+                if out_offset >= out_row_chans:
+                    raise RowMapperError("out_offset >= out_row_chans")
 
-            row_map[in_row] = out_row
-            chan_width[in_row] = bin_chan_width[bl, t]
+                row_chan_map[in_row, c] = out_offset
+                time_ret[out_offset] = bin_time
+                int_ret[out_offset] = bin_interval
 
-        time_ret = flat_time[argsort[:out_rows]]
-        int_ret = flat_int[argsort[:out_rows]]
+                # Handle output row flagging
+                if flag_row is not None:
+                    if flag_row[in_row] == 0 and flagged:
+                        raise RowMapperError("Unflagged input row "
+                                             "contributing to "
+                                             "flagged output row. "
+                                             "This should never happen!")
 
-        return RowMapOutput(row_map, time_ret, int_ret,
-                            chan_width, out_flag_row)
+                    for c in range(nchan):
+                        out_flag_row[row_chan_map[in_row, c]] = (1 if flagged else 0)
+
+        print(row_chan_map.size, time_ret.size)
+
+        return RowMapOutput(row_chan_map, time_ret, int_ret,
+                            None, out_flag_row)
 
     return _impl
