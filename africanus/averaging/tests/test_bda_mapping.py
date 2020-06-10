@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from pyrap.measures import measures
-from pyrap.quanta import quantity as q
+from africanus.averaging.bda_mapping import atemkeng_mapper
 
 
 def synthesize_uvw(antenna_positions, time, phase_dir,
@@ -18,6 +17,8 @@ def synthesize_uvw(antenna_positions, time, phase_dir,
     of these new coordinates may be wrong, depending on whether
     data timesteps were heavily flagged.
     """
+    from pyrap.measures import measures
+    from pyrap.quanta import quantity as q
 
     dm = measures()
     epoch = dm.epoch("UT1", q(time[0], "s"))
@@ -145,7 +146,7 @@ def phase_dir():
 
 @pytest.fixture
 def chan_width():
-    nchan = 16
+    nchan = 4096
     return np.full(nchan, (2*.856e9 - .856e9) / nchan)
 
 
@@ -161,6 +162,8 @@ def ref_freq(chan_freq):
 
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                              ref_freq, chan_freq, chan_width):
+    pytest.importorskip('pyrap')
+
     time = np.unique(time)
     from africanus.averaging.bda_mapping import atemkeng_mapper
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
