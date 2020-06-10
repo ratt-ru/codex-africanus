@@ -144,13 +144,9 @@ def phase_dir():
 
 
 @pytest.fixture
-def ref_freq():
-    return 1.284e9
-
-
-@pytest.fixture
 def chan_width():
-    return np.full(4096, 208984.375)
+    nchan = 16
+    return np.full(nchan, (2*.856e9 - .856e9) / nchan)
 
 
 @pytest.fixture
@@ -159,8 +155,8 @@ def chan_freq(chan_width):
 
 
 @pytest.fixture
-def ref_freq():
-    return 1.284e9
+def ref_freq(chan_freq):
+    return (chan_freq[0] + chan_freq[-1]) / 2.0
 
 
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
