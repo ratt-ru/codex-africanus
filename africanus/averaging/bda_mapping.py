@@ -180,6 +180,11 @@ class Binner(object):
         """
         rs = self.rs
         re = self.re
+
+        if rs == re:
+            raise ValueError("start_bin should be called to start a bin "
+                             "before add_row is called.")
+
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
         dt = (time[row] + (interval[row] / 2.0) -
@@ -356,13 +361,17 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Is the entire bin flagged?
         bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
         bin_chan_map = np.empty((nbl, ntime, nchan), dtype=np.int32)
-        #bin_chan_map = np.zeros((nbl, ntime, nchan), dtype=np.int32)
 
         out_rows = 0
         nr_of_time_bins = 0
         out_row_chans = 0
 
         def update_lookups(f, bl):
+            """
+            Closure which updates lookups for a baseline,
+            given a binner's finalisation data
+            """
+            # NOTE(sjperkins) Why do scalars need this, but not arrays?
             nonlocal out_rows
             nonlocal out_row_chans
 
@@ -478,6 +487,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
         time_ret = np.full(out_row_chans, -1, dtype=time.dtype)
         int_ret = np.full(out_row_chans, -1, dtype=interval.dtype)
+        chan_width_ret = np.full(out_row_chans, -1, dtype=chan_width.dtype)
 
         # Construct output flag row, if necessary
         out_flag_row = (None if flag_row is None else
@@ -507,7 +517,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                                      "flagged output row. "
                                      "This should never happen!")
 
-            # Set up the row channel map, populate return time and interval
+            # Set up the row channel map, populate
+            # time, interval and chan_width
             for c in range(nchan):
                 out_offset = offsets[out_row] + bin_chan_map[bl, tbin, c]
 
@@ -515,14 +526,20 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if out_offset >= out_row_chans:
                     raise RowMapperError("out_offset >= out_row_chans")
 
+                # Set the output row for this input row and channel
                 row_chan_map[in_row, c] = out_offset
+
+                # Broadcast the time and interval to the output row
                 time_ret[out_offset] = bin_time
                 int_ret[out_offset] = bin_interval
+
+                # Add channel contribution for each row
+                chan_width_ret[out_offset] += chan_width[c]
 
                 if flag_row is not None:
                     out_flag_row[out_offset] = 1 if flagged else 0
 
         return RowMapOutput(row_chan_map, time_ret, int_ret,
-                            None, out_flag_row)
+                            chan_width_ret, out_flag_row)
 
     return _impl

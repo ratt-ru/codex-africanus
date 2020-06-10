@@ -180,9 +180,3 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                                ref_freq, max_uvw_dist, chan_width, flag_row,
                                lm_max=1.0, decorrelation=decorrelation)
-
-    a = np.sort(row_meta.map.ravel())
-    # assert np.all(np.diff(a) == 1)
-
-    import pdb; pdb.set_trace()
-    a = 1
