@@ -10,10 +10,6 @@ import numba.types
 from africanus.util.numba import generated_jit, njit
 from africanus.averaging.support import unique_time, unique_baselines
 
-# CLAIM(sjperkins)
-# 2**15 - 1 SPW's is enough for everyone!
-bin_spw_dt = numba.int16
-
 
 class RowMapperError(Exception):
     pass
@@ -48,55 +44,6 @@ def inv_sinc(sinc_x, tol=1e-12):
         x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
 
     return x
-
-
-@njit
-def partition_frequency(spws, chan_freq, chan_width, ref_freq,
-                        max_uvw_dist, decorrelation):
-
-    # Reversed as this produces monotically increasing
-    # fractional bandwidth
-    uvw_dists = np.linspace(max_uvw_dist, 1e-12, spws)
-    𝞓𝞍 = inv_sinc(decorrelation)
-
-    bandwidth = chan_width.sum()
-    spw_chan_widths = []
-    spw_chan_freqs = []
-
-    for s in range(uvw_dists.shape[0]):
-        fractional_bandwidth = 𝞓𝞍 / uvw_dists[s]
-
-        # Derive max_𝞓𝝼, the maximum change in bandwidth
-        # before decorrelation occurs in frequency
-        #
-        # Fractional Bandwidth is defined by
-        # https://en.wikipedia.org/wiki/Bandwidth_(signal_processing)
-        # for Wideband Antennas as:
-        #   (1) 𝞓𝝼/𝝼 = fb = (fh - fl) / (fh + fl)
-        # where fh and fl are the high and low frequencies
-        # of the band.
-        # We set fh = ref_freq + 𝞓𝝼/2, fl = ref_freq - 𝞓𝝼/2
-        # Then, simplifying (1), 𝞓𝝼 = 2 * ref_freq * fb
-        max_𝞓𝝼 = 2 * ref_freq * fractional_bandwidth
-
-        chans = np.intp(np.floor(bandwidth / max_𝞓𝝼))
-        chans = min(max(1, chans), chan_width.shape[0])
-
-        # Don't re-add if number of channels match previous ones
-        if len(spw_chan_freqs) > 0 and spw_chan_freqs[-1].shape[0] == chans:
-            continue
-
-        chans = 1 if chans == 0 else chans
-        𝞓𝝼 = bandwidth / chans
-        spw_chan_widths.append(𝞓𝝼)
-
-        start_freq = ref_freq - (bandwidth / 2.0)
-        end_freq = ref_freq + (bandwidth / 2.0)
-        new_chan_freqs = np.linspace(start_freq, end_freq, chans)
-
-        spw_chan_freqs.append(new_chan_freqs)
-
-    return np.asarray(spw_chan_widths), spw_chan_freqs
 
 
 @njit
