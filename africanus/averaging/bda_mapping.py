@@ -313,7 +313,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         nr_of_time_bins = 0
         out_row_chans = 0
 
-        def update_lookups(f, bl):
+        def update_lookups(finalised, bl):
             """
             Closure which updates lookups for a baseline,
             given a binner's finalisation data
@@ -322,36 +322,38 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             nonlocal out_rows
             nonlocal out_row_chans
 
-            time_lookup[bl, f.tbin] = f.time
-            interval_lookup[bl, f.tbin] = f.interval
-            bin_flagged[bl, f.tbin] = f.flag
-            bin_chan_width[bl, f.tbin] = f.chan_width
+            tbin = finalised.tbin
+
+            time_lookup[bl, tbin] = finalised.time
+            interval_lookup[bl, tbin] = finalised.interval
+            bin_flagged[bl, tbin] = finalised.flag
+            bin_chan_width[bl, tbin] = decorr_bandwidth = finalised.chan_width
 
             if chan_width.shape[0] == 0:
                 # Nothing to do
                 nchan = 0
-            elif f.chan_width == 0.0:
+            elif decorr_bandwidth == 0.0:
                 # 0.0 is a special no-decorrelation marker (see finalise_bin)
                 for c in range(chan_width.shape[0]):
-                    bin_chan_map[bl, f.tbin, c] = c
+                    bin_chan_map[bl, tbin, c] = c
 
                 nchan = chan_width.shape[0]
             else:
                 # Construct the channel map
                 bin_bandwidth = chan_width[0]
-                bin_chan_map[bl, f.tbin, 0] = chan_bin = 0
+                bin_chan_map[bl, tbin, 0] = chan_bin = 0
 
                 for c in range(1, chan_width.shape[0]):
                     new_bin_bandwidth = bin_bandwidth + chan_width[c]
 
-                    if new_bin_bandwidth >= f.chan_width:
+                    if new_bin_bandwidth >= decorr_bandwidth:
                         # Start a new bin
                         bin_bandwidth = chan_width[c]
                         chan_bin += 1
                     else:
                         bin_bandwidth = new_bin_bandwidth
 
-                    bin_chan_map[bl, f.tbin, c] = chan_bin
+                    bin_chan_map[bl, tbin, c] = chan_bin
 
                 nchan = chan_bin + 1
 
@@ -426,7 +428,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if offsets.shape[0] > 0:
             offsets[0] = 0
 
-            for r in range(1, out_rows):
+            for r in range(1, offsets.shape[0]):
                 prev_bin_chans = fbin_chan_map[argsort[r - 1]].max() + 1
                 offsets[r] = offsets[r - 1] + prev_bin_chans
 
