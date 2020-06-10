@@ -26,11 +26,11 @@ if on_rtd():
     jitclass = _fake_decorator
 
 else:
-    from numba import (cfunc, jit, jitclass,
+    from numba import (cfunc, jit, jitclass,  # noqa: F401
                        njit, generated_jit,
-                       stencil)  # noqa
+                       stencil)
 
-    from numba.extending import overload  # noqa
+    from numba.extending import overload  # noqa: F401
 
 
 def is_numba_type_none(arg):
