@@ -181,7 +181,7 @@ class Binner(object):
         rs = self.rs
         re = self.re
 
-        if rs == re:
+        if re == row:
             raise ValueError("start_bin should be called to start a bin "
                              "before add_row is called.")
 
