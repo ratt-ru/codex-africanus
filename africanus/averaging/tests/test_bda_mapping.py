@@ -165,7 +165,6 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     pytest.importorskip('pyrap')
 
     time = np.unique(time)
-    from africanus.averaging.bda_mapping import atemkeng_mapper
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
 
     nbl = ant1.shape[0]
@@ -180,6 +179,6 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     decorrelation = 0.95
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
-    row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
+    row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
                                ref_freq, max_uvw_dist, chan_width, flag_row,
                                lm_max=1.0, decorrelation=decorrelation)

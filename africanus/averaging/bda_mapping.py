@@ -71,7 +71,7 @@ FinaliseOutput = namedtuple("FinaliseOutput",
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 l, m, n_max,
+                 l, m, n_max,  # noqa: E741
                  ref_freq,
                  decorrelation):
         # Index of the time bin to which all rows in the bin will contribute
@@ -282,8 +282,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         n_term = 1.0 - l**2 - m**2
         n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
 
-        bandwidth = chan_width.sum()
-
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
 
@@ -359,7 +357,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             out_rows += 1
             out_row_chans += nchan
-
 
         for r in range(nrow):
             t = time_inv[r]

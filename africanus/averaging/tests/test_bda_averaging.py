@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# TODO(sjperkins) Remove this
+# flake8: noqa
+
 import numpy as np
 
 from africanus.averaging.tests.test_bda_mapping import (synthesize_uvw,
@@ -38,9 +41,3 @@ def test_bda_avg(time, interval, ants, phase_dir, ref_freq, chan_freq, chan_widt
 
     time_centroid = time
     exposure = interval
-
-    avg = row_average(meta, time, interval, flag_row,
-                      time_centroid, exposure, uvw,
-                      weight=None, sigma=None)
-
-    print(avg.uvw)

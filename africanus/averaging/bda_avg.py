@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 
+# flake8: noqa
+
 from collections import namedtuple
 
 import numpy as np
 
 from africanus.averaging.shared import (flags_match,
                                         is_chan_flagged,
-                                        chan_add,
-                                        sigma_spectrum_add,
                                         vis_add,
-                                        normalise_sigma_spectrum,
-                                        normalise_vis,
-                                        normalise_weight_spectrum)
-from africanus.util.numba import generated_jit, njit
+                                        normalise_vis)
+from africanus.util.numba import generated_jit
 
 
 _row_output_fields = ["antenna1", "antenna2", "time_centroid", "exposure",

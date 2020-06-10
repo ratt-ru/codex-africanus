@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# TODO(sjperkins) Remove this
+# flake8: noqa
+
 from africanus.averaging.bda_support import Δuvw_Δtime, decorrelation
 from africanus.coordinates import radec_to_lm
 
@@ -145,7 +148,7 @@ def test_bda_decorrelation(time, interval, uvw, phase_dir):
     factor = decorrelation(uvw, Δuvw_Δt, interval,
                            freq, chan_width,
                            lm.squeeze(),
-                           True, True)
+                           True, True)  # noqa: F841
 
     chan_freq = np.linspace(.856e9, 2*.856e9, 4)
     chan_width = (chan_freq[-1] - chan_freq[0]) / chan_freq.shape[0]

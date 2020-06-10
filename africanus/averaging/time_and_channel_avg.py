@@ -9,7 +9,6 @@ import numpy as np
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 from africanus.averaging.shared import (chan_corrs,
-                                        shape_or_invalid_shape,
                                         flags_match,
                                         is_chan_flagged,
                                         chan_add,

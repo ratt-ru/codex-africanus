@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+
 """
 References
 
@@ -65,7 +66,8 @@ def decorrelation_map(time, uvw, ant1, ant2,
     #
     # 𝞍 is the phase. Related to Equation 37
     # 𝝼 is the frequency. Related to Equation 38
-    # The two are related two each other by the decorrelation factor Equation (36)
+    # The two are related two each other by
+    # the decorrelation factor Equation (36)
     rows = np.logical_and(a1 == ant1, a2 == ant2)
     uvw = uvw[rows]
     time = time[rows]
@@ -129,9 +131,6 @@ def decorrelation_map(time, uvw, ant1, ant2,
         block_slices.append(slice(start, nrows))
 
     print(block_slices)
-
-    frac_bandwidth = chan_width / chan_width.sum()
-
     print(𝞓𝝼)
 
     # The fractional channel block size.
@@ -161,14 +160,6 @@ def decorrelation_map(time, uvw, ant1, ant2,
     chan_pairs[:, :-1, 0] = chan_range[None,
                                        :] // unique_chan_block_sizes[:, None]
     chan_pairs[:, :-1, 1] = chan_pairs[:, :-1, 0] + 1
-
-    import pdb
-    pdb.set_trace()
-    print(frac_chan_block_min)
-    print(num_chan_blocks)
-    print(size_chan_block)
-    print(unique_chan_block_sizes)
-    print(chan_pairs)
 
 
 def decorrelation(uvw, 𝞓uvw_𝞓time, interval,

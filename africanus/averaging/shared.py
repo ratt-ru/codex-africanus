@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from africanus.util.numba import is_numba_type_none, generated_jit, njit, overload
+from africanus.util.numba import is_numba_type_none, njit, overload
 
 
 def shape_or_invalid_shape(array, ndim):
@@ -152,9 +152,10 @@ def chan_add(output, input, orow, ochan, irow, ichan, corr):
 
 
 def vis_add(out_vis, out_weight_sum, in_vis,
-             weight, weight_spectrum,
-             orow, ochan, irow, ichan, corr):
+            weight, weight_spectrum,
+            orow, ochan, irow, ichan, corr):
     pass
+
 
 @overload(vis_add, inline='always')
 def _vis_add(out_vis, out_weight_sum, in_vis,
@@ -200,10 +201,12 @@ def _vis_add(out_vis, out_weight_sum, in_vis,
 
     return impl
 
+
 def sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
                        weight, weight_spectrum,
                        orow, ochan, irow, ichan, corr):
     pass
+
 
 @overload(sigma_spectrum_add, inline="always")
 def _sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
@@ -250,6 +253,7 @@ def _sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
 
     return impl
 
+
 def normalise_vis(vis_out, vis_in, row, chan, corr, weight_sum):
     pass
 
@@ -273,7 +277,9 @@ def normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
 
 
 @overload(normalise_sigma_spectrum, inline='always')
-def _normalise_sigma_spectrum(sigma_out, sigma_in, row, chan, corr, weight_sum):
+def _normalise_sigma_spectrum(sigma_out, sigma_in,
+                              row, chan, corr,
+                              weight_sum):
     if is_numba_type_none(sigma_in) or is_numba_type_none(weight_sum):
         def impl(sigma_out, sigma_in, row, chan, corr, weight_sum):
             pass
