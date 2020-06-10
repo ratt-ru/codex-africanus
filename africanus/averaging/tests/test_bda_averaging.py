@@ -4,6 +4,7 @@
 # flake8: noqa
 
 import numpy as np
+import pytest
 
 from africanus.averaging.tests.test_bda_mapping import (synthesize_uvw,
                                                         time,

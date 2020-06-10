@@ -17,6 +17,8 @@ def synthesize_uvw(antenna_positions, time, phase_dir,
     of these new coordinates may be wrong, depending on whether
     data timesteps were heavily flagged.
     """
+    pytest.importorskip('pyrap')
+
     from pyrap.measures import measures
     from pyrap.quanta import quantity as q
 
@@ -162,8 +164,6 @@ def ref_freq(chan_freq):
 
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                              ref_freq, chan_freq, chan_width):
-    pytest.importorskip('pyrap')
-
     time = np.unique(time)
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
 
