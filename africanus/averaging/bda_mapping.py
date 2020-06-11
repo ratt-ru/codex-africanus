@@ -232,7 +232,7 @@ class Binner(object):
 
 RowMapOutput = namedtuple("RowMapOutput",
                           ["map", "offsets", "nchan", "decorr_chan_width",
-                          "time", "interval", "chan_width", "flag_row"])
+                           "time", "interval", "chan_width", "flag_row"])
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -456,7 +456,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             flagged = bin_flagged[bl, tbin]
             out_row = inv_argsort[bl*ntime + tbin]
 
-            decorr_chan_width[in_row] = bin_chan_width[bl, tbin]
+            decorr_chan_width[out_row] = bin_chan_width[bl, tbin]
 
             # Should never happen, but check
             if out_row >= out_rows:
