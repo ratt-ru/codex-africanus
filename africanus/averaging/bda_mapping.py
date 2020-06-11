@@ -148,24 +148,23 @@ class Binner(object):
         𝞓𝞇 = np.pi * (du_dt + dv_dt)
         sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
 
-        # We're not decorrelated at this point,
+        # Do not add the row to the bin as it
+        # would exceed the decorrelation tolerance
+        if sinc_𝞓𝞇 <= self.decorrelation:
+            return False
+
         # Add the row by making it the end of the bin
         # and keep a record of the sinc_𝞓𝞇
-        if sinc_𝞓𝞇 > self.decorrelation:
-            self.re = row
-            self.bin_sinc_Δψ = sinc_𝞓𝞇
-            self.bin_count += 1
-            self.time_sum += time[row]
-            self.interval_sum += interval[row]
+        self.re = row
+        self.bin_sinc_Δψ = sinc_𝞓𝞇
+        self.bin_count += 1
+        self.time_sum += time[row]
+        self.interval_sum += interval[row]
 
-            if flag_row is not None and flag_row[row] != 0:
-                self.bin_flag_count += 1
+        if flag_row is not None and flag_row[row] != 0:
+            self.bin_flag_count += 1
 
-            return True
-
-        # Adding row to the bin would decorrelate it,
-        # so we indicate we did not
-        return False
+        return True
 
     @property
     def empty(self):
