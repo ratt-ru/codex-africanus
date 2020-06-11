@@ -2,8 +2,9 @@
 
 
 import numpy as np
+from numba import njit
 
-
+@njit(fastmath=True, inline='always')
 def kron_N(x):
     """
     Computes N = N_1 x N_2 x ... x N_D i.e.
@@ -19,13 +20,13 @@ def kron_N(x):
     N : int
         The total number of rows in a kronecker matrix or vector
     """
-    D = x.shape[0]
-    dims = np.zeros(D)
+    D = len(x)
+    N = 1
     for i in range(D):
-        dims[i] = x[i].shape[0]
-    return int(np.prod(dims))
+        N *= x[i].shape[0]
+    return N
 
-
+@njit(fastmath=True, inline='always')
 def kron_matvec(A, b):
     """
     Computes the matrix vector product of
@@ -47,23 +48,26 @@ def kron_matvec(A, b):
     x : :class:`numpy.ndarray`
         The result of :code:`A.dot(b)`
     """
-    D = A.shape[0]
+    D = len(A)
     N = b.size
     x = b
     for d in range(D):
         Gd = A[d].shape[0]
         X = np.reshape(x, (Gd, N//Gd))
-        Z = np.einsum("ab,bc->ac", A[d], X)
-        Z = np.einsum("ab -> ba", Z)
-        x = Z.flatten()
+        Z = np.zeros((Gd, N//Gd), dtype=A[0].dtype)
+        for i in range(Gd):
+            for j in range(N//Gd):
+                for k in range(Gd):
+                    Z[i, j] += A[d][i, k] * X[k, j]
+        x = Z.T.flatten()
     return x
 
-
+@njit(fastmath=True, inline='always')
 def kron_tensorvec(A, b):
     """
     Matrix vector product of kronecker matrix A with
     vector b. A can be made up of an arbitrary kronecker
-    product.
+    product of non-square matrices.
 
     Parameters
     ----------
@@ -79,10 +83,10 @@ def kron_tensorvec(A, b):
     x : :class:`numpy.ndarray`
         The result of :code:`A.dot(b)`
     """
-    D = A.shape[0]
+    D = len(A)
     # get shape of sub-matrices
-    G = np.zeros(D, dtype=np.int8)
-    M = np.zeros(D, dtype=np.int8)
+    G = np.zeros(D, dtype=np.int64)
+    M = np.zeros(D, dtype=np.int64)
     for d in range(D):
         M[d], G[d] = A[d].shape
     x = b
@@ -90,14 +94,17 @@ def kron_tensorvec(A, b):
         Gd = G[d]
         rem = np.prod(np.delete(G, d))
         X = np.reshape(x, (Gd, rem))
-        Z = np.einsum("ab,bc->ac", A[d], X)
-        Z = np.einsum("ab -> ba", Z)
-        x = Z.flatten()
+        Z = np.zeros((A[d].shape[0], rem), dtype=A[0].dtype)
+        for i in range(A[d].shape[0]):
+            for j in range(rem):
+                for k in range(A[d].shape[1]):
+                    Z[i, j] += A[d][i, k] * X[k, j]
+        x = Z.T.flatten()
         # replace with new dimension
         G[d] = M[d]
     return x
 
-
+@njit(fastmath=True, inline='always')
 def kron_matmat(A, B):
     """
     Computes the product between a kronecker matrix A
@@ -116,15 +123,15 @@ def kron_matmat(A, B):
     x : :class:`numpy.ndarray`
         The result of :code:`A.dot(B)`
     """
-    M = B.shape[1]  # the product of Np_1 x Np_2 x ... x Np_3
-
+    M = B.shape[1]
     N = kron_N(A)
-    C = np.zeros([N, M])
+    C = np.zeros((N, M), dtype=A[0].dtype)
     for i in range(M):
-        C[:, i] = kron_matvec(A, B[:, i])
+        tmp = np.ascontiguousarray(B[:, i])  # seems unavoidable
+        C[:, i] = kron_matvec(A, tmp)
     return C
 
-
+@njit(fastmath=True, inline='always')
 def kron_tensormat(A, B):
     """
     Computes the matrix product between A kronecker matrix A
@@ -148,9 +155,10 @@ def kron_tensormat(A, B):
     M = B.shape[1]  # the product of Np_1 x Np_2 x ... x Np_3
 
     N = kron_N(A)
-    C = np.zeros([N, M])
+    C = np.zeros((N, M), dtype=A[0].dtype)
     for i in range(M):
-        C[:, i] = kron_tensorvec(A, B[:, i])
+        tmp = np.ascontiguousarray(B[:, i])  # seems unavoidable
+        C[:, i] = kron_tensorvec(A, tmp)
     return C
 
 
@@ -175,19 +183,19 @@ def kron_cholesky(A):
         :math:`L = L_0 \\otimes L_1 \\otimes \\cdots`
         and each :code:`Li = cholesky(Ki)`
     """
-    D = A.shape[0]
-    L = np.zeros_like(A)
+    D = len(A)
+    L = ()
     for i in range(D):
         try:
-            L[i] = np.linalg.cholesky(A[i])
+            L += (np.linalg.cholesky(A[i]),)
         except Exception:  # add jitter
-            L[i] = np.linalg.cholesky(A[i] + 1e-13*np.eye(A[i].shape[0]))
+            L += (np.linalg.cholesky(A[i] + 1e-13*np.eye(A[i].shape[0])),)
     return L
 
 
 def kron_inv(A):
-    D = A.shape[0]
-    Kinv = np.zeros_like(A)
+    D = len(A)
+    Kinv = ()
     for i in range(D):
-        Kinv[i] = np.linalg.inv(A[i] + 1e-13*np.eye(A[i].shape[0]))
+        Kinv += (np.linalg.inv(A[i] + 1e-13*np.eye(A[i].shape[0])),)
     return Kinv
