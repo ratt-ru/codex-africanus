@@ -55,28 +55,41 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     ant2 = np.tile(ant2, ntime)
     flag_row = np.zeros(time.shape[0], dtype=np.int8)
 
-    decorrelation = 0.95
+    decorrelation = 0.99
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
+    import time as timing
+
+    start = timing.clock()
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                            ref_freq, max_uvw_dist, chan_width,
                            flag_row=flag_row, lm_max=1.0,
                            decorrelation=decorrelation)
 
+    print("mapping: %f" % (timing.clock() - start))
+
     time_centroid = time
     exposure = interval
 
+    start = timing.clock()
     row_avg = row_average(meta, ant1, ant2, flag_row,  # noqa: F841
                           time_centroid, exposure,
                           uvw, weight=None, sigma=None)
+
+    print("row_average: %f" % (timing.clock() - start))
 
     vis = vis(time.shape[0], nchan, ncorr)
     flag = flag(time.shape[0], nchan, ncorr)
     weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
     sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
 
+    start = timing.clock()
     row_chan = row_chan_average(meta,  # noqa: F841
                                 flag_row=flag_row,
                                 vis=vis, flag=flag,
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
+
+    print(vis.shape, vis.size, row_chan.vis.shape, row_chan.vis.size)
+
+    print("row_chan_average: %f" % (timing.clock() - start))

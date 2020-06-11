@@ -146,174 +146,6 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
-@njit(nogil=True, inline='always')
-def chan_add(output, input, orow, irow, ichan, corr):
-    if input is not None:
-        output[orow, corr] += input[irow, ichan, corr]
-
-
-def vis_add(out_vis, out_weight_sum, in_vis,
-             weight, weight_spectrum,
-             orow, irow, ichan, corr):
-    pass
-
-
-@overload(vis_add, inline='always')
-def _vis_add(out_vis, out_weight_sum, in_vis,
-             weight, weight_spectrum,
-             orow, irow, ichan, corr):
-    """ Returns function adding weighted visibilities to a bin """
-    if is_numba_type_none(in_vis):
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            pass
-    elif not is_numba_type_none(weight_spectrum):
-        # Always prefer more accurate weight spectrum if we have it
-
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            wt = weight_spectrum[irow, ichan, corr]
-            iv = in_vis[irow, ichan, corr] * wt
-            out_vis[orow, corr] += iv
-            out_weight_sum[orow, corr] += wt
-    elif not is_numba_type_none(weight):
-        # Otherwise fall back to row weights
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            wt = weight[irow, corr]
-            iv = in_vis[irow, ichan, corr] * wt
-            out_vis[orow, corr] += iv
-            out_weight_sum[orow, corr] += wt
-    else:
-        # Natural weights
-        def impl(out_vis, out_weight_sum, in_vis,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            iv = in_vis[irow, ichan, corr]
-            out_vis[orow, corr] += iv
-            out_weight_sum[orow, corr] += 1.0
-
-    return impl
-
-
-def sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
-                       weight, weight_spectrum,
-                       orow, irow, ichan, corr):
-    pass
-
-
-@overload(sigma_spectrum_add, inline="always")
-def _sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
-                        weight, weight_spectrum,
-                        orow, irow, ichan, corr):
-    """ Returns function adding weighted sigma to a bin """
-    if is_numba_type_none(in_sigma):
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-            pass
-    elif not is_numba_type_none(weight_spectrum):
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            # Always prefer more accurate weight spectrum if we have it
-            # sum(sigma**2 * weight**2)
-            wt = weight_spectrum[irow, ichan, corr]
-            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-            out_sigma[orow, corr] += is_
-            out_weight_sum[orow, corr] += wt
-
-    elif not is_numba_type_none(weight):
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            # sum(sigma**2 * weight**2)
-            wt = weight[irow, corr]
-            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
-            out_sigma[orow, corr] += is_
-            out_weight_sum[orow, corr] += wt
-    else:
-        # Natural weights
-        # sum(sigma**2 * weight**2)
-
-        def impl(out_sigma, out_weight_sum, in_sigma,
-                 weight, weight_spectrum,
-                 orow, irow, ichan, corr):
-
-            out_sigma[orow, corr] += in_sigma[irow, ichan, corr]**2
-            out_weight_sum[orow, corr] += 1.0
-
-    return impl
-
-
-def normalise_vis(vis_out, vis_in, row, corr, weight_sum):
-    pass
-
-
-@overload(normalise_vis, inline='always')
-def _normalise_vis(vis_out, vis_in, row, corr, weight_sum):
-    if is_numba_type_none(vis_in):
-        def impl(vis_out, vis_in, row, corr, weight_sum):
-            pass
-    else:
-        def impl(vis_out, vis_in, row, corr, weight_sum):
-            wsum = weight_sum[row, corr]
-
-            if wsum != 0.0:
-                vis_out[row, corr] = vis_in[row, corr] / wsum
-    return impl
-
-
-def normalise_sigma_spectrum(sigma_out, sigma_in, row, corr, weight_sum):
-    pass
-
-
-@overload(normalise_sigma_spectrum, inline='always')
-def _normalise_sigma_spectrum(sigma_out, sigma_in,
-                              row, corr,
-                              weight_sum):
-    if is_numba_type_none(sigma_in) or is_numba_type_none(weight_sum):
-        def impl(sigma_out, sigma_in, row, corr, weight_sum):
-            pass
-    else:
-        def impl(sigma_out, sigma_in, row, corr, weight_sum):
-            wsum = weight_sum[row, corr]
-
-            if wsum == 0.0:
-                return
-
-            # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-            res = np.sqrt(sigma_in[row, corr] / (wsum**2))
-            sigma_out[row, corr] = res
-
-    return impl
-
-
-def normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, corr):
-    pass
-
-
-@overload(normalise_weight_spectrum, inline='always')
-def _normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, corr):
-    if is_numba_type_none(wt_spec_in):
-        def impl(wt_spec_out, wt_spec_in, row, corr):
-            pass
-    else:
-        def impl(wt_spec_out, wt_spec_in, row, corr):
-            wt_spec_out[row, corr] = wt_spec_in[row, corr]
-
-    return impl
-
-
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
 RowChanAverageOutput = namedtuple("RowChanAverageOutput",
                                   _rowchan_output_fields)
@@ -330,10 +162,6 @@ def row_chan_average(meta, flag_row=None, weight=None,
 
     dummy_chan_freq = None
     dummy_chan_width = None
-
-    weight_add = chan_add
-    sigma_add = sigma_spectrum_add
-    normalise_weights = normalise_weight_spectrum
 
     def impl(meta, flag_row=None, weight=None,
              vis=None, flag=None,
@@ -398,74 +226,115 @@ def row_chan_average(meta, flag_row=None, weight=None,
                     continue
 
                 for corr in range(ncorrs):
-                    if flag is not None and flag[in_row, in_chan, corr] != 0:
-                        # Increment flagged averages and counts
-                        flag_counts[out_row, corr] += 1
+                    # Select output arrays depending on whether the bin is flagged
+                    f = flag is not None and flag[in_row, in_chan, corr] != 0
+                    cnt = flag_counts if f else counts
+                    ovis = flagged_vis_avg if f else vis_avg
+                    ovis_ws = flagged_vis_weight_sum if f else vis_weight_sum
+                    ows = (flagged_weight_spectrum_avg if f
+                           else weight_spectrum_avg)
+                    oss = (flagged_sigma_spectrum_avg if f
+                           else sigma_spectrum_avg)
+                    oss_ws = (flagged_sigma_spectrum_weight_sum if f
+                              else sigma_spectrum_weight_sum)
 
-                        vis_add(flagged_vis_avg, flagged_vis_weight_sum, vis,
-                                weight, weight_spectrum,
-                                out_row, in_row, in_chan, corr)
-                        weight_add(flagged_weight_spectrum_avg,
-                                   weight_spectrum,
-                                   out_row, in_row, in_chan, corr)
-                        sigma_add(flagged_sigma_spectrum_avg,
-                                  flagged_sigma_spectrum_weight_sum,
-                                  sigma_spectrum,
-                                  weight,
-                                  weight_spectrum,
-                                  out_row, in_row, in_chan, corr)
+                    cnt[out_row, corr] += 1
+
+                    # Aggregate visibilities
+                    if vis is None:
+                        pass
+                    elif weight_spectrum is not None:
+                        # Use full-resolution weight spectrum if given
+                        wt = weight_spectrum[in_row, in_chan, corr]
+                        iv = vis[in_row, in_chan, corr] * wt
+                        ovis[out_row, corr] += iv
+                        ovis_ws[out_row, corr] += wt
+                    elif weight is not None:
+                        # Otherwise use weight column
+                        wt = weight[in_row, corr]
+                        iv = vis[in_row, in_chan, corr]
+                        ovis[out_row, corr] += iv
+                        ovis_ws[out_row, corr] += wt
                     else:
-                        # Increment unflagged averages and counts
-                        counts[out_row, corr] += 1
+                        # Otherwise use natural weights
+                        iv = vis[in_row, in_chan, corr]
+                        ovis[out_row, corr] += iv
+                        ovis_ws[out_row, corr] += 1.0
 
-                        vis_add(vis_avg, vis_weight_sum, vis,
-                                weight, weight_spectrum,
-                                out_row, in_row, in_chan, corr)
-                        weight_add(weight_spectrum_avg, weight_spectrum,
-                                   out_row, in_row, in_chan, corr)
-                        sigma_add(sigma_spectrum_avg,
-                                  sigma_spectrum_weight_sum,
-                                  sigma_spectrum,
-                                  weight,
-                                  weight_spectrum,
-                                  out_row, in_row, in_chan, corr)
+                    # Weight Spectrum
+                    if weight_spectrum is not None:
+                        ows[out_row, corr] += weight_spectrum[in_row, in_chan, corr]
+
+                    # Sigma Spectrum
+                    if sigma_spectrum is None:
+                        pass
+                    elif weight_spectrum is not None:
+                        # Use full-resolution weight spectrum if given
+                        wt = weight_spectrum[in_row, in_chan, corr]
+                        is_ = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
+                        oss[out_row, corr] += is_
+                        oss_ws[out_row, corr] += wt
+                    elif weight is not None:
+                        # Otherwise use weight column
+                        # sum(sigma**2 * weight**2)
+                        wt = weight[in_row, corr]
+                        is_ = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
+                        oss[out_row, corr] += is_
+                        oss_ws[out_row, corr] += wt
+                    else:
+                        # Otherwise use natural weights
+                        wt = 1.0
+                        is_ = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
+                        oss[out_row, corr] += is_
+                        oss_ws[out_row, corr] += wt
 
         for r in range(out_rows):
             for c in range(ncorrs):
                 if counts[r, c] > 0:
-                    # We have some unflagged samples and
-                    # only these are used as averaged output
-                    normalise_vis(vis_avg, vis_avg,
-                                    r, c,
-                                    vis_weight_sum)
-                    normalise_sigma_spectrum(sigma_spectrum_avg,
-                                                sigma_spectrum_avg,
-                                                r, c,
-                                                sigma_spectrum_weight_sum)
+                    # Normalise Visibilities
+                    vwsum = vis_weight_sum[r, corr]
+
+                    if vwsum != 0.0:
+                        vis_avg[r, c] = vis_avg[r, c] / vwsum
+
+                    # Normalise Sigma Spectrum
+                    sswsum = sigma_spectrum_weight_sum[r, corr]
+
+                    if sswsum != 0.0:
+                        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+                        res = sigma_spectrum_avg[r, corr] / (sswsum**2)
+                        sigma_spectrum_avg[r, corr] = np.sqrt(res)
+
+                    # Unflag the output bin
+                    if flag_avg is not None:
+                        flag_avg[r, c] = 0
+
                 elif flag_counts[r, c] > 0:
                     # We only have flagged samples and
                     # these are used as averaged output
-                    normalise_vis(
-                            vis_avg, flagged_vis_avg,
-                            r, c,
-                            flagged_vis_weight_sum)
-                    normalise_sigma_spectrum(
-                            sigma_spectrum_avg,
-                            flagged_sigma_spectrum_avg,
-                            r, c,
-                            flagged_sigma_spectrum_weight_sum)
-                    normalise_weights(
-                            weight_spectrum_avg,
-                            flagged_weight_spectrum_avg,
-                            r, c)
+
+                    # Normalise Visibilities
+                    vwsum = flagged_vis_weight_sum[r, corr]
+
+                    if vwsum != 0.0:
+                        vis_avg[r, c] = flagged_vis_avg[r, c] / vwsum
+
+                    # Normalise Sigma Spectrum
+                    sswsum = flagged_sigma_spectrum_weight_sum[r, corr]
+
+                    if sswsum != 0.0:
+                        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+                        fss = flagged_sigma_spectrum_avg[r, corr]
+                        sigma_spectrum_avg[r, corr] = np.sqrt(fss / sswsum**2)
+
+                    # Copy Weights
+                    weight_spectrum_avg[r, c] = flagged_weight_spectrum_avg[r, c]
 
                     # Flag the output bin
                     if flag_avg is not None:
                         flag_avg[r, c] = 1
                 else:
                     raise RowChannelAverageException("Zero-filled bin")
-
-
 
 
         return RowChanAverageOutput(vis_avg, flag_avg,
