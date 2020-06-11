@@ -134,10 +134,7 @@ def chan_corrs(vis, flag,
 
 @njit(nogil=True, inline='always')
 def flags_match(flag_row, ri, out_flag_row, ro):
-    if flag_row is None:
-        return True
-    else:
-        return flag_row[ri] == out_flag_row[ro]
+    return flag_row is None or flag_row[ri] == out_flag_row[ro]
 
 
 @njit(nogil=True, inline='always')

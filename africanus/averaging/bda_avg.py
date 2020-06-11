@@ -6,11 +6,12 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.averaging.shared import (flags_match,
-                                        is_chan_flagged,
-                                        vis_add,
-                                        normalise_vis)
-from africanus.util.numba import generated_jit
+from africanus.averaging.shared import (chan_corrs,
+                                        flags_match)
+from africanus.util.numba import (generated_jit,
+                                  overload,
+                                  njit,
+                                  is_numba_type_none)
 
 
 _row_output_fields = ["antenna1", "antenna2", "time_centroid", "exposure",
@@ -67,47 +68,49 @@ def row_average(meta, ant1, ant2, flag_row=None,
                      dtype=sigma.dtype))
 
         # Iterate over input rows, accumulating into output rows
-        for in_row, out_row in enumerate(meta.map):
-            # Input and output flags must match in order for the
-            # current row to contribute to these columns
-            if flags_match(flag_row, in_row, meta.flag_row, out_row):
-                if uvw is not None:
-                    uvw_avg[out_row, 0] += uvw[in_row, 0]
-                    uvw_avg[out_row, 1] += uvw[in_row, 1]
-                    uvw_avg[out_row, 2] += uvw[in_row, 2]
+        for in_row in range(meta.map.shape[0]):
+            for c in range(meta.map.shape[1]):
+                out_row = meta.map[in_row, c]
+                # Here we can simply assign because input_row baselines
+                # should always match output row baselines
+                ant1_avg[out_row] = ant1[in_row]
+                ant2_avg[out_row] = ant2[in_row]
 
-                if time_centroid is not None:
-                    time_centroid_avg[out_row] += time_centroid[in_row]
+                # Input and output flags must match in order for the
+                # current row to contribute to these columns
+                if flags_match(flag_row, in_row, meta.flag_row, out_row):
+                    if uvw is not None:
+                        uvw_avg[out_row, 0] += uvw[in_row, 0]
+                        uvw_avg[out_row, 1] += uvw[in_row, 1]
+                        uvw_avg[out_row, 2] += uvw[in_row, 2]
 
-                if exposure is not None:
-                    exposure_avg[out_row] += exposure[in_row]
+                    if time_centroid is not None:
+                        time_centroid_avg[out_row] += time_centroid[in_row]
 
-                if weight is not None:
-                    for co in range(weight.shape[1]):
-                        weight_avg[out_row, co] += weight[in_row, co]
+                    if exposure is not None:
+                        exposure_avg[out_row] += exposure[in_row]
 
-                if sigma is not None:
-                    for co in range(sigma.shape[1]):
-                        sva = sigma[in_row, co]**2
+                    if weight is not None:
+                        for co in range(weight.shape[1]):
+                            weight_avg[out_row, co] += weight[in_row, co]
 
-                        # Use provided weights
-                        if weight is not None:
-                            wt = weight[in_row, co]
-                            sva *= wt ** 2
-                            sigma_weight_sum[out_row, co] += wt
-                        # Natural weights
-                        else:
-                            sigma_weight_sum[out_row, co] += 1.0
+                    if sigma is not None:
+                        for co in range(sigma.shape[1]):
+                            sva = sigma[in_row, co]**2
 
-                        # Assign
-                        sigma_avg[out_row, co] += sva
+                            # Use provided weights
+                            if weight is not None:
+                                wt = weight[in_row, co]
+                                sva *= wt ** 2
+                                sigma_weight_sum[out_row, co] += wt
+                            # Natural weights
+                            else:
+                                sigma_weight_sum[out_row, co] += 1.0
 
-                counts[out_row] += 1
+                            # Assign
+                            sigma_avg[out_row, co] += sva
 
-            # Here we can simply assign because input_row baselines
-            # should always match output row baselines
-            ant1_avg[out_row] = ant1[in_row]
-            ant2_avg[out_row] = ant2[in_row]
+                    counts[out_row] += 1
 
         # Normalise
         for out_row in range(out_rows):
@@ -143,6 +146,174 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
+@njit(nogil=True, inline='always')
+def chan_add(output, input, orow, irow, ichan, corr):
+    if input is not None:
+        output[orow, corr] += input[irow, ichan, corr]
+
+
+def vis_add(out_vis, out_weight_sum, in_vis,
+             weight, weight_spectrum,
+             orow, irow, ichan, corr):
+    pass
+
+
+@overload(vis_add, inline='always')
+def _vis_add(out_vis, out_weight_sum, in_vis,
+             weight, weight_spectrum,
+             orow, irow, ichan, corr):
+    """ Returns function adding weighted visibilities to a bin """
+    if is_numba_type_none(in_vis):
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            pass
+    elif not is_numba_type_none(weight_spectrum):
+        # Always prefer more accurate weight spectrum if we have it
+
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            wt = weight_spectrum[irow, ichan, corr]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, corr] += iv
+            out_weight_sum[orow, corr] += wt
+    elif not is_numba_type_none(weight):
+        # Otherwise fall back to row weights
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            wt = weight[irow, corr]
+            iv = in_vis[irow, ichan, corr] * wt
+            out_vis[orow, corr] += iv
+            out_weight_sum[orow, corr] += wt
+    else:
+        # Natural weights
+        def impl(out_vis, out_weight_sum, in_vis,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            iv = in_vis[irow, ichan, corr]
+            out_vis[orow, corr] += iv
+            out_weight_sum[orow, corr] += 1.0
+
+    return impl
+
+
+def sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
+                       weight, weight_spectrum,
+                       orow, irow, ichan, corr):
+    pass
+
+
+@overload(sigma_spectrum_add, inline="always")
+def _sigma_spectrum_add(out_sigma, out_weight_sum, in_sigma,
+                        weight, weight_spectrum,
+                        orow, irow, ichan, corr):
+    """ Returns function adding weighted sigma to a bin """
+    if is_numba_type_none(in_sigma):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+            pass
+    elif not is_numba_type_none(weight_spectrum):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            # Always prefer more accurate weight spectrum if we have it
+            # sum(sigma**2 * weight**2)
+            wt = weight_spectrum[irow, ichan, corr]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, corr] += is_
+            out_weight_sum[orow, corr] += wt
+
+    elif not is_numba_type_none(weight):
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            # sum(sigma**2 * weight**2)
+            wt = weight[irow, corr]
+            is_ = in_sigma[irow, ichan, corr]**2 * wt**2
+            out_sigma[orow, corr] += is_
+            out_weight_sum[orow, corr] += wt
+    else:
+        # Natural weights
+        # sum(sigma**2 * weight**2)
+
+        def impl(out_sigma, out_weight_sum, in_sigma,
+                 weight, weight_spectrum,
+                 orow, irow, ichan, corr):
+
+            out_sigma[orow, corr] += in_sigma[irow, ichan, corr]**2
+            out_weight_sum[orow, corr] += 1.0
+
+    return impl
+
+
+def normalise_vis(vis_out, vis_in, row, corr, weight_sum):
+    pass
+
+
+@overload(normalise_vis, inline='always')
+def _normalise_vis(vis_out, vis_in, row, corr, weight_sum):
+    if is_numba_type_none(vis_in):
+        def impl(vis_out, vis_in, row, corr, weight_sum):
+            pass
+    else:
+        def impl(vis_out, vis_in, row, corr, weight_sum):
+            wsum = weight_sum[row, corr]
+
+            if wsum != 0.0:
+                vis_out[row, corr] = vis_in[row, corr] / wsum
+    return impl
+
+
+def normalise_sigma_spectrum(sigma_out, sigma_in, row, corr, weight_sum):
+    pass
+
+
+@overload(normalise_sigma_spectrum, inline='always')
+def _normalise_sigma_spectrum(sigma_out, sigma_in,
+                              row, corr,
+                              weight_sum):
+    if is_numba_type_none(sigma_in) or is_numba_type_none(weight_sum):
+        def impl(sigma_out, sigma_in, row, corr, weight_sum):
+            pass
+    else:
+        def impl(sigma_out, sigma_in, row, corr, weight_sum):
+            wsum = weight_sum[row, corr]
+
+            if wsum == 0.0:
+                return
+
+            # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+            res = np.sqrt(sigma_in[row, corr] / (wsum**2))
+            sigma_out[row, corr] = res
+
+    return impl
+
+
+def normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, corr):
+    pass
+
+
+@overload(normalise_weight_spectrum, inline='always')
+def _normalise_weight_spectrum(wt_spec_out, wt_spec_in, row, corr):
+    if is_numba_type_none(wt_spec_in):
+        def impl(wt_spec_out, wt_spec_in, row, corr):
+            pass
+    else:
+        def impl(wt_spec_out, wt_spec_in, row, corr):
+            wt_spec_out[row, corr] = wt_spec_in[row, corr]
+
+    return impl
+
+
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
 RowChanAverageOutput = namedtuple("RowChanAverageOutput",
                                   _rowchan_output_fields)
@@ -153,28 +324,28 @@ class RowChannelAverageException(Exception):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_chan_average(row_meta, chan_meta,
-                     flag_row=None, weight=None,
+def row_chan_average(meta, flag_row=None, weight=None,
                      vis=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
 
     dummy_chan_freq = None
     dummy_chan_width = None
 
-    def impl(row_meta, chan_meta,
-             flag_row=None, weight=None,
+    weight_add = chan_add
+    sigma_add = sigma_spectrum_add
+    normalise_weights = normalise_weight_spectrum
+
+    def impl(meta, flag_row=None, weight=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None):
 
-        out_rows = row_meta.time.shape[0]
+        out_rows = meta.time.shape[0]
         nchan, ncorrs = chan_corrs(vis, flag,
                                    weight_spectrum, sigma_spectrum,
                                    dummy_chan_freq, dummy_chan_width,
                                    dummy_chan_width, dummy_chan_width)
 
-        chan_map, out_chans = chan_meta
-
-        out_shape = (out_rows, out_chans, ncorrs)
+        out_shape = (out_rows, ncorrs)
 
         if vis is None:
             vis_avg = None
@@ -217,81 +388,85 @@ def row_chan_average(row_meta, chan_meta,
         flag_counts = np.zeros(out_shape, dtype=np.uint32)
 
         # Iterate over input rows, accumulating into output rows
-        for in_row, out_row in enumerate(row_meta.map):
-            # TIME_CENTROID/EXPOSURE case applies here,
-            # must have flagged input and output OR unflagged input and output
-            if not flags_match(flag_row, in_row, row_meta.flag_row, out_row):
-                continue
+        for in_row in range(meta.map.shape[0]):
+            for in_chan in range(meta.map.shape[1]):
+                out_row = meta.map[in_row, in_chan]
 
-            for in_chan, out_chan in enumerate(chan_map):
+                # TIME_CENTROID/EXPOSURE case applies here,
+                # must have flagged input and output OR unflagged input and output
+                if not flags_match(flag_row, in_row, meta.flag_row, out_row):
+                    continue
+
                 for corr in range(ncorrs):
-                    if is_chan_flagged(flag, in_row, in_chan, corr):
+                    if flag is not None and flag[in_row, in_chan, corr] != 0:
                         # Increment flagged averages and counts
-                        flag_counts[out_row, out_chan, corr] += 1
+                        flag_counts[out_row, corr] += 1
 
                         vis_add(flagged_vis_avg, flagged_vis_weight_sum, vis,
                                 weight, weight_spectrum,
-                                out_row, out_chan, in_row, in_chan, corr)
+                                out_row, in_row, in_chan, corr)
                         weight_add(flagged_weight_spectrum_avg,
                                    weight_spectrum,
-                                   out_row, out_chan, in_row, in_chan, corr)
+                                   out_row, in_row, in_chan, corr)
                         sigma_add(flagged_sigma_spectrum_avg,
                                   flagged_sigma_spectrum_weight_sum,
                                   sigma_spectrum,
                                   weight,
                                   weight_spectrum,
-                                  out_row, out_chan, in_row, in_chan, corr)
+                                  out_row, in_row, in_chan, corr)
                     else:
                         # Increment unflagged averages and counts
-                        counts[out_row, out_chan, corr] += 1
+                        counts[out_row, corr] += 1
 
                         vis_add(vis_avg, vis_weight_sum, vis,
                                 weight, weight_spectrum,
-                                out_row, out_chan, in_row, in_chan, corr)
+                                out_row, in_row, in_chan, corr)
                         weight_add(weight_spectrum_avg, weight_spectrum,
-                                   out_row, out_chan, in_row, in_chan, corr)
+                                   out_row, in_row, in_chan, corr)
                         sigma_add(sigma_spectrum_avg,
                                   sigma_spectrum_weight_sum,
                                   sigma_spectrum,
                                   weight,
                                   weight_spectrum,
-                                  out_row, out_chan, in_row, in_chan, corr)
+                                  out_row, in_row, in_chan, corr)
 
         for r in range(out_rows):
-            for f in range(out_chans):
-                for c in range(ncorrs):
-                    if counts[r, f, c] > 0:
-                        # We have some unflagged samples and
-                        # only these are used as averaged output
-                        normalise_vis(vis_avg, vis_avg,
-                                      r, f, c,
-                                      vis_weight_sum)
-                        normalise_sigma_spectrum(sigma_spectrum_avg,
-                                                 sigma_spectrum_avg,
-                                                 r, f, c,
-                                                 sigma_spectrum_weight_sum)
-                    elif flag_counts[r, f, c] > 0:
-                        # We only have flagged samples and
-                        # these are used as averaged output
-                        normalise_vis(
-                                vis_avg, flagged_vis_avg,
-                                r, f, c,
-                                flagged_vis_weight_sum)
-                        normalise_sigma_spectrum(
-                                sigma_spectrum_avg,
-                                flagged_sigma_spectrum_avg,
-                                r, f, c,
-                                flagged_sigma_spectrum_weight_sum)
-                        normalise_weights(
-                                weight_spectrum_avg,
-                                flagged_weight_spectrum_avg,
-                                r, f, c)
+            for c in range(ncorrs):
+                if counts[r, c] > 0:
+                    # We have some unflagged samples and
+                    # only these are used as averaged output
+                    normalise_vis(vis_avg, vis_avg,
+                                    r, c,
+                                    vis_weight_sum)
+                    normalise_sigma_spectrum(sigma_spectrum_avg,
+                                                sigma_spectrum_avg,
+                                                r, c,
+                                                sigma_spectrum_weight_sum)
+                elif flag_counts[r, c] > 0:
+                    # We only have flagged samples and
+                    # these are used as averaged output
+                    normalise_vis(
+                            vis_avg, flagged_vis_avg,
+                            r, c,
+                            flagged_vis_weight_sum)
+                    normalise_sigma_spectrum(
+                            sigma_spectrum_avg,
+                            flagged_sigma_spectrum_avg,
+                            r, c,
+                            flagged_sigma_spectrum_weight_sum)
+                    normalise_weights(
+                            weight_spectrum_avg,
+                            flagged_weight_spectrum_avg,
+                            r, c)
 
-                        # Flag the output bin
-                        if flag_avg is not None:
-                            flag_avg[r, f, c] = 1
-                    else:
-                        raise RowChannelAverageException("Zero-filled bin")
+                    # Flag the output bin
+                    if flag_avg is not None:
+                        flag_avg[r, c] = 1
+                else:
+                    raise RowChannelAverageException("Zero-filled bin")
+
+
+
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
