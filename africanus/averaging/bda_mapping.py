@@ -299,7 +299,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
-        bin_chan_width = np.full((nbl, ntime), 0.0, dtype=ref_freq_dtype)
         sentinel = np.finfo(time.dtype).max
         time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
         interval_lookup = np.full((nbl, ntime), sentinel, dtype=interval.dtype)
@@ -325,7 +324,6 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             time_lookup[bl, tbin] = finalised.time
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
-            bin_chan_width[bl, tbin] = decorr_bandwidth = finalised.chan_width
 
             if chan_width.shape[0] == 0:
                 # Nothing to do
