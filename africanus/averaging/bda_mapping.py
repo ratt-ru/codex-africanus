@@ -231,8 +231,8 @@ class Binner(object):
 
 
 RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "offsets", "nchan", "chan_width",
-                          "time", "interval", "flag_row"])
+                          ["map", "offsets", "nchan", "decorr_chan_width",
+                          "time", "interval", "chan_width", "flag_row"])
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -299,6 +299,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
+        bin_chan_width = np.full((nbl, ntime), 0.0, dtype=ref_freq_dtype)
         sentinel = np.finfo(time.dtype).max
         time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
         interval_lookup = np.full((nbl, ntime), sentinel, dtype=interval.dtype)
@@ -324,7 +325,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             time_lookup[bl, tbin] = finalised.time
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
-            decorr_bandwidth = finalised.chan_width
+            bin_chan_width[bl, tbin] = decorr_bandwidth = finalised.chan_width
 
             if chan_width.shape[0] == 0:
                 # Nothing to do
@@ -418,6 +419,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         fbin_chan_map = bin_chan_map.reshape((-1, nchan))
         offsets = np.empty(out_rows, dtype=np.uint32)
         out_chans = np.empty(out_rows, dtype=np.uint32)
+        decorr_chan_width = np.empty(out_rows, dtype=chan_width.dtype)
 
         # NOTE(sjperkins)
         # This: out_rows > 0
@@ -454,6 +456,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             flagged = bin_flagged[bl, tbin]
             out_row = inv_argsort[bl*ntime + tbin]
 
+            decorr_chan_width[in_row] = bin_chan_width[bl, tbin]
+
             # Should never happen, but check
             if out_row >= out_rows:
                 raise RowMapperError("out_row >= out_rows")
@@ -488,6 +492,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     out_flag_row[out_offset] = 1 if flagged else 0
 
         return RowMapOutput(row_chan_map, offsets, out_chans,
+                            decorr_chan_width,
                             time_ret, int_ret,
                             chan_width_ret, out_flag_row)
 
