@@ -291,51 +291,36 @@ def row_chan_average(meta, flag_row=None, weight=None,
         for r in range(out_rows):
             for c in range(ncorrs):
                 if counts[r, c] > 0:
-                    # Normalise Visibilities
-                    vwsum = vis_weight_sum[r, corr]
-
-                    if vwsum != 0.0:
-                        vis_avg[r, c] = vis_avg[r, c] / vwsum
-
-                    # Normalise Sigma Spectrum
-                    sswsum = sigma_spectrum_weight_sum[r, corr]
-
-                    if sswsum != 0.0:
-                        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-                        res = sigma_spectrum_avg[r, corr] / (sswsum**2)
-                        sigma_spectrum_avg[r, corr] = np.sqrt(res)
-
-                    # Unflag the output bin
-                    if flag_avg is not None:
-                        flag_avg[r, c] = 0
-
+                    vwsum = vis_weight_sum[r, c]
+                    vin = vis_avg[r, c]
+                    sswsum = sigma_spectrum_weight_sum[r, c]
+                    ssin = sigma_spectrum_avg[r, c]
+                    flagged = 0
                 elif flag_counts[r, c] > 0:
-                    # We only have flagged samples and
-                    # these are used as averaged output
-
-                    # Normalise Visibilities
-                    vwsum = flagged_vis_weight_sum[r, corr]
-
-                    if vwsum != 0.0:
-                        vis_avg[r, c] = flagged_vis_avg[r, c] / vwsum
-
-                    # Normalise Sigma Spectrum
-                    sswsum = flagged_sigma_spectrum_weight_sum[r, corr]
-
-                    if sswsum != 0.0:
-                        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-                        fss = flagged_sigma_spectrum_avg[r, corr]
-                        sigma_spectrum_avg[r, corr] = np.sqrt(fss / sswsum**2)
-
-                    # Copy Weights
-                    weight_spectrum_avg[r, c] = flagged_weight_spectrum_avg[r, c]
-
-                    # Flag the output bin
-                    if flag_avg is not None:
-                        flag_avg[r, c] = 1
+                    vwsum = flagged_vis_weight_sum[r, c]
+                    vin = flagged_vis_avg[r, c]
+                    sswsum = flagged_sigma_spectrum_weight_sum[r, c]
+                    ssin = flagged_sigma_spectrum_avg[r, c]
+                    flagged = 1
                 else:
                     raise RowChannelAverageException("Zero-filled bin")
 
+                # Normalise visibilities
+                if vwsum != 0.0:
+                    vis_avg[r, c] = vin / vwsum
+
+                # Normalise Sigma Spectrum
+                if sswsum != 0.0:
+                    # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
+                    sigma_spectrum_avg[r, c] = np.sqrt(ssin / sswsum**2)
+
+                # Set flag
+                if flag_avg is not None:
+                    flag_avg[r, c] = flagged
+
+                # Copy Weights if flagged
+                if flagged:
+                    weight_spectrum_avg[r, c] = flagged_weight_spectrum_avg[r, c]
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
