@@ -231,8 +231,8 @@ class Binner(object):
 
 
 RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "time", "interval",
-                           "chan_width", "flag_row"])
+                          ["map", "offsets", "nchan", "chan_width",
+                          "time", "interval", "flag_row"])
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -417,16 +417,19 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # Generate row offsets
         fbin_chan_map = bin_chan_map.reshape((-1, nchan))
         offsets = np.empty(out_rows, dtype=np.uint32)
+        out_chans = np.empty(out_rows, dtype=np.uint32)
 
         # NOTE(sjperkins)
         # This: out_rows > 0
         # does not work here for some strange (numba reason?)
         if offsets.shape[0] > 0:
             offsets[0] = 0
+            out_chans[0] = fbin_chan_map[argsort[0]].max() + 1
 
             for r in range(1, offsets.shape[0]):
-                prev_bin_chans = fbin_chan_map[argsort[r - 1]].max() + 1
+                prev_bin_chans = out_chans[r - 1]
                 offsets[r] = offsets[r - 1] + prev_bin_chans
+                out_chans[r] = fbin_chan_map[argsort[r]].max() + 1
 
         # Construct the final row map
         row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
@@ -484,7 +487,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if flag_row is not None:
                     out_flag_row[out_offset] = 1 if flagged else 0
 
-        return RowMapOutput(row_chan_map, time_ret, int_ret,
+        return RowMapOutput(row_chan_map, offsets, out_chans,
+                            time_ret, int_ret,
                             chan_width_ret, out_flag_row)
 
     return _impl
