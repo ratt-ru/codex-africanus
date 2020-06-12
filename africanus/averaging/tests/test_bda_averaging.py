@@ -90,7 +90,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
 
-    print(vis.shape, vis.size / (1024.**2),
-          row_chan.vis.shape, row_chan.vis.size)
+    print(vis.shape, vis.nbytes / (1024.**2),
+          row_chan.vis.shape, row_chan.vis.nbytes)
 
     print("row_chan_average: %f" % (timing.perf_counter() - start))
