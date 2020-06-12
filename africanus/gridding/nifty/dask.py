@@ -28,6 +28,206 @@ else:
     nifty_import_err = None
 
 from africanus.util.requirements import requires_optional
+from ducc0.wgridder import ms2dirty, dirty2ms
+from daskms import xds_from_ms
+
+ms2dirty()
+
+class wgridder(object):
+    """
+    Uses dask-ms to provide a chunked up interface to the measurement for the
+    wgridder in ducc. For simplicity it is assumed that the channel mapping
+    defines the chunking along the frequency axis where the channel mapping
+    is defined by the frequency resolution of the measurement and the number
+    of required imaging bands. By default it is assumed that all rows for a
+    specific imaging band fits into memory (i.e. row_chunks=-1). If this is
+    not the case row_chunks should be set explicitly (large chunks preferred).
+    
+    A list of measurement sets is supported but currently only a single phase
+    direction and frequency range with fixed number of channels are allowed. 
+    
+    The number of pixels and pixel sizes are determined automatically from the
+    field of view (fov) and the super resolution factor (srf) with respect to
+    the Nyquist limit. Only even pixel sizes will be used. 
+
+    If a weighting scheme other than natural weighting is required they need
+    to be computed and written to the measurement set in advance.
+    """
+    def __init__(self, ms, fov_x, fov_y, srf=1.2, nband=None, field=0,
+                 precision=1e-7, nthreads=0, do_wstacking=1, row_chunks=-1,
+                 data_column='DATA', weight_column='WEIGHT_SPECTRUM',
+                 model_column="MODEL_DATA"):
+    """
+    Parameters
+    ----------
+    ms : list
+        List of measurement sets
+    fov : float
+        The required field of view for the image.
+    srf : float, optional
+        The required super resolution factor with
+        respect to the Nyquist limit.
+    cell_size_x : float, optional
+        Cell size of the X pixel in arcseconds. Defaults to 2.0.
+    cell_size_y : float, optional
+        Cell size of the Y pixel in arcseconds. Defaults to 2.0.
+    eps : float
+        Gridder accuracy error. Defaults to 2e-13
+
+
+    Returns
+    -------
+
+    """
+        if precision > 1e-6:
+            self.real_type = np.float32
+            self.complex_type = np.complex64
+        else:
+            self.real_type = np.float64
+            self.complex_type=np.complex128
+
+        self.nx = nx
+        self.ny = ny
+        self.cell = cell_size * np.pi/60/60/180
+        if isinstance(field, list):
+            self.field = field
+        else:
+            self.field = [field]
+        self.precision = precision
+        self.nthreads = nthreads
+        self.do_wstacking = do_wstacking
+
+        # freq mapping
+        self.freq = freq
+        self.nchan = freq.size
+        if nband is None:
+            self.nband = self.nchan
+        else:
+            self.nband = nband
+        step = self.nchan//self.nband
+        freq_mapping = np.arange(0, self.nchan, step)
+        self.freq_mapping = np.append(freq_mapping, self.nchan)
+        self.freq_out = np.zeros(self.nband)
+        for i in range(self.nband):
+            Ilow = self.freq_mapping[i]
+            Ihigh = self.freq_mapping[i+1]
+            self.freq_out[i] = np.mean(self.freq[Ilow:Ihigh])
+
+        self.chan_chunks = self.freq_mapping[1] - self.freq_mapping[0]
+
+        # meta info for xds_from_table
+        self.data_column = data_column
+        self.weight_column = weight_column
+        self.model_column = model_column
+        self.ms = ms
+        self.row_chunks = row_chunks
+        self.schema = {
+            data_column: {'dims': ('chan',)},
+            weight_column: {'dims': ('chan', )},
+            "UVW": {'dims': ('uvw',)},
+        }
+
+    def dot(self, x, write=False, column=None):
+        """
+        Implements forward transform i.e.
+
+        V = Rx
+
+        where R is the interferometric response.
+        This is not recommended if the result does not
+        fit in memory. For this reason there is an option
+        to write the result to a column in the MS.
+        If write=True then it will attempt to write the
+        visibilities to column. If column is None then the
+        default of MODEL_DATA is used.  
+        """
+        columns = (self.weight_column, 'UVW')
+        if write:
+            if column is None:
+                columns += self.model_column
+            else:
+                columns += column
+        xds = xds_from_ms(self.ms, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks})
+
+
+    def make_residual(self, x, v_dof=None):
+        print("Making residual")
+        residual = np.zeros(x.shape, dtype=x.dtype)
+        xds = xds_from_ms(self.ms, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
+        for ds in xds:
+            if ds.FIELD_ID not in list(self.field):
+                continue
+            print("Processing field %i"%ds.FIELD_ID)
+            data = getattr(ds, self.data_column).data
+            weights = getattr(ds, self.weight_column).data
+            uvw = ds.UVW.data.compute().astype(self.real_type)
+
+            for i in range(self.nband):
+                Ilow = self.freq_mapping[i]
+                Ihigh = self.freq_mapping[i+1]
+                weighti = weights.blocks[:, i].compute().astype(self.real_type)
+                datai = data.blocks[:, i].compute().astype(self.complex_type)
+
+                # TODO - load and apply interpolated fits beam patterns for field
+
+                # get residual vis
+                if weighti.any():
+                    residual_vis = weighti * datai - ng.dirty2ms(uvw=uvw, freq=self.freq[Ilow:Ihigh], dirty=x[i], wgt=weighti,
+                                                                pixsize_x=self.cell, pixsize_y=self.cell, epsilon=self.precision,
+                                                                nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
+
+                    # make residual image
+                    residual[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=residual_vis, wgt=weighti,
+                                            npix_x=self.nx, npix_y=self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
+                                            epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
+        return residual
+
+    def make_dirty(self):
+        print("Making dirty")
+        dirty = np.zeros((self.nband, self.nx, self.ny), dtype=self.real_type)
+        xds = xds_from_table(self.table_name, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
+        for ds in xds:
+            if ds.FIELD_ID not in list(self.field):
+                continue
+            print("Processing field %i"%ds.FIELD_ID)
+            data = getattr(ds, self.data_column).data
+            weights = getattr(ds, self.weight_column).data
+            uvw = ds.UVW.data.compute().astype(self.real_type)
+
+            for i in range(self.nband):
+                Ilow = self.freq_mapping[i]
+                Ihigh = self.freq_mapping[i+1]
+                weighti = weights.blocks[:, i].compute().astype(self.real_type)
+                datai = data.blocks[:, i].compute().astype(self.complex_type)
+
+                # TODO - load and apply interpolated fits beam patterns for field
+                if weighti.any():
+                    dirty[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=weighti*datai, wgt=weighti,
+                                            npix_x=self.nx, npix_y=self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
+                                            epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
+        return dirty
+
+    def make_psf(self):
+        print("Making PSF")
+        psf_array = np.zeros((self.nband, 2*self.nx, 2*self.ny))
+        xds = xds_from_table(self.table_name, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
+        for ds in xds:
+            if ds.FIELD_ID not in list(self.field):
+                continue
+            print("Processing field %i"%ds.FIELD_ID)
+            weights = getattr(ds, self.weight_column).data
+            uvw = ds.UVW.data.compute().astype(self.real_type)
+
+            for i in range(self.nband):
+                Ilow = self.freq_mapping[i]
+                Ihigh = self.freq_mapping[i+1]
+                weighti = weights.blocks[:, i].compute().astype(self.real_type)
+
+                if weighti.any():
+                    psf_array[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=weighti.astype(self.complex_type), wgt=weighti,
+                                                npix_x=2*self.nx, npix_y=2*self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
+                                                epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking)
+        return psf_array
 
 
 class GridderConfigWrapper(object):
