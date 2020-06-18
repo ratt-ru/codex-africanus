@@ -25,9 +25,9 @@ def phase_rotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1
     l = - c_d_dec * s_d_ra
     m = - (s_d_dec * c_d_decp - c_d_dec * s_d_decp * c_d_ra)
     n = - (s_d_dec * s_d_decp + c_d_dec * c_d_decp * c_d_ra)
-    for l in range(lambdas.size):
-        x = phasesign * 2 * pi * (uvw[0] * l + uvw[1] * m + uvw[2] * n) / lambdas[l]
-        vis[l] *= cos(x) + 1.0j*sin(x)
+    for c in range(lambdas.size):
+        x = phasesign * 2 * pi * (uvw[0] * l + uvw[1] * m + uvw[2] * n) / lambdas[c]
+        vis[c,:] *= cos(x) + 1.0j*sin(x)
 
 def policy(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
     pass

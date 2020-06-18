@@ -2,7 +2,7 @@
 
 import unittest
 import numpy as np
-from africanus.gridding.perleypolyhedron import kernels, gridder, policies
+from africanus.gridding.perleypolyhedron import kernels, gridder, degridder, policies
 import os
 
 DEBUG = True
@@ -77,7 +77,7 @@ class griddertest(unittest.TestCase):
         uvw = np.array([[0,0,0]])
         vis = np.array([[[1.0+0j,1.0+0j]]])
         grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
-                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed")
+                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
         assert np.isclose(grid[0,64//2-2,64//2-2], 4.0)
         assert np.isclose(grid[0,64//2-1,64//2-1], 1.0)
         assert np.isclose(grid[0,64//2,64//2], 0.0)
@@ -89,7 +89,7 @@ class griddertest(unittest.TestCase):
         uvw = np.array([[0.4/scale,0,0]])
         vis = np.array([[[1.0+0j,1.0+0j]]])
         grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
-                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed")
+                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
         assert np.isclose(grid[0,64//2-2,64//2-2], 2*1.666666666666666)
         assert np.isclose(grid[0,64//2-1,64//2-1], 1*0.666666666666666)
         assert np.isclose(grid[0,64//2,64//2], 0.0*0.33333333333333333)
@@ -101,12 +101,41 @@ class griddertest(unittest.TestCase):
         uvw = np.array([[-0.22222/scale,0,0]])
         vis = np.array([[[1.0+0j,1.0+0j]]])
         grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
-                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed")
+                               64,30,(0,0),(0,0),kern,W,OS,"None","None","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
         assert np.isclose(grid[0,64//2-2,64//2-3], -2*-1.3333333333333333)
         assert np.isclose(grid[0,64//2-1,64//2-2], -1*-0.3333333333333333)
         assert np.isclose(grid[0,64//2,64//2-1], 0*0.666666666666666666)
         assert np.isclose(grid[0,64//2+1,64//2], 1*1.6666666666666666666)
         assert np.isclose(grid[0,64//2+2,64//2+1], 2*2.6666666666666666666)
+
+    def test_degrid(self):
+        # construct kernel, lets use a fake kernel to check positioning
+        W = 5
+        OS = 3
+        kern = kernels.pack_kernel(kernels.uspace(W, oversample=OS), W, oversample=OS)
         
+        # offset 0
+        uvw = np.array([[0,0,0]])
+        grid = np.ones((1,64,64), dtype=np.complex128)
+        vis = degridder.degridder(uvw,grid,np.array([1.0]),np.array([0]),
+                                  30,(0,0),(0,0),kern,W,OS,
+                                  "None","None",
+                                  "XXYY_FROM_I", "conv_1d_axisymmetric_packed_gather")
+        assert np.isclose(vis[0,0,0], 0.0)
+        
+
+    def test_facetcodepath(self):
+        # construct kernel, lets use a fake kernel to check positioning
+        W = 5
+        OS = 3
+        kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+        
+        # offset 0
+        uvw = np.array([[0,0,0]])
+        vis = np.array([[[1.0+0j,1.0+0j]]])
+        grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
+                               64,30,(0,0),(0,0),kern,W,OS,"rotate","phase_rotate","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
+
+
 if __name__ == "__main__":
     unittest.main()

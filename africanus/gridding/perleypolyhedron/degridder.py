@@ -3,31 +3,30 @@ from numba import jit, literally, prange
 from .policies import baseline_transform_policies as btp
 from .policies import phase_transform_policies as ptp
 from .policies import convolution_policies as cp
+from .policies import stokes_conversion_policies as scp
 
 @jit(nopython=True,nogil=True,fastmath=True,parallel=False)
-def gridder(uvw,
-            vis,
-            lambdas,
-            chanmap,
-            npix,
-            cell,
-            image_centre,
-            phase_centre,
-            convolution_kernel,
-            convolution_kernel_width,
-            convolution_kernel_oversampling,
-            baseline_transform_policy,
-            phase_transform_policy,
-            stokes_conversion_policy,
-            convolution_policy,
-            grid_dtype=np.complex128):
+def degridder(uvw,
+              gridstack,
+              lambdas,
+              chanmap,
+              cell,
+              image_centre,
+              phase_centre,
+              convolution_kernel,
+              convolution_kernel_width,
+              convolution_kernel_oversampling,
+              baseline_transform_policy,
+              phase_transform_policy,
+              stokes_conversion_policy,
+              convolution_policy,
+              vis_dtype=np.complex128):
     """
-    2D Convolutional gridder, contiguous to discrete
+    2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
-    @vis: complex data, (nrow, nchan, ncorr)
+    @gridstack: complex gridded data, (nband, npix, npix)
     @lambdas: wavelengths of data channels
-    @chanmap: MFS band mapping
-    @npix: number of pixels per axis
+    @chanmap: MFS band mapping per channel
     @cell: cell_size in arcsecs
     @image_centre: new phase centre of image (radians, ra, dec)
     @phase_centre: original phase centre of data (radians, ra, dec)
@@ -42,7 +41,7 @@ def gridder(uvw,
                                .policies.stokes_conversion_policies
     @convolution_policy: any accepted convolution policy in
                          .policies.convolution_policies
-    @grid_dtype: accumulation grid dtype (default complex 128)
+    @vis_dtype: accumulation vis dtype (default complex 128)
     """
 
     if chanmap.size != lambdas.size:
@@ -50,7 +49,14 @@ def gridder(uvw,
     chanmap = chanmap.ravel()
     lambdas = lambdas.ravel()
     nband = np.max(chanmap) + 1
-    nrow, nvischan, ncorr = vis.shape
+    nrow = uvw.shape[0]
+    npix = gridstack.shape[1]
+    if gridstack.shape[1] != gridstack.shape[2]:
+        raise ValueError("Grid must be square")
+    nvischan = lambdas.size
+    ncorr = 2#scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
+    if gridstack.shape[0] < nband:
+        raise ValueError("Not enough channel bands in grid stack to match mfs band mapping")
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
@@ -58,13 +64,13 @@ def gridder(uvw,
     if nvischan != lambdas.size:
         raise ValueError("Chanmap must correspond to visibility channels")
     
-    gridstack = np.zeros((nband, npix, npix), dtype=grid_dtype)
+    vis = np.zeros((nrow, nvischan, ncorr), dtype=vis_dtype)
 
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in range(nrow):
-        ra0, dec0 = phase_centre
-        ra, dec = image_centre
+        ra, dec = phase_centre
+        ra0, dec0 = image_centre
         ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
                    ra0, dec0, ra, dec, 
                    policy_type=literally(phase_transform_policy), 
@@ -82,4 +88,4 @@ def gridder(uvw,
                       convolution_kernel_oversampling,
                       stokes_conversion_policy,
                       policy_type=literally(convolution_policy))
-    return gridstack
+    return vis

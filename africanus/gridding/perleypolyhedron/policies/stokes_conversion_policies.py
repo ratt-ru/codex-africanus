@@ -2,43 +2,107 @@ from numba import jit, float32, float64, literally
 from numpy import cos, sin
 from numba.extending import overload
 
-def stokes2corr(vis_in, policy_type):
+def stokes2corr(vis_in, vis_out, policy_type):
     pass
 
 @overload(stokes2corr, inline="always")
 def stokes2corrimpl(vis_in, vis_out, policy_type):
     if policy_type.literal_value == "XXYY_FROM_I":
-        return lambda vis_in, vis_out, policy_type: [vis_in,vis_in]
+        def XXYY_FROM_I(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += vis_in
+        return XXYY_FROM_I
     elif policy_type.literal_value == "XXXYYXYY_FROM_I":
-        return lambda vis_in, vis_out, policy_type: [vis_in,0,0,vis_in]
+        def XXXYYXYY_FROM_I(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += 0
+            vis_out[2] += 0
+            vis_out[3] += vis_in
+        return XXXYYXYY_FROM_I
     elif policy_type.literal_value == "RRLL_FROM_I":
-        return lambda vis_in, vis_out, policy_type: [vis_in,vis_in]
+        def RRLL_FROM_I(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += vis_in
+        return RRLL_FROM_I
     elif policy_type.literal_value == "RRRLLRLL_FROM_I":
-        return lambda vis_in, vis_out, policy_type: [vis_in,0,0,vis_in]
+        def RRRLLRLL_FROM_I(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in; 
+            vis_out[1] += 0; 
+            vis_out[2] += 0; 
+            vis_out[3] += vis_in
+        return RRRLLRLL_FROM_I
     elif policy_type.literal_value == "XXYY_FROM_Q":
-        return lambda vis_in, vis_out, policy_type: [vis_in,-vis_in]
+        def XXYY_FROM_Q(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += -vis_in
+        return XXYY_FROM_Q
     elif policy_type.literal_value == "XXXYYXYY_FROM_Q":
-        return lambda vis_in, vis_out, policy_type: [vis_in,0,0,-vis_in]
+        def XXXYYXYY_FROM_Q(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += 0
+            vis_out[2] += 0
+            vis_out[3] += -vis_in
+        return XXXYYXYY_FROM_Q
     elif policy_type.literal_value == "RLLR_FROM_Q":
-        return lambda vis_in, vis_out, policy_type: [vis_in,vis_in]
+        def RLLR_FROM_Q(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += vis_in
+        return RLLR_FROM_Q
     elif policy_type.literal_value == "RRRLLRLL_FROM_Q":
-        return lambda vis_in, vis_out, policy_type: [0,vis_in,vis_in,0]
+        def RRRLLRLL_FROM_Q(vis_in, vis_out, policy_type): 
+            vis_out[0] += 0
+            vis_out[1] += vis_in
+            vis_out[2] += vis_in
+            vis_out[3] += 0
+        return RRRLLRLL_FROM_Q
     elif policy_type.literal_value == "XYYX_FROM_U":
-        return lambda vis_in, vis_out, policy_type: [vis_in,vis_in]
+        def XYYX_FROM_U(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += vis_in
+        return XYYX_FROM_U
     elif policy_type.literal_value == "XXXYYXYY_FROM_U":
-        return lambda vis_in, vis_out, policy_type: [0,vis_in,vis_in,0]
+        def XXXYYXYY_FROM_U(vis_in, vis_out, policy_type): 
+            vis_out[0] += 0
+            vis_out[1] += vis_in
+            vis_out[2] += vis_in
+            vis_out[3] += 0
+        return XXXYYXYY_FROM_U
     elif policy_type.literal_value == "RLLR_FROM_U":
-        return lambda vis_in, vis_out, policy_type: [1.0j*vis_in,-1.0j*vis_in]
+        def RLLR_FROM_U(vis_in, vis_out, policy_type): 
+            vis_out[0] += 1.0j*vis_in
+            vis_out[1] += -1.0j*vis_in
+        return RLLR_FROM_U
     elif policy_type.literal_value == "RRRLLRLL_FROM_U":
-        return lambda vis_in, vis_out, policy_type: [0,1.0j*vis_in,-1.0j*vis_in,0]
+        def RRRLLRLL_FROM_U(vis_in, vis_out, policy_type): 
+            vis_out[0] += 0.0
+            vis_out[1] += 1.0j*vis_in
+            vis_out[2] += -1.0j*vis_in
+            vis_out[3] += 0.0
+        return RRRLLRLL_FROM_U
     elif policy_type.literal_value == "XYYX_FROM_V":
-        return lambda vis_in, vis_out, policy_type: [1.0j*vis_in,-1.0j*vis_in]
+        def XYYX_FROM_V(vis_in, vis_out, policy_type): 
+            vis_out[0] += 1.0j*vis_in
+            vis_out[1] += -1.0j*vis_in
+        return XYYX_FROM_V
     elif policy_type.literal_value == "XXXYYXYY_FROM_V":
-        return lambda vis_in, vis_out, policy_type: [0,1.0j*vis_in,-1.0j*vis_in,0]
+        def XXXYYXYY_FROM_V(vis_in, vis_out, policy_type): 
+            vis_out[0] += 0.0
+            vis_out[1] += 1.0j*vis_in
+            vis_out[2] += -1.0j*vis_in
+            vis_out[3] += 0.0
+        return XXXYYXYY_FROM_V
     elif policy_type.literal_value == "RRLL_FROM_V":
-        return lambda vis_in, vis_out, policy_type: [vis_in,-vis_in]
+        def RRLL_FROM_V(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += -vis_in
+        return RRLL_FROM_V
     elif policy_type.literal_value == "RRRLLRLL_FROM_V":
-        return lambda vis_in, vis_out, policy_type: [vis_in,0,0,-vis_in]
+        def RRRLLRLL_FROM_V(vis_in, vis_out, policy_type): 
+            vis_out[0] += vis_in
+            vis_out[1] += 0
+            vis_out[2] += 0
+            vis_out[3] += -vis_in
+        return RRRLLRLL_FROM_V
     else:
         raise ValueError("Invalid stokes conversion")
     
@@ -77,5 +141,45 @@ def corr2stokesimpl(vis_in, policy_type):
         return lambda vis_in, policy_type: -1.0j*(vis_in[0]-vis_in[1])*0.5
     elif policy_type.literal_value == "V_FROM_XXXYYXYY":
         return lambda vis_in, policy_type: -1.0j*(vis_in[1]-vis_in[2])*0.5
+    else:
+        raise ValueError("Invalid stokes conversion")
+
+def ncorr_out(policy_type):
+    pass
+
+@overload(ncorr_out, inline="always")
+def ncorr_outimpl(policy_type):
+    if policy_type.literal_value == "XXYY_FROM_I":
+        return lambda: 2
+    elif policy_type.literal_value == "XXXYYXYY_FROM_I":
+        return lambda: 4
+    elif policy_type.literal_value == "RRLL_FROM_I":
+        return lambda: 2
+    elif policy_type.literal_value == "RRRLLRLL_FROM_I":
+        return lambda: 4
+    elif policy_type.literal_value == "XXYY_FROM_Q":
+        return lambda: 2
+    elif policy_type.literal_value == "XXXYYXYY_FROM_Q":
+        return lambda: 4
+    elif policy_type.literal_value == "RLLR_FROM_Q":
+        return lambda: 2
+    elif policy_type.literal_value == "RRRLLRLL_FROM_Q":
+        return lambda: 4
+    elif policy_type.literal_value == "XYYX_FROM_U":
+        return lambda: 2
+    elif policy_type.literal_value == "XXXYYXYY_FROM_U":
+        return lambda: 4
+    elif policy_type.literal_value == "RLLR_FROM_U":
+        return lambda: 2
+    elif policy_type.literal_value == "RRRLLRLL_FROM_U":
+        return lambda: 4
+    elif policy_type.literal_value == "XYYX_FROM_V":
+        return lambda: 2
+    elif policy_type.literal_value == "XXXYYXYY_FROM_V":
+        return lambda: 4
+    elif policy_type.literal_value == "RRLL_FROM_V":
+        return lambda: 2
+    elif policy_type.literal_value == "RRRLLRLL_FROM_V":
+        return lambda: 4
     else:
         raise ValueError("Invalid stokes conversion")
