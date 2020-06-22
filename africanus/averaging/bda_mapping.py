@@ -170,7 +170,7 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, uvw):
+    def finalise_bin(self, uvw, bandwidth):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
@@ -187,7 +187,8 @@ class Binner(object):
                                  "start row != end row")
 
             # TODO(sjperkins)
-            # This is dodgy, but works for chan_map creation
+            # This is a signal to update_lookups
+            # Could be brittle, improve this
             max_𝞓𝝼 = 0.0
         else:
             # duvw between start and end row
@@ -215,7 +216,11 @@ class Binner(object):
             𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
             fractional_bandwidth = 𝞓𝞍 / max_abs_dist
 
+            # Get maximum channel width and then floor it
+            # so that it divides the bandwidth exactly
             max_𝞓𝝼 = max_chan_width(self.ref_freq, fractional_bandwidth)
+            min_nchan = max(int(1), int(np.floor(bandwidth / max_𝞓𝝼)))
+            max_𝞓𝝼 = bandwidth / min_nchan
 
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
@@ -288,6 +293,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
         nchan = chan_width.shape[0]
+        bandwidth = chan_width.sum()
 
         if nchan == 0:
             raise ValueError("zero channels")
@@ -383,7 +389,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
                 elif not binner.add_row(r, time, interval, uvw, flag_row):
-                    f = binner.finalise_bin(uvw)
+                    f = binner.finalise_bin(uvw, bandwidth)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -393,7 +399,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(uvw)
+                f = binner.finalise_bin(uvw, bandwidth)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
