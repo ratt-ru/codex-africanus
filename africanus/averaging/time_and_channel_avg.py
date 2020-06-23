@@ -10,6 +10,7 @@ from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 from africanus.averaging.shared import (chan_corrs,
                                         flags_match,
+                                        merge_flags,
                                         is_chan_flagged,
                                         chan_add,
                                         vis_add,
@@ -393,67 +394,6 @@ AverageOutput = namedtuple("AverageOutput",
                            _row_output_fields +
                            _chan_output_fields +
                            _rowchan_output_fields)
-
-
-# TODO(sjperkins)
-# maybe replace with njit and inline='always' if
-# https://github.com/numba/numba/issues/4693 is resolved
-@generated_jit(nopython=True, nogil=True, cache=True)
-def merge_flags(flag_row, flag):
-    have_flag_row = not is_numba_type_none(flag_row)
-    have_flag = not is_numba_type_none(flag)
-
-    if have_flag_row and have_flag:
-        def impl(flag_row, flag):
-            """ Check flag_row and flag agree """
-            for r in range(flag.shape[0]):
-                all_flagged = True
-
-                for f in range(flag.shape[1]):
-                    for c in range(flag.shape[2]):
-                        if flag[r, f, c] == 0:
-                            all_flagged = False
-                            break
-
-                    if not all_flagged:
-                        break
-
-                if (flag_row[r] != 0) != all_flagged:
-                    raise ValueError("flag_row and flag arrays mismatch")
-
-            return flag_row
-
-    elif have_flag_row and not have_flag:
-        def impl(flag_row, flag):
-            """ Return flag_row """
-            return flag_row
-
-    elif not have_flag_row and have_flag:
-        def impl(flag_row, flag):
-            """ Construct flag_row from flag """
-            new_flag_row = np.empty(flag.shape[0], dtype=flag.dtype)
-
-            for r in range(flag.shape[0]):
-                all_flagged = True
-
-                for f in range(flag.shape[1]):
-                    for c in range(flag.shape[2]):
-                        if flag[r, f, c] == 0:
-                            all_flagged = False
-                            break
-
-                    if not all_flagged:
-                        break
-
-                new_flag_row[r] = (1 if all_flagged else 0)
-
-            return new_flag_row
-
-    else:
-        def impl(flag_row, flag):
-            return None
-
-    return impl
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)

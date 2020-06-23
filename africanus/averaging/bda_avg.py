@@ -6,8 +6,10 @@ from collections import namedtuple
 
 import numpy as np
 
+from africanus.averaging.bda_mapping import atemkeng_mapper
 from africanus.averaging.shared import (chan_corrs,
-                                        flags_match)
+                                        flags_match,
+                                        merge_flags)
 from africanus.util.numba import (generated_jit,
                                   overload,
                                   njit,
@@ -308,26 +310,34 @@ def row_chan_average(meta, flag_row=None, weight=None,
         for r in range(out_rows):
             for corr in range(ncorrs):
                 if counts[r, corr] > 0:
-                    vwsum = vis_weight_sum[r, corr]
-                    vin = vis_avg[r, corr]
-                    sswsum = sigma_spectrum_weight_sum[r, corr]
-                    ssin = sigma_spectrum_avg[r, corr]
+                    if have_vis:
+                        vwsum = vis_weight_sum[r, corr]
+                        vin = vis_avg[r, corr]
+
+                    if have_sigma_spectrum:
+                        sswsum = sigma_spectrum_weight_sum[r, corr]
+                        ssin = sigma_spectrum_avg[r, corr]
+
                     flagged = 0
                 elif flag_counts[r, corr] > 0:
-                    vwsum = flagged_vis_weight_sum[r, corr]
-                    vin = flagged_vis_avg[r, corr]
-                    sswsum = flagged_sigma_spectrum_weight_sum[r, corr]
-                    ssin = flagged_sigma_spectrum_avg[r, corr]
+                    if have_vis:
+                        vwsum = flagged_vis_weight_sum[r, corr]
+                        vin = flagged_vis_avg[r, corr]
+
+                    if have_sigma_spectrum:
+                        sswsum = flagged_sigma_spectrum_weight_sum[r, corr]
+                        ssin = flagged_sigma_spectrum_avg[r, corr]
+
                     flagged = 1
                 else:
                     raise RowChannelAverageException("Zero-filled bin")
 
                 # Normalise visibilities
-                if vwsum != 0.0:
+                if have_vis and vwsum != 0.0:
                     vis_avg[r, corr] = vin / vwsum
 
                 # Normalise Sigma Spectrum
-                if sswsum != 0.0:
+                if have_sigma_spectrum and sswsum != 0.0:
                     # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
                     sigma_spectrum_avg[r, corr] = np.sqrt(ssin / sswsum**2)
 
@@ -336,12 +346,94 @@ def row_chan_average(meta, flag_row=None, weight=None,
                     flag_avg[r, corr] = flagged
 
                 # Copy Weights if flagged
-                if flagged:
+                if have_weight_spectrum and flagged:
                     weight_spectrum_avg[r, corr] = (
                         flagged_weight_spectrum_avg[r, corr])
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
                                     sigma_spectrum_avg)
+
+    return impl
+
+
+_chan_output_fields = ["chan_freq", "chan_width", "effective_bw", "resolution"]
+ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
+
+
+
+AverageOutput = namedtuple("AverageOutput",
+                           ["time", "interval", "flag_row"] +
+                           _row_output_fields +
+                           _chan_output_fields +
+                           _rowchan_output_fields)
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def bda(time, interval, antenna1, antenna2, ref_freq,
+        time_centroid=None, exposure=None, flag_row=None,
+        uvw=None, weight=None, sigma=None,
+        chan_freq=None, chan_width=None,
+        effective_bw=None, resolution=None,
+        vis=None, flag=None,
+        weight_spectrum=None, sigma_spectrum=None,
+        max_uvw_dist=None, lm_max=1.0,
+        decorrelation=0.98):
+
+    def impl(time, interval, antenna1, antenna2, ref_freq,
+             time_centroid=None, exposure=None, flag_row=None,
+             uvw=None, weight=None, sigma=None,
+             chan_freq=None, chan_width=None,
+             effective_bw=None, resolution=None,
+             vis=None, flag=None,
+             weight_spectrum=None, sigma_spectrum=None,
+             max_uvw_dist=None, lm_max=1.0,
+             decorrelation=0.98):
+
+        # Merge flag_row and flag arrays
+        flag_row = merge_flags(flag_row, flag)
+
+        meta = atemkeng_mapper(time, interval, antenna1, antenna2, uvw,
+                               ref_freq, max_uvw_dist, chan_width,
+                               flag_row=flag_row,
+                               lm_max=1.0,
+                               decorrelation=0.98)
+
+        row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
+                              time_centroid, exposure, uvw,
+                              weight=weight, sigma=sigma)
+
+        row_chan_avg = row_chan_average(meta,  # noqa: F841
+                                        flag_row=flag_row,
+                                        vis=vis, flag=flag,
+                                        weight_spectrum=weight_spectrum,
+                                        sigma_spectrum=sigma_spectrum)
+
+
+        # Have to explicitly write it out because numba tuples
+        # are highly constrained types
+        return AverageOutput(meta.time,
+                             meta.interval,
+                             meta.flag_row,
+                             row_avg.antenna1,
+                             row_avg.antenna2,
+                             row_avg.time_centroid,
+                             row_avg.exposure,
+                             row_avg.uvw,
+                             row_avg.weight,
+                             row_avg.sigma,
+                            #  chan_data.chan_freq,
+                            #  chan_data.chan_width,
+                            #  chan_data.effective_bw,
+                            #  chan_data.resolution,
+                             None,
+                             None,
+                             None,
+                             None,
+                             row_chan_avg.vis,
+                             row_chan_avg.flag,
+                             row_chan_avg.weight_spectrum,
+                             row_chan_avg.sigma_spectrum)
+
 
     return impl

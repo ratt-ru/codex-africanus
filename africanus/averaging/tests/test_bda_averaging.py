@@ -14,7 +14,7 @@ from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
                             chan_freq)
 
 from africanus.averaging.bda_mapping import atemkeng_mapper
-from africanus.averaging.bda_avg import row_average, row_chan_average
+from africanus.averaging.bda_avg import row_average, row_chan_average, bda
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     ant2 = np.tile(ant2, ntime)
     flag_row = np.zeros(time.shape[0], dtype=np.int8)
 
-    decorrelation = 0.99
+    decorrelation = 0.999
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
     import time as timing
@@ -90,7 +90,73 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
 
-    print(vis.shape, vis.nbytes / (1024.**2),
-          row_chan.vis.shape, row_chan.vis.nbytes)
-
     print("row_chan_average: %f" % (timing.perf_counter() - start))
+
+    print(vis.shape, vis.nbytes / (1024.**2),
+          row_chan.vis.shape, row_chan.vis.nbytes / (1024.**2))
+
+    avg = bda(time, interval, ant1, ant2, ref_freq,  # noqa: F841
+              time_centroid=time_centroid, exposure=exposure,
+              flag_row=flag_row, uvw=uvw,
+              chan_freq=chan_freq, chan_width=chan_width,
+              vis=vis, flag=flag,
+              weight_spectrum=weight_spectrum,
+              sigma_spectrum=sigma_spectrum,
+              max_uvw_dist=max_uvw_dist)
+
+
+def test_dask_bda_avg(time, interval, ants,   # noqa: F811
+                      phase_dir, ref_freq,    # noqa: F811
+                      chan_freq, chan_width,  # noqa: F811
+                      vis, flag):             # noqa: F811
+    da = pytest.importorskip('dask.array')
+    from africanus.averaging.dask import bda as dask_bda
+
+    time = np.unique(time)
+    interval = interval[:time.shape[0]]
+    ant1, ant2, uvw = synthesize_uvw(ants[:14], time, phase_dir, False)
+
+    nchan = chan_width.shape[0]
+    ncorr = 4
+
+    nbl = ant1.shape[0]
+    ntime = time.shape[0]
+
+    time = np.repeat(time, nbl)
+    interval = np.repeat(interval, nbl)
+    ant1 = np.tile(ant1, ntime)
+    ant2 = np.tile(ant2, ntime)
+    flag_row = np.zeros(time.shape[0], dtype=np.int8)
+    vis = vis(time.shape[0], nchan, ncorr)
+    flag = flag(time.shape[0], nchan, ncorr)
+
+    assert time.shape == ant1.shape
+
+    decorrelation = 0.99
+    chunks = 1000
+
+    da_time = da.from_array(time, chunks=chunks)
+    da_interval = da.from_array(interval, chunks=chunks)
+    da_flag_row = da.from_array(flag_row, chunks=chunks)
+    da_ant1 = da.from_array(ant1, chunks=chunks)
+    da_ant2 = da.from_array(ant2, chunks=chunks)
+    da_uvw = da.from_array(uvw, chunks=(chunks, 3))
+    da_time_centroid = da_time
+    da_exposure = da_interval
+    da_chan_freq = da.from_array(chan_freq, chunks=nchan//4)
+    da_chan_width = da.from_array(chan_width, chunks=nchan//4)
+    da_vis = da.from_array(vis, chunks=(chunks, nchan//4, ncorr))
+    da_flag = da.from_array(flag, chunks=(chunks, nchan//4, ncorr))
+
+    da_max_uvw_dist = da.sqrt((da_uvw**2).sum(axis=1)).max()
+
+    avg = dask_bda(da_time, da_interval, da_ant1, da_ant2, ref_freq,
+                   time_centroid=da_time_centroid, exposure=da_exposure,
+                   flag_row=da_flag_row, uvw=da_uvw,
+                   chan_freq=da_chan_freq, chan_width=da_chan_width,
+                   max_uvw_dist=da_max_uvw_dist,
+                   vis=da_vis, flag=da_flag,
+                   decorrelation=decorrelation)
+
+    time, interval, ant1, vis = da.compute(avg.time, avg.interval,
+                                           avg.antenna1, avg.vis)

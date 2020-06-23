@@ -2,11 +2,74 @@
 
 import numpy as np
 
-from africanus.util.numba import is_numba_type_none, njit, overload
+from africanus.util.numba import (is_numba_type_none,
+                                  njit, overload,
+                                  generated_jit)
 
 
 def shape_or_invalid_shape(array, ndim):
     pass
+
+
+# TODO(sjperkins)
+# maybe replace with njit and inline='always' if
+# https://github.com/numba/numba/issues/4693 is resolved
+@generated_jit(nopython=True, nogil=True, cache=True)
+def merge_flags(flag_row, flag):
+    have_flag_row = not is_numba_type_none(flag_row)
+    have_flag = not is_numba_type_none(flag)
+
+    if have_flag_row and have_flag:
+        def impl(flag_row, flag):
+            """ Check flag_row and flag agree """
+            for r in range(flag.shape[0]):
+                all_flagged = True
+
+                for f in range(flag.shape[1]):
+                    for c in range(flag.shape[2]):
+                        if flag[r, f, c] == 0:
+                            all_flagged = False
+                            break
+
+                    if not all_flagged:
+                        break
+
+                if (flag_row[r] != 0) != all_flagged:
+                    raise ValueError("flag_row and flag arrays mismatch")
+
+            return flag_row
+
+    elif have_flag_row and not have_flag:
+        def impl(flag_row, flag):
+            """ Return flag_row """
+            return flag_row
+
+    elif not have_flag_row and have_flag:
+        def impl(flag_row, flag):
+            """ Construct flag_row from flag """
+            new_flag_row = np.empty(flag.shape[0], dtype=flag.dtype)
+
+            for r in range(flag.shape[0]):
+                all_flagged = True
+
+                for f in range(flag.shape[1]):
+                    for c in range(flag.shape[2]):
+                        if flag[r, f, c] == 0:
+                            all_flagged = False
+                            break
+
+                    if not all_flagged:
+                        break
+
+                new_flag_row[r] = (1 if all_flagged else 0)
+
+            return new_flag_row
+
+    else:
+        def impl(flag_row, flag):
+            return None
+
+    return impl
 
 
 @overload(shape_or_invalid_shape, inline='always')
@@ -132,9 +195,18 @@ def chan_corrs(vis, flag,
     return chan, corr
 
 
-@njit(nogil=True, inline='always')
 def flags_match(flag_row, ri, out_flag_row, ro):
-    return flag_row is None or flag_row[ri] == out_flag_row[ro]
+    pass
+
+
+@overload(flags_match, inline='always')
+def _flags_match(flag_row, ri, out_flag_row, ro):
+    if is_numba_type_none(flag_row):
+        def impl(flag_row, ri, out_flag_row, ro):
+            return True
+    else:
+        def impl(flag_row, ri, out_flag_row, ro):
+            return flag_row[ri] == out_flag_row[ro]
 
 
 @njit(nogil=True, inline='always')
