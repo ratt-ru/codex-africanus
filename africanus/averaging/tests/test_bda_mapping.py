@@ -187,8 +187,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
 def test_bda_binner(time, ants, interval, phase_dir,
                     ref_freq, chan_freq, chan_width):
     time = np.unique(time)
-    time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
+    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, False)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
