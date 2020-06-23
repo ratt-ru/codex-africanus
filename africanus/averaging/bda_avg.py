@@ -396,8 +396,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         meta = atemkeng_mapper(time, interval, antenna1, antenna2, uvw,
                                ref_freq, max_uvw_dist, chan_width,
                                flag_row=flag_row,
-                               lm_max=1.0,
-                               decorrelation=0.98)
+                               lm_max=lm_max,
+                               decorrelation=decorrelation)
 
         row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
                               time_centroid, exposure, uvw,
