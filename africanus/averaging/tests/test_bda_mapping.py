@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from africanus.averaging.bda_mapping import atemkeng_mapper
+from africanus.averaging.bda_mapping import atemkeng_mapper, Binner
 
 
 def synthesize_uvw(antenna_positions, time, phase_dir,
@@ -182,3 +182,28 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
                                ref_freq, max_uvw_dist, chan_width, flag_row,
                                lm_max=1.0, decorrelation=decorrelation)
+
+
+def test_bda_binner(time, ants, interval, phase_dir,
+                    ref_freq, chan_freq, chan_width):
+    time = np.unique(time)
+    time = np.unique(time)
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
+
+    nbl = ant1.shape[0]
+    ntime = time.shape[0]
+
+    time = np.repeat(time, nbl)
+    interval = np.repeat(interval, nbl)
+    ant1 = np.tile(ant1, ntime)
+    ant2 = np.tile(ant2, ntime)
+    flag_row = np.zeros(time.shape[0], dtype=np.int8)
+
+    decorrelation = 0.95
+    l = 0.5  # noqa: E741
+    m = 0.5
+    n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+    binner = Binner(0, 0, l, m, n, ref_freq, decorrelation)
+    binner.start_bin(0, time, interval, flag_row)
+    binner.add_row(1, time, interval, uvw, flag_row)
+    binner.add_row(2, time, interval, uvw, flag_row)
