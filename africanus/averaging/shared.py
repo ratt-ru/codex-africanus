@@ -208,6 +208,8 @@ def _flags_match(flag_row, ri, out_flag_row, ro):
         def impl(flag_row, ri, out_flag_row, ro):
             return flag_row[ri] == out_flag_row[ro]
 
+    return impl
+
 
 @njit(nogil=True, inline='always')
 def is_chan_flagged(flag, r, f, c):
