@@ -20,7 +20,7 @@ def create_parser():
     p.add_argument("--ncpu", type=int, default=0)
     p.add_argument("--fov", default=1.0)
     p.add_argument("--srf", default=1.2)
-    p.add_argument("--nband", default=None)
+    p.add_argument("--nband", default=None, type=int)
     return p
 
 if __name__=="__main__":
@@ -28,7 +28,7 @@ if __name__=="__main__":
 
     if args.ncpu:
         from multiprocessing.pool import ThreadPool
-        dask.config.set(pool=ThreadPool(args.ncpu))
+        dask.config.set(pool=ThreadPool(1))
     else:
         import multiprocessing
         args.ncpu = multiprocessing.cpu_count()
@@ -42,7 +42,7 @@ if __name__=="__main__":
     uvw = []
     freq = None
     for ims in args.ms:
-        xds = xds_from_ms(ims, columns=('UVW'), chunks={'row':-1})   
+        xds = xds_from_ms(ims, chunks={'row':-1})
         
         # subtables
         ddids = xds_from_table(ims + "::DATA_DESCRIPTION")
@@ -92,6 +92,16 @@ if __name__=="__main__":
 
     print("Image size set to (%i, %i, %i)"%(args.nband, args.nx, args.ny))
 
-    R = wgridder(args.ms, args.nx, args.ny, args.cell_size)
+    R = wgridder(args.ms, args.nx, args.ny, args.cell_size, nband=args.nband, nthreads=args.ncpu)
+
+    dirty = R.hdot()
+
+    import matplotlib as mpl
+    mpl.use('TkAgg')
+    import matplotlib.pyplot as plt
+    for i in range(args.nband):
+        plt.imshow(dirty[i])
+        plt.colorbar()
+        plt.show()
 
     

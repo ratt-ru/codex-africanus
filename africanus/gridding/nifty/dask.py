@@ -53,28 +53,42 @@ def _dot_internal(uvw, freq, model, wgt, freq_bin_idx, freq_bin_counts,
                              pixsize_x=cellx, pixsize_y=celly, nu=nu, nv=nv,
                              epsilon=epsilon, nthreads=nthreads, 
                              do_wstacking=do_wstacking)
-    return dirty
+    return vis
 
-
+# if using adjust_chunks (nchan -> nband) then we don't lose the chan dimension
 def _hdot_wrapper(uvw, freq, ms, wgt, freq_bin_idx, freq_bin_counts,
                   nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
-    return _hdot_internal(uvw[0][0], freq[0], ms[0][0], wgt[0][0],
+    
+    return _hdot_internal(uvw[0][0], freq, ms[0][0], wgt[0][0],
                               freq_bin_idx, freq_bin_counts, nx, ny,
                               cellx, celly, nu, nv, epsilon, nthreads,
                               do_wstacking)
+
+# if not using adjust_chunks (nchan -> nband) we do lose the chan dimension
+# def _hdot_wrapper(uvw, freq, ms, wgt, freq_bin_idx, freq_bin_counts,
+#                   nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
+    
+#     return _hdot_internal(uvw[0][0], freq[0], ms[0][0][0], wgt[0][0][0],
+#                         freq_bin_idx, freq_bin_counts, nx, ny,
+#                         cellx, celly, nu, nv, epsilon, nthreads,
+#                         do_wstacking)
 
 def _hdot_internal(uvw, freq, ms, wgt, freq_bin_idx, freq_bin_counts,
                    nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
-    dirty = np.zeros((nband, nx, ny))
+    dirty = np.zeros((nband, nx, ny), dtype=freq.dtype)
     for i in range(nband):
         I = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
-        dirty[i] = ms2dirty(uvw=uvw, freq=freq[I], ms=ms[:, I], wgt=wgt[:, I], 
+        dirty[i] = ms2dirty(uvw=uvw, freq=freq[I], ms=ms[:, I, 0], wgt=wgt[:, I, 0], 
+                            npix_x=nx, npix_y=ny, pixsize_x=cellx, pixsize_y=celly,
+                            nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads, 
+                            do_wstacking=do_wstacking) + \
+                   ms2dirty(uvw=uvw, freq=freq[I], ms=ms[:, I, -1], wgt=wgt[:, I, -1], 
                             npix_x=nx, npix_y=ny, pixsize_x=cellx, pixsize_y=celly,
                             nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads, 
                             do_wstacking=do_wstacking)
-    return dirty
+    return dirty/2.0
 
 
 class wgridder(object):
@@ -86,6 +100,8 @@ class wgridder(object):
     of required imaging bands. By default it is assumed that all rows for a
     specific imaging band fits into memory (i.e. row_chunks=-1). If this is
     not the case row_chunks should be set explicitly (large chunks preferred).
+    The intended behaviour is for the chunks to be traversed in serial (to save
+    memory) and to leave the parallelisation to the gridder within each chunk.
     
     A list of measurement sets is supported but currently only a single phase
     direction and frequency range with fixed number of channels are allowed. 
@@ -94,12 +110,18 @@ class wgridder(object):
 
     If a weighting scheme other than natural weighting is required they need
     to be pre-computed and written to the measurement set in advance.
+
+    Only Stokes I maps are currently supported and these are computed by
+    gridding the first and last correlations separately and then combining
+    them. This doubles the amount of time spent gridding but it is the
+    correct way to do it (LB - TODO - should test this).
+
     """
     def __init__(self, ms, nx, ny, cell_size, cell_size_y=None, nband=None, field=0,
                  ddid=0, precision=1e-7, nthreads=0, do_wstacking=1, row_chunks=-1,
                  data_column='DATA', weight_column='WEIGHT_SPECTRUM',
                  model_column="MODEL_DATA", flag_column=None, 
-                 weight_norm='backward', padding=2.0):
+                 weight_norm='backward', padding=2.0, out_stokes='I'):
         """
         Parameters
         ----------
@@ -128,7 +150,8 @@ class wgridder(object):
         precision : float, optional
             Gridder error tolerance. Defaults to 1e-7.
         nthreads : int, optional.
-            The default of 0 means use all theads.
+            The number of threads to give the gridder.
+            Default of 0 means use all threads.
         do_wstacking : bool, optional
             Whether to perform w-stacking or not. 
             Defaults to True.
@@ -166,12 +189,14 @@ class wgridder(object):
         padding : float, optional
             How much to pad by during gridding.
             Defaults to 2
+        out_stokes : string, optional
+            Only Stokes I maps currently supported.
 
         Methods
         -------
 
         dot : 
-            The forward transform from image to visibilities (wraps dirty2ms)
+            The forward transform from image to visibilities (wraps dirty2ms).
 
         hdot : 
             The backward transform from visibilities to image (wraps ms2dirty).
@@ -184,6 +209,8 @@ class wgridder(object):
             Computes an over-sized psf
 
         """
+        if out_stokes != 'I':
+            raise NotImplementedError("Only Stokes I maps currently supported")
         if precision > 1e-6:
             self.real_type = np.float32
             self.complex_type = np.complex64
@@ -202,12 +229,14 @@ class wgridder(object):
         self.cell = cell_size * np.pi/60/60/180
         if cell_size_y is not None:
             self.celly = cell_size_y * np.pi/60/60/180
+        else:
+            self.celly = self.cell
         self.field = field
         self.ddid = ddid
         self.precision = precision
         self.nthreads = nthreads
         self.do_wstacking = do_wstacking
-        if weight_norm != 'backward' or weight_norm != 'ortho':
+        if weight_norm != 'backward' and weight_norm != 'ortho':
             raise ValueError("Unknown weight_norm supplied")
         else:
             self.weight_norm = weight_norm
@@ -222,16 +251,22 @@ class wgridder(object):
         ptype = None
         radec = None
         for ims in self.ms:
-            xds = xds_from_ms(ims, columns=('UVW'), chunks={'row':-1})
+            xds = xds_from_ms(ims, chunks={'row':-1})
+
+            if not weight_column in xds[0].data_vars:
+                print('%s not in ms. Using WEIGHT instead' % weight_column)
+                self.weight_column = 'WEIGHT'
+            else:
+                self.weight_column = weight_column
 
             # Get subtable data
-            ddids = xds_from_table(ms + "::DATA_DESCRIPTION")[0][self.DDID]
-            fields = xds_from_table(ms + "::FIELD", group_cols="__row__")[0][self.field]
-            spws = xds_from_table(ms + "::SPECTRAL_WINDOW", group_cols="__row__")
-            pols = xds_from_table(ms + "::POLARIZATION", group_cols="__row__")
+            ddids = xds_from_table(ims + "::DATA_DESCRIPTION", group_cols="__row__")[self.ddid]
+            fields = xds_from_table(ims + "::FIELD", group_cols="__row__")[self.field]
+            spws = xds_from_table(ims + "::SPECTRAL_WINDOW", group_cols="__row__")
+            pols = xds_from_table(ims + "::POLARIZATION", group_cols="__row__")
 
-            ddids = dask.compute(ddids)[0]
-            fields = dask.compute(fields)[0]
+            ddid = dask.compute(ddids)[0]
+            field = dask.compute(fields)[0]
             spws = dask.compute(spws)[0]
             pols = dask.compute(pols)[0]
 
@@ -240,13 +275,10 @@ class wgridder(object):
                     continue
 
                 # check correct phase direction
-                field = fields[self.field]
                 if radec is None:
                     radec = field.PHASE_DIR.data.squeeze()
                 else: 
                     assert_array_equal(radec, field.PHASE_DIR.data.squeeze())
-
-                ddid = ddids[ds.DATA_DESC_ID]
 
                 # same polarisation type
                 pol = pols[ddid.POLARIZATION_ID.values[0]]
@@ -269,9 +301,9 @@ class wgridder(object):
                 # same frequencies            
                 spw = spws[ddid.SPECTRAL_WINDOW_ID.values[0]]
                 if freq is None:
-                    freq = spw.CHAN_FREQ.data
+                    freq = spw.CHAN_FREQ.data.squeeze()
                 else:
-                    assert_array_equal(freq, spw.CHAN_FREQ.data)
+                    assert_array_equal(freq, spw.CHAN_FREQ.data.squeeze())
 
         self.freq = freq
         self.ptype = ptype
@@ -298,71 +330,70 @@ class wgridder(object):
         ######################################################################################################################
         # meta info for xds_from_table
         self.data_column = data_column
-        self.weight_column = weight_column
         self.model_column = model_column
         self.ms = ms
         self.row_chunks = row_chunks
-        self.schema = {
-            data_column: {'dims': ('chan',)},
-            weight_column: {'dims': ('chan', )},
-            "UVW": {'dims': ('uvw',)},
-        }
+        # self.schema = {
+        #     self.data_column: {'dims': ('chan',)},
+        #     self.weight_column: {'dims': ('chan', )},
+        #     "UVW": {'dims': ('uvw',)},
+        # }
 
-    def dot(self, x, write=False, column=None):
-        """
-        Implements forward transform i.e.
+    # def dot(self, x, write=False, column=None):
+    #     """
+    #     Implements forward transform i.e.
 
-        V = Rx
+    #     V = Rx
 
-        where R is the interferometric response.
-        This is not recommended if the result does not
-        fit in memory. For this reason there is an option
-        to write the result to a column in the MS.
-        If write=True then it will attempt to write the
-        visibilities to column. If column is None then the
-        default of MODEL_DATA is used.  
-        """
-        if write and column is None:
-            column = self.model_column
-        model = da.from_array(x, chunks=(1, self.nx, self.ny))
-        for ims in self.ms:
-            xds = xds_from_table(ims, chunks={"row":self.row_chunks, "chan": self.chan_chunks},
-                                 table_schema=self.schema)
-            out_data = []
-            for ds in xds:
-                if ds.FIELD_ID != self.field and ds.DATA_DESC_ID != self.ddid:
-                    continue
-                weights = getattr(ds, self.weight_column).data
-                uvw = ds.UVW.data
+    #     where R is the interferometric response.
+    #     This is not recommended if the result does not
+    #     fit in memory. For this reason there is an option
+    #     to write the result to a column in the MS.
+    #     If write=True then it will attempt to write the
+    #     visibilities to column. If column is None then the
+    #     default of MODEL_DATA is used.  
+    #     """
+    #     if write and column is None:
+    #         column = self.model_column
+    #     model = da.from_array(x, chunks=(1, self.nx, self.ny))
+    #     for ims in self.ms:
+    #         xds = xds_from_table(ims, chunks={"row":self.row_chunks, "chan": self.chan_chunks},
+    #                              table_schema=self.schema)
+    #         out_data = []
+    #         for ds in xds:
+    #             if ds.FIELD_ID != self.field and ds.DATA_DESC_ID != self.ddid:
+    #                 continue
+    #             weights = getattr(ds, self.weight_column).data
+    #             uvw = ds.UVW.data
 
-                vis = da.blockwise(_dot_wrapper, ('row', 'chan'),
-                                   uvw, ('row', 'three'), 
-                                   self.freq_da, ('chan',),
-                                   model, ('band', 'nx', 'ny'),
-                                   weights, ('row', 'chan'),
-                                   self.freq_bin_idx, ('band',),
-                                   self.freq_bin_counts, ('band'),
-                                   self.cell, None, 
-                                   self.celly, None,
-                                   self.nu, None, 
-                                   self.nv, None,
-                                   self.precision, None,
-                                   self.do_wstacking, None,
-                                   new_axes={"nx": self.nx, "ny": self.ny},
-                                   dtype=self.complex_type)
+    #             vis = da.blockwise(_dot_wrapper, ('row', 'chan'),
+    #                                uvw, ('row', 'three'), 
+    #                                self.freq_da, ('chan',),
+    #                                model, ('band', 'nx', 'ny'),
+    #                                weights, ('row', 'chan'),
+    #                                self.freq_bin_idx, ('band',),
+    #                                self.freq_bin_counts, ('band'),
+    #                                self.cell, None, 
+    #                                self.celly, None,
+    #                                self.nu, None, 
+    #                                self.nv, None,
+    #                                self.precision, None,
+    #                                self.do_wstacking, None,
+    #                                new_axes={"nx": self.nx, "ny": self.ny},
+    #                                dtype=self.complex_type)
                 
-                if write:
-                    data_vars = {column:(('row', 'chan'), vis)}
-                    out_ds = Dataset(data_vars)
-                    out_data.append(out_ds)
+    #             if write:
+    #                 data_vars = {column:(('row', 'chan'), vis)}
+    #                 out_ds = Dataset(data_vars)
+    #                 out_data.append(out_ds)
 
-            if write:
-                xds_to_table(out_data, ims, columns="ALL")
+    #         if write:
+    #             xds_to_table(out_data, ims, columns="ALL")
 
 
-        return dirty.compute()
+    #     return dirty.compute()
 
-    def hdot(self, model_data=None):
+    def hdot(self, data_column=None):
         """
         Implements the backward transform
 
@@ -372,25 +403,31 @@ class wgridder(object):
         If model_data is not passed in then it produces the
         dirty image.
         """
-        if model_data is None:
-            model_data = self.data_column
+        if data_column is None:
+            data_column = self.data_column
+        dirty = da.zeros((self.nband, self.nx, self.ny), chunks=(1, self.nx, self.ny), dtype=self.real_type)
         for ims in self.ms:
-            xds = xds_from_table(ims, chunks={"row":self.row_chunks, "chan": self.chan_chunks},
-                                 table_schema=self.schema)
+            xds = xds_from_ms(ims, columns=(data_column, self.weight_column, 'UVW'), chunks={"row":self.row_chunks, "chan": self.chan_chunks})
             for ds in xds:
-                if ds.FIELD_ID != self.field and ds.DATA_DESC_ID != self.ddid:
-                    continue
-                data = getattr(ds, model_data)
-                weights = getattr(ds, self.weight_column)
+                # print(ds.FIELD_ID.data, self.field)
+                # print(ds.DATA_DESC_ID.data, self.ddid)
+                # if ds.FIELD_ID.data != self.field and ds.DATA_DESC_ID.data != self.ddid:
+                #     print('In here')
+                #     continue
+                data = getattr(ds, data_column).data
+                weights = getattr(ds, self.weight_column).data
+                if weights.shape != data.shape:
+                    weights = da.broadcast_to(weights[:, None, :], data.shape)
+                    weights = da.rechunk(weights, data.chunks)
                 uvw = ds.UVW.data
 
-                dirty += da.blockwise(_hdot_wrapper, ('band', 'nx', 'ny'),
+                dirty += da.blockwise(_hdot_wrapper, ('chan', 'nx', 'ny'),
                                       uvw, ('row', 'three'), 
                                       self.freq_da, ('chan',),
-                                      data, ('row', 'chan'),
-                                      weights, ('row', 'chan'),
-                                      self.freq_bin_idx, ('band',),
-                                      self.freq_bin_counts, ('band'),
+                                      data, ('row', 'chan', 'corr'),
+                                      weights, ('row', 'chan', 'corr'),
+                                      self.freq_bin_idx, ('chan',),
+                                      self.freq_bin_counts, ('chan',),
                                       self.nx, None,
                                       self.ny, None, 
                                       self.cell, None, 
@@ -398,68 +435,71 @@ class wgridder(object):
                                       self.nu, None, 
                                       self.nv, None,
                                       self.precision, None,
+                                      self.nthreads, None,
                                       self.do_wstacking, None,
+                                      adjust_chunks={'chan': self.freq_bin_idx.chunks[0]},
                                       new_axes={"nx": self.nx, "ny": self.ny},
-                                      dtype=self.real_type)
+                                      dtype=self.real_type, 
+                                      align_arrays=False)
 
         return dirty.compute()
 
 
-    def make_residual(self, x, v_dof=None):
-        print("Making residual")
-        residual = np.zeros(x.shape, dtype=x.dtype)
-        xds = xds_from_ms(self.ms, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
-        for ds in xds:
-            if ds.FIELD_ID not in list(self.field):
-                continue
-            print("Processing field %i"%ds.FIELD_ID)
-            data = getattr(ds, self.data_column).data
-            weights = getattr(ds, self.weight_column).data
-            uvw = ds.UVW.data.compute().astype(self.real_type)
+    # def make_residual(self, x, v_dof=None):
+    #     print("Making residual")
+    #     residual = np.zeros(x.shape, dtype=x.dtype)
+    #     xds = xds_from_ms(self.ms, chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
+    #     for ds in xds:
+    #         if ds.FIELD_ID not in list(self.field):
+    #             continue
+    #         print("Processing field %i"%ds.FIELD_ID)
+    #         data = getattr(ds, self.data_column).data
+    #         weights = getattr(ds, self.weight_column).data
+    #         uvw = ds.UVW.data.compute().astype(self.real_type)
 
-            for i in range(self.nband):
-                Ilow = self.freq_mapping[i]
-                Ihigh = self.freq_mapping[i+1]
-                weighti = weights.blocks[:, i].compute().astype(self.real_type)
-                datai = data.blocks[:, i].compute().astype(self.complex_type)
+    #         for i in range(self.nband):
+    #             Ilow = self.freq_mapping[i]
+    #             Ihigh = self.freq_mapping[i+1]
+    #             weighti = weights.blocks[:, i].compute().astype(self.real_type)
+    #             datai = data.blocks[:, i].compute().astype(self.complex_type)
 
-                # TODO - load and apply interpolated fits beam patterns for field
+    #             # TODO - load and apply interpolated fits beam patterns for field
 
-                # get residual vis
-                if weighti.any():
-                    residual_vis = weighti * datai - ng.dirty2ms(uvw=uvw, freq=self.freq[Ilow:Ihigh], dirty=x[i], wgt=weighti,
-                                                                pixsize_x=self.cell, pixsize_y=self.cell, epsilon=self.precision,
-                                                                nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
+    #             # get residual vis
+    #             if weighti.any():
+    #                 residual_vis = weighti * datai - ng.dirty2ms(uvw=uvw, freq=self.freq[Ilow:Ihigh], dirty=x[i], wgt=weighti,
+    #                                                             pixsize_x=self.cell, pixsize_y=self.cell, epsilon=self.precision,
+    #                                                             nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
 
-                    # make residual image
-                    residual[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=residual_vis, wgt=weighti,
-                                            npix_x=self.nx, npix_y=self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
-                                            epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
-        return residual
+    #                 # make residual image
+    #                 residual[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=residual_vis, wgt=weighti,
+    #                                         npix_x=self.nx, npix_y=self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
+    #                                         epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking, verbosity=0)
+    #     return residual
 
     
 
-    def make_psf(self):
-        print("Making PSF")
-        psf_array = np.zeros((self.nband, 2*self.nx, 2*self.ny))
-        xds = xds_from_table(self.table_name, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
-        for ds in xds:
-            if ds.FIELD_ID not in list(self.field):
-                continue
-            print("Processing field %i"%ds.FIELD_ID)
-            weights = getattr(ds, self.weight_column).data
-            uvw = ds.UVW.data.compute().astype(self.real_type)
+    # def make_psf(self):
+    #     print("Making PSF")
+    #     psf_array = np.zeros((self.nband, 2*self.nx, 2*self.ny))
+    #     xds = xds_from_table(self.table_name, group_cols=('FIELD_ID'), chunks={"row":-1, "chan": self.chan_chunks}, table_schema=self.schema)
+    #     for ds in xds:
+    #         if ds.FIELD_ID not in list(self.field):
+    #             continue
+    #         print("Processing field %i"%ds.FIELD_ID)
+    #         weights = getattr(ds, self.weight_column).data
+    #         uvw = ds.UVW.data.compute().astype(self.real_type)
 
-            for i in range(self.nband):
-                Ilow = self.freq_mapping[i]
-                Ihigh = self.freq_mapping[i+1]
-                weighti = weights.blocks[:, i].compute().astype(self.real_type)
+    #         for i in range(self.nband):
+    #             Ilow = self.freq_mapping[i]
+    #             Ihigh = self.freq_mapping[i+1]
+    #             weighti = weights.blocks[:, i].compute().astype(self.real_type)
 
-                if weighti.any():
-                    psf_array[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=weighti.astype(self.complex_type), wgt=weighti,
-                                                npix_x=2*self.nx, npix_y=2*self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
-                                                epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking)
-        return psf_array
+    #             if weighti.any():
+    #                 psf_array[i] += ng.ms2dirty(uvw=uvw, freq=self.freq[Ilow:Ihigh], ms=weighti.astype(self.complex_type), wgt=weighti,
+    #                                             npix_x=2*self.nx, npix_y=2*self.ny, pixsize_x=self.cell, pixsize_y=self.cell,
+    #                                             epsilon=self.precision, nthreads=self.nthreads, do_wstacking=self.do_wstacking)
+    #     return psf_array
 
 
 class GridderConfigWrapper(object):
