@@ -271,77 +271,63 @@ def row_chan_average(row_meta, chan_meta,
         flag_counts = np.zeros(out_shape, dtype=np.uint32)
 
         # Iterate over input rows, accumulating into output rows
-        for in_row, out_row in enumerate(row_meta.map):
+        for ri, ro in enumerate(row_meta.map):
             # TIME_CENTROID/EXPOSURE case applies here,
             # must have flagged input and output OR unflagged input and output
-            if not flags_match(flag_row, in_row, row_meta.flag_row, out_row):
+            if not flags_match(flag_row, ri, row_meta.flag_row, ro):
                 continue
 
-            for in_chan, out_chan in enumerate(chan_map):
-                for corr in range(ncorrs):
-                    # Select output arrays depending on
-                    # whether the bin is flagged
-                    f = have_flag and flag[in_row, in_chan, corr] != 0
-                    cnt = flag_counts if f else counts
-                    ovis = flagged_vis_avg if f else vis_avg
-                    ovis_ws = flagged_vis_weight_sum if f else vis_weight_sum
-                    ows = (flagged_weight_spectrum_avg if f
-                           else weight_spectrum_avg)
-                    oss = (flagged_sigma_spectrum_avg if f
-                           else sigma_spectrum_avg)
-                    oss_ws = (flagged_sigma_spectrum_weight_sum if f
-                              else sigma_spectrum_weight_sum)
+            for fi, fo in enumerate(chan_map):
+                for co in range(ncorrs):
+                    flagged = have_flag and flag[ri, fi, co] != 0
 
-                    cnt[out_row, out_chan, corr] += 1
+                    if flagged:
+                        flag_counts[ro, fo, co] += 1
+                    else:
+                        counts[ro, fo, co] += 1
 
                     # Aggregate visibilities
-                    if not have_vis:
-                        pass
-                    elif have_weight_spectrum:
+                    if have_vis:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[in_row, in_chan, corr]
-                        iv = vis[in_row, in_chan, corr] * wt
-                        ovis[out_row, out_chan, corr] += iv
-                        ovis_ws[out_row, out_chan, corr] += wt
-                    elif have_weight:
-                        # Otherwise use weight column
-                        wt = weight[in_row, corr]
-                        iv = vis[in_row, in_chan, corr]
-                        ovis[out_row, out_chan, corr] += iv
-                        ovis_ws[out_row, out_chan, corr] += wt
-                    else:
-                        # Otherwise use natural weights
-                        iv = vis[in_row, in_chan, corr]
-                        ovis[out_row, out_chan, corr] += iv
-                        ovis_ws[out_row, out_chan, corr] += 1.0
+                        # else weights, else natural weights
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
+                        iv = vis[ri, fi, co] * wt
+
+                        if flagged:
+                            flagged_vis_avg[ro, fo, co] += iv
+                            flagged_vis_weight_sum[ro, fo, co] += wt
+                        else:
+                            vis_avg[ro, fo, co] += iv
+                            vis_weight_sum[ro, fo, co] += wt
 
                     # Weight Spectrum
                     if have_weight_spectrum:
-                        ows[out_row, out_chan, corr] += (
-                            weight_spectrum[in_row, in_chan, corr])
+                        if flagged:
+                            flagged_weight_spectrum_avg[ro, fo, co] += (
+                                weight_spectrum[ri, fi, co])
+                        else:
+                            weight_spectrum_avg[ro, fo, co] += (
+                                weight_spectrum[ri, fi, co])
 
                     # Sigma Spectrum
-                    if not have_sigma_spectrum:
-                        pass
-                    elif have_weight_spectrum:
+                    if have_sigma_spectrum:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[in_row, in_chan, corr]
-                        ssin = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
-                        oss[out_row, out_chan, corr] += ssin
-                        oss_ws[out_row, out_chan, corr] += wt
-                    elif have_weight:
-                        # Otherwise use weight column
-                        # sum(sigma**2 * weight**2)
-                        wt = weight[in_row, corr]
-                        ssin = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
-                        oss[out_row, out_chan, corr] += ssin
-                        oss_ws[out_row, out_chan, corr] += wt
-                    else:
-                        # Otherwise use natural weights
-                        wt = 1.0
-                        ssin = sigma_spectrum[in_row, in_chan, corr]**2 * wt**2
-                        oss[out_row, out_chan, corr] += ssin
-                        oss_ws[out_row, out_chan, corr] += wt
+                        # else weights, else natural weights
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
+                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
+
+                        if flagged:
+                            flagged_sigma_spectrum_avg[ro, fo, co] += ssin
+                            flagged_sigma_spectrum_weight_sum[ro, fo, co] += wt
+                        else:
+                            sigma_spectrum_avg[ro, fo, co] += ssin
+                            sigma_spectrum_weight_sum[ro, fo, co] += wt
 
         for r in range(out_rows):
             for f in range(out_chans):

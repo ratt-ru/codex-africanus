@@ -245,67 +245,56 @@ def row_chan_average(meta, flag_row=None, weight=None,
                     continue
 
                 for co in range(ncorrs):
-                    # Select output arrays depending on whether the bin is flagged
-                    f = have_flag and flag[ri, fi, co] != 0
-                    cnt = flag_counts if f else counts
-                    ovis = flagged_vis_avg if f else vis_avg
-                    ovis_ws = flagged_vis_weight_sum if f else vis_weight_sum
-                    ows = (flagged_weight_spectrum_avg if f
-                           else weight_spectrum_avg)
-                    oss = (flagged_sigma_spectrum_avg if f
-                           else sigma_spectrum_avg)
-                    oss_ws = (flagged_sigma_spectrum_weight_sum if f
-                              else sigma_spectrum_weight_sum)
+                    flagged = have_flag and flag[ri, fi, co] != 0
 
-                    cnt[ro, co] += 1
+                    if flagged:
+                        flag_counts[ro, co] += 1
+                    else:
+                        counts[ro, co] += 1
 
                     # Aggregate visibilities
-                    if not have_vis:
-                        pass
-                    elif have_weight_spectrum:
+                    if have_vis:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[ri, fi, co]
+                        # else weights, else natural weights
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
                         iv = vis[ri, fi, co] * wt
-                        ovis[ro, co] += iv
-                        ovis_ws[ro, co] += wt
-                    elif have_weight:
-                        # Otherwise use weight column
-                        wt = weight[ri, co]
-                        iv = vis[ri, fi, co]
-                        ovis[ro, co] += iv
-                        ovis_ws[ro, co] += wt
-                    else:
-                        # Otherwise use natural weights
-                        iv = vis[ri, fi, co]
-                        ovis[ro, co] += iv
-                        ovis_ws[ro, co] += 1.0
+
+                        if flagged:
+                            flagged_vis_avg[ro, co] += iv
+                            flagged_vis_weight_sum[ro, co] += wt
+                        else:
+                            vis_avg[ro, co] += iv
+                            vis_weight_sum[ro, co] += wt
+
 
                     # Weight Spectrum
                     if have_weight_spectrum:
-                        ows[ro, co] += weight_spectrum[ri, fi, co]
+                        if flagged:
+                            flagged_weight_spectrum_avg[ro, co] += (
+                                weight_spectrum[ri, fi, co])
+                        else:
+                            weight_spectrum_avg[ro, co] += (
+                                weight_spectrum[ri, fi, co])
 
                     # Sigma Spectrum
-                    if not have_sigma_spectrum:
-                        pass
-                    elif have_weight_spectrum:
+                    if have_sigma_spectrum:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[ri, fi, co]
+                        # else weights, else natural weights
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
                         ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
-                        oss[ro, co] += ssin
-                        oss_ws[ro, co] += wt
-                    elif have_weight:
-                        # Otherwise use weight column
-                        # sum(sigma**2 * weight**2)
-                        wt = weight[ri, co]
-                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
-                        oss[ro, co] += ssin
-                        oss_ws[ro, co] += wt
-                    else:
-                        # Otherwise use natural weights
-                        wt = 1.0
-                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
-                        oss[ro, co] += ssin
-                        oss_ws[ro, co] += wt
+
+                        if flagged:
+                            flagged_sigma_spectrum_avg[ro, co] += ssin
+                            flagged_sigma_spectrum_weight_sum[ro, co] += wt
+                        else:
+                            sigma_spectrum_avg[ro, co] += ssin
+                            sigma_spectrum_weight_sum[ro, co] += wt
 
         for ro in range(out_rows):
             for co in range(ncorrs):
