@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 
-# flake8: noqa
-
 from collections import namedtuple
 
 import numpy as np
 
 from africanus.averaging.bda_mapping import atemkeng_mapper
 from africanus.averaging.shared import (chan_corrs,
-                                        flags_match,
                                         merge_flags)
 from africanus.util.numba import (generated_jit,
-                                  overload,
-                                  njit,
                                   is_numba_type_none)
 
 
@@ -233,7 +228,8 @@ def row_chan_average(meta, flag_row=None, weight=None,
                 ro = meta.map[ri, fi]
 
                 # TIME_CENTROID/EXPOSURE case applies here,
-                # must have flagged input and output OR unflagged input and output
+                # must have flagged input and output OR
+                # unflagged input and output
                 if have_flag_row and flag_row[ri] != meta.flag_row[ro]:
                     continue
 
@@ -261,7 +257,6 @@ def row_chan_average(meta, flag_row=None, weight=None,
                         else:
                             vis_avg[ro, co] += iv
                             vis_weight_sum[ro, co] += wt
-
 
                     # Weight Spectrum
                     if have_weight_spectrum:
@@ -343,7 +338,6 @@ _chan_output_fields = ["chan_freq", "chan_width", "effective_bw", "resolution"]
 ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
 
-
 AverageOutput = namedtuple("AverageOutput",
                            ["time", "interval", "flag_row"] +
                            _row_output_fields +
@@ -391,7 +385,6 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                                         weight_spectrum=weight_spectrum,
                                         sigma_spectrum=sigma_spectrum)
 
-
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
         return AverageOutput(meta.time,
@@ -404,18 +397,13 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                              row_avg.uvw,
                              row_avg.weight,
                              row_avg.sigma,
-                            #  chan_data.chan_freq,
-                            #  chan_data.chan_width,
-                            #  chan_data.effective_bw,
-                            #  chan_data.resolution,
-                             None,
-                             None,
-                             None,
-                             None,
+                             None,  # chan_data.chan_freq,
+                             None,  # chan_data.chan_width,
+                             None,  # chan_data.effective_bw,
+                             None,  # chan_data.resolution,
                              row_chan_avg.vis,
                              row_chan_avg.flag,
                              row_chan_avg.weight_spectrum,
                              row_chan_avg.sigma_spectrum)
-
 
     return impl
