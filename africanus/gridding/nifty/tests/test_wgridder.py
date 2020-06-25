@@ -26,12 +26,10 @@ def create_parser():
 if __name__=="__main__":
     args = create_parser().parse_args()
 
-    if args.ncpu:
-        from multiprocessing.pool import ThreadPool
-        dask.config.set(pool=ThreadPool(1))
-    else:
+    if not args.ncpu:
         import multiprocessing
         args.ncpu = multiprocessing.cpu_count()
+        
 
     GD = vars(args)
     print('Input Options:')
@@ -94,14 +92,18 @@ if __name__=="__main__":
 
     R = wgridder(args.ms, args.nx, args.ny, args.cell_size, nband=args.nband, nthreads=args.ncpu)
 
-    dirty = R.hdot()
+    
+    x = np.zeros((args.nband, args.nx, args.ny), dtype=np.float64)
+    x[:, args.nx//2, args.ny//2] = 1.0
+    R.dot(x, column='MODEL_DATA')
 
-    import matplotlib as mpl
-    mpl.use('TkAgg')
-    import matplotlib.pyplot as plt
-    for i in range(args.nband):
-        plt.imshow(dirty[i])
-        plt.colorbar()
-        plt.show()
+    # dirty = R.hdot()
+    # import matplotlib as mpl
+    # mpl.use('TkAgg')
+    # import matplotlib.pyplot as plt
+    # for i in range(args.nband):
+    #     plt.imshow(dirty[i])
+    #     plt.colorbar()
+    #     plt.show()
 
     
