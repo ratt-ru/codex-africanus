@@ -132,7 +132,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
 
     assert time.shape == ant1.shape
 
-    decorrelation = 0.99
+    decorrelation = 0.999
     chunks = 1000
 
     da_time = da.from_array(time, chunks=chunks)
@@ -143,10 +143,10 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
     da_uvw = da.from_array(uvw, chunks=(chunks, 3))
     da_time_centroid = da_time
     da_exposure = da_interval
-    da_chan_freq = da.from_array(chan_freq, chunks=nchan//4)
-    da_chan_width = da.from_array(chan_width, chunks=nchan//4)
-    da_vis = da.from_array(vis, chunks=(chunks, nchan//4, ncorr))
-    da_flag = da.from_array(flag, chunks=(chunks, nchan//4, ncorr))
+    da_chan_freq = da.from_array(chan_freq, chunks=nchan)
+    da_chan_width = da.from_array(chan_width, chunks=nchan)
+    da_vis = da.from_array(vis, chunks=(chunks, nchan, ncorr))
+    da_flag = da.from_array(flag, chunks=(chunks, nchan, ncorr))
 
     da_max_uvw_dist = da.sqrt((da_uvw**2).sum(axis=1)).max()
 
@@ -158,5 +158,8 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                    vis=da_vis, flag=da_flag,
                    decorrelation=decorrelation)
 
-    time, interval, ant1, vis = da.compute(avg.time, avg.interval,
-                                           avg.antenna1, avg.vis)
+    (meta_map, meta_offsets, meta_nchan,
+     time, interval, ant1, vis) = da.compute(avg.map, avg.offsets,
+                                             avg.num_chan,
+                                             avg.time, avg.interval,
+                                             avg.antenna1, avg.vis)

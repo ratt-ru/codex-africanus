@@ -517,6 +517,13 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
     if ref_freq is None:
         raise ValueError("ref_freq must be supplied")
 
+    if chan_width is None:
+        raise ValueError("chan_width must be supplied")
+
+    if not len(chan_width.chunks[0]) == 1:
+        raise ValueError("Only single channel chunks "
+                         "are currently supported.")
+
     # row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
     # chan_arrays = (chan_freq, chan_width, effective_bw, resolution)
 
@@ -554,10 +561,25 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
     #                          effective_bw=effective_bw,
     #                          resolution=resolution)
 
+    fake_map = da.zeros((time.shape[0], chan_width.shape[0]),
+                        chunks=time.chunks + chan_width.chunks,
+                        dtype=np.uint32)
+
+    fake_ints = da.zeros_like(time, dtype=np.uint32)
+
     # Merge output tuples
-    return BDAAverageOutput(_getitem_row(meta, 4, time, ("row",)),
+    return BDAAverageOutput(_getitem_row(meta, 0, fake_map, ("row", "chan")),
+                            # offsets
+                            _getitem_row(meta, 1, fake_ints, ("row",)),
+                            # nchan
+                            _getitem_row(meta, 2, fake_ints, ("row",)),
+                            _getitem_row(meta, 3, time, ("row",)),
+                            # decorrelation channel width
+                            _getitem_row(meta, 4, time, ("row",)),
                             _getitem_row(meta, 5, interval, ("row",)),
-                            (_getitem_row(meta, 6, flag_row, ("row",))
+                            # chan_width
+                            _getitem_row(meta, 6, time, ("row",)),
+                            (_getitem_row(meta, 7, flag_row, ("row",))
                              if flag_row is not None else None),
                             row_data.antenna1,
                             row_data.antenna2,
@@ -566,10 +588,10 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                             row_data.uvw,
                             row_data.weight,
                             row_data.sigma,
-                            None,  # chan_data.chan_freq,
-                            None,  # chan_data.chan_width,
-                            None,  # chan_data.effective_bw,
-                            None,  # chan_data.resolution,
+                            # None,  # chan_data.chan_freq,
+                            # None,  # chan_data.chan_width,
+                            # None,  # chan_data.effective_bw,
+                            # None,  # chan_data.resolution,
                             row_chan_data.vis,
                             row_chan_data.flag,
                             row_chan_data.weight_spectrum,

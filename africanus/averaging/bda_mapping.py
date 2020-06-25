@@ -235,7 +235,7 @@ class Binner(object):
 
 
 RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "offsets", "nchan", "decorr_chan_width",
+                          ["map", "offsets", "num_chan", "decorr_chan_width",
                            "time", "interval", "chan_width", "flag_row"])
 
 

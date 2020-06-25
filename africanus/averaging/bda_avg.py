@@ -4,7 +4,8 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.averaging.bda_mapping import atemkeng_mapper
+from africanus.averaging.bda_mapping import (atemkeng_mapper,
+                                             RowMapOutput)
 from africanus.averaging.shared import (chan_corrs,
                                         merge_flags)
 from africanus.util.numba import (generated_jit,
@@ -339,9 +340,9 @@ ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
 
 AverageOutput = namedtuple("AverageOutput",
-                           ["time", "interval", "flag_row"] +
+                           list(RowMapOutput._fields) +
                            _row_output_fields +
-                           _chan_output_fields +
+                           # _chan_output_fields +
                            _rowchan_output_fields)
 
 
@@ -387,8 +388,13 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
 
         # Have to explicitly write it out because numba tuples
         # are highly constrained types
-        return AverageOutput(meta.time,
+        return AverageOutput(meta.map,
+                             meta.offsets,
+                             meta.num_chan,
+                             meta.decorr_chan_width,
+                             meta.time,
                              meta.interval,
+                             meta.chan_width,
                              meta.flag_row,
                              row_avg.antenna1,
                              row_avg.antenna2,
@@ -397,10 +403,10 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                              row_avg.uvw,
                              row_avg.weight,
                              row_avg.sigma,
-                             None,  # chan_data.chan_freq,
-                             None,  # chan_data.chan_width,
-                             None,  # chan_data.effective_bw,
-                             None,  # chan_data.resolution,
+                             # None,  # chan_data.chan_freq,
+                             # None,  # chan_data.chan_width,
+                             # None,  # chan_data.effective_bw,
+                             # None,  # chan_data.resolution,
                              row_chan_avg.vis,
                              row_chan_avg.flag,
                              row_chan_avg.weight_spectrum,
