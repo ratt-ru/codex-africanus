@@ -234,7 +234,7 @@ def row_chan_average(row_meta, chan_meta,
             flagged_vis_weight_sum = None
         else:
             vis_avg = np.zeros(out_shape, dtype=vis.dtype)
-            vis_weight_sum = np.zeros(out_shape, dtype=vis.dtype)
+            vis_weight_sum = np.zeros(out_shape, dtype=vis.real.dtype)
             flagged_vis_avg = np.zeros_like(vis_avg)
             flagged_vis_weight_sum = np.zeros_like(vis_weight_sum)
 
