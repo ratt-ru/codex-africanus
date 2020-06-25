@@ -107,19 +107,12 @@ def row_average(meta, ant1, ant2, flag_row=None,
 
                 if have_sigma:
                     for co in range(sigma.shape[1]):
-                        sva = sigma[ri, co]**2
-
-                        # Use provided weights
-                        if weight is not None:
-                            wt = weight[ri, co]
-                            sva *= wt ** 2
-                            sigma_weight_sum[ro, co] += wt
-                        # Natural weights
-                        else:
-                            sigma_weight_sum[ro, co] += 1.0
+                        # Use weights if present else natural weights
+                        wt = weight[ri, co] if have_weight else 1.0
 
                         # Assign
-                        sigma_avg[ro, co] += sva
+                        sigma_avg[ro, co] += sigma[ri, co]**2 * wt**2
+                        sigma_weight_sum[ro, co] += wt
 
                 counts[ro] += 1
 
