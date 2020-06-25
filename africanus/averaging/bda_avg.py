@@ -77,77 +77,77 @@ def row_average(meta, ant1, ant2, flag_row=None,
                      dtype=sigma.dtype))
 
         # Iterate over input rows, accumulating into output rows
-        for in_row in range(meta.map.shape[0]):
-            for c in range(meta.map.shape[1]):
-                out_row = meta.map[in_row, c]
+        for ri in range(meta.map.shape[0]):
+            for fi in range(meta.map.shape[1]):
+                ro = meta.map[ri, fi]
                 # Here we can simply assign because input_row baselines
                 # should always match output row baselines
-                ant1_avg[out_row] = ant1[in_row]
-                ant2_avg[out_row] = ant2[in_row]
+                ant1_avg[ro] = ant1[ri]
+                ant2_avg[ro] = ant2[ri]
 
                 # Input and output flags must match in order for the
                 # current row to contribute to these columns
-                if have_flag_row and flag_row[in_row] != meta.flag_row[out_row]:
+                if have_flag_row and flag_row[ri] != meta.flag_row[ro]:
                     continue
 
                 if have_uvw:
-                    uvw_avg[out_row, 0] += uvw[in_row, 0]
-                    uvw_avg[out_row, 1] += uvw[in_row, 1]
-                    uvw_avg[out_row, 2] += uvw[in_row, 2]
+                    uvw_avg[ro, 0] += uvw[ri, 0]
+                    uvw_avg[ro, 1] += uvw[ri, 1]
+                    uvw_avg[ro, 2] += uvw[ri, 2]
 
                 if have_time_centroid:
-                    time_centroid_avg[out_row] += time_centroid[in_row]
+                    time_centroid_avg[ro] += time_centroid[ri]
 
                 if have_exposure:
-                    exposure_avg[out_row] += exposure[in_row]
+                    exposure_avg[ro] += exposure[ri]
 
                 if have_weight:
                     for co in range(weight.shape[1]):
-                        weight_avg[out_row, co] += weight[in_row, co]
+                        weight_avg[ro, co] += weight[ri, co]
 
                 if have_sigma:
                     for co in range(sigma.shape[1]):
-                        sva = sigma[in_row, co]**2
+                        sva = sigma[ri, co]**2
 
                         # Use provided weights
                         if weight is not None:
-                            wt = weight[in_row, co]
+                            wt = weight[ri, co]
                             sva *= wt ** 2
-                            sigma_weight_sum[out_row, co] += wt
+                            sigma_weight_sum[ro, co] += wt
                         # Natural weights
                         else:
-                            sigma_weight_sum[out_row, co] += 1.0
+                            sigma_weight_sum[ro, co] += 1.0
 
                         # Assign
-                        sigma_avg[out_row, co] += sva
+                        sigma_avg[ro, co] += sva
 
-                counts[out_row] += 1
+                counts[ro] += 1
 
         # Normalise
-        for out_row in range(out_rows):
-            count = counts[out_row]
+        for ro in range(out_rows):
+            count = counts[ro]
 
             if count > 0:
                 # Normalise uvw
                 if have_uvw:
-                    uvw_avg[out_row, 0] /= count
-                    uvw_avg[out_row, 1] /= count
-                    uvw_avg[out_row, 2] /= count
+                    uvw_avg[ro, 0] /= count
+                    uvw_avg[ro, 1] /= count
+                    uvw_avg[ro, 2] /= count
 
                 # Normalise time centroid
                 if have_time_centroid:
-                    time_centroid_avg[out_row] /= count
+                    time_centroid_avg[ro] /= count
 
                 # Normalise sigma
                 if have_sigma:
                     for co in range(sigma.shape[1]):
-                        ssva = sigma_avg[out_row, co]
-                        wt = sigma_weight_sum[out_row, co]
+                        ssva = sigma_avg[ro, co]
+                        wt = sigma_weight_sum[ro, co]
 
                         if wt != 0.0:
                             ssva /= (wt**2)
 
-                        sigma_avg[out_row, co] = np.sqrt(ssva)
+                        sigma_avg[ro, co] = np.sqrt(ssva)
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg,
@@ -235,18 +235,18 @@ def row_chan_average(meta, flag_row=None, weight=None,
         flag_counts = np.zeros(out_shape, dtype=np.uint32)
 
         # Iterate over input rows, accumulating into output rows
-        for r in range(meta.map.shape[0]):
-            for c in range(meta.map.shape[1]):
-                out_row = meta.map[r, c]
+        for ri in range(meta.map.shape[0]):
+            for fi in range(meta.map.shape[1]):
+                ro = meta.map[ri, fi]
 
                 # TIME_CENTROID/EXPOSURE case applies here,
                 # must have flagged input and output OR unflagged input and output
-                if have_flag_row and flag_row[r] != meta.flag_row[out_row]:
+                if have_flag_row and flag_row[ri] != meta.flag_row[ro]:
                     continue
 
-                for corr in range(ncorrs):
+                for co in range(ncorrs):
                     # Select output arrays depending on whether the bin is flagged
-                    f = have_flag and flag[r, c, corr] != 0
+                    f = have_flag and flag[ri, fi, co] != 0
                     cnt = flag_counts if f else counts
                     ovis = flagged_vis_avg if f else vis_avg
                     ovis_ws = flagged_vis_weight_sum if f else vis_weight_sum
@@ -257,76 +257,76 @@ def row_chan_average(meta, flag_row=None, weight=None,
                     oss_ws = (flagged_sigma_spectrum_weight_sum if f
                               else sigma_spectrum_weight_sum)
 
-                    cnt[out_row, corr] += 1
+                    cnt[ro, co] += 1
 
                     # Aggregate visibilities
                     if not have_vis:
                         pass
                     elif have_weight_spectrum:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[r, c, corr]
-                        iv = vis[r, c, corr] * wt
-                        ovis[out_row, corr] += iv
-                        ovis_ws[out_row, corr] += wt
+                        wt = weight_spectrum[ri, fi, co]
+                        iv = vis[ri, fi, co] * wt
+                        ovis[ro, co] += iv
+                        ovis_ws[ro, co] += wt
                     elif have_weight:
                         # Otherwise use weight column
-                        wt = weight[r, corr]
-                        iv = vis[r, c, corr]
-                        ovis[out_row, corr] += iv
-                        ovis_ws[out_row, corr] += wt
+                        wt = weight[ri, co]
+                        iv = vis[ri, fi, co]
+                        ovis[ro, co] += iv
+                        ovis_ws[ro, co] += wt
                     else:
                         # Otherwise use natural weights
-                        iv = vis[r, c, corr]
-                        ovis[out_row, corr] += iv
-                        ovis_ws[out_row, corr] += 1.0
+                        iv = vis[ri, fi, co]
+                        ovis[ro, co] += iv
+                        ovis_ws[ro, co] += 1.0
 
                     # Weight Spectrum
                     if have_weight_spectrum:
-                        ows[out_row, corr] += weight_spectrum[r, c, corr]
+                        ows[ro, co] += weight_spectrum[ri, fi, co]
 
                     # Sigma Spectrum
                     if not have_sigma_spectrum:
                         pass
                     elif have_weight_spectrum:
                         # Use full-resolution weight spectrum if given
-                        wt = weight_spectrum[r, c, corr]
-                        ssin = sigma_spectrum[r, c, corr]**2 * wt**2
-                        oss[out_row, corr] += ssin
-                        oss_ws[out_row, corr] += wt
+                        wt = weight_spectrum[ri, fi, co]
+                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
+                        oss[ro, co] += ssin
+                        oss_ws[ro, co] += wt
                     elif have_weight:
                         # Otherwise use weight column
                         # sum(sigma**2 * weight**2)
-                        wt = weight[r, corr]
-                        ssin = sigma_spectrum[r, c, corr]**2 * wt**2
-                        oss[out_row, corr] += ssin
-                        oss_ws[out_row, corr] += wt
+                        wt = weight[ri, co]
+                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
+                        oss[ro, co] += ssin
+                        oss_ws[ro, co] += wt
                     else:
                         # Otherwise use natural weights
                         wt = 1.0
-                        ssin = sigma_spectrum[r, c, corr]**2 * wt**2
-                        oss[out_row, corr] += ssin
-                        oss_ws[out_row, corr] += wt
+                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
+                        oss[ro, co] += ssin
+                        oss_ws[ro, co] += wt
 
-        for r in range(out_rows):
-            for corr in range(ncorrs):
-                if counts[r, corr] > 0:
+        for ro in range(out_rows):
+            for co in range(ncorrs):
+                if counts[ro, co] > 0:
                     if have_vis:
-                        vwsum = vis_weight_sum[r, corr]
-                        vin = vis_avg[r, corr]
+                        vwsum = vis_weight_sum[ro, co]
+                        vin = vis_avg[ro, co]
 
                     if have_sigma_spectrum:
-                        sswsum = sigma_spectrum_weight_sum[r, corr]
-                        ssin = sigma_spectrum_avg[r, corr]
+                        sswsum = sigma_spectrum_weight_sum[ro, co]
+                        ssin = sigma_spectrum_avg[ro, co]
 
                     flagged = 0
-                elif flag_counts[r, corr] > 0:
+                elif flag_counts[ro, co] > 0:
                     if have_vis:
-                        vwsum = flagged_vis_weight_sum[r, corr]
-                        vin = flagged_vis_avg[r, corr]
+                        vwsum = flagged_vis_weight_sum[ro, co]
+                        vin = flagged_vis_avg[ro, co]
 
                     if have_sigma_spectrum:
-                        sswsum = flagged_sigma_spectrum_weight_sum[r, corr]
-                        ssin = flagged_sigma_spectrum_avg[r, corr]
+                        sswsum = flagged_sigma_spectrum_weight_sum[ro, co]
+                        ssin = flagged_sigma_spectrum_avg[ro, co]
 
                     flagged = 1
                 else:
@@ -334,21 +334,21 @@ def row_chan_average(meta, flag_row=None, weight=None,
 
                 # Normalise visibilities
                 if have_vis and vwsum != 0.0:
-                    vis_avg[r, corr] = vin / vwsum
+                    vis_avg[ro, co] = vin / vwsum
 
                 # Normalise Sigma Spectrum
                 if have_sigma_spectrum and sswsum != 0.0:
                     # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-                    sigma_spectrum_avg[r, corr] = np.sqrt(ssin / sswsum**2)
+                    sigma_spectrum_avg[ro, co] = np.sqrt(ssin / sswsum**2)
 
                 # Set flag
                 if have_flag:
-                    flag_avg[r, corr] = flagged
+                    flag_avg[ro, co] = flagged
 
                 # Copy Weights if flagged
                 if have_weight_spectrum and flagged:
-                    weight_spectrum_avg[r, corr] = (
-                        flagged_weight_spectrum_avg[r, corr])
+                    weight_spectrum_avg[ro, co] = (
+                        flagged_weight_spectrum_avg[ro, co])
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
