@@ -156,10 +156,13 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
                    max_uvw_dist=da_max_uvw_dist,
                    vis=da_vis, flag=da_flag,
-                   decorrelation=decorrelation)
+                   decorrelation=decorrelation,
+                   format="ragged")
 
-    (meta_map, meta_offsets, meta_nchan,
-     time, interval, ant1, vis) = da.compute(avg.map, avg.offsets,
-                                             avg.num_chan,
-                                             avg.time, avg.interval,
-                                             avg.antenna1, avg.vis)
+    avg = {f: getattr(avg, f) for f in ("time", "interval", "vis")}
+
+    import dask
+    result = dask.persist(avg, scheduler='single-threaded')[0]
+
+    from pprint import pprint
+    pprint({k: v.shape for k, v in result.items() if v is not None})

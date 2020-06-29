@@ -84,12 +84,23 @@ def tc_row_mapper(time, interval, antenna1, antenna2,
                         dtype=np.object)
 
 
-def _getitem_row(avg, idx, array, dims):
+def _ragged_row_getitem(avg, idx):
+    return avg[idx][avg.offsets, ...]
+
+
+def _getitem_row(avg, idx, array, dims, format="flat"):
     """ Extract row-like arrays from a dask array of tuples """
     assert dims[0] == "row"
 
+    if format == "flat":
+        fn = getitem
+    elif format == "ragged":
+        fn = _ragged_row_getitem
+    else:
+        raise ValueError("Invalid format %s" % format)
+
     name = ("row-average-getitem-%d-" % idx) + tokenize(avg, idx)
-    layers = db.blockwise(getitem, name, dims,
+    layers = db.blockwise(fn, name, dims,
                           avg.name, ("row",),
                           idx, None,
                           new_axes=dict(zip(dims[1:], array.shape[1:])),
@@ -392,20 +403,50 @@ def _bda_row_average_wrapper(meta, ant1, ant2, flag_row,
                           None if sigma is None else sigma[0])
 
 
-def _bda_getitem_row_chan(avg, idx, dtype):
-    """ Extract (row,corr) arrays from dask array of tuples """
-    name = ("row-chan-average-getitem-%d-" % idx) + tokenize(avg, idx)
-    dim = ("row", "corr")
+def _ragged_row_chan_getitem(avg, idx, meta):
+    data = avg[idx]
+    return {"r%d" % (r+1): data[None, o:o + c, ...]
+            for r, (o, c)
+            in enumerate(zip(meta.offsets, meta.num_chan))}
 
-    layers = db.blockwise(getitem, name, dim,
-                          avg.name, dim,
-                          idx, None,
-                          numblocks={avg.name: avg.numblocks})
+
+def _bda_getitem_row_chan(avg, idx, dtype, format, meta, nchan):
+    """ Extract (row, corr) arrays from dask array of tuples """
+    f = BDARowChanAverageOutput._fields[idx]
+    name = "row-chan-average-getitem-%s-%s-" % (f, format)
+    name += tokenize(avg, idx)
+
+    if format == "flat":
+        dims = ("row", "corr")
+        new_axes = None
+
+        layers = db.blockwise(getitem, name, dims,
+                              avg.name, ("row", "corr"),
+                              idx, None,
+                              numblocks={avg.name: avg.numblocks})
+
+        chunks = avg.chunks
+        meta = np.empty((0, 0), dtype=np.object)
+    elif format == "ragged":
+        dims = ("row", "chan", "corr")
+        new_axes = {"chan": nchan}
+
+        layers = db.blockwise(_ragged_row_chan_getitem, name, dims,
+                              avg.name, ("row", "corr"),
+                              idx, None,
+                              meta.name, ("row",),
+                              new_axes=new_axes,
+                              numblocks={
+                                  avg.name: avg.numblocks,
+                                  meta.name: meta.numblocks})
+
+        chunks = (avg.chunks[0], (nchan,), avg.chunks[1])
+        meta = np.empty((0, 0, 0), dtype=np.object)
+    else:
+        raise ValueError("Invalid format %s" % format)
 
     graph = HighLevelGraph.from_collections(name, layers, (avg,))
-    return da.Array(graph, name, avg.chunks,
-                    meta=np.empty((0,)*len(dim), dtype=np.object),
-                    dtype=dtype)
+    return da.Array(graph, name, chunks, meta=meta)
 
 
 def bda_row_average(meta, ant1, ant2, flag_row=None,
@@ -459,13 +500,11 @@ def _bda_row_chan_average_wrapper(meta, flag_row, weight,
 def bda_row_chan_average(meta, flag_row=None, weight=None,
                          vis=None, flag=None,
                          weight_spectrum=None,
-                         sigma_spectrum=None):
+                         sigma_spectrum=None,
+                         format="flat"):
     """ Average (row,chan,corr)-based dask arrays """
 
-    if meta is None or all(v is None for v in (vis,
-                                               flag,
-                                               weight_spectrum,
-                                               sigma_spectrum)):
+    if all(v is None for v in (vis, flag, weight_spectrum, sigma_spectrum)):
         return BDARowChanAverageOutput(None, None, None, None)
 
     # We don't know how many rows are in each row chunk,
@@ -477,6 +516,17 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
     flag_dims = None if flag is None else _row_chan_avg_dims
     ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
     ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
+
+    if vis is not None:
+        nchan = vis.shape[1]
+    elif flag is not None:
+        nchan = flag.shape[1]
+    elif weight_spectrum is not None:
+        nchan = weight_spectrum[1]
+    elif sigma_spectrum is not None:
+        nchan = sigma_spectrum[1]
+    else:
+        raise ValueError("Couldn't infer nchan")
 
     avg = da.blockwise(_bda_row_chan_average_wrapper, ("row", "corr"),
                        meta, ("row",),
@@ -491,7 +541,8 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
                        meta=np.empty((0, 0), dtype=np.object),
                        dtype=np.object)
 
-    tuple_gets = (None if a is None else _bda_getitem_row_chan(avg, i, a.dtype)
+    tuple_gets = (None if a is None else
+                  _bda_getitem_row_chan(avg, i, a.dtype, format, meta, nchan)
                   for i, a in enumerate([vis, flag,
                                          weight_spectrum,
                                          sigma_spectrum]))
@@ -509,7 +560,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         weight_spectrum=None,
         sigma_spectrum=None,
         max_uvw_dist=None, lm_max=1.0,
-        decorrelation=0.98):
+        decorrelation=0.98,
+        format="flat"):
 
     if uvw is None:
         raise ValueError("uvw must be supplied")
@@ -521,8 +573,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         raise ValueError("chan_width must be supplied")
 
     if not len(chan_width.chunks[0]) == 1:
-        raise ValueError("Only single channel chunks "
-                         "are currently supported.")
+        raise ValueError("Chunking in channel is not "
+                         "currently supported.")
 
     # row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
     # chan_arrays = (chan_freq, chan_width, effective_bw, resolution)
@@ -553,7 +605,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                                          flag_row=flag_row, weight=weight,
                                          vis=vis, flag=flag,
                                          weight_spectrum=weight_spectrum,
-                                         sigma_spectrum=sigma_spectrum)
+                                         sigma_spectrum=sigma_spectrum,
+                                         format=format)
 
     # chan_data = chan_average(chan_meta,
     #                          chan_freq=chan_freq,
@@ -566,6 +619,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                         dtype=np.uint32)
 
     fake_ints = da.zeros_like(time, dtype=np.uint32)
+    fake_floats = da.zeros_like(chan_width)
 
     # Merge output tuples
     return BDAAverageOutput(_getitem_row(meta, 0, fake_map, ("row", "chan")),
@@ -573,13 +627,13 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                             _getitem_row(meta, 1, fake_ints, ("row",)),
                             # nchan
                             _getitem_row(meta, 2, fake_ints, ("row",)),
-                            _getitem_row(meta, 3, time, ("row",)),
                             # decorrelation channel width
-                            _getitem_row(meta, 4, time, ("row",)),
-                            _getitem_row(meta, 5, interval, ("row",)),
+                            _getitem_row(meta, 3, fake_floats, ("row",)),
+                            _getitem_row(meta, 4, time, ("row",), format),
+                            _getitem_row(meta, 5, interval, ("row",), format),
                             # chan_width
                             _getitem_row(meta, 6, time, ("row",)),
-                            (_getitem_row(meta, 7, flag_row, ("row",))
+                            (_getitem_row(meta, 7, flag_row, ("row",), format)
                              if flag_row is not None else None),
                             row_data.antenna1,
                             row_data.antenna2,
