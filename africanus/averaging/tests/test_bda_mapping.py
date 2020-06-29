@@ -162,10 +162,12 @@ def ref_freq(chan_freq):
     return (chan_freq[0] + chan_freq[-1]) / 2.0
 
 
+@pytest.mark.parametrize("auto_corrs", [False, True])
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
-                             ref_freq, chan_freq, chan_width):
+                             ref_freq, chan_freq, chan_width,
+                             auto_corrs):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, auto_corrs)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -184,10 +186,12 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                                lm_max=1.0, decorrelation=decorrelation)
 
 
+@pytest.mark.parametrize("auto_corrs", [False, True])
 def test_bda_binner(time, ants, interval, phase_dir,
-                    ref_freq, chan_freq, chan_width):
+                    ref_freq, chan_freq, chan_width,
+                    auto_corrs):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, False)
+    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, auto_corrs)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -204,5 +208,5 @@ def test_bda_binner(time, ants, interval, phase_dir,
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
     binner = Binner(0, 0, l, m, n, ref_freq, decorrelation)
     binner.start_bin(0, time, interval, flag_row)
-    binner.add_row(1, time, interval, uvw, flag_row)
-    binner.add_row(2, time, interval, uvw, flag_row)
+    binner.add_row(1, auto_corrs, time, interval, uvw, flag_row)
+    binner.add_row(2, auto_corrs, time, interval, uvw, flag_row)

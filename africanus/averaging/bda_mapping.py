@@ -115,7 +115,7 @@ class Binner(object):
         self.bin_flag_count = (1 if flag_row is not None and flag_row[row] != 0
                                else 0)
 
-    def add_row(self, row, time, interval, uvw, flag_row):
+    def add_row(self, row, auto_corr, time, interval, uvw, flag_row):
         """
         Attempts to add ``row`` to the current bin.
 
@@ -131,6 +131,16 @@ class Binner(object):
         if re == row:
             raise ValueError("start_bin should be called to start a bin "
                              "before add_row is called.")
+
+        if auto_corr:
+            # Fast path for auto-correlated baseline.
+            # By definition, uvw == (0, 0, 0) for these samples
+            self.re = row
+            self.bin_sinc_Δψ = self.decorrelation
+            self.bin_count += 1
+            self.time_sum += time[row]
+            self.interval_sum += interval[row]
+            return True
 
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
@@ -170,7 +180,7 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, uvw, bandwidth):
+    def finalise_bin(self, auto_corr, uvw, bandwidth):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
@@ -178,10 +188,12 @@ class Binner(object):
         rs = self.rs
         re = self.re
 
-        # Handle special case of bin containing a single sample.
-        # No averaging required
-        # Change in baseline speed 𝞓𝞇 == 0
+        # This if-else ladder determines the maximum change
+        # in frequency for the bin, given the change in phase
         if self.bin_count == 1:
+            # Special case of bin containing a single sample.
+            # No averaging required
+            # Change in baseline speed 𝞓𝞇 == 0
             if rs != re:
                 raise ValueError("single row in bin, but "
                                  "start row != end row")
@@ -190,7 +202,14 @@ class Binner(object):
             # This is a signal to update_lookups
             # Could be brittle, improve this
             max_𝞓𝝼 = 0.0
+        elif auto_corr:
+            # Auto-correlated baseline, average all channels
+            # everything down to a single value
+            max_𝞓𝝼 = bandwidth
         else:
+            if rs == re:
+                raise ValueError("startrow == endrow")
+
             # duvw between start and end row
             du = uvw[rs, 0] - uvw[re, 0]
             dv = uvw[rs, 1] - uvw[re, 1]
@@ -376,6 +395,9 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             # Reset the binner for this baseline
             binner.reset()
 
+            # Auto-correlated baseline
+            auto_corr = ubl[bl, 0] == ubl[bl, 1]
+
             for t in range(ntime):
                 # Lookup row, continue if non-existent
                 r = row_lookup[bl, t]
@@ -388,8 +410,10 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     binner.start_bin(r, time, interval, flag_row)
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
-                elif not binner.add_row(r, time, interval, uvw, flag_row):
-                    f = binner.finalise_bin(uvw, bandwidth)
+                elif not binner.add_row(r, auto_corr,
+                                        time, interval,
+                                        uvw, flag_row):
+                    f = binner.finalise_bin(auto_corr, uvw, bandwidth)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -399,7 +423,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(uvw, bandwidth)
+                f = binner.finalise_bin(auto_corr, uvw, bandwidth)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
