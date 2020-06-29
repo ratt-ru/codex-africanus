@@ -438,7 +438,7 @@ def bda_row_average(meta, ant1, ant2, flag_row=None,
     out_args = [(a, dims) for out, a, dims in args if out is True]
 
     tuple_gets = [None if a is None
-                  else _getitem_row(avg, i, a, ("row",))
+                  else _getitem_row(avg, i, a, dims)
                   for i, (a, dims) in enumerate(out_args)]
 
     return BDARowAverageOutput(*tuple_gets)
