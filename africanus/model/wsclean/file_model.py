@@ -51,7 +51,7 @@ def _deg_converter(deg_str):
 
 
 def arcsec2rad(arcseconds=0.0):
-    return np.deg2rad(3600.0 * float(arcseconds))
+    return np.deg2rad(float(arcseconds) / 3600.)
 
 
 _COLUMN_CONVERTERS = {

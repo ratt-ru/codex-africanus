@@ -2,8 +2,14 @@
 
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
-from africanus.model.wsclean.file_model import load
+from africanus.model.wsclean.file_model import load, arcsec2rad
+
+
+def test_arcsec2rad():
+    # https://www.convertunits.com/from/arcsecond/to/radian
+    assert_array_almost_equal(arcsec2rad("45.3"), 0.0002196205975426216)
 
 
 def test_wsclean_model_file(wsclean_model_file):
