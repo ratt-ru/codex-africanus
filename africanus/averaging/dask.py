@@ -84,23 +84,12 @@ def tc_row_mapper(time, interval, antenna1, antenna2,
                         dtype=np.object)
 
 
-def _ragged_row_getitem(avg, idx):
-    return avg[idx][avg.offsets, ...]
-
-
-def _getitem_row(avg, idx, array, dims, format="flat"):
+def _getitem_row(avg, idx, array, dims):
     """ Extract row-like arrays from a dask array of tuples """
     assert dims[0] == "row"
 
-    if format == "flat":
-        fn = getitem
-    elif format == "ragged":
-        fn = _ragged_row_getitem
-    else:
-        raise ValueError("Invalid format %s" % format)
-
     name = ("row-average-getitem-%d-" % idx) + tokenize(avg, idx)
-    layers = db.blockwise(fn, name, dims,
+    layers = db.blockwise(getitem, name, dims,
                           avg.name, ("row",),
                           idx, None,
                           new_axes=dict(zip(dims[1:], array.shape[1:])),
@@ -403,6 +392,44 @@ def _bda_row_average_wrapper(meta, ant1, ant2, flag_row,
                           None if sigma is None else sigma[0])
 
 
+def _ragged_row_getitem(avg, idx, meta):
+    return avg[idx][meta.offsets, ...]
+
+
+def _bda_getitem_row(avg, idx, array, dims, meta, format="flat"):
+    """ Extract row-like arrays from a dask array of tuples """
+    assert dims[0] == "row"
+
+    name = "row-average-getitem-%s-" % idx
+    name += tokenize(avg, idx)
+    new_axes = dict(zip(dims[1:], array.shape[1:]))
+    numblocks = {avg.name: avg.numblocks}
+
+    if format == "flat":
+        layers = db.blockwise(getitem, name, dims,
+                              avg.name, ("row",),
+                              idx, None,
+                              new_axes=new_axes,
+                              numblocks=numblocks)
+
+    elif format == "ragged":
+        numblocks[meta.name] = meta.numblocks
+        layers = db.blockwise(_ragged_row_getitem, name, dims,
+                              avg.name, ("row",),
+                              idx, None,
+                              meta.name, ("row",),
+                              new_axes=new_axes,
+                              numblocks=numblocks)
+    else:
+        raise ValueError("Invalid format %s" % format)
+
+    graph = HighLevelGraph.from_collections(name, layers, (avg,))
+    chunks = avg.chunks + tuple((s,) for s in array.shape[1:])
+    meta = np.empty((0,)*len(dims), dtype=array.dtype)
+
+    return da.Array(graph, name, chunks, meta=meta)
+
+
 def _ragged_row_chan_getitem(avg, idx, meta):
     data = avg[idx]
     return {"r%d" % (r+1): data[None, o:o + c, ...]
@@ -451,7 +478,8 @@ def _bda_getitem_row_chan(avg, idx, dtype, format, meta, nchan):
 
 def bda_row_average(meta, ant1, ant2, flag_row=None,
                     time_centroid=None, exposure=None, uvw=None,
-                    weight=None, sigma=None):
+                    weight=None, sigma=None,
+                    format="flat"):
     """ Average row-based dask arrays """
 
     rd = ("row",)
@@ -479,7 +507,7 @@ def bda_row_average(meta, ant1, ant2, flag_row=None,
     out_args = [(a, dims) for out, a, dims in args if out is True]
 
     tuple_gets = [None if a is None
-                  else _getitem_row(avg, i, a, dims)
+                  else _bda_getitem_row(avg, i, a, dims, meta, format=format)
                   for i, (a, dims) in enumerate(out_args)]
 
     return BDARowAverageOutput(*tuple_gets)
@@ -598,7 +626,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                                flag_row=flag_row,
                                time_centroid=time_centroid,
                                exposure=exposure,
-                               weight=weight, sigma=sigma)
+                               weight=weight, sigma=sigma,
+                               format=format)
 
     # Average channel data
     row_chan_data = bda_row_chan_average(meta,
@@ -621,20 +650,28 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
     fake_ints = da.zeros_like(time, dtype=np.uint32)
     fake_floats = da.zeros_like(chan_width)
 
+    meta_map = _bda_getitem_row(meta, 0, fake_map, ("row", "chan"), meta)
+    meta_offsets = _bda_getitem_row(meta, 1, fake_ints, ("row",), meta)
+    meta_nchan = _bda_getitem_row(meta, 2, fake_ints, ("row",), meta)
+    meta_decorr_cw = _bda_getitem_row(meta, 3, fake_floats, ("row",), meta)
+    meta_time = _bda_getitem_row(meta, 4, time, ("row",),
+                                 meta, format=format)
+    meta_interval = _bda_getitem_row(meta, 5, interval, ("row",),
+                                     meta, format=format)
+    meta_chan_width = _bda_getitem_row(meta, 6, chan_width, ("row",), meta)
+    meta_flag_row = (_bda_getitem_row(meta, 7, flag_row, ("row",),
+                                      meta, format=format)
+                     if flag_row is not None else None)
+
     # Merge output tuples
-    return BDAAverageOutput(_getitem_row(meta, 0, fake_map, ("row", "chan")),
-                            # offsets
-                            _getitem_row(meta, 1, fake_ints, ("row",)),
-                            # nchan
-                            _getitem_row(meta, 2, fake_ints, ("row",)),
-                            # decorrelation channel width
-                            _getitem_row(meta, 3, fake_floats, ("row",)),
-                            _getitem_row(meta, 4, time, ("row",), format),
-                            _getitem_row(meta, 5, interval, ("row",), format),
-                            # chan_width
-                            _getitem_row(meta, 6, time, ("row",)),
-                            (_getitem_row(meta, 7, flag_row, ("row",), format)
-                             if flag_row is not None else None),
+    return BDAAverageOutput(meta_map,
+                            meta_offsets,
+                            meta_nchan,
+                            meta_decorr_cw,
+                            meta_time,
+                            meta_interval,
+                            meta_chan_width,
+                            meta_flag_row,
                             row_data.antenna1,
                             row_data.antenna2,
                             row_data.time_centroid,
