@@ -4,7 +4,7 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
-from africanus.model.wsclean.file_model import load
+from africanus.model.wsclean.file_model import load, arcsec2rad
 
 
 def test_wsclean_model_file(wsclean_model_file):
@@ -86,8 +86,8 @@ def test_wsclean_model_file(wsclean_model_file):
     assert name[-1] == "s1c2" and stype[-1] == "GAUSSIAN"
 
     # https://www.convertunits.com/from/arcsecond/to/radian
-    assert_array_almost_equal(major[-1], 0.00040537410452425813)
-    assert_array_almost_equal(minor[-1], 0.00040537410452425813)
+    assert_array_almost_equal(major[-1], arcsec2rad(83.6144111272856))
+    assert_array_almost_equal(minor[-1], arcsec2rad(83.6144111272856))
     assert_array_almost_equal(orientation[-1], np.deg2rad(45))
 
     assert I[-1] == 0.000660490865128381
