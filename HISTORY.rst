@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.2.5 (2020-07-01)
 ------------------
 * Convert WSClean Gaussian arcsecond and degree quantities to radians (:pr:`206`)
 * Update classifiers and correct license in setup.py to BSD3 (:pr:`201`)
