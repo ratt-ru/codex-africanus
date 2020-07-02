@@ -25,7 +25,7 @@ def inv_sinc(sinc_x, tol=1e-12):
     x = t_pow = np.sqrt(6*(1 - sinc_x))
     t_squared = t_pow*t_pow
 
-    for coeff in _SERIES_COEFFS:
+    for coeff in numba.literal_unroll(_SERIES_COEFFS):
         t_pow *= t_squared
         x += coeff * t_pow
 
