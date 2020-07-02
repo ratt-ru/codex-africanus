@@ -349,7 +349,11 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             time_lookup[bl, tbin] = finalised.time
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
-            bin_chan_width[bl, tbin] = decorr_bandwidth = finalised.chan_width
+            decorr_bandwidth = finalised.chan_width
+            # 0.0 is a special no-decorrelation marker (see finalise_bin)
+            bin_chan_width[bl, tbin] = (bandwidth / chan_width.shape[0]
+                                        if decorr_bandwidth == 0.0
+                                        else decorr_bandwidth)
 
             if chan_width.shape[0] == 0:
                 # Nothing to do
