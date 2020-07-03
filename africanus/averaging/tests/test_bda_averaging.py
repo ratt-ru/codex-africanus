@@ -148,13 +148,10 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
     da_vis = da.from_array(vis, chunks=(chunks, nchan, ncorr))
     da_flag = da.from_array(flag, chunks=(chunks, nchan, ncorr))
 
-    da_max_uvw_dist = da.sqrt((da_uvw**2).sum(axis=1)).max()
-
     avg = dask_bda(da_time, da_interval, da_ant1, da_ant2, ref_freq,
                    time_centroid=da_time_centroid, exposure=da_exposure,
                    flag_row=da_flag_row, uvw=da_uvw,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
-                   max_uvw_dist=da_max_uvw_dist,
                    vis=da_vis, flag=da_flag,
                    decorrelation=decorrelation,
                    format="ragged")

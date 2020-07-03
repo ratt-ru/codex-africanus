@@ -604,6 +604,9 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         raise ValueError("Chunking in channel is not "
                          "currently supported.")
 
+    if max_uvw_dist is None:
+        max_uvw_dist = da.sqrt((uvw**2).sum(axis=1)).max()
+
     # row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
     # chan_arrays = (chan_freq, chan_width, effective_bw, resolution)
 
