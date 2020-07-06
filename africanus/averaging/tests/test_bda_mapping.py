@@ -202,7 +202,39 @@ def test_bda_binner(time, ants, interval, phase_dir,
     l = 0.5  # noqa: E741
     m = 0.5
     n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+    
+    bandwidth = chan_width.sum()
+
     binner = Binner(0, 0, l, m, n, ref_freq, decorrelation)
+    assert binner.decorrelation == decorrelation 
+    assert binner.ref_freq == ref_freq
+    assert binner.n_max == n
+    assert binner.l == l 
+    assert binner.m == m
+
+    assert binner.tbin == 0
+    assert binner.bin_count == 0
     binner.start_bin(0, time, interval, flag_row)
+    assert binner.bin_count == 1
+
     binner.add_row(1, time, interval, uvw, flag_row)
+    assert binner.re == 1
+    assert binner.bin_count == 2
+
     binner.add_row(2, time, interval, uvw, flag_row)
+    assert binner.re == 2
+    assert binner.bin_count == 3
+
+    assert binner.empty == False
+    
+    f = binner.finalise_bin(uvw, bandwidth)
+    assert binner.tbin == 1
+
+    binner.reset()
+    assert binner.rs == 0
+    assert binner.re == 0
+    assert binner.decorrelation == decorrelation 
+    assert binner.ref_freq == ref_freq
+    assert binner.n_max == n
+    assert binner.l == l 
+    assert binner.m == m
