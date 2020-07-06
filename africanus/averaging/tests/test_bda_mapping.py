@@ -229,6 +229,10 @@ def test_bda_binner(time, ants, interval, phase_dir,
     
     f = binner.finalise_bin(uvw, bandwidth)
     assert binner.tbin == 1
+    assert f.tbin == 0
+    assert f.time == binner.time_sum / binner.bin_count
+    assert f.interval == binner.interval_sum
+    assert f.flag == (binner.bin_count == binner.bin_flag_count)
 
     binner.reset()
     assert binner.rs == 0
