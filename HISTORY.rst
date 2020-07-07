@@ -2,6 +2,11 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Improve Gaussian Shape Documenation (:pr:`209`)
+
+
 0.2.5 (2020-07-01)
 ------------------
 * Convert WSClean Gaussian arcsecond and degree quantities to radians (:pr:`206`)
