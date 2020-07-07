@@ -60,7 +60,7 @@ Computes the Gaussian Shape Function.
 
 .. math::
 
-    & \nu^\prime = 2 \nu \pi \\
+    & \nu^\prime = \frac{\nu \pi}{2 c \sqrt{\log{2}}} \\
     & r = \frac{e_{min}}{e_{maj}} \\
     & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
       r \nu^\prime \\
