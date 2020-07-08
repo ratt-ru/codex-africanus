@@ -140,6 +140,10 @@ class Binner(object):
             self.bin_count += 1
             self.time_sum += time[row]
             self.interval_sum += interval[row]
+
+            if flag_row is not None and flag_row[row] != 0:
+                self.bin_flag_count += 1
+
             return True
 
         # Evaluate the degree of decorrelation
