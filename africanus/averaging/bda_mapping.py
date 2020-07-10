@@ -192,37 +192,21 @@ class Binner(object):
         rs = self.rs
         re = self.re
 
-        # This if-else ladder determines the maximum change
-        # in frequency for the bin, given the change in phase
-        if self.bin_count == 1:
-            # Special case of bin containing a single sample.
-            # No averaging required
-            # Change in baseline speed 𝞓𝞇 == 0
-            if rs != re:
-                raise ValueError("single row in bin, but "
-                                 "start row != end row")
-
-            # TODO(sjperkins)
-            # This is a signal to update_lookups
-            # Could be brittle, improve this
-            max_𝞓𝝼 = 0.0
-        elif auto_corr:
+        # Calculate the maximum change in frequency for the bin,
+        # given the change in phase
+        if auto_corr:
             # Auto-correlated baseline, average all channels
             # everything down to a single value
             max_𝞓𝝼 = bandwidth
         else:
-            if rs == re:
-                raise ValueError("startrow == endrow")
+            # Central UVW coordinate of the bin
+            cu = (uvw[rs, 0] + uvw[re, 0]) / 2
+            cv = (uvw[rs, 1] + uvw[re, 1]) / 2
+            cw = (uvw[rs, 2] + uvw[re, 2]) / 2
 
-            # duvw between start and end row
-            du = uvw[rs, 0] - uvw[re, 0]
-            dv = uvw[rs, 1] - uvw[re, 1]
-            dw = uvw[rs, 2] - uvw[re, 2]
-            bin_sinc_𝞓𝞇 = self.bin_sinc_Δψ
-
-            max_abs_dist = np.sqrt(np.abs(du)*np.abs(self.l) +
-                                   np.abs(dv)*np.abs(self.m) +
-                                   np.abs(dw)*np.abs(self.n_max))
+            max_abs_dist = np.sqrt(np.abs(cu)*np.abs(self.l) +
+                                   np.abs(cv)*np.abs(self.m) +
+                                   np.abs(cw)*np.abs(self.n_max))
 
             # Derive fractional bandwidth 𝞓𝝼/𝝼
             # from Equation (44) in Atemkeng
@@ -231,10 +215,10 @@ class Binner(object):
 
             # Given
             #   (1) acceptable decorrelation
-            #   (2) change in baseline speed
+            #   (2) change in (phase) baseline speed
             # derive the frequency phase difference
             # from Equation (35) in Atemkeng
-            sinc_𝞓𝞍 = self.decorrelation / bin_sinc_𝞓𝞇
+            sinc_𝞓𝞍 = self.decorrelation / (1.0 if rs == re else self.bin_sinc_Δψ)
 
             𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
             fractional_bandwidth = 𝞓𝞍 / max_abs_dist
