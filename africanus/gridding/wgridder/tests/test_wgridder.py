@@ -4,7 +4,32 @@ import dask
 import dask.array as da
 from daskms import xds_from_ms, xds_from_table, xds_to_table, Dataset
 import argparse
-from africanus.gridding.nifty.dask import wgridder
+# from africanus.gridding.wgridder.dask import vis2im, im2vis
+
+def test_gridder():
+    # run comparison against dft with full channel resolution
+
+    return
+
+def test_degridder():
+    # run comparison against dft with full channel resolution
+
+    return
+
+def test_gridder_mfs():
+    # run comparison against dft where the dft is at full channel
+    # resolutiom and we perform the sum after making images
+    # whereas we do MFS griding
+
+    return
+
+def test_degridder_mfs():
+    # degrid single image to multiple channels and compare to DFT
+    # with the tiled image
+
+    return
+
+# TODO - how to test frequency mapping
 
 
 def create_parser():
