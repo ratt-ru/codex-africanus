@@ -218,7 +218,8 @@ class Binner(object):
             #   (2) change in (phase) baseline speed
             # derive the frequency phase difference
             # from Equation (35) in Atemkeng
-            sinc_𝞓𝞍 = self.decorrelation / (1.0 if rs == re else self.bin_sinc_Δψ)
+            sinc_𝞓𝞍 = self.decorrelation / (1.0 if rs == re
+                                            else self.bin_sinc_Δψ)
 
             𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
             fractional_bandwidth = 𝞓𝞍 / max_abs_dist
