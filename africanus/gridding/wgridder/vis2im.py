@@ -4,16 +4,17 @@ import numpy as np
 from africanus.util.docs import DocstringTemplate
 from ducc0.wgridder import ms2dirty
 
-def vis2im(uvw, freq, vis, weight, freq_bin_idx, freq_bin_counts,
+def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
     dirty = np.zeros((nband, nx, ny), dtype=freq.dtype)
     for i in range(nband):
         I = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
-        dirty[i] = ms2dirty(uvw=uvw, freq=freq[I], ms=vis[:, I], wgt=weight[:, I], 
-                            npix_x=nx, npix_y=ny, pixsize_x=cellx, pixsize_y=celly,
-                            nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads, 
+        dirty[i] = ms2dirty(uvw=uvw, freq=freq[I], ms=vis[:, I],
+                            wgt=weights[:, I], npix_x=nx, npix_y=ny,
+                            pixsize_x=cellx, pixsize_y=celly,
+                            nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads,
                             do_wstacking=do_wstacking)
     return dirty
 
