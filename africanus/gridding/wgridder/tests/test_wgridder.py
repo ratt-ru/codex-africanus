@@ -1,136 +1,216 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.testing import assert_array_equal, assert_almost_equal
-import dask
-import dask.array as da
-from daskms import xds_from_ms, xds_from_table, xds_to_table, Dataset
-import argparse
-# from africanus.gridding.wgridder.dask import vis2im, im2vis
+from numpy.testing import assert_allclose, assert_array_almost_equal
+# import dask
+# import dask.array as da
+from africanus.constants import c as lightspeed
+
+
+def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
+                     apply_w):
+    x, y = np.meshgrid(*[-ss/2 + np.arange(ss) for ss in [nxdirty, nydirty]],
+                       indexing='ij')
+    x *= xpixsize
+    y *= ypixsize
+    res = np.zeros((nxdirty, nydirty))
+    eps = x**2+y**2
+    if apply_w:
+        nm1 = -eps/(np.sqrt(1.-eps)+1.)
+        n = nm1+1
+    else:
+        nm1 = 0.
+        n = 1.
+    for row in range(ms.shape[0]):
+        for chan in range(ms.shape[1]):
+            phase = (freq[chan]/lightspeed *
+                     (x*uvw[row, 0] + y*uvw[row, 1] - uvw[row, 2]*nm1))
+            if wgt is None:
+                res += (ms[row, chan]*np.exp(2j*np.pi*phase)).real
+            else:
+                res += (ms[row, chan]*wgt[row, chan]
+                        * np.exp(2j*np.pi*phase)).real
+    return res/n
+
+
+def test_gridder_mfs():
+    # run comparison against explicit gridder where all channels
+    # are collapsed into a single MFS image
+    from africanus.gridding.wgridder import vis2im
+    np.random.seed(420)
+    nrow = 1000
+    nchan = 8
+    fov = 5.0  # degrees
+    nx = 32
+    ny = 32
+    cellx = fov*np.pi/180/nx
+    celly = fov*np.pi/180/ny
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
+    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
+        (np.random.rand(nrow, nchan)-0.5)
+    wgt = np.random.rand(nrow, nchan)
+    epsilon = 1e-7
+    freq_bin_idx = np.arange(1)
+    freq_bin_counts = np.array((nchan,), dtype=np.int)
+    dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
+                   nx, ny, cellx, celly, 2*nx, 2*ny, epsilon, 8, 1).squeeze()
+
+    ref = explicit_gridder(uvw, freq, vis, wgt, nx, ny, cellx, celly, 1)
+
+    # should be within an order of magnitude of precision
+    assert_array_almost_equal(dirty, ref, decimal=-int(np.log10(epsilon)) - 1)
+
 
 def test_gridder():
     # run comparison against dft with full channel resolution
+    from africanus.gridding.wgridder import vis2im
+    np.random.seed(420)
+    nrow = 1000
+    nchan = 8
+    fov = 5.0  # degrees
+    nx = 32
+    ny = 32
+    cellx = fov*np.pi/180/nx
+    celly = fov*np.pi/180/ny
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
+    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
+        (np.random.rand(nrow, nchan)-0.5)
+    wgt = np.random.rand(nrow, nchan)
+    epsilon = 1e-7
+    freq_bin_idx = np.arange(nchan)
+    freq_bin_counts = np.ones(nchan, dtype=np.int)
+    dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
+                   nx, ny, cellx, celly, 2*nx, 2*ny, epsilon, 8, 1)
+    ref = np.zeros((nchan, nx, ny), dtype=np.float64)
+    for i in range(nchan):
+        ref[i] = explicit_gridder(uvw, freq[i:i+1], vis[:, i:i+1],
+                                  wgt[:, i:i+1], nx, ny, cellx, celly, 1)
 
-    return
-
-def test_degridder():
-    # run comparison against dft with full channel resolution
-
-    return
-
-def test_gridder_mfs():
-    # run comparison against dft where the dft is at full channel
-    # resolutiom and we perform the sum after making images
-    # whereas we do MFS griding
-
-    return
-
-def test_degridder_mfs():
-    # degrid single image to multiple channels and compare to DFT
-    # with the tiled image
-
-    return
-
-# TODO - how to test frequency mapping
+    # should be within an order of magnitude of precision
+    assert_array_almost_equal(dirty, ref, decimal=-int(np.log10(epsilon)) - 1)
 
 
-def create_parser():
-    p = argparse.ArgumentParser()
-    p.add_argument("--ms", type=str, nargs='+')
-    p.add_argument("--data_column", default="CORRECTED_DATA", type=str)
-    p.add_argument("--weight_column", default='WEIGHT_SPECTRUM', type=str)
-    p.add_argument("--model_column", default="MODEL_DATA", type=str)
-    p.add_argument("--field", type=int, default=0)
-    p.add_argument("--ddid", type=int, default=0)
-    p.add_argument("--pol_products", type=str, default='I')
-    p.add_argument("--row_chunks", type=int, default=-1)
-    p.add_argument("--ncpu", type=int, default=0)
-    p.add_argument("--fov", default=1.0)
-    p.add_argument("--srf", default=1.2)
-    p.add_argument("--nband", default=None, type=int)
-    return p
+def test_freq_mapped_gridder():
+    # run comparison against dft with a frequency mapping imposed
+    from africanus.gridding.wgridder import vis2im
+    np.random.seed(420)
+    nrow = 1000
+    nchan = 8
+    fov = 5.0  # degrees
+    nx = 32
+    ny = 32
+    cellx = fov*np.pi/180/nx
+    celly = fov*np.pi/180/ny
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
+    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
+        (np.random.rand(nrow, nchan)-0.5)
+    wgt = np.random.rand(nrow, nchan)
+    epsilon = 1e-7
+    freq_chunks = 3
+    freq_bin_idx = np.arange(0, nchan, freq_chunks)
+    freq_mapping = np.append(freq_bin_idx, nchan)
+    freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
+                   nx, ny, cellx, celly, 2*nx, 2*ny, epsilon, 8, 1)
+    nband = freq_bin_idx.size
+    ref = np.zeros((nband, nx, ny), dtype=np.float64)
+    for i in range(nband):
+        ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
+        ref[i] = explicit_gridder(uvw, freq[ind], vis[:, ind], wgt[:, ind],
+                                  nx, ny, cellx, celly, 1)
 
-if __name__=="__main__":
-    args = create_parser().parse_args()
+    # should be within an order of magnitude of precision
+    assert_array_almost_equal(dirty, ref, decimal=-int(np.log10(epsilon)) - 1)
 
-    if not args.ncpu:
-        import multiprocessing
-        args.ncpu = multiprocessing.cpu_count()
-        
 
-    GD = vars(args)
-    print('Input Options:')
-    for key in GD.keys():
-        print(key, ' = ', GD[key])
+def test_adjointness():
+    # instead of explicitly testing the degridder we can just check that
+    # it is consistent with the gridder i.e.
+    #
+    #  <R.H y, x> = <y.H, Rx>
+    #
+    # where R.H is the gridder, R is the degridder and x and y are randomly
+    # drawn image and visibilities respectively
+    from africanus.gridding.wgridder import vis2im, im2vis
+    np.random.seed(420)
+    nrow = 1000
+    nchan = 8
+    fov = 5.0  # degrees
+    nx = 32
+    ny = 32
+    cellx = fov*np.pi/180/nx
+    celly = fov*np.pi/180/ny
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
+    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
+        (np.random.rand(nrow, nchan)-0.5)
+    wgt = np.random.rand(nrow, nchan)
+    epsilon = 1e-7
+    freq_chunks = 3
+    freq_bin_idx = np.arange(0, nchan, freq_chunks)
+    freq_mapping = np.append(freq_bin_idx, nchan)
+    freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
+                   nx, ny, cellx, celly, 2*nx, 2*ny, epsilon, 8, 1)
+    nband = freq_bin_idx.size
+    model = np.random.randn(nband, nx, ny)
+    modelvis = im2vis(uvw, freq, model, wgt, freq_bin_idx, freq_bin_counts,
+                      cellx, celly, 2*nx, 2*ny, epsilon, 8, 1, np.complex128)
 
-    # get max uv coords over all fields
-    uvw = []
-    freq = None
-    for ims in args.ms:
-        xds = xds_from_ms(ims, chunks={'row':-1})
-        
-        # subtables
-        ddids = xds_from_table(ims + "::DATA_DESCRIPTION")
-        fields = xds_from_table(ims + "::FIELD", group_cols="__row__")
-        spws = xds_from_table(ims + "::SPECTRAL_WINDOW", group_cols="__row__")
-        pols = xds_from_table(ims + "::POLARIZATION", group_cols="__row__")
+    assert_allclose(np.vdot(vis, modelvis).real, np.vdot(dirty, model),
+                    rtol=5e-13)
 
-        # Get subtable data
-        ddids = dask.compute(ddids)[0]
-        fields = dask.compute(fields)[0]
-        spws = dask.compute(spws)[0]
-        pols = dask.compute(pols)[0]
 
-        for ds in xds:
-            if ds.FIELD_ID != args.field and ds.DATA_DESC_ID != args.ddid:
-                continue
+def test_im2residim():
+    # Compare the result of im2residim to
+    #   VR = V - Rx   - computed with im2vis
+    #   IR = R.H VR   - computed with vis2im
+    from africanus.gridding.wgridder import vis2im, im2vis, im2residim
+    np.random.seed(420)
+    nrow = 1000
+    nchan = 8
+    fov = 5.0  # degrees
+    nx = 32
+    ny = 32
+    cellx = fov*np.pi/180/nx
+    celly = fov*np.pi/180/ny
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
+    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
+        (np.random.rand(nrow, nchan)-0.5)
+    wgt = np.random.rand(nrow, nchan)
+    epsilon = 1e-7
+    freq_chunks = 3
+    freq_bin_idx = np.arange(0, nchan, freq_chunks)
+    freq_mapping = np.append(freq_bin_idx, nchan)
+    freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    nband = freq_bin_idx.size
+    model = np.random.randn(nband, nx, ny)
+    modelvis = im2vis(uvw, freq, model, None, freq_bin_idx, freq_bin_counts,
+                      cellx, celly, 2*nx, 2*ny, epsilon, 8, 1, np.complex128)
+    residualvis = vis - modelvis
+    residim1 = vis2im(uvw, freq, residualvis, wgt, freq_bin_idx,
+                      freq_bin_counts, nx, ny, cellx, celly, 2*nx, 2*ny,
+                      epsilon, 8, 1)
 
-            uvw.append(ds.UVW.data.compute())
-            ddid = ddids[ds.DATA_DESC_ID]
-            spw = spws[ddid.SPECTRAL_WINDOW_ID.values[0]]
-            if freq is None:
-                freq = spw.CHAN_FREQ.data
-            else:
-                assert_array_equal(freq, spw.CHAN_FREQ.data)
-    uvw = np.concatenate(uvw)
-    
-    # set cell size
-    from africanus.constants import c as lightspeed
-    u_max = np.abs(uvw[:, 0]).max()
-    v_max = np.abs(uvw[:, 1]).max()
-    uv_max = np.maximum(u_max, v_max)
-    cell_N = 1.0/(2*uv_max*freq.max()/lightspeed)
+    residim2 = im2residim(uvw, freq, model, vis, wgt, freq_bin_idx,
+                          freq_bin_counts, cellx, celly, 2*nx, 2*ny,
+                          epsilon, 8, 1)
 
-    cell_rad = cell_N/args.srf
-    args.cell_size = cell_rad*60*60*180/np.pi
-    print("Cell size set to %5.5e arcseconds" % args.cell_size)
-    
-    # set number of pixels
-    fov = args.fov*3600  # deg2asec
-    nx = int(fov/args.cell_size)
-    from scipy.fftpack import next_fast_len
-    args.nx = next_fast_len(nx)
-    args.ny = next_fast_len(nx)
+    assert_array_almost_equal(
+        residim1, residim2, decimal=-int(np.log10(epsilon)) - 1)
 
-    if args.nband is None:
-        args.nband = freq.size
-
-    print("Image size set to (%i, %i, %i)"%(args.nband, args.nx, args.ny))
-
-    R = wgridder(args.ms, args.nx, args.ny, args.cell_size, nband=args.nband, nthreads=args.ncpu)
-
-    
-    x = np.zeros((args.nband, args.nx, args.ny), dtype=np.float64)
-    x[:, args.nx//2, args.ny//2] = 1.0
-    R.dot(x, column='MODEL_DATA')
-
-    # dirty = R.hdot()
-    # import matplotlib as mpl
-    # mpl.use('TkAgg')
-    # import matplotlib.pyplot as plt
-    # for i in range(args.nband):
-    #     plt.imshow(dirty[i])
-    #     plt.colorbar()
-    #     plt.show()
-
-    
+# if __name__=="__main__":
+#     # test_gridder_mfs()
+#     # test_gridder()
+#     # test_freq_mapped_gridder()
+#     # test_adjointness()
+#     test_im2residim()

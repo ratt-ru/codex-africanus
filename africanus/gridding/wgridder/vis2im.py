@@ -4,19 +4,21 @@ import numpy as np
 from africanus.util.docs import DocstringTemplate
 from ducc0.wgridder import ms2dirty
 
+
 def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
     dirty = np.zeros((nband, nx, ny), dtype=freq.dtype)
     for i in range(nband):
-        I = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
-        dirty[i] = ms2dirty(uvw=uvw, freq=freq[I], ms=vis[:, I],
-                            wgt=weights[:, I], npix_x=nx, npix_y=ny,
+        ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
+        dirty[i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=vis[:, ind],
+                            wgt=weights[:, ind], npix_x=nx, npix_y=ny,
                             pixsize_x=cellx, pixsize_y=celly,
                             nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads,
                             do_wstacking=do_wstacking)
     return dirty
+
 
 VIS2IM_DOCS = DocstringTemplate(
     r"""
@@ -28,11 +30,11 @@ VIS2IM_DOCS = DocstringTemplate(
         I^D = R^\dagger \Sigma^{-1} V
 
     where :math:`R^\dagger` is an implicit gridding operator,
-    :math:``V` denotes visibilities of shape :code:`(row, chan)` and 
+    :math:``V` denotes visibilities of shape :code:`(row, chan)` and
     :math:`I^D` is the dirty image of shape :code:`(band, nx, ny)`.
 
     The number of imaging bands :code:`(band)` is has to
-    be less than or equal to the number of channels 
+    be less than or equal to the number of channels
     :code:`(chan)` at which the data were obtained.
     The mapping from :code:`(chan)` to :code:`(band)` is described
     by :code:`freq_bin_idx` and :code:`freq_bin_counts` as
@@ -41,7 +43,7 @@ VIS2IM_DOCS = DocstringTemplate(
     Note that, if self adjoint gridding and degridding opeartors
     are required then :code:`weights` should actually be the square
     root of what is typically referred to as imaging weights and
-    the same weights need to be passed into the degridder. 
+    the same weights need to be passed into the degridder.
     In this case, the data that are passed in need be pre-whitened.
 
     Parameters
@@ -76,7 +78,7 @@ VIS2IM_DOCS = DocstringTemplate(
     do_wstacking : bool
         Whether to correct for the w-term or not.
     complex_type : np.dtype
-        The data type of output visibilities. 
+        The data type of output visibilities.
 
     Returns
     -------

@@ -4,19 +4,25 @@ import numpy as np
 from africanus.util.docs import DocstringTemplate
 from ducc0.wgridder import dirty2ms
 
+
 def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
-           cellx, celly, nu, nv, epsilon, nthreads, do_wstacking, complex_type):
+           cellx, celly, nu, nv, epsilon, nthreads, do_wstacking,
+           complex_type):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
     nrow = uvw.shape[0]
     nchan = freq.size
     vis = np.zeros((nrow, nchan), dtype=complex_type)
     for i in range(nband):
-        I = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
-        vis[:, I] = dirty2ms(uvw=uvw, freq=freq[I], dirty=model[i], wgt=None, 
-                             pixsize_x=cellx, pixsize_y=celly, nu=nu, nv=nv,
-                             epsilon=epsilon, nthreads=nthreads, 
-                             do_wstacking=do_wstacking)
+        ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
+        if weights is not None:
+            wgt = weights[:, ind]
+        else:
+            wgt = None
+        vis[:, ind] = dirty2ms(uvw=uvw, freq=freq[ind], dirty=model[i],
+                               wgt=wgt, pixsize_x=cellx, pixsize_y=celly,
+                               nu=nu, nv=nv, epsilon=epsilon,
+                               nthreads=nthreads, do_wstacking=do_wstacking)
     return vis
 
 
@@ -30,11 +36,11 @@ IM2VIS_DOCS = DocstringTemplate(
         V = Rx
 
     where :math:`R` is an implicit degridding operator, :math:``V`
-    denotes visibilities of shape :code:`(row, chan)` and 
+    denotes visibilities of shape :code:`(row, chan)` and
     :math:`x` is the image of shape :code:`(band, nx, ny)`.
 
     The number of imaging bands :code:`(band)` is has to
-    be less than or equal to the number of channels 
+    be less than or equal to the number of channels
     :code:`(chan)` at which the data were obtained.
     The mapping from :code:`(chan)` to :code:`(band)` is described
     by :code:`freq_bin_idx` and :code:`freq_bin_counts` as
@@ -88,12 +94,13 @@ IM2VIS_DOCS = DocstringTemplate(
     do_wstacking : bool
         Whether to correct for the w-term or not.
     complex_type : np.dtype
-        The data type of output visibilities. 
+        The data type of output visibilities.
 
     Returns
     -------
     vis : $(array_type)
-        Visibilities corresponding to :code:`model` of shape :code:`(row,chan)`.
+        Visibilities corresponding to :code:`model` of shape
+        :code:`(row,chan)`.
     """)
 
 try:
