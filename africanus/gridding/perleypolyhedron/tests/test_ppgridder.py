@@ -3,6 +3,7 @@
 import unittest
 import numpy as np
 from africanus.gridding.perleypolyhedron import kernels, gridder, degridder, policies
+from africanus.dft.kernels import im_to_vis
 import os
 
 DEBUG = True
@@ -125,7 +126,7 @@ class griddertest(unittest.TestCase):
         
 
     def test_facetcodepath(self):
-        # construct kernel, lets use a fake kernel to check positioning
+        # construct kernel
         W = 5
         OS = 3
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
@@ -136,6 +137,60 @@ class griddertest(unittest.TestCase):
         grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
                                64,30,(0,0),(0,0),kern,W,OS,"rotate","phase_rotate","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
 
+    def test_degrid_dft(self):
+        # construct kernel
+        W = 5
+        OS = 3
+        kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+        nrow = 1000
+        # assume gaussian distribution for simulated uvw coordinates
+        #uvw = np.random.normal(loc=0.0,scale=1000.0,size=(nrow, 3))
+        uvw = np.column_stack((np.linspace(-50,50,1000),
+                               np.linspace(-50,50,1000),
+                               np.zeros(1000)))
+        pxacrossbeam = 10
+        wavelength = np.array([299792458.0/1.4e9])
+        cell = np.rad2deg(wavelength[0]/(2*max(np.max(uvw[:,0]), np.max(uvw[:,1]))/pxacrossbeam))
+        npix = 512
+        mod = np.zeros((1, npix, npix), dtype=np.complex64)
+        # # cross model
+        # for n in np.arange(npix//2, npix, npix//5):
+        #     mod[0, n, n] = 1.0
+        #     mod[0, n, -n] = 1.0
+        #     mod[0, -n, n] = 1.0
+        #     mod[0, -n, -n] = 1.0
+        mod[0,npix//4,npix//4] = 1.0
 
+        ftmod = np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(mod[0,:,:]))).reshape((1, npix, npix)) * npix**2
+        chanmap = np.array([0])
+        vis_degrid = degridder.degridder(uvw,
+                                         ftmod,
+                                         wavelength,
+                                         chanmap,
+                                         cell,
+                                         (0, np.pi/4.0),
+                                         (0, np.pi/4.0),
+                                         kern,
+                                         W,
+                                         OS,
+                                         "None", # no faceting
+                                         "None", # no faceting
+                                         "XXYY_FROM_I", 
+                                         "conv_1d_axisymmetric_packed_gather")
+        
+        m, l = np.meshgrid(np.arange(-npix//2, npix//2) * np.deg2rad(cell),
+                           np.arange(-npix//2, npix//2) * np.deg2rad(cell))
+        lm = np.column_stack((l.flatten(),m.flatten()))
+        vis_dft = im_to_vis(mod[0,:,:].reshape(1,1,npix*npix).T.copy(), uvw, lm, 1 / wavelength)
+        import matplotlib
+        matplotlib.use("agg")  
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(vis_degrid[:,0,0].real, label="$\Re(\mathtt{degrid})$")
+        plt.plot(vis_dft[:,0,0].real, label="$\Re(\mathtt{dft})$")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "degrid_vs_dft.png"))
 if __name__ == "__main__":
     unittest.main()

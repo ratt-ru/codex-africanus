@@ -90,6 +90,7 @@ def convolve_1d_axisymmetric_packed_gather(scaled_u, scaled_v, scaled_w,
     # |...|...|...|...|...
     # then use int(frac_u * oversample) * W + n for n in [0..W)
     # in the packed taps
+    cw = 0
     for tv in range(convolution_kernel_width):
         conv_v = convolution_kernel[tv + frac_v * convolution_kernel_width]
         grid_v_lookup = disc_v + tv - convolution_kernel_width//2
@@ -102,7 +103,8 @@ def convolve_1d_axisymmetric_packed_gather(scaled_u, scaled_v, scaled_w,
                                      disc_u + tu - convolution_kernel_width//2] * conv_v * conv_u,
                                 vis[r,c,:],
                                 policy_type=literally(stokes_conversion_policy))
-                
+                cw += conv_v * conv_u
+    vis[r,c,:] /= cw + 1.0e-8
 def policy(scaled_u, scaled_v, scaled_w,
            npix,
            grid,
