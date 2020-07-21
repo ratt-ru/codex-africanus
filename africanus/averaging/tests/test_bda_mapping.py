@@ -162,10 +162,12 @@ def ref_freq(chan_freq):
     return (chan_freq[0] + chan_freq[-1]) / 2.0
 
 
+@pytest.mark.parametrize("auto_corrs", [False, True])
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
-                             ref_freq, chan_freq, chan_width):
+                             ref_freq, chan_freq, chan_width,
+                             auto_corrs):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, False)
+    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, auto_corrs)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -184,10 +186,12 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                                lm_max=1.0, decorrelation=decorrelation)
 
 
+@pytest.mark.parametrize("auto_corrs", [False, True])
 def test_bda_binner(time, ants, interval, phase_dir,
-                    ref_freq, chan_freq, chan_width):
+                    ref_freq, chan_freq, chan_width,
+                    auto_corrs):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, False)
+    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, auto_corrs)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -214,29 +218,5 @@ def test_bda_binner(time, ants, interval, phase_dir,
     assert binner.tbin == 0
     assert binner.bin_count == 0
     binner.start_bin(0, time, interval, flag_row)
-    assert binner.bin_count == 1
-
-    binner.add_row(1, time, interval, uvw, flag_row)
-    assert binner.re == 1
-    assert binner.bin_count == 2
-
-    binner.add_row(2, time, interval, uvw, flag_row)
-    assert binner.re == 2
-    assert binner.bin_count == 3
-
-    assert binner.empty is False
-    f = binner.finalise_bin(uvw, bandwidth)
-    assert binner.tbin == 1
-    assert f.tbin == 0
-    assert f.time == binner.time_sum / binner.bin_count
-    assert f.interval == binner.interval_sum
-    assert f.flag == (binner.bin_count == binner.bin_flag_count)
-
-    binner.reset()
-    assert binner.rs == 0
-    assert binner.re == 0
-    assert binner.decorrelation == decorrelation
-    assert binner.ref_freq == ref_freq
-    assert binner.n_max == n
-    # assert binner.l == l
-    assert binner.m == m
+    binner.add_row(1, auto_corrs, time, interval, uvw, flag_row)
+    binner.add_row(2, auto_corrs, time, interval, uvw, flag_row)
