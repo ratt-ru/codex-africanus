@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.bda_mapping import atemkeng_mapper, Binner
@@ -184,6 +185,12 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
                                ref_freq, max_uvw_dist, chan_width, flag_row,
                                lm_max=1.0, decorrelation=decorrelation)
+
+    # NUM_CHAN divides number of channels exactly
+    _, remainder = np.divmod(chan_width.shape[0], row_meta.num_chan)
+    assert np.all(remainder == 0)
+    decorr_cw = chan_width.sum() / row_meta.num_chan
+    assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
 @pytest.mark.parametrize("auto_corrs", [False, True])
