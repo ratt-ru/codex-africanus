@@ -46,7 +46,26 @@ def inv_sinc(sinc_x, tol=1e-12):
     return x
 
 
-@njit
+@njit(nogil=True, cache=True, inline='always')
+def factors(n):
+    result = []
+    i = 1
+
+    while i*i < n:
+        quot, rem = divmod(n, i)
+
+        if rem == 0:
+            result.append(i)
+
+            if quot != i:
+                result.append(quot)
+
+        i += 1
+
+    return np.unique(np.array(result))
+
+
+@njit(nogil=True, cache=True, inline='always')
 def max_chan_width(ref_freq, fractional_bandwidth):
     """
     Derive max_𝞓𝝼, the maximum change in bandwidth
@@ -66,7 +85,7 @@ def max_chan_width(ref_freq, fractional_bandwidth):
 
 FinaliseOutput = namedtuple("FinaliseOutput",
                             ["tbin", "time", "interval",
-                             "chan_width", "flag"])
+                             "nchan", "flag"])
 
 
 class Binner(object):
@@ -184,7 +203,7 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, bandwidth):
+    def finalise_bin(self, auto_corr, uvw, nchan_factors, bandwidth):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
@@ -197,7 +216,7 @@ class Binner(object):
         if auto_corr:
             # Auto-correlated baseline, average all channels
             # everything down to a single value
-            max_𝞓𝝼 = bandwidth
+            nchan = 1
         else:
             # Central UVW coordinate of the bin
             cu = (uvw[rs, 0] + uvw[re, 0]) / 2
@@ -224,17 +243,21 @@ class Binner(object):
             𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
             fractional_bandwidth = 𝞓𝞍 / max_abs_dist
 
-            # Get maximum channel width and then floor it
-            # so that it divides the bandwidth exactly
+            # Get maximum channel width and divide to get
+            # the number of channels
             max_𝞓𝝼 = max_chan_width(self.ref_freq, fractional_bandwidth)
-            min_nchan = max(int(1), int(np.floor(bandwidth / max_𝞓𝝼)))
-            max_𝞓𝝼 = bandwidth / min_nchan
+            nchan = max(int(1), int(bandwidth / max_𝞓𝝼))
+
+            # Now found the next lowest integer factorisation
+            # of the input number of channels
+            s = np.searchsorted(nchan_factors, nchan, side='left') - 1
+            nchan = nchan_factors[max(int(0), s)]
 
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
                              self.time_sum / self.bin_count,
                              self.interval_sum,
-                             max_𝞓𝝼,
+                             nchan,
                              self.bin_count == self.bin_flag_count)
 
         self.tbin += 1
@@ -301,6 +324,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
         nchan = chan_width.shape[0]
+        nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
 
         if nchan == 0:
@@ -338,39 +362,18 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             time_lookup[bl, tbin] = finalised.time
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
-            decorr_bandwidth = finalised.chan_width
-            # 0.0 is a special no-decorrelation marker (see finalise_bin)
-            bin_chan_width[bl, tbin] = (bandwidth / chan_width.shape[0]
-                                        if decorr_bandwidth == 0.0
-                                        else decorr_bandwidth)
+            bin_nchan = chan_width.shape[0] // finalised.nchan
+            bin_chan_width[bl, tbin] = bandwidth / finalised.nchan
 
+            # Construct the channel map
             if chan_width.shape[0] == 0:
                 # Nothing to do
                 nchan = 0
-            elif decorr_bandwidth == 0.0:
-                # 0.0 is a special no-decorrelation marker (see finalise_bin)
-                for c in range(chan_width.shape[0]):
-                    bin_chan_map[bl, tbin, c] = c
-
-                nchan = chan_width.shape[0]
             else:
-                # Construct the channel map
-                bin_bandwidth = chan_width[0]
-                bin_chan_map[bl, tbin, 0] = chan_bin = 0
+                for c in range(chan_width.shape[0]):
+                    bin_chan_map[bl, tbin, c] = c // bin_nchan
 
-                for c in range(1, chan_width.shape[0]):
-                    new_bin_bandwidth = bin_bandwidth + chan_width[c]
-
-                    if new_bin_bandwidth >= decorr_bandwidth:
-                        # Start a new bin
-                        bin_bandwidth = chan_width[c]
-                        chan_bin += 1
-                    else:
-                        bin_bandwidth = new_bin_bandwidth
-
-                    bin_chan_map[bl, tbin, c] = chan_bin
-
-                nchan = chan_bin + 1
+                nchan = finalised.nchan
 
             out_rows += 1
             out_row_chans += nchan
@@ -406,7 +409,9 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 elif not binner.add_row(r, auto_corr,
                                         time, interval,
                                         uvw, flag_row):
-                    f = binner.finalise_bin(auto_corr, uvw, bandwidth)
+                    f = binner.finalise_bin(auto_corr, uvw,
+                                            nchan_factors,
+                                            bandwidth)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -416,7 +421,9 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(auto_corr, uvw, bandwidth)
+                f = binner.finalise_bin(auto_corr, uvw,
+                                        nchan_factors,
+                                        bandwidth)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
