@@ -139,6 +139,9 @@ class griddertest(unittest.TestCase):
         grid = gridder.gridder(uvw,vis,np.array([1.0]),np.array([0]),
                                64,30,(0,0),(0,0),kern,W,OS,"rotate","phase_rotate","I_FROM_XXYY", "conv_1d_axisymmetric_packed_scatter")
 
+    def test_facet_predict(self):
+        pass
+
     def test_degrid_dft(self):
         # construct kernel
         W = 5
@@ -157,9 +160,9 @@ class griddertest(unittest.TestCase):
                                                np.max(np.abs(uvw[:,1])))*pxacrossbeam))
         npix = 512
         mod = np.zeros((1, npix, npix), dtype=np.complex64)
-        mod[0, npix//2 - 15, npix//2 -15] = 1.0
+        mod[0, npix//2 - 5, npix//2 -5] = 1.0
 
-        ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0,:,:]))).reshape((1, npix, npix))# * npix**2
+        ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0,:,:]))).reshape((1, npix, npix))
         chanmap = np.array([0])
         vis_degrid = degridder.degridder(uvw,
                                          ftmod,
@@ -181,8 +184,7 @@ class griddertest(unittest.TestCase):
         radec = np.column_stack((ra.flatten(), dec.flatten()))
         
         vis_dft = im_to_vis(mod[0,:,:].reshape(1,1,npix*npix).T.copy(), uvw, radec, frequency)
-        assert np.percentile(np.abs(vis_dft[:,0,0].real - vis_degrid[:,0,0].real),70.0) < 0.25
-
+        
         import matplotlib
         matplotlib.use("agg")  
         from matplotlib import pyplot as plt
@@ -193,7 +195,17 @@ class griddertest(unittest.TestCase):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "degrid_vs_dft.png"))
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "degrid_vs_dft_re.png"))
+        plt.figure()
+        plt.plot(vis_degrid[:,0,0].imag, label="$\Im(\mathtt{degrid})$")
+        plt.plot(vis_dft[:,0,0].imag, label="$\Im(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag), label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "degrid_vs_dft_im.png"))
+        assert np.percentile(np.abs(vis_dft[:,0,0].real - vis_degrid[:,0,0].real),90.0) < 0.05
+        assert np.percentile(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag),90.0) < 0.05
 
 if __name__ == "__main__":
     unittest.main()

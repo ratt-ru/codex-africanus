@@ -34,10 +34,10 @@ def convolve_1d_axisymmetric_packed_scatter(scaled_u, scaled_v, scaled_w,
     disc_v = int(np.round(offset_v))
     frac_u = int((offset_u - disc_u) * convolution_kernel_oversampling)
     if frac_u < 0:
-        frac_u = int((1.0 - (offset_u - disc_u)) * convolution_kernel_oversampling)
+        frac_u = int(convolution_kernel_oversampling + (offset_u - disc_u) * convolution_kernel_oversampling)
     frac_v = int((offset_v - disc_v) * convolution_kernel_oversampling)
     if frac_v < 0:
-        frac_v = int((1.0 - (offset_v - disc_v)) * convolution_kernel_oversampling)
+        frac_v = int(convolution_kernel_oversampling + (offset_v - disc_v) * convolution_kernel_oversampling)
     # by definition the fraction is positive
     # assume unpacked taps are specified as
     # 0   1   2   3   4   = W
@@ -88,10 +88,10 @@ def convolve_1d_axisymmetric_packed_gather(scaled_u, scaled_v, scaled_w,
     disc_v = int(np.round(offset_v))
     frac_u = int((offset_u - disc_u) * convolution_kernel_oversampling)
     if frac_u < 0:
-        frac_u = int((1.0 - (offset_u - disc_u)) * convolution_kernel_oversampling)
+        frac_u = int(convolution_kernel_oversampling + (offset_u - disc_u) * convolution_kernel_oversampling)
     frac_v = int((offset_v - disc_v) * convolution_kernel_oversampling)
     if frac_v < 0:
-        frac_v = int((1.0 - (offset_v - disc_v)) * convolution_kernel_oversampling)
+        frac_v = int(convolution_kernel_oversampling + (offset_v - disc_v) * convolution_kernel_oversampling)
     # by definition the fraction is positive
     # assume unpacked taps are specified as
     # 0   1   2   3   4   = W
