@@ -78,7 +78,7 @@ def degridder(uvw,
         btp.policy(uvw[r,:], ra0, dec0, ra, dec, literally(baseline_transform_policy))
         for c in range(nvischan):
             scaled_u = uvw[r,0] * scale_factor / lambdas[c]
-            scaled_v = uvw[r,1] * -1.0 * scale_factor / lambdas[c]
+            scaled_v = uvw[r,1] * scale_factor / lambdas[c]
             scaled_w = uvw[r,2] * scale_factor / lambdas[c]
             grid = gridstack[chanmap[c],:,:]
             cp.policy(scaled_u, scaled_v, scaled_w, 
