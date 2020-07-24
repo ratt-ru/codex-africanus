@@ -248,10 +248,10 @@ class Binner(object):
             max_𝞓𝝼 = max_chan_width(self.ref_freq, fractional_bandwidth)
             nchan = max(int(1), int(bandwidth / max_𝞓𝝼))
 
-            # Now found the next lowest integer factorisation
+            # Now find the next highest integer factorisation
             # of the input number of channels
-            s = np.searchsorted(nchan_factors, nchan, side='left') - 1
-            nchan = nchan_factors[max(int(0), s)]
+            s = np.searchsorted(nchan_factors, nchan, side='left')
+            nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
 
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
