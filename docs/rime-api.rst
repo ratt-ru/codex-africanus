@@ -51,6 +51,7 @@ Numpy
     transform_sources
     beam_cube_dde
     zernike_dde
+    wsclean_predict
 
 .. autofunction:: predict_vis
 .. autofunction:: phase_delay
@@ -59,6 +60,7 @@ Numpy
 .. autofunction:: transform_sources
 .. autofunction:: beam_cube_dde
 .. autofunction:: zernike_dde
+.. autofunction:: wsclean_predict
 
 Cuda
 ~~~~
@@ -90,6 +92,7 @@ Dask
     transform_sources
     beam_cube_dde
     zernike_dde
+    wsclean_predict
 
 
 .. autofunction:: predict_vis
@@ -99,3 +102,4 @@ Dask
 .. autofunction:: transform_sources
 .. autofunction:: beam_cube_dde
 .. autofunction:: zernike_dde
+.. autofunction:: wsclean_predict

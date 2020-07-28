@@ -104,8 +104,8 @@ def meqtrees_command_factory(args, pol_type):
         # Beam FITS file pattern
         'pybeams_fits.filename_pattern="{p}"'.format(p=beam_pattern),
         # FITS L and M AXIS
-        'pybeams_fits.l_axis={lax}'.format(lax='X'),
-        'pybeams_fits.m_axis={max}'.format(max='Y'),
+        'pybeams_fits.l_axis={lax}'.format(lax=args.l_axis),
+        'pybeams_fits.m_axis={max}'.format(max=args.m_axis),
         sim_script,
         '=simulate'
     ]
@@ -118,9 +118,11 @@ def compare_columns(args, codex_column, meqtrees_column):
     with pt.table(args.ms) as T:
         codex_vis = T.getcol(codex_column)
         meqtrees_vis = T.getcol(meqtrees_column)
-
+        a1 = T.getcol("ANTENNA1")
+        a2 = T.getcol("ANTENNA2")
+        asel = a1 != a2
         # Compare
-        close = np.isclose(meqtrees_vis, codex_vis)
+        close = np.isclose(meqtrees_vis[asel], codex_vis[asel])
         not_close = np.invert(close)
         problems = np.nonzero(not_close)
 
@@ -188,13 +190,16 @@ def compare():
         # Zero comparison columns
         with pt.table(args.ms, readonly=False, ack=False) as T:
             nrows = T.nrows()
+            row_chunk = 10000
 
-            for r in range(0, nrows, 10000):
-                nrow = min(r + 10000, nrows)
+            for r in range(0, nrows, row_chunk):
+                nrow = min(row_chunk, nrows - r)
 
                 exemplar = T.getcol("MODEL_DATA", startrow=r, nrow=nrow)
-                T.putcol("MODEL_DATA", np.zeros_like(exemplar))
-                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar))
+                T.putcol("MODEL_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
+                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
 
         pol_type = inspect_polarisation_type(args)
         beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits",

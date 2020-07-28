@@ -35,6 +35,10 @@ def spectral_model_inputs(wsclean_model_file):
 def test_spectral_model(spectral_model_inputs, freq):
     I, spi, log_si, ref_freq = spectral_model_inputs
 
+    # Ensure positive flux for logarithmic polynomials
+    I[log_si] = np.abs(I[log_si])
+    spi[log_si] = np.abs(spi[log_si])
+
     # Compute spectral model with numpy implementations
     ordinary_spec_model = ordinary_spectral_model(I, spi, log_si,
                                                   freq, ref_freq)
@@ -51,23 +55,26 @@ def test_spectral_model(spectral_model_inputs, freq):
     model = spectra(I, spi, log_si, ref_freq, freq)
     assert_array_almost_equal(model, spec_model)
 
-    # Ensure positive flux
-    posI = I.copy()
-    posI[I < 0.0] = -posI[I < 0.0]
-    log_si_all_true = np.full(posI.shape, True, dtype=np.bool)
-    log_spec_model = log_spectral_model(posI, spi, log_si_all_true,
-                                        freq, ref_freq)
-    model = spectra(posI, spi, True, ref_freq, freq)
-    assert_array_almost_equal(model, log_spec_model)
-
     model = spectra(I, spi, False, ref_freq, freq)
     assert_array_almost_equal(model, ordinary_spec_model)
+
+    log_si_all_true = np.full(I.shape, True, dtype=np.bool)
+    I = np.abs(I)  # noqa
+    spi = np.abs(spi)
+    log_spec_model = log_spectral_model(I, spi, log_si_all_true,
+                                        freq, ref_freq)
+    model = spectra(I, spi, True, ref_freq, freq)
+    assert_array_almost_equal(model, log_spec_model)
 
 
 def test_dask_spectral_model(spectral_model_inputs, freq):
     da = pytest.importorskip("dask.array")
 
     I, spi, log_si, ref_freq = spectral_model_inputs
+
+    # Ensure positive flux for logarithmic polynomials
+    I[log_si] = np.abs(I[log_si])
+    spi[log_si] = np.abs(spi[log_si])
 
     # Compute spectral model with numpy implementations
     ordinary_spec_model = ordinary_spectral_model(I, spi, log_si,
