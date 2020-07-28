@@ -20,7 +20,8 @@ def gridder(uvw,
             phase_transform_policy,
             stokes_conversion_policy,
             convolution_policy,
-            grid_dtype=np.complex128):
+            grid_dtype=np.complex128,
+            do_normalize=False):
     """
     2D Convolutional gridder, contiguous to discrete
     @uvw: value coordinates, (nrow, 3)
@@ -43,6 +44,7 @@ def gridder(uvw,
     @convolution_policy: any accepted convolution policy in
                          .policies.convolution_policies
     @grid_dtype: accumulation grid dtype (default complex 128)
+    @do_normalize: normalize grid by convolution weights
     """
 
     if chanmap.size != lambdas.size:
@@ -62,6 +64,7 @@ def gridder(uvw,
 
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
+    wt_ch = np.zeros(nband, dtype=np.float64)
     for r in range(nrow):
         ra0, dec0 = phase_centre
         ra, dec = image_centre
@@ -72,14 +75,17 @@ def gridder(uvw,
         btp.policy(uvw[r,:], ra0, dec0, ra, dec, literally(baseline_transform_policy))
         for c in range(nvischan):
             scaled_u = uvw[r,0] * scale_factor / lambdas[c]
-            scaled_v = uvw[r,1] * -1.0 * scale_factor / lambdas[c]
+            scaled_v = uvw[r,1] * scale_factor / lambdas[c]
             scaled_w = uvw[r,2] * scale_factor / lambdas[c]
             grid = gridstack[chanmap[c],:,:]
-            cp.policy(scaled_u, scaled_v, scaled_w, 
-                      npix, grid, vis, r, c,
-                      convolution_kernel,
-                      convolution_kernel_width,
-                      convolution_kernel_oversampling,
-                      stokes_conversion_policy,
-                      policy_type=literally(convolution_policy))
+            wt_ch[chanmap[c]] += cp.policy(scaled_u, scaled_v, scaled_w, 
+                                           npix, grid, vis, r, c,
+                                           convolution_kernel,
+                                           convolution_kernel_width,
+                                           convolution_kernel_oversampling,
+                                           stokes_conversion_policy,
+                                           policy_type=literally(convolution_policy))
+    if do_normalize:
+        for c in range(nband):
+            gridstack[c,:,:] /= wt_ch[c] + 1.0e-8
     return gridstack
