@@ -352,19 +352,22 @@ def _bda_mapper_wrapper(time, interval, ant1, ant2,
                         uvw, ref_freq, max_uvw_dist,
                         chan_width, flag_row,
                         lm_max=None,
-                        decorrelation=None):
+                        decorrelation=None,
+                        min_nchan=None):
     return np_bda_mapper(time, interval, ant1, ant2,
                          None if uvw is None else uvw[0],
                          ref_freq, max_uvw_dist,
                          chan_width[0], flag_row,
                          lm_max=lm_max,
-                         decorrelation=decorrelation)
+                         decorrelation=decorrelation,
+                         min_nchan=min_nchan)
 
 
 def bda_mapper(time, interval, antenna1, antenna2, uvw,
                ref_freq, max_uvw_dist, chan_width,
                flag_row=None, lm_max=None,
-               decorrelation=None):
+               decorrelation=None,
+               min_nchan=None):
     """ Createask row mapping structure for each row chunk """
     return da.blockwise(_bda_mapper_wrapper, ("row",),
                         time, ("row",),
@@ -378,6 +381,7 @@ def bda_mapper(time, interval, antenna1, antenna2, uvw,
                         flag_row, None if flag_row is None else ("row",),
                         lm_max=lm_max,
                         decorrelation=decorrelation,
+                        min_nchan=min_nchan,
                         adjust_chunks={"row": lambda x: np.nan},
                         meta=np.empty((0, 0), dtype=np.object))
 
@@ -589,6 +593,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         sigma_spectrum=None,
         max_uvw_dist=None, lm_max=1.0,
         decorrelation=0.98,
+        min_nchan=1,
         format="flat"):
 
     if uvw is None:
@@ -621,7 +626,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                       ref_freq, max_uvw_dist, chan_width,
                       flag_row=flag_row,
                       lm_max=lm_max,
-                      decorrelation=decorrelation)
+                      decorrelation=decorrelation,
+                      min_nchan=min_nchan)
 
     # Average row data
     row_data = bda_row_average(meta, antenna1, antenna2,

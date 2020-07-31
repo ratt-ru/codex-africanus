@@ -273,7 +273,8 @@ RowMapOutput = namedtuple("RowMapOutput",
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     ref_freq, max_uvw_dist, chan_width,
-                    flag_row=None, lm_max=1.0, decorrelation=0.98):
+                    flag_row=None, lm_max=1.0,
+                    decorrelation=0.98, min_nchan=1):
 
     Omitted = numba.types.misc.Omitted
 
@@ -307,7 +308,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
     def _impl(time, interval, ant1, ant2, uvw,
               ref_freq, max_uvw_dist, chan_width,
-              flag_row=None, lm_max=1, decorrelation=0.98):
+              flag_row=None, lm_max=1,
+              decorrelation=0.98, min_nchan=1):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
@@ -326,6 +328,12 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         nchan = chan_width.shape[0]
         nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
+
+        if min_nchan is None:
+            min_nchan = 1
+        else:
+            s = np.searchsorted(nchan_factors, min_nchan, side='left')
+            min_nchan = max(min_nchan, nchan_factors[s])
 
         if nchan == 0:
             raise ValueError("zero channels")
@@ -356,24 +364,20 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             # NOTE(sjperkins) Why do scalars need this, but not arrays?
             nonlocal out_rows
             nonlocal out_row_chans
+            nonlocal min_nchan
 
             tbin = finalised.tbin
 
             time_lookup[bl, tbin] = finalised.time
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
-            bin_nchan = chan_width.shape[0] // finalised.nchan
+            nchan = max(finalised.nchan, min_nchan)
+            bin_nchan = chan_width.shape[0] // nchan
             bin_chan_width[bl, tbin] = bandwidth / finalised.nchan
 
             # Construct the channel map
-            if chan_width.shape[0] == 0:
-                # Nothing to do
-                nchan = 0
-            else:
-                for c in range(chan_width.shape[0]):
-                    bin_chan_map[bl, tbin, c] = c // bin_nchan
-
-                nchan = finalised.nchan
+            for c in range(chan_width.shape[0]):
+                bin_chan_map[bl, tbin, c] = c // bin_nchan
 
             out_rows += 1
             out_row_chans += nchan
