@@ -5,7 +5,7 @@ from .policies import phase_transform_policies as ptp
 from .policies import convolution_policies as cp
 from .policies import stokes_conversion_policies as scp
 
-@jit(nopython=True,nogil=True,fastmath=True,parallel=False)
+@jit(nopython=True,nogil=True,fastmath=True,parallel=True)
 def degridder(uvw,
               gridstack,
               lambdas,
@@ -68,7 +68,7 @@ def degridder(uvw,
 
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
-    for r in range(nrow):
+    for r in prange(nrow):
         ra, dec = phase_centre
         ra0, dec0 = image_centre
         ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
