@@ -213,10 +213,8 @@ def test_bda_binner(time, ants, interval, phase_dir,
     flag_row = np.zeros(time.shape[0], dtype=np.int8)
 
     decorrelation = 0.95
-    l = 0.5  # noqa: E741
-    m = 0.5
-    n = np.sqrt(1.0 - l**2 - m**2) - 1.0
-    binner = Binner(0, 0, l, m, n, ref_freq, decorrelation)
+    lm_max = 0.5  # noqa: E741
+    binner = Binner(0, 0, lm_max, ref_freq, decorrelation)
     binner.start_bin(0, time, interval, flag_row)
     binner.add_row(1, auto_corrs, time, interval, uvw, flag_row)
     binner.add_row(2, auto_corrs, time, interval, uvw, flag_row)

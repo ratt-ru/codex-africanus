@@ -90,7 +90,7 @@ FinaliseOutput = namedtuple("FinaliseOutput",
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 l, m, n_max,  # noqa: E741
+                 lm_max,
                  ref_freq,
                  decorrelation):
         # Index of the time bin to which all rows in the bin will contribute
@@ -112,15 +112,13 @@ class Binner(object):
 
         # Quantities cached to make Binner.method arguments smaller
         self.ref_freq = ref_freq
-        self.l = l  # noqa
-        self.m = m
-        self.n_max = n_max
+        self.lm_max = lm_max
+        n = -1.0 if lm_max > 1.0 else np.sqrt(1.0 - lm_max**2) - 1.0
+        self.n_max = np.abs(n)
         self.decorrelation = decorrelation
 
     def reset(self):
-        self.__init__(0, 0,
-                      self.l, self.m, self.n_max,
-                      self.ref_freq, self.decorrelation)
+        self.__init__(0, 0, self.lm_max, self.ref_freq, self.decorrelation)
 
     def start_bin(self, row, time, interval, flag_row):
         """
@@ -172,8 +170,8 @@ class Binner(object):
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
 
-        du_dt = self.l * du / dt
-        dv_dt = self.m * dv / dt
+        du_dt = self.lm_max * du / dt
+        dv_dt = self.lm_max * dv / dt
 
         # Derive phase difference in time
         # from Equation (33) in Atemkeng
@@ -223,8 +221,9 @@ class Binner(object):
             cv = (uvw[rs, 1] + uvw[re, 1]) / 2
             cw = (uvw[rs, 2] + uvw[re, 2]) / 2
 
-            max_abs_dist = np.sqrt(np.abs(cu)*np.abs(self.l) +
-                                   np.abs(cv)*np.abs(self.m) +
+            cuv = np.sqrt(cu**2 + cv**2)
+
+            max_abs_dist = np.sqrt(np.abs(cuv)*np.abs(self.lm_max) +
                                    np.abs(cw)*np.abs(self.n_max))
 
             # Derive fractional bandwidth 𝞓𝝼/𝝼
@@ -297,8 +296,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('rs', numba.uintp),
         ('re', numba.uintp),
         ('bin_sinc_Δψ', uvw.dtype),
-        ('l', lm_type),
-        ('m', lm_type),
+        ('lm_max', lm_type),
         ('n_max', lm_type),
         ('ref_freq', ref_freq_dtype),
         ('decorrelation', decorr_type),
@@ -315,9 +313,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if decorrelation < 0.0 or decorrelation > 1.0:
             raise ValueError("0.0 <= decorrelation <= 1.0 must hold")
 
-        l = m = np.sqrt(0.5 * lm_max)  # noqa
-        n_term = 1.0 - l**2 - m**2
-        n_max = np.sqrt(n_term) - 1.0 if n_term >= 0.0 else -1.0
+        if lm_max < 0.0 or lm_max > 1.0:
+            raise ValueError("0.0 <= lm_max <= 1.0 must hold")
 
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
@@ -338,8 +335,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if nchan == 0:
             raise ValueError("zero channels")
 
-        binner = JitBinner(0, 0, l, m, n_max,
-                           ref_freq, decorrelation)
+        binner = JitBinner(0, 0, lm_max, ref_freq, decorrelation)
 
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
