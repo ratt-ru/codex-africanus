@@ -104,7 +104,7 @@ def compute_detaper(npix, K, W, oversample=5):
 def compute_detaper_dft(npix, K, W, oversample=5):
     """
     Computes detapering function of a oversampled kernel
-    using a memory non-intensive DFT sampled on a fractionally oversampled grid
+    using a memory non-intensive DFT sampled on a grid the size of the square image
     Assumes a 2D square kernel to be passed as argument K
     """
     pk = np.zeros((npix,npix), dtype=np.complex128)
@@ -123,3 +123,26 @@ def compute_detaper_dft(npix, K, W, oversample=5):
                 pk[mm, ll] += K.flatten()[x] * np.exp(-2.0j * np.pi * (llN * xx + mmN * yy))
         return np.abs(pk)
     return __absdft(npix, K, W, oversample, pk, ksample)
+
+def compute_detaper_dft_seperable(npix, K, W, oversample=5):
+    """
+    Computes detapering function of a oversampled seperable kernel
+    using a memory non-intensive DFT sampled on a grid the size of the square image
+    Assumes a 1D kernel to be passed as argument K
+
+    The outer product of K with itself can be evalated as
+    F(outer(K,K))[l,m] = F(K)[l].F(K)[m]
+    """
+    pkX = np.zeros((npix), dtype=np.complex128)
+    ksample = uspace(W, oversample=oversample)
+    
+    #@jit(nopython=True,nogil=True,fastmath=True,parallel=True)
+    def __dft1d(npix, K, W, oversample, pk, ksample):
+        for ll in range(npix):
+            llN = (ll - npix // 2) / float(npix)
+            for x in range(K.size):
+                xx = ksample[x]
+                pk[ll] += K.flatten()[x] * np.exp(-2.0j * np.pi * (llN * xx))
+        return pk
+    fpkX = __dft1d(npix, K, W, oversample, pkX, ksample)
+    return np.abs(np.outer(fpkX, fpkX))
