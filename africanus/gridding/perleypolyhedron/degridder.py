@@ -69,13 +69,9 @@ def degridder(uvw,
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in prange(nrow):
-        ra, dec = phase_centre
-        ra0, dec0 = image_centre
-        ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
-                   ra0, dec0, ra, dec, 
-                   policy_type=literally(phase_transform_policy), 
-                   phasesign=1.0)
-        btp.policy(uvw[r,:], ra0, dec0, ra, dec, literally(baseline_transform_policy))
+        ra0, dec0 = phase_centre
+        ra, dec = image_centre
+        btp.policy(uvw[r,:], ra, dec, ra0, dec0, literally(baseline_transform_policy))
         for c in range(nvischan):
             scaled_u = uvw[r,0] * scale_factor / lambdas[c]
             scaled_v = uvw[r,1] * scale_factor / lambdas[c]
@@ -88,4 +84,8 @@ def degridder(uvw,
                       convolution_kernel_oversampling,
                       stokes_conversion_policy,
                       policy_type=literally(convolution_policy))
+        ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
+                   ra0, dec0, ra, dec, 
+                   policy_type=literally(phase_transform_policy), 
+                   phasesign=-1.0)
     return vis

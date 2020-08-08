@@ -216,10 +216,11 @@ class griddertest(unittest.TestCase):
     def test_detaper(self):
         W = 5
         OS = 3
-        K = np.outer(kernels.kbsinc(W, oversample=OS), 
-                     kernels.kbsinc(W, oversample=OS))
-        detaper = kernels.compute_detaper(128, K, W, OS)
-        detaperdft = kernels.compute_detaper_dft(128, K, W, OS)
+        K1D = kernels.kbsinc(W, oversample=OS)
+        K2D = np.outer(K1D, K1D)
+        detaper = kernels.compute_detaper(128, K2D, W, OS)
+        detaperdft = kernels.compute_detaper_dft(128, K2D, W, OS)
+        detaperdftsep = kernels.compute_detaper_dft_seperable(128, K1D, W, OS)
         import matplotlib
         matplotlib.use("agg") 
         from matplotlib import pyplot as plt
@@ -238,6 +239,7 @@ class griddertest(unittest.TestCase):
         plt.colorbar()
         plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "detaper.png"))
         assert(np.percentile(np.abs(detaper - detaperdft), 99.0) < 1.0e-14)
+        assert(np.max(np.abs(detaperdft - detaperdftsep)) < 1.0e-14)
 
     def test_grid_dft(self):
         # construct kernel
@@ -323,7 +325,7 @@ class griddertest(unittest.TestCase):
     def test_grid_dft_packed(self):
         # construct kernel
         W = 7
-        OS = 9
+        OS = 1009
         #kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
         nrow = 5000
@@ -356,9 +358,7 @@ class griddertest(unittest.TestCase):
         
         vis_dft = im_to_vis(mod[0,:,:].reshape(1,1,npix*npix).T.copy(), uvw, radec, frequency).repeat(2).reshape(nrow,1,2)   
         chanmap = np.array([0])
-       
-        detaper = kernels.compute_detaper(int(npix*fftpad), np.outer(kernels.unpack_kernel(kern, W, OS), 
-                                                                     kernels.unpack_kernel(kern, W, OS)), W, OS)
+        detaper = kernels.compute_detaper_dft_seperable(int(npix*fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
         vis_grid = gridder.gridder(uvw,
                                    vis_dft,
                                    wavelength,
@@ -399,6 +399,179 @@ class griddertest(unittest.TestCase):
         plt.colorbar()
         plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "grid_diff_dft_packed.png"))
         assert(np.percentile(np.abs(ftvis[0,:,:] - dftvis[0,0,:,:]), 95.0) < 0.15) 
+
+    def test_wcorrection_faceting_backward(self):
+        # construct kernel
+        W = 5
+        OS = 9
+        kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
+        nrow = 5000
+        np.random.seed(0) 
+        # simulate some ficticious baselines rotated by an hour angle
+        uvw = np.zeros((nrow, 3), dtype=np.float64)  
+        blpos = np.random.uniform(26, 10000, size=(25, 3))
+        ntime = int(nrow / 25.0)
+        d0 = np.pi/4.0
+        for n in range(25):
+            for ih0, h0 in enumerate(np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)):
+                s = np.sin
+                c = np.cos
+                R = np.array([
+                    [s(h0), c(h0), 0],
+                    [-s(d0)*c(h0), s(d0)*s(h0), c(d0)],
+                    [c(d0)*c(h0), -c(d0)*s(h0), s(d0)]
+                ])
+                uvw[n*ntime+ih0,:] = np.dot(R,blpos[n,:].T)
+
+        pxacrossbeam = 5
+        frequency = np.array([1.4e9])
+        wavelength = np.array([299792458.0/f for f in frequency])
+
+        cell = np.rad2deg(wavelength[0]/(max(np.max(np.abs(uvw[:,0])), 
+                                             np.max(np.abs(uvw[:,1])))*pxacrossbeam))
+        npix = 2048
+        npixfacet = 100
+        fftpad=1.1
+        mod = np.ones((1, 1, 1), dtype=np.complex64) 
+        deltaradec = np.array([[600 * np.deg2rad(cell), 600 * np.deg2rad(cell)]])
+        lm = radec_to_lmn(deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0]))
+        
+        vis_dft = im_to_vis(mod, uvw, lm[:,0:2], frequency).repeat(2).reshape(nrow,1,2)
+        chanmap = np.array([0])
+       
+        detaper = kernels.compute_detaper_dft_seperable(int(npix*fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
+        vis_grid_nofacet = gridder.gridder(uvw,
+                                           vis_dft,
+                                           wavelength,
+                                           chanmap,
+                                           int(npix*fftpad),
+                                           cell * 3600.0,
+                                           (0, d0),
+                                           (0, d0),
+                                           kern,
+                                           W,
+                                           OS,
+                                           "None", # no faceting
+                                           "None", # no faceting
+                                           "I_FROM_XXYY",
+                                           "conv_1d_axisymmetric_packed_scatter",
+                                           do_normalize=True)
+        ftvis = (np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(vis_grid_nofacet[0,:,:]))).reshape((1, int(npix*fftpad), int(npix*fftpad)))).real / detaper * int(npix*fftpad) ** 2
+        ftvis = ftvis[:,
+                      int(npix*fftpad)//2-npix//2:int(npix*fftpad)//2-npix//2+npix,
+                      int(npix*fftpad)//2-npix//2:int(npix*fftpad)//2-npix//2+npix]
+
+        detaper_facet = kernels.compute_detaper_dft_seperable(int(npixfacet*fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
+        vis_grid_facet = gridder.gridder(uvw,
+                                         vis_dft,
+                                         wavelength,
+                                         chanmap,
+                                         int(npixfacet*fftpad),
+                                         cell * 3600.0,
+                                         (deltaradec + np.array([[0, d0]]))[0,:],
+                                         (0, d0),
+                                         kern,
+                                         W,
+                                         OS,
+                                         "rotate",
+                                         "phase_rotate",
+                                         "I_FROM_XXYY",
+                                         "conv_1d_axisymmetric_packed_scatter",
+                                         do_normalize=True)
+        ftvisfacet = (np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(vis_grid_facet[0,:,:]))).reshape((1, int(npixfacet*fftpad), int(npixfacet*fftpad)))).real / detaper_facet * int(npixfacet*fftpad) ** 2
+        ftvisfacet = ftvisfacet[:,
+                      int(npixfacet*fftpad)//2-npixfacet//2:int(npixfacet*fftpad)//2-npixfacet//2+npixfacet,
+                      int(npixfacet*fftpad)//2-npixfacet//2:int(npixfacet*fftpad)//2-npixfacet//2+npixfacet]
+        import matplotlib
+        matplotlib.use("agg") 
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(121)
+        plt.imshow(ftvis[0,1624-50:1624+50,1447-50:1447+50])
+        plt.colorbar()
+        plt.title("Offset FFT (peak={0:.1f})".format(np.max(ftvis)))
+        plt.subplot(122)
+        plt.imshow(ftvisfacet[0,:,:])
+        plt.colorbar()
+        plt.title("Faceted FFT (peak={0:.1f})".format(np.max(ftvisfacet)))
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "facet_imaging.png"))
+        assert(np.max(ftvisfacet[0,:,:]) - 1.0 < 1.0e4) 
+
+    def test_wcorrection_faceting_forward(self):
+        # construct kernel
+        W = 5
+        OS = 9
+        kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
+        nrow = 5000
+        np.random.seed(0) 
+        # simulate some ficticious baselines rotated by an hour angle
+        uvw = np.zeros((nrow, 3), dtype=np.float64)  
+        blpos = np.random.uniform(26, 10000, size=(25, 3))
+        ntime = int(nrow / 25.0)
+        d0 = np.pi/4.0
+        for n in range(25):
+            for ih0, h0 in enumerate(np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)):
+                s = np.sin
+                c = np.cos
+                R = np.array([
+                    [s(h0), c(h0), 0],
+                    [-s(d0)*c(h0), s(d0)*s(h0), c(d0)],
+                    [c(d0)*c(h0), -c(d0)*s(h0), s(d0)]
+                ])
+                uvw[n*ntime+ih0,:] = np.dot(R,blpos[n,:].T)
+
+        pxacrossbeam = 5
+        frequency = np.array([1.4e9])
+        wavelength = np.array([299792458.0/f for f in frequency])
+
+        cell = np.rad2deg(wavelength[0]/(max(np.max(np.abs(uvw[:,0])), 
+                                             np.max(np.abs(uvw[:,1])))*pxacrossbeam))
+        #npix = 2048
+        npixfacet = 100
+        mod = np.ones((1, 1, 1), dtype=np.complex64) 
+        deltaradec = np.array([[20 * np.deg2rad(cell), 20 * np.deg2rad(cell)]])
+        lm = radec_to_lmn(deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0]))
+        
+        vis_dft = im_to_vis(mod, uvw, lm[:,0:2], frequency).repeat(2).reshape(nrow,1,2)
+        chanmap = np.array([0])
+        ftmod = np.ones((1,npixfacet,npixfacet), dtype=np.complex64) # point source at centre of facet
+        vis_degrid = degridder.degridder(uvw,
+                                         ftmod,
+                                         wavelength,
+                                         chanmap,
+                                         cell * 3600.0,
+                                         (deltaradec + np.array([[0, d0]]))[0,:],
+                                         (0, d0),
+                                         kern,
+                                         W,
+                                         OS,
+                                         "rotate", # no faceting
+                                         "phase_rotate", # no faceting
+                                         "XXYY_FROM_I", 
+                                         "conv_1d_axisymmetric_packed_gather")
+        
+        import matplotlib
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(vis_degrid[:,0,0].real, label="$\Re(\mathtt{degrid facet})$")
+        plt.plot(vis_dft[:,0,0].real, label="$\Re(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:,0,0].real - vis_degrid[:,0,0].real), label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "facet_degrid_vs_dft_re_packed.png"))
+        plt.figure()
+        plt.plot(vis_degrid[:,0,0].imag, label="$\Im(\mathtt{degrid facet})$")
+        plt.plot(vis_dft[:,0,0].imag, label="$\Im(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag), label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Imag of predicted")
+        plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "facet_degrid_vs_dft_im_packed.png"))
+        assert np.percentile(np.abs(vis_dft[:,0,0].real - vis_degrid[:,0,0].real),99.0) < 0.05
+        assert np.percentile(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag),99.0) < 0.05
+        
 
     # def test_adjoint_ops(self):
     #     # test adjointness of gridding and degridding operators

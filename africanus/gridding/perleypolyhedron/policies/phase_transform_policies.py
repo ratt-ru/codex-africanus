@@ -13,7 +13,7 @@ def phase_rotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1
         l,m,n is then calculated using the new and original phase centres as per the relation on Pg. 388
         lambdas has the same shape as vis
     '''
-    d_ra = ra - dec
+    d_ra = ra - ra0
     d_dec = dec
     d_decp = dec0
     c_d_dec = cos(d_dec)
@@ -22,9 +22,9 @@ def phase_rotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1
     c_d_ra = cos(d_ra)
     c_d_decp = cos(d_decp)
     s_d_decp = sin(d_decp)
-    l = - c_d_dec * s_d_ra
-    m = - (s_d_dec * c_d_decp - c_d_dec * s_d_decp * c_d_ra)
-    n = - (s_d_dec * s_d_decp + c_d_dec * c_d_decp * c_d_ra)
+    l = c_d_dec * s_d_ra
+    m = (s_d_dec * c_d_decp - c_d_dec * s_d_decp * c_d_ra)
+    n = -(1 - sqrt(1 - l * l - m * m))
     for c in range(lambdas.size):
         x = phasesign * 2 * pi * (uvw[0] * l + uvw[1] * m + uvw[2] * n) / lambdas[c]
         vis[c,:] *= cos(x) + 1.0j*sin(x)
