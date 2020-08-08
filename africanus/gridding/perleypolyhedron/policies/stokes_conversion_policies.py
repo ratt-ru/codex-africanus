@@ -150,36 +150,36 @@ def ncorr_out(policy_type):
 @overload(ncorr_out, inline="always")
 def ncorr_outimpl(policy_type):
     if policy_type.literal_value == "XXYY_FROM_I":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "XXXYYXYY_FROM_I":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "RRLL_FROM_I":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "RRRLLRLL_FROM_I":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "XXYY_FROM_Q":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "XXXYYXYY_FROM_Q":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "RLLR_FROM_Q":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "RRRLLRLL_FROM_Q":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "XYYX_FROM_U":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "XXXYYXYY_FROM_U":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "RLLR_FROM_U":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "RRRLLRLL_FROM_U":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "XYYX_FROM_V":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "XXXYYXYY_FROM_V":
-        return lambda: 4
+        return lambda policy_type: 4
     elif policy_type.literal_value == "RRLL_FROM_V":
-        return lambda: 2
+        return lambda policy_type: 2
     elif policy_type.literal_value == "RRRLLRLL_FROM_V":
-        return lambda: 4
+        return lambda policy_type: 4
     else:
         raise ValueError("Invalid stokes conversion")

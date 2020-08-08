@@ -54,7 +54,7 @@ def degridder(uvw,
     if gridstack.shape[1] != gridstack.shape[2]:
         raise ValueError("Grid must be square")
     nvischan = lambdas.size
-    ncorr = 2#scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
+    ncorr = scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
     if gridstack.shape[0] < nband:
         raise ValueError("Not enough channel bands in grid stack to match mfs band mapping")
     if uvw.shape[1] != 3:
