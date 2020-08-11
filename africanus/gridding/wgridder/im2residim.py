@@ -5,12 +5,14 @@ from africanus.util.docs import DocstringTemplate
 from ducc0.wgridder import dirty2ms, ms2dirty
 
 
-def im2residim(uvw, freq, model, vis, weights, freq_bin_idx, freq_bin_counts,
-               cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
+def _im2residim_internal(uvw, freq, model, vis, weights, freq_bin_idx,
+                        freq_bin_counts, cellx, celly, nu, nv, epsilon,
+                        nthreads, do_wstacking):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
     _, nx, ny = model.shape
-    residim = np.zeros((nband, nx, ny), dtype=model.dtype)
+    # the extra dimension is required to allow for chunking over row
+    residim = np.zeros((1, nband, nx, ny), dtype=model.dtype)
     for i in range(nband):
         ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
         residvis = vis[:, ind] - dirty2ms(uvw=uvw, freq=freq[ind],
@@ -19,12 +21,25 @@ def im2residim(uvw, freq, model, vis, weights, freq_bin_idx, freq_bin_counts,
                                           nu=nu, nv=nv, epsilon=epsilon,
                                           nthreads=nthreads,
                                           do_wstacking=do_wstacking)
-        residim[i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=residvis,
-                              wgt=weights[:, ind], npix_x=nx, npix_y=ny,
-                              pixsize_x=cellx, pixsize_y=celly,
-                              nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads,
-                              do_wstacking=do_wstacking)
+        residim[0, i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=residvis,
+                                 wgt=weights[:, ind], npix_x=nx, npix_y=ny,
+                                 pixsize_x=cellx, pixsize_y=celly,
+                                 nu=nu, nv=nv, epsilon=epsilon,
+                                 nthreads=nthreads,
+                                 do_wstacking=do_wstacking)
     return residim
+
+# This additional wrapper is required to allow the dask wrappers
+# to chunk over row
+
+
+def im2residim(uvw, freq, model, vis, weights, freq_bin_idx, freq_bin_counts,
+               cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
+    residim = _im2residim_internal(uvw, freq, model, vis, weights,
+                                   freq_bin_idx, freq_bin_counts,
+                                   cellx, celly, nu, nv, epsilon,
+                                   nthreads, do_wstacking)
+    return residim[0]
 
 
 IM2RESIDIM_DOCS = DocstringTemplate(

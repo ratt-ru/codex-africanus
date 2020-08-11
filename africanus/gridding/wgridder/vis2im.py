@@ -5,19 +5,33 @@ from africanus.util.docs import DocstringTemplate
 from ducc0.wgridder import ms2dirty
 
 
-def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
-           nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
+def _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
+                     nx, ny, cellx, celly, nu, nv, epsilon, nthreads,
+                     do_wstacking):
     freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
     nband = freq_bin_idx.size
-    dirty = np.zeros((nband, nx, ny), dtype=freq.dtype)
+    # the extra dimension is required to allow for chunking over row
+    dirty = np.zeros((1, nband, nx, ny), dtype=weights.dtype)
     for i in range(nband):
         ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
-        dirty[i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=vis[:, ind],
-                            wgt=weights[:, ind], npix_x=nx, npix_y=ny,
-                            pixsize_x=cellx, pixsize_y=celly,
-                            nu=nu, nv=nv, epsilon=epsilon, nthreads=nthreads,
-                            do_wstacking=do_wstacking)
+        dirty[0, i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=vis[:, ind],
+                               wgt=weights[:, ind], npix_x=nx, npix_y=ny,
+                               pixsize_x=cellx, pixsize_y=celly,
+                               nu=nu, nv=nv, epsilon=epsilon,
+                               nthreads=nthreads,
+                               do_wstacking=do_wstacking)
     return dirty
+
+# This additional wrapper is required to allow the dask wrappers
+# to chunk over row
+
+
+def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
+           nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
+    dirty = _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx,
+                             freq_bin_counts, nx, ny, cellx, celly, nu, nv,
+                             epsilon, nthreads, do_wstacking)
+    return dirty[0]
 
 
 VIS2IM_DOCS = DocstringTemplate(
