@@ -24,8 +24,6 @@ def _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
 
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
-
-
 def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     dirty = _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx,
