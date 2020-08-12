@@ -519,7 +519,7 @@ class griddertest(unittest.TestCase):
                     [c(d0)*c(h0), -c(d0)*s(h0), s(d0)]
                 ])
                 uvw[n*ntime+ih0,:] = np.dot(R,blpos[n,:].T)
-
+    
         pxacrossbeam = 5
         frequency = np.array([1.4e9])
         wavelength = np.array([299792458.0/f for f in frequency])
@@ -570,8 +570,7 @@ class griddertest(unittest.TestCase):
         plt.ylabel("Imag of predicted")
         plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "facet_degrid_vs_dft_im_packed.png"))
         assert np.percentile(np.abs(vis_dft[:,0,0].real - vis_degrid[:,0,0].real),99.0) < 0.05
-        assert np.percentile(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag),99.0) < 0.05
-        
+        assert np.percentile(np.abs(vis_dft[:,0,0].imag - vis_degrid[:,0,0].imag),99.0) < 0.05      
 
     # def test_adjoint_ops(self):
     #     # test adjointness of gridding and degridding operators
