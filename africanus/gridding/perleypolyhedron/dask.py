@@ -2,7 +2,7 @@ import dask
 import dask.array as da
 import numpy as np
 
-from africanus.gridding.perleypolyhedron import gridder
+from africanus.gridding.perleypolyhedron.gridder import gridder as np_gridder
 
 def __grid(uvw,
            vis,
@@ -22,9 +22,7 @@ def __grid(uvw,
            grid_dtype=np.complex128,
            do_normalize=False
     ):
-    import ipdb; ipdb.set_trace()
     image_centres = image_centres[0]
-    #import pdb; pdb.set_trace()
     if image_centres.ndim != 2:
         raise ValueError("Image centres for DASK wrapper expects list of image centres, one per facet in radec radians")
     if image_centres.shape[1] != 2:
@@ -34,17 +32,16 @@ def __grid(uvw,
     vis = vis[0][0]
     lambdas = lambdas[0]
     chanmap = chanmap[0]
-    import pdb; pdb.set_trace()
-    grid_stack = np.zeros((1, image_centres.shape[0], 1, np.max(chanmap) + 1, npix, npix), 
+    grid_stack = np.zeros((1, image_centres.shape[0], 1, np.max(chanmap) + 1, npix, npix),
                           dtype=grid_dtype)
     for fi, f in enumerate(image_centres):
-        print(f)        
+        print(f)
         grid_stack[0, fi, 0, :, :, :] = \
-        gridder(uvw, vis, lambdas, chanmap, npix, cell, f, phase_centre,
-                convolution_kernel, convolution_kernel_width, convolution_kernel_oversampling,
-                baseline_transform_policy, phase_transform_policy, stokes_conversion_policy,
-                convolution_policy, grid_dtype, do_normalize)
-    
+        np_gridder(uvw, vis, lambdas, chanmap, npix, cell, f, phase_centre,
+                   convolution_kernel, convolution_kernel_width, convolution_kernel_oversampling,
+                   baseline_transform_policy, phase_transform_policy, stokes_conversion_policy,
+                   convolution_policy, grid_dtype, do_normalize)
+
     return grid_stack
 
 def gridder(uvw,
@@ -107,9 +104,9 @@ def gridder(uvw,
                         grid_dtype=grid_dtype,
                         do_normalize=do_normalize,
                         adjust_chunks={"row": 1}, # goes to one set of grids per row chunk
-                        new_axes={"nband": np.max(chanmap) + 1, 
+                        new_axes={"nband": np.max(chanmap) + 1,
                                   "nstokes": 1, # for now will need to be modified if multi-stokes cubes are supported
-                                  "y": npix, 
+                                  "y": npix,
                                   "x": npix},
                         dtype=grid_dtype,
                         meta=np.empty((0,0,0,0,0,0), dtype=grid_dtype)

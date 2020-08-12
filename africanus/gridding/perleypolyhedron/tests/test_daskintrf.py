@@ -22,7 +22,7 @@ class griddertest(unittest.TestCase):
 
     def tearDown(self):
         unittest.TestCase.tearDown(self)
-        
+
     def setUp(self):
         unittest.TestCase.setUp(self)
 
@@ -32,13 +32,13 @@ class griddertest(unittest.TestCase):
         OS = 9
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
         nrow = 5000
-        np.random.seed(0) 
+        np.random.seed(0)
         # simulate some ficticious baselines rotated by an hour angle
         row_chunks = nrow // 1000
-        uvw = np.zeros((nrow, 3), dtype=np.float64)  
+        uvw = np.zeros((nrow, 3), dtype=np.float64)
         blpos = np.random.uniform(26, 10000, size=(25, 3))
         ntime = int(nrow / 25.0)
-        d0 = np.pi/4.0 
+        d0 = np.pi/4.0
         for n in range(25):
             for ih0, h0 in enumerate(np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)):
                 s = np.sin
@@ -53,12 +53,12 @@ class griddertest(unittest.TestCase):
         pxacrossbeam = 5
         frequency = [1.4e9]
         wavelength = da.from_array([299792458.0/f for f in frequency], chunks=1)
-        cell = da.rad2deg(wavelength[0]/(max(da.max(da.absolute(uvw[:,0])), 
+        cell = da.rad2deg(wavelength[0]/(max(da.max(da.absolute(uvw[:,0])),
                                              da.max(da.absolute(uvw[:,1])))*pxacrossbeam))
         npix = 2048
         npixfacet = 100
         fftpad=1.1
-        mod = da.ones((1, 1, 1), dtype=np.complex64) 
+        mod = da.ones((1, 1, 1), dtype=np.complex64)
         deltaradec = np.array([[600 * np.deg2rad(cell), 600 * np.deg2rad(cell)]])
         image_centres = deltaradec + np.array([[0, d0]])
         lm = da.from_array(radec_to_lmn(deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0])))
@@ -82,8 +82,8 @@ class griddertest(unittest.TestCase):
                                        "I_FROM_XXYY",
                                        "conv_1d_axisymmetric_packed_scatter",
                                        do_normalize=True)
-        #with ProgressBar():
-        vis_grid_facet.compute(scheduler='single-threaded')
+        with ProgressBar():
+            vis_grid_facet.compute(scheduler='single-threaded')
         # ftvisfacet = (np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(vis_grid_facet[0,:,:]))).reshape((1, int(npixfacet*fftpad), int(npixfacet*fftpad)))).real / detaper_facet * int(npixfacet*fftpad) ** 2
         # ftvisfacet = ftvisfacet[:,
         #               int(npixfacet*fftpad)//2-npixfacet//2:int(npixfacet*fftpad)//2-npixfacet//2+npixfacet,
