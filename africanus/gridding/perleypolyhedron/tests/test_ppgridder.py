@@ -495,7 +495,7 @@ class griddertest(unittest.TestCase):
         plt.colorbar()
         plt.title("Faceted FFT (peak={0:.1f})".format(np.max(ftvisfacet)))
         plt.savefig(os.path.join(os.environ.get("TMPDIR","/tmp"), "facet_imaging.png"))
-        assert(np.max(ftvisfacet[0,:,:]) - 1.0 < 1.0e4) 
+        assert(np.abs(np.max(ftvisfacet[0,:,:]) - 1.0) < 1.0e-6)
 
     def test_wcorrection_faceting_forward(self):
         # construct kernel

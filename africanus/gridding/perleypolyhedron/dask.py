@@ -35,13 +35,11 @@ def __grid(uvw,
     grid_stack = np.zeros((1, image_centres.shape[0], 1, np.max(chanmap) + 1, npix, npix),
                           dtype=grid_dtype)
     for fi, f in enumerate(image_centres):
-        print(f)
         grid_stack[0, fi, 0, :, :, :] = \
-        np_gridder(uvw, vis, lambdas, chanmap, npix, cell, f, phase_centre,
-                   convolution_kernel, convolution_kernel_width, convolution_kernel_oversampling,
-                   baseline_transform_policy, phase_transform_policy, stokes_conversion_policy,
-                   convolution_policy, grid_dtype, do_normalize)
-
+            np_gridder(uvw, vis, lambdas, chanmap, npix, cell, f, phase_centre,
+                    convolution_kernel, convolution_kernel_width, convolution_kernel_oversampling,
+                    baseline_transform_policy, phase_transform_policy, stokes_conversion_policy,
+                    convolution_policy, grid_dtype, do_normalize)
     return grid_stack
 
 def gridder(uvw,
@@ -85,6 +83,12 @@ def gridder(uvw,
     @grid_dtype: accumulation grid dtype (default complex 128)
     @do_normalize: normalize grid by convolution weights
     """
+    if len(vis.chunks) != 3 or lambdas.chunks[0] != vis.chunks[1]:
+        raise ValueError("Visibility frequency chunking does not match lambda frequency chunking")
+    if len(vis.chunks) != 3 or chanmap.chunks[0] != vis.chunks[1]:
+        raise ValueError("Visibility frequency chunking does not match chanmap frequency chunking")
+    if len(vis.chunks) != 3 or len(uvw.chunks) != 2 or vis.chunks[0] != uvw.chunks[0]:
+        raise ValueError("Visibility row chunking does not match uvw row chunking")
     grids = da.blockwise(__grid, ("row", "nfacet", "nstokes", "nband", "y", "x"),
                         uvw, ("row", "uvw"),
                         vis, ("row", "chan", "corr"),
@@ -113,4 +117,4 @@ def gridder(uvw,
                         )
 
     # Parallel reduction over row dimension
-    return grids.sum(axis=0, split_every=2)
+    return grids.mean(axis=0, split_every=2)
