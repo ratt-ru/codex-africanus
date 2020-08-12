@@ -355,5 +355,5 @@ def test_dask_im2residim():
 
 if __name__ == "__main__":
     # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads
-    for i in range(1000):
+    for i in range(100):
         test_dask_vis2im(30, 128, 5.0, 10000, 8, 4, 1e-10, False, 1)
