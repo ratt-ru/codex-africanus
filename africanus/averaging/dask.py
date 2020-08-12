@@ -349,22 +349,24 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
 
 def _bda_mapper_wrapper(time, interval, ant1, ant2,
-                        uvw, ref_freq, max_uvw_dist,
-                        chan_width, flag_row,
+                        uvw, chan_width, chan_freq,
+                        ref_freq, max_uvw_dist, flag_row,
                         lm_max=None,
                         decorrelation=None,
                         min_nchan=None):
     return np_bda_mapper(time, interval, ant1, ant2,
                          None if uvw is None else uvw[0],
-                         ref_freq, max_uvw_dist,
-                         chan_width[0], flag_row,
+                         chan_width[0], chan_freq[0],
+                         ref_freq=ref_freq, max_uvw_dist=max_uvw_dist,
+                         flag_row=flag_row,
                          lm_max=lm_max,
                          decorrelation=decorrelation,
                          min_nchan=min_nchan)
 
 
 def bda_mapper(time, interval, antenna1, antenna2, uvw,
-               ref_freq, max_uvw_dist, chan_width,
+               chan_width, chan_freq,
+               ref_freq, max_uvw_dist,
                flag_row=None, lm_max=None,
                decorrelation=None,
                min_nchan=None):
@@ -375,9 +377,10 @@ def bda_mapper(time, interval, antenna1, antenna2, uvw,
                         antenna1, ("row",),
                         antenna2, ("row",),
                         uvw, ("row", "uvw"),
+                        chan_width, ("chan",),
+                        chan_freq, ("chan",),
                         ref_freq, None,
                         max_uvw_dist, None if max_uvw_dist is None else (),
-                        chan_width, ("chan",),
                         flag_row, None if flag_row is None else ("row",),
                         lm_max=lm_max,
                         decorrelation=decorrelation,
@@ -605,6 +608,9 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
     if chan_width is None:
         raise ValueError("chan_width must be supplied")
 
+    if chan_freq is None:
+        raise ValueError("chan_freq must be supplied")
+
     if not len(chan_width.chunks[0]) == 1:
         raise ValueError("Chunking in channel is not "
                          "currently supported.")
@@ -623,7 +629,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
 
     # Generate row mapping metadata
     meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
-                      ref_freq, max_uvw_dist, chan_width,
+                      chan_width, chan_freq, ref_freq, max_uvw_dist,
                       flag_row=flag_row,
                       lm_max=lm_max,
                       decorrelation=decorrelation,

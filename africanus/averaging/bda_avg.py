@@ -373,7 +373,8 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         flag_row = merge_flags(flag_row, flag)
 
         meta = atemkeng_mapper(time, interval, antenna1, antenna2, uvw,
-                               ref_freq, max_uvw_dist, chan_width,
+                               chan_width, chan_freq,
+                               ref_freq, max_uvw_dist,
                                flag_row=flag_row,
                                lm_max=lm_max,
                                decorrelation=decorrelation,

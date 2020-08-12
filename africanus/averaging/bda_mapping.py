@@ -7,6 +7,7 @@ import numba
 from numba.experimental import jitclass
 import numba.types
 
+from africanus.constants import c as lightspeed
 from africanus.util.numba import generated_jit, njit
 from africanus.averaging.support import unique_time, unique_baselines
 
@@ -107,8 +108,8 @@ class Binner(object):
         self.rs = row_start
         # Ending row of the bin
         self.re = row_end
-        # Sinc of baseline speed
-        self.bin_sinc_Δψ = 0.0
+        # Sinc of half the baseline speed
+        self.bin_sinc_half_Δψ = 0.0
 
         # Quantities cached to make Binner.method arguments smaller
         self.ref_freq = ref_freq
@@ -153,7 +154,7 @@ class Binner(object):
             # Fast path for auto-correlated baseline.
             # By definition, uvw == (0, 0, 0) for these samples
             self.re = row
-            self.bin_sinc_Δψ = self.decorrelation
+            self.bin_sinc_half_Δψ = self.decorrelation
             self.bin_count += 1
             self.time_sum += time[row]
             self.interval_sum += interval[row]
@@ -169,25 +170,27 @@ class Binner(object):
               (time[rs] - interval[rs] / 2.0))
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
+        dw = uvw[row, 2] - uvw[rs, 2]
 
-        du_dt = self.lm_max * du / dt
-        dv_dt = self.lm_max * dv / dt
-
+        du_dt = du / dt
+        dv_dt = dv / dt
+        dw_dt = dw / dt
         # Derive phase difference in time
-        # from Equation (33) in Atemkeng
-        # without factor of 2
-        𝞓𝞇 = np.pi * (du_dt + dv_dt)
-        sinc_𝞓𝞇 = 1.0 if 𝞓𝞇 == 0.0 else np.sin(𝞓𝞇) / 𝞓𝞇
+        # from Equation (36) in Atemkeng
+        # leaving out the factor of two
+        # which is divided out when computing the sinc
+        half_𝞓𝞇 = np.pi * np.sqrt(du_dt**2 + dv_dt**2) * self.lm_max
+        sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
-        if sinc_𝞓𝞇 <= self.decorrelation:
+        if sinc_half_𝞓𝞇 <= self.decorrelation:
             return False
 
         # Add the row by making it the end of the bin
-        # and keep a record of the sinc_𝞓𝞇
+        # and keep a record of the sinc_half_𝞓𝞇
         self.re = row
-        self.bin_sinc_Δψ = sinc_𝞓𝞇
+        self.bin_sinc_half_Δψ = sinc_half_𝞓𝞇
         self.bin_count += 1
         self.time_sum += time[row]
         self.interval_sum += interval[row]
@@ -201,7 +204,7 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, nchan_factors, bandwidth):
+    def finalise_bin(self, auto_corr, uvw, nchan_factors, chan_width, chan_freq):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
@@ -226,8 +229,6 @@ class Binner(object):
             max_abs_dist = np.sqrt(np.abs(cuv)*np.abs(self.lm_max) +
                                    np.abs(cw)*np.abs(self.n_max))
 
-            # Derive fractional bandwidth 𝞓𝝼/𝝼
-            # from Equation (44) in Atemkeng
             if max_abs_dist == 0.0:
                 raise ValueError("max_abs_dist == 0.0")
 
@@ -235,22 +236,24 @@ class Binner(object):
             #   (1) acceptable decorrelation
             #   (2) change in (phase) baseline speed
             # derive the frequency phase difference
-            # from Equation (35) in Atemkeng
-            sinc_𝞓𝞍 = self.decorrelation / (1.0 if rs == re
-                                            else self.bin_sinc_Δψ)
+            # from Equation (40) in Atemkeng
+            # If there's a single sample (rs == re)
+            # we can't meaningfully calculate baseline speed.
+            # In this case frequency phase difference
+            # just becomes the decorrelation factor
+            half_sinc_𝞓𝞍 = (self.decorrelation if rs == re else
+                            self.decorrelation / self.bin_sinc_half_Δψ)
+            half_𝞓𝞍 = inv_sinc(half_sinc_𝞓𝞍)
 
-            𝞓𝞍 = inv_sinc(sinc_𝞓𝞍)
-            fractional_bandwidth = 𝞓𝞍 / max_abs_dist
-
-            # Get maximum channel width and divide to get
-            # the number of channels
-            max_𝞓𝝼 = max_chan_width(self.ref_freq, fractional_bandwidth)
-            nchan = max(int(1), int(bandwidth / max_𝞓𝝼))
+            max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
+            nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
 
             # Now find the next highest integer factorisation
             # of the input number of channels
             s = np.searchsorted(nchan_factors, nchan, side='left')
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
+
+            # print(self.bin_count, half_sinc_𝞓𝞍, max_𝞓𝝼, nchan1, nchan)
 
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
@@ -271,7 +274,8 @@ RowMapOutput = namedtuple("RowMapOutput",
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
-                    ref_freq, max_uvw_dist, chan_width,
+                    chan_width, chan_freq,
+                    ref_freq, max_uvw_dist,
                     flag_row=None, lm_max=1.0,
                     decorrelation=0.98, min_nchan=1):
 
@@ -295,7 +299,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('interval_sum', interval.dtype),
         ('rs', numba.uintp),
         ('re', numba.uintp),
-        ('bin_sinc_Δψ', uvw.dtype),
+        ('bin_sinc_half_Δψ', uvw.dtype),
         ('lm_max', lm_type),
         ('n_max', lm_type),
         ('ref_freq', ref_freq_dtype),
@@ -304,10 +308,11 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
     JitBinner = jitclass(spec)(Binner)
 
-    def _impl(time, interval, ant1, ant2, uvw,
-              ref_freq, max_uvw_dist, chan_width,
-              flag_row=None, lm_max=1,
-              decorrelation=0.98, min_nchan=1):
+    def impl(time, interval, ant1, ant2, uvw,
+             chan_width, chan_freq,
+             ref_freq, max_uvw_dist,
+             flag_row=None, lm_max=1.0,
+             decorrelation=0.98, min_nchan=1):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
@@ -411,7 +416,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                                         uvw, flag_row):
                     f = binner.finalise_bin(auto_corr, uvw,
                                             nchan_factors,
-                                            bandwidth)
+                                            chan_width, chan_freq)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -423,7 +428,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
             if not binner.empty:
                 f = binner.finalise_bin(auto_corr, uvw,
                                         nchan_factors,
-                                        bandwidth)
+                                        chan_width, chan_freq)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
@@ -525,4 +530,4 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                             time_ret, int_ret,
                             chan_width_ret, out_flag_row)
 
-    return _impl
+    return impl
