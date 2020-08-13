@@ -183,3 +183,39 @@ def ncorr_outimpl(policy_type):
         return lambda policy_type: 4
     else:
         raise ValueError("Invalid stokes conversion")
+
+def ncorr_outpy(policy_type):
+    if policy_type == "XXYY_FROM_I":
+        return lambda: 2
+    elif policy_type == "XXXYYXYY_FROM_I":
+        return lambda: 4
+    elif policy_type == "RRLL_FROM_I":
+        return lambda: 2
+    elif policy_type == "RRRLLRLL_FROM_I":
+        return lambda: 4
+    elif policy_type == "XXYY_FROM_Q":
+        return lambda: 2
+    elif policy_type == "XXXYYXYY_FROM_Q":
+        return lambda: 4
+    elif policy_type == "RLLR_FROM_Q":
+        return lambda: 2
+    elif policy_type == "RRRLLRLL_FROM_Q":
+        return lambda: 4
+    elif policy_type == "XYYX_FROM_U":
+        return lambda: 2
+    elif policy_type == "XXXYYXYY_FROM_U":
+        return lambda: 4
+    elif policy_type == "RLLR_FROM_U":
+        return lambda: 2
+    elif policy_type == "RRRLLRLL_FROM_U":
+        return lambda: 4
+    elif policy_type == "XYYX_FROM_V":
+        return lambda: 2
+    elif policy_type == "XXXYYXYY_FROM_V":
+        return lambda: 4
+    elif policy_type == "RRLL_FROM_V":
+        return lambda: 2
+    elif policy_type == "RRRLLRLL_FROM_V":
+        return lambda: 4
+    else:
+        raise ValueError("Invalid stokes conversion")
