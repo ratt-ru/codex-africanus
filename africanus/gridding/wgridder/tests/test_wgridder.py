@@ -203,15 +203,15 @@ def test_im2residim(nx, ny, fov, nrow, nchan, nband,
     assert_array_almost_equal(
         residim1, residim2, decimal=decimal)
 
-@pmp("nx", (30,))
+@pmp("nx", (30,250))
 @pmp("ny", (128,))
 @pmp("fov", (5.0,))
 @pmp("nrow", (10000,))
 @pmp("nchan", (8,))
 @pmp("nband", (2,))
 @pmp("epsilon", (1e-10,))
-@pmp("wstacking", (False,))
-@pmp("nthreads", (4,))
+@pmp("wstacking", (False, True))
+@pmp("nthreads", (1, 3))
 def test_dask_vis2im(nx, ny, fov, nrow, nchan, nband,
                      epsilon, wstacking, nthreads):
     from africanus.gridding.wgridder import vis2im as vis2im_np
@@ -353,7 +353,66 @@ def test_dask_im2residim():
     assert_array_almost_equal(
         residim_np, residim_da, decimal=-int(np.log10(epsilon))-1)
 
+from ducc0.wgridder import ms2dirty
+def grid(uvw, freq, vis, npix, cell, epsilon, wstacking, nthreads):
+    return ms2dirty(uvw=uvw, freq=freq, ms=vis,
+                    npix_x=30, npix_y=npix,
+                    nu=0, nv=0,
+                    pixsize_x=cell, pixsize_y=cell,
+                    epsilon=epsilon, nthreads=nthreads,
+                    do_wstacking=wstacking, verbosity=0)
+
+def test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads):
+    import concurrent.futures as cf
+        
+    np.random.seed(420)
+    cell = fov*np.pi/180/npix
+    f0 = 1e9
+    freq = f0 + np.arange(nchan)*(f0/nchan)
+    uvw1 = (np.random.rand(nrow, 3)-0.5)/(cell*freq[-1]/lightspeed)
+    uvw2 = (np.random.rand(nrow, 3)-0.5)/(cell*freq[-1]/lightspeed)
+    uvw = (uvw1, uvw2)
+    vis1 = (np.random.rand(nrow, nchan)-0.5 + 1j *
+           (np.random.rand(nrow, nchan)-0.5))
+    vis2 = (np.random.rand(nrow, nchan)-0.5 + 1j *
+           (np.random.rand(nrow, nchan)-0.5))
+    vis = (vis1, vis2)
+    futures = []
+    dirties = []
+    with cf.ThreadPoolExecutor(max_workers=2) as executor:
+        for k in range(2):
+            future = executor.submit(grid, uvw[k], freq, vis[k], npix, cell, epsilon, wstacking, nthreads)
+            futures.append(future)
+        for f in cf.as_completed(futures):
+            dirties.append(f.result())
+    dirty = np.sum(dirties, axis=0)
+
+    uvw = np.concatenate(uvw)
+    vis = np.concatenate(vis)
+
+    dirty2 = grid(uvw, freq, vis, npix, cell, epsilon, wstacking, nthreads)
+
+    assert_array_almost_equal(dirty, dirty2, decimal=8)
+
+
+
+
+
+
 if __name__ == "__main__":
-    # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads
+    npix = 128
+    fov = 5.0
+    nrow = 100
+    nchan = 8
+    nband = 1
+    epsilon = 1e-10
+    wstacking = False
+    nthreads = 4
     for i in range(100):
-        test_dask_vis2im(30, 128, 5.0, 10000, 8, 4, 1e-10, False, 1)
+        print(i)
+        test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads)
+
+    for i in range(100):
+        print(i)
+        # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads
+        test_dask_vis2im(npix, npix, fov, nrow, nchan, nband, epsilon, wstacking, nthreads)
