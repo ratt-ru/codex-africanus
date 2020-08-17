@@ -1,5 +1,6 @@
-from numba import jit, float32, float64, literally
-from numba.extending import overload
+import numba
+from africanus.util.numba import jit, overload
+from numba import float32, float64, literally
 import numpy as np
 from . import stokes_conversion_policies as scp
 

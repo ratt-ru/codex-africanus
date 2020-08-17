@@ -30,7 +30,7 @@ extras_require = {
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
-    'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
+    'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6', 'matplotlib', 'scipy >= 1.4.0']
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:

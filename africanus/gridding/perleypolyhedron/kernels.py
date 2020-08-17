@@ -1,6 +1,15 @@
 import numpy as np
-from scipy.special import jn
-from numba import jit, literally, prange
+from africanus.util.requirements import requires_optional
+try:
+    from scipy.special import jn
+except ImportError as e:
+    # https://stackoverflow.com/a/29268974/1611416, pep 3110 and 344
+    scipy_import_error = e
+else:
+    scipy_import_error = None
+import numba
+from africanus.util.numba import jit
+from numba import float32, float64, literally, prange
 
 def uspace(W, oversample):
     """
@@ -26,6 +35,7 @@ def sinc(W, oversample=5, a = 1.0):
     res = np.sinc(u * a)
     return res / np.sum(res)
 
+@requires_optional('scipy', scipy_import_error)
 def kbsinc(W, b=None, oversample=5, order=15):
     """
     Modified keiser bessel windowed sinc (Jackson et al., IEEE transactions on medical imaging, 1991)
@@ -136,7 +146,7 @@ def compute_detaper_dft_seperable(npix, K, W, oversample=5):
     pkX = np.zeros((npix), dtype=np.complex128)
     ksample = uspace(W, oversample=oversample)
     
-    #@jit(nopython=True,nogil=True,fastmath=True,parallel=True)
+    @jit(nopython=True,nogil=True,fastmath=True)
     def __dft1d(npix, K, W, oversample, pk, ksample):
         for ll in range(npix):
             llN = (ll - npix // 2) / float(npix)

@@ -1,5 +1,7 @@
 import numpy as np
-from numba import jit, literally, prange
+import numba
+from africanus.util.numba import jit
+from numba import float32, float64, literally, prange
 from .policies import baseline_transform_policies as btp
 from .policies import phase_transform_policies as ptp
 from .policies import convolution_policies as cp

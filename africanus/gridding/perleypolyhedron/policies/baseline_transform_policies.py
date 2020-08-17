@@ -1,6 +1,7 @@
-from numba import jit, float32, float64, literally
+import numba
+from africanus.util.numba import jit, overload
+from numba import float32, float64, literally
 from numpy import cos, sin
-from numba.extending import overload
 
 def uvw_norotate(uvw, ra0, dec0, ra, dec, policy_type):
     pass

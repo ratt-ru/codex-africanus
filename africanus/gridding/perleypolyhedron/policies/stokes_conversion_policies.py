@@ -1,6 +1,7 @@
-from numba import jit, float32, float64, literally
+import numba
+from africanus.util.numba import jit, overload
+from numba import float32, float64, literally
 from numpy import cos, sin
-from numba.extending import overload
 
 def stokes2corr(vis_in, vis_out, policy_type):
     pass

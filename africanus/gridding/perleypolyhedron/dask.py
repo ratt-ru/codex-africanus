@@ -3,10 +3,10 @@ import dask.array as da
 import numpy as np
 from numba import literally
 
-from africanus.gridding.perleypolyhedron.gridder import gridder as np_gridder
-from africanus.gridding.perleypolyhedron.degridder import degridder as np_degridder
-from africanus.gridding.perleypolyhedron.degridder import degridder_serial as np_degridder_serial
-from africanus.gridding.perleypolyhedron.policies import stokes_conversion_policies
+from .gridder import gridder as np_gridder
+from .degridder import degridder as np_degridder
+from .degridder import degridder_serial as np_degridder_serial
+from .policies import stokes_conversion_policies
 
 def __degrid(uvw,
              gridstack,
