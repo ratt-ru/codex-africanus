@@ -147,18 +147,12 @@ def degridder(uvw,
             "of image centres"
         )
     vis = da.blockwise(
-        __degrid,
-        ("row", "chan", "corr"),
-        uvw,
-        ("row", "uvw"),
-        gridstack,
-        ("nfacet", "nband", "y", "x"),
-        lambdas,
-        ("chan", ),
-        chanmap,
-        ("chan", ),
-        image_centres,
-        ("nfacet", "coord"),
+        __degrid, ("row", "chan", "corr"),
+        uvw, ("row", "uvw"),
+        gridstack, ("nfacet", "nband", "y", "x"),
+        lambdas, ("chan", ),
+        chanmap, ("chan", ),
+        image_centres, ("nfacet", "coord"),
         convolution_kernel=convolution_kernel,
         convolution_kernel_width=convolution_kernel_width,
         convolution_kernel_oversampling=convolution_kernel_oversampling,
@@ -169,7 +163,8 @@ def degridder(uvw,
         cell=cell,
         phase_centre=phase_centre,
         vis_dtype=vis_dtype,
-        adjust_chunks={"row": 1},  # goes to one set of grids per row chunk
+        # goes to one set of grids per row chunk
+        adjust_chunks={"row": 1},
         new_axes={
             "corr":
             stokes_conversion_policies.ncorr_outpy(
@@ -289,18 +284,12 @@ def gridder(uvw,
         raise ValueError(
             "Visibility row chunking does not match uvw row chunking")
     grids = da.blockwise(
-        __grid,
-        ("row", "nfacet", "nstokes", "nband", "y", "x"),
-        uvw,
-        ("row", "uvw"),
-        vis,
-        ("row", "chan", "corr"),
-        image_centres,
-        ("nfacet", "coord"),
-        lambdas,
-        ("chan", ),
-        chanmap,
-        ("chan", ),
+        __grid, ("row", "nfacet", "nstokes", "nband", "y", "x"),
+        uvw, ("row", "uvw"),
+        vis, ("row", "chan", "corr"),
+        image_centres, ("nfacet", "coord"),
+        lambdas, ("chan", ),
+        chanmap, ("chan", ),
         convolution_kernel=convolution_kernel,
         convolution_kernel_width=convolution_kernel_width,
         convolution_kernel_oversampling=convolution_kernel_oversampling,
@@ -313,12 +302,13 @@ def gridder(uvw,
         phase_centre=phase_centre,
         grid_dtype=grid_dtype,
         do_normalize=do_normalize,
-        adjust_chunks={"row": 1},  # goes to one set of grids per row chunk
+        # goes to one set of grids per row chunk
+        adjust_chunks={"row": 1},
         new_axes={
             "nband": np.max(chanmap) + 1,
-            "nstokes":
-            1,  # for now will need to be modified if
-                # multi-stokes cubes are supported
+            # for now will need to be modified if
+            # multi-stokes cubes are supported
+            "nstokes": 1,
             "y": npix,
             "x": npix
         },
