@@ -5,6 +5,50 @@ from .policies import phase_transform_policies as ptp
 from .policies import convolution_policies as cp
 from .policies import stokes_conversion_policies as scp
 
+@jit(nopython=True,nogil=True,fastmath=True,inline="always")
+def degridder_row_kernel(uvw,
+                         gridstack,
+                         lambdas,
+                         chanmap,
+                         cell,
+                         image_centre,
+                         phase_centre,
+                         convolution_kernel,
+                         convolution_kernel_width,
+                         convolution_kernel_oversampling,
+                         baseline_transform_policy,
+                         phase_transform_policy,
+                         stokes_conversion_policy,
+                         convolution_policy,
+                         vis_dtype=np.complex128,
+                         nband=0,
+                         nrow=0,
+                         npix=0,
+                         nvischan=0,
+                         ncorr=0,
+                         vis=None,
+                         scale_factor=0,
+                         r=0):
+    ra0, dec0 = phase_centre
+    ra, dec = image_centre
+    btp.policy(uvw[r,:], ra, dec, ra0, dec0, literally(baseline_transform_policy))
+    for c in range(nvischan):
+        scaled_u = uvw[r,0] * scale_factor / lambdas[c]
+        scaled_v = uvw[r,1] * scale_factor / lambdas[c]
+        scaled_w = uvw[r,2] * scale_factor / lambdas[c]
+        grid = gridstack[chanmap[c],:,:]
+        cp.policy(scaled_u, scaled_v, scaled_w, 
+                    npix, grid, vis, r, c,
+                    convolution_kernel,
+                    convolution_kernel_width,
+                    convolution_kernel_oversampling,
+                    stokes_conversion_policy,
+                    policy_type=literally(convolution_policy))
+    ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
+                ra0, dec0, ra, dec, 
+                policy_type=literally(phase_transform_policy), 
+                phasesign=-1.0)
+
 @jit(nopython=True,nogil=True,fastmath=True,parallel=True)
 def degridder(uvw,
               gridstack,
@@ -69,25 +113,14 @@ def degridder(uvw,
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in prange(nrow):
-        ra0, dec0 = phase_centre
-        ra, dec = image_centre
-        btp.policy(uvw[r,:], ra, dec, ra0, dec0, literally(baseline_transform_policy))
-        for c in range(nvischan):
-            scaled_u = uvw[r,0] * scale_factor / lambdas[c]
-            scaled_v = uvw[r,1] * scale_factor / lambdas[c]
-            scaled_w = uvw[r,2] * scale_factor / lambdas[c]
-            grid = gridstack[chanmap[c],:,:]
-            cp.policy(scaled_u, scaled_v, scaled_w, 
-                      npix, grid, vis, r, c,
-                      convolution_kernel,
-                      convolution_kernel_width,
-                      convolution_kernel_oversampling,
-                      stokes_conversion_policy,
-                      policy_type=literally(convolution_policy))
-        ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
-                   ra0, dec0, ra, dec, 
-                   policy_type=literally(phase_transform_policy), 
-                   phasesign=-1.0)
+        degridder_row_kernel(uvw, gridstack, lambdas, chanmap, cell,
+                             image_centre, phase_centre, convolution_kernel,
+                             convolution_kernel_width, convolution_kernel_oversampling,
+                             baseline_transform_policy, phase_transform_policy,
+                             stokes_conversion_policy, convolution_policy,
+                             vis_dtype=vis_dtype, nband=nband, nrow=nrow,
+                             npix=npix, nvischan=nvischan, ncorr=ncorr,
+                             vis=vis, scale_factor=scale_factor, r=r)    
     return vis
 
 @jit(nopython=True,nogil=True,fastmath=True,parallel=False)
@@ -154,23 +187,12 @@ def degridder_serial(uvw,
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in range(nrow):
-        ra0, dec0 = phase_centre
-        ra, dec = image_centre
-        btp.policy(uvw[r,:], ra, dec, ra0, dec0, literally(baseline_transform_policy))
-        for c in range(nvischan):
-            scaled_u = uvw[r,0] * scale_factor / lambdas[c]
-            scaled_v = uvw[r,1] * scale_factor / lambdas[c]
-            scaled_w = uvw[r,2] * scale_factor / lambdas[c]
-            grid = gridstack[chanmap[c],:,:]
-            cp.policy(scaled_u, scaled_v, scaled_w, 
-                      npix, grid, vis, r, c,
-                      convolution_kernel,
-                      convolution_kernel_width,
-                      convolution_kernel_oversampling,
-                      stokes_conversion_policy,
-                      policy_type=literally(convolution_policy))
-        ptp.policy(vis[r,:,:], uvw[r,:], lambdas,
-                   ra0, dec0, ra, dec, 
-                   policy_type=literally(phase_transform_policy), 
-                   phasesign=-1.0)
+        degridder_row_kernel(uvw, gridstack, lambdas, chanmap, cell,
+                             image_centre, phase_centre, convolution_kernel,
+                             convolution_kernel_width, convolution_kernel_oversampling,
+                             baseline_transform_policy, phase_transform_policy,
+                             stokes_conversion_policy, convolution_policy,
+                             vis_dtype=vis_dtype, nband=nband, nrow=nrow,
+                             npix=npix, nvischan=nvischan, ncorr=ncorr,
+                             vis=vis, scale_factor=scale_factor, r=r) 
     return vis
