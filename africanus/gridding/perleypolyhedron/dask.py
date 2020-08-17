@@ -1,5 +1,11 @@
-import dask.array as da
 import numpy as np
+
+try:
+    import dask.array as da
+except ImportError as e:
+    opt_import_err = e
+else:
+    opt_import_err = None
 
 from africanus.gridding.perleypolyhedron.gridder import (
     gridder as np_gridder)
@@ -9,6 +15,7 @@ from africanus.gridding.perleypolyhedron.degridder import (
     degridder_serial as np_degridder_serial)
 from africanus.gridding.perleypolyhedron.policies import (
     stokes_conversion_policies)
+from africanus.util.requirements import requires_optional
 
 
 def __degrid(uvw,
@@ -73,6 +80,7 @@ def __degrid(uvw,
     return vis
 
 
+@requires_optional("dask", opt_import_err)
 def degridder(uvw,
               gridstack,
               lambdas,
@@ -219,6 +227,7 @@ def __grid(uvw,
     return grid_stack
 
 
+@requires_optional("dask", opt_import_err)
 def gridder(uvw,
             vis,
             lambdas,
