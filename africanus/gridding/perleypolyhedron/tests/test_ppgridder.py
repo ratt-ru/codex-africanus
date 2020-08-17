@@ -11,13 +11,12 @@ from africanus.gridding.perleypolyhedron import (kernels,
 from africanus.dft.kernels import im_to_vis, vis_to_im
 from africanus.coordinates import radec_to_lmn
 
-DEBUG = True
 
-
-def test_construct_kernels():
-    import matplotlib
+def test_construct_kernels(tmp_path_factory):
+    matplotlib = pytest.importorskip("matplotlib")
     matplotlib.use("agg")
-    from matplotlib import pyplot as plt
+    plt = pytest.importorskip("matplotlib.pyplot")
+
     plt.figure()
     WIDTH = 5
     OVERSAMP = 101
@@ -32,7 +31,7 @@ def test_construct_kernels():
                 np.fft.fftshift(
                     np.fft.fft(
                         kernels.kbsinc(WIDTH, oversample=OVERSAMP,
-                                        order=0)[sel])))),
+                                       order=0)[sel])))),
         label="kbsinc order 0")
     plt.plot(
         ll[sel] * OVERSAMP / 2 / np.pi,
@@ -44,13 +43,13 @@ def test_construct_kernels():
                             WIDTH, oversample=OVERSAMP, order=15)[sel])))),
         label="kbsinc order 15")
     plt.plot(ll[sel] * OVERSAMP / 2 / np.pi,
-                10 * np.log10(
+             10 * np.log10(
                     np.abs(
                         np.fft.fftshift(
                             np.fft.fft(
                                 kernels.hanningsinc(
                                     WIDTH, oversample=OVERSAMP)[sel])))),
-                label="hanning sinc")
+             label="hanning sinc")
     plt.plot(
         ll[sel] * OVERSAMP / 2 / np.pi,
         10 * np.log10(
@@ -64,8 +63,8 @@ def test_construct_kernels():
     plt.ylabel("Response [dB]")
     plt.xlabel("FoV")
     plt.grid(True)
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"), "aakernels.png"))
+    plt.savefig(tmp_path_factory.mktemp("plots") / "aakernels.png")
+
 
 def test_taps():
     oversample = 14
@@ -74,6 +73,7 @@ def test_taps():
     assert taps[oversample * ((W + 2) // 2)] == 0
     assert taps[0] == -((W + 2) // 2)
     assert taps[-oversample] == (W + 2) // 2
+
 
 def test_packunpack():
     oversample = 4
@@ -91,13 +91,14 @@ def test_packunpack():
         -0.5, 0.5, 1.5, 2.5, -1.25, -0.25, 0.75, 1.75, 2.75
     ])
 
+
 def test_facetcodepath():
     # construct kernel
     W = 5
     OS = 3
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
-                                W,
-                                oversample=OS)
+                               W,
+                               oversample=OS)
 
     # offset 0
     uvw = np.array([[0, 0, 0]])
@@ -107,7 +108,8 @@ def test_facetcodepath():
                     "phase_rotate", "I_FROM_XXYY",
                     "conv_1d_axisymmetric_packed_scatter")
 
-def test_degrid_dft():
+
+def test_degrid_dft(tmp_path_factory):
     # construct kernel
     W = 5
     OS = 3
@@ -155,31 +157,34 @@ def test_degrid_dft():
     vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
                         uvw, radec, frequency)
 
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
-    plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Real of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "degrid_vs_dft_re.png"))
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
-    plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Imag of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "degrid_vs_dft_im.png"))
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
+        plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(
+            os.path.join(os.environ.get("TMPDIR", "/tmp"),
+                         "degrid_vs_dft_re.png"))
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
+        plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Imag of predicted")
+        plt.savefig(tmp_path_factory.mktemp("plots") / "degrid_vs_dft_im.png")
+
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
         99.0) < 0.05
@@ -187,13 +192,14 @@ def test_degrid_dft():
         np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
         99.0) < 0.05
 
-def test_degrid_dft_packed():
+
+def test_degrid_dft_packed(tmp_path_factory):
     # construct kernel
     W = 5
     OS = 3
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
-                                W,
-                                oversample=OS)
+                               W,
+                               oversample=OS)
     uvw = np.column_stack(
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 1000)),
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, 1000)), np.zeros(1000)))
@@ -237,31 +243,35 @@ def test_degrid_dft_packed():
     vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
                         uvw, radec, frequency)
 
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
-    plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Real of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "degrid_vs_dft_re_packed.png"))
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
-    plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Imag of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "degrid_vs_dft_im_packed.png"))
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
+        plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(
+            os.path.join(os.environ.get("TMPDIR", "/tmp"),
+                         "degrid_vs_dft_re_packed.png"))
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
+        plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Imag of predicted")
+        plt.savefig(tmp_path_factory.mktemp("plots") /
+                    "degrid_vs_dft_im_packed.png")
+
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
         99.0) < 0.05
@@ -269,7 +279,8 @@ def test_degrid_dft_packed():
         np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
         99.0) < 0.05
 
-def test_detaper():
+
+def test_detaper(tmp_path_factory):
     W = 5
     OS = 3
     K1D = kernels.kbsinc(W, oversample=OS)
@@ -277,28 +288,34 @@ def test_detaper():
     detaper = kernels.compute_detaper(128, K2D, W, OS)
     detaperdft = kernels.compute_detaper_dft(128, K2D, W, OS)
     detaperdftsep = kernels.compute_detaper_dft_seperable(128, K1D, W, OS)
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.subplot(131)
-    plt.title("FFT detaper")
-    plt.imshow(detaper)
-    plt.colorbar()
-    plt.subplot(132)
-    plt.title("DFT detaper")
-    plt.imshow(detaperdft)
-    plt.colorbar()
-    plt.subplot(133)
-    plt.title("ABS error")
-    plt.imshow(np.abs(detaper - detaperdft))
-    plt.colorbar()
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"), "detaper.png"))
+
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(131)
+        plt.title("FFT detaper")
+        plt.imshow(detaper)
+        plt.colorbar()
+        plt.subplot(132)
+        plt.title("DFT detaper")
+        plt.imshow(detaperdft)
+        plt.colorbar()
+        plt.subplot(133)
+        plt.title("ABS error")
+        plt.imshow(np.abs(detaper - detaperdft))
+        plt.colorbar()
+        plt.savefig(tmp_path_factory.mktemp("plots") / "detaper.png")
+
     assert (np.percentile(np.abs(detaper - detaperdft), 99.0) < 1.0e-14)
     assert (np.max(np.abs(detaperdft - detaperdftsep)) < 1.0e-14)
 
-def test_grid_dft():
+
+def test_grid_dft(tmp_path_factory):
     # construct kernel
     W = 7
     OS = 9
@@ -335,12 +352,12 @@ def test_grid_dft():
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
     vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                                npix * npix).T.copy(), uvw,
+                                             npix * npix).T.copy(), uvw,
                         radec, frequency).repeat(2).reshape(nrow, 1, 2)
     chanmap = np.array([0])
 
     detaper = kernels.compute_detaper(int(npix * fftpad),
-                                        np.outer(kern, kern), W, OS)
+                                      np.outer(kern, kern), W, OS)
     vis_grid = gridder.gridder(
         uvw,
         vis_dft,
@@ -364,37 +381,43 @@ def test_grid_dft():
             (1, int(npix * fftpad), int(
                 npix * fftpad)))).real / detaper * int(npix * fftpad)**2
     ftvis = ftvis[:,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
     dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                        np.zeros(vis_dft.shape,
+                       np.zeros(vis_dft.shape,
                                 dtype=np.bool)).T.copy().reshape(
                                     2, 1, npix, npix) / nrow
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.subplot(131)
-    plt.title("FFT")
-    plt.imshow(ftvis[0, :, :])
-    plt.colorbar()
-    plt.subplot(132)
-    plt.title("DFT")
-    plt.imshow(dftvis[0, 0, :, :])
-    plt.colorbar()
-    plt.subplot(133)
-    plt.title("ABS diff")
-    plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
-    plt.colorbar()
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "grid_diff_dft.png"))
-    assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
-                            95.0) < 0.15)
 
-def test_grid_dft_packed():
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(131)
+        plt.title("FFT")
+        plt.imshow(ftvis[0, :, :])
+        plt.colorbar()
+        plt.subplot(132)
+        plt.title("DFT")
+        plt.imshow(dftvis[0, 0, :, :])
+        plt.colorbar()
+        plt.subplot(133)
+        plt.title("ABS diff")
+        plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
+        plt.colorbar()
+        plt.savefig(tmp_path_factory.mktemp("plots") /
+                    "grid_diff_dft.png")
+
+    assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
+                          95.0) < 0.15)
+
+
+def test_grid_dft_packed(tmp_path_factory):
     # construct kernel
     W = 7
     OS = 1009
@@ -431,7 +454,7 @@ def test_grid_dft_packed():
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
     vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                                npix * npix).T.copy(), uvw,
+                                             npix * npix).T.copy(), uvw,
                         radec, frequency).repeat(2).reshape(nrow, 1, 2)
     chanmap = np.array([0])
     detaper = kernels.compute_detaper_dft_seperable(
@@ -459,37 +482,43 @@ def test_grid_dft_packed():
             (1, int(npix * fftpad), int(
                 npix * fftpad)))).real / detaper * int(npix * fftpad)**2
     ftvis = ftvis[:,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
     dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                        np.zeros(vis_dft.shape,
+                       np.zeros(vis_dft.shape,
                                 dtype=np.bool)).T.copy().reshape(
                                     2, 1, npix, npix) / nrow
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.subplot(131)
-    plt.title("FFT")
-    plt.imshow(ftvis[0, :, :])
-    plt.colorbar()
-    plt.subplot(132)
-    plt.title("DFT")
-    plt.imshow(dftvis[0, 0, :, :])
-    plt.colorbar()
-    plt.subplot(133)
-    plt.title("ABS diff")
-    plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
-    plt.colorbar()
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "grid_diff_dft_packed.png"))
-    assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
-                            95.0) < 0.15)
 
-def test_wcorrection_faceting_backward():
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(131)
+        plt.title("FFT")
+        plt.imshow(ftvis[0, :, :])
+        plt.colorbar()
+        plt.subplot(132)
+        plt.title("DFT")
+        plt.imshow(dftvis[0, 0, :, :])
+        plt.colorbar()
+        plt.subplot(133)
+        plt.title("ABS diff")
+        plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
+        plt.colorbar()
+        plt.savefig(tmp_path_factory.mktemp("plots") /
+                    "grid_diff_dft_packed.png")
+
+    assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
+                          95.0) < 0.15)
+
+
+def test_wcorrection_faceting_backward(tmp_path_factory):
     # construct kernel
     W = 5
     OS = 9
@@ -507,9 +536,9 @@ def test_wcorrection_faceting_backward():
             s = np.sin
             c = np.cos
             R = np.array([[s(h0), c(h0), 0],
-                            [-s(d0) * c(h0),
-                            s(d0) * s(h0),
-                            c(d0)], [c(d0) * c(h0), -c(d0) * s(h0),
+                          [-s(d0) * c(h0),
+                           s(d0) * s(h0),
+                           c(d0)], [c(d0) * c(h0), -c(d0) * s(h0),
                                     s(d0)]])
             uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
 
@@ -528,7 +557,7 @@ def test_wcorrection_faceting_backward():
     deltaradec = np.array(
         [[600 * np.deg2rad(cell), 600 * np.deg2rad(cell)]])
     lm = radec_to_lmn(deltaradec + np.array([[0, d0]]),
-                        phase_centre=np.array([0, d0]))
+                      phase_centre=np.array([0, d0]))
 
     vis_dft = im_to_vis(mod, uvw, lm[:, 0:2],
                         frequency).repeat(2).reshape(nrow, 1, 2)
@@ -558,10 +587,10 @@ def test_wcorrection_faceting_backward():
             (1, int(npix * fftpad), int(
                 npix * fftpad)))).real / detaper * int(npix * fftpad)**2
     ftvis = ftvis[:,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
-                    int(npix * fftpad) // 2 -
-                    npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
+                  int(npix * fftpad) // 2 -
+                  npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
 
     detaper_facet = kernels.compute_detaper_dft_seperable(
         int(npixfacet * fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
@@ -592,24 +621,29 @@ def test_wcorrection_faceting_backward():
                             int(npixfacet * fftpad) // 2 -
                             npixfacet // 2:int(npixfacet * fftpad) // 2 -
                             npixfacet // 2 + npixfacet]
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.subplot(121)
-    plt.imshow(ftvis[0, 1624 - 50:1624 + 50, 1447 - 50:1447 + 50])
-    plt.colorbar()
-    plt.title("Offset FFT (peak={0:.1f})".format(np.max(ftvis)))
-    plt.subplot(122)
-    plt.imshow(ftvisfacet[0, :, :])
-    plt.colorbar()
-    plt.title("Faceted FFT (peak={0:.1f})".format(np.max(ftvisfacet)))
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "facet_imaging.png"))
+
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.subplot(121)
+        plt.imshow(ftvis[0, 1624 - 50:1624 + 50, 1447 - 50:1447 + 50])
+        plt.colorbar()
+        plt.title("Offset FFT (peak={0:.1f})".format(np.max(ftvis)))
+        plt.subplot(122)
+        plt.imshow(ftvisfacet[0, :, :])
+        plt.colorbar()
+        plt.title("Faceted FFT (peak={0:.1f})".format(np.max(ftvisfacet)))
+        plt.savefig(tmp_path_factory.mktemp("plots") / "facet_imaging.png")
+
     assert (np.abs(np.max(ftvisfacet[0, :, :]) - 1.0) < 1.0e-6)
 
-def test_wcorrection_faceting_forward():
+
+def test_wcorrection_faceting_forward(tmp_path_factory):
     # construct kernel
     W = 5
     OS = 9
@@ -627,9 +661,9 @@ def test_wcorrection_faceting_forward():
             s = np.sin
             c = np.cos
             R = np.array([[s(h0), c(h0), 0],
-                            [-s(d0) * c(h0),
-                            s(d0) * s(h0),
-                            c(d0)], [c(d0) * c(h0), -c(d0) * s(h0),
+                          [-s(d0) * c(h0),
+                           s(d0) * s(h0),
+                           c(d0)], [c(d0) * c(h0), -c(d0) * s(h0),
                                     s(d0)]])
             uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
 
@@ -645,7 +679,7 @@ def test_wcorrection_faceting_forward():
     mod = np.ones((1, 1, 1), dtype=np.complex64)
     deltaradec = np.array([[20 * np.deg2rad(cell), 20 * np.deg2rad(cell)]])
     lm = radec_to_lmn(deltaradec + np.array([[0, d0]]),
-                        phase_centre=np.array([0, d0]))
+                      phase_centre=np.array([0, d0]))
 
     vis_dft = im_to_vis(mod, uvw, lm[:, 0:2],
                         frequency).repeat(2).reshape(nrow, 1, 2)
@@ -668,40 +702,40 @@ def test_wcorrection_faceting_forward():
         "XXYY_FROM_I",
         "conv_1d_axisymmetric_packed_gather")
 
-    import matplotlib
-    matplotlib.use("agg")
-    from matplotlib import pyplot as plt
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].real,
-                label=r"$\Re(\mathtt{degrid facet})$")
-    plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Real of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "facet_degrid_vs_dft_re_packed.png"))
-    plt.figure()
-    plt.plot(vis_degrid[:, 0, 0].imag,
-                label=r"$\Im(\mathtt{degrid facet})$")
-    plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
-    plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
-                label="Error")
-    plt.legend()
-    plt.xlabel("sample")
-    plt.ylabel("Imag of predicted")
-    plt.savefig(
-        os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                        "facet_degrid_vs_dft_im_packed.png"))
+    try:
+        import matplotlib
+    except ImportError:
+        pass
+    else:
+        matplotlib.use("agg")
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].real,
+                 label=r"$\Re(\mathtt{degrid facet})$")
+        plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Real of predicted")
+        plt.savefig(
+            os.path.join(os.environ.get("TMPDIR", "/tmp"),
+                         "facet_degrid_vs_dft_re_packed.png"))
+        plt.figure()
+        plt.plot(vis_degrid[:, 0, 0].imag,
+                 label=r"$\Im(\mathtt{degrid facet})$")
+        plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
+        plt.plot(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+                 label="Error")
+        plt.legend()
+        plt.xlabel("sample")
+        plt.ylabel("Imag of predicted")
+        plt.savefig(tmp_path_factory.mktemp("plots") /
+                    "facet_degrid_vs_dft_im_packed.png")
+
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
         99.0) < 0.05
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
         99.0) < 0.05
-
-
-if __name__ == "__main__":
-    unittest.main()

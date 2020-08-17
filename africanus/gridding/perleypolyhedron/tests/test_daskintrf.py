@@ -62,22 +62,22 @@ def test_gridder_dask():
                 s = np.sin
                 c = np.cos
                 R = np.array([[s(h0), c(h0), 0],
-                                [-s(d0) * c(h0),
-                                s(d0) * s(h0),
-                                c(d0)],
-                                [c(d0) * c(h0), -c(d0) * s(h0),
-                                s(d0)]])
+                              [-s(d0) * c(h0),
+                               s(d0) * s(h0),
+                               c(d0)],
+                              [c(d0) * c(h0), -c(d0) * s(h0),
+                               s(d0)]])
                 uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
         uvw = da.from_array(uvw, chunks=(row_chunks, 3))
         pxacrossbeam = 5
         nchan = 128
         frequency = da.from_array(np.linspace(1.0e9, 1.4e9, nchan),
-                                    chunks=(nchan, ))
+                                  chunks=(nchan, ))
         wavelength = 299792458.0 / frequency
         cell = da.rad2deg(
             wavelength[0] /
             (max(da.max(da.absolute(uvw[:, 0])),
-                    da.max(da.absolute(uvw[:, 1]))) * pxacrossbeam))
+                 da.max(da.absolute(uvw[:, 1]))) * pxacrossbeam))
         npixfacet = 100
         fftpad = 1.1
 
@@ -88,8 +88,8 @@ def test_gridder_dask():
             int(npixfacet * fftpad), kernels.unpack_kernel(kern, W, OS), W,
             OS)
         vis_dft = da.ones(shape=(nrow, nchan, 2),
-                            chunks=(row_chunks, nchan, 2),
-                            dtype=np.complex64)
+                          chunks=(row_chunks, nchan, 2),
+                          dtype=np.complex64)
         vis_grid_facet = dwrap.gridder(
             uvw,
             vis_dft,
@@ -124,9 +124,8 @@ def test_gridder_dask():
     print(tictoc)
     assert (np.abs(np.max(ftvisfacet[0, :, :]) - 1.0) < 1.0e-6)
 
-def test_gridder_nondask():
-    da = pytest.importorskip("dask.array")
 
+def test_gridder_nondask():
     with clock("Non-DASK gridding") as tictoc:
         # construct kernel
         W = 5
@@ -145,11 +144,11 @@ def test_gridder_nondask():
                 s = np.sin
                 c = np.cos
                 R = np.array([[s(h0), c(h0), 0],
-                                [-s(d0) * c(h0),
-                                s(d0) * s(h0),
-                                c(d0)],
-                                [c(d0) * c(h0), -c(d0) * s(h0),
-                                s(d0)]])
+                              [-s(d0) * c(h0),
+                               s(d0) * s(h0),
+                               c(d0)],
+                              [c(d0) * c(h0), -c(d0) * s(h0),
+                               s(d0)]])
                 uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
         pxacrossbeam = 5
         nchan = 128
@@ -158,7 +157,7 @@ def test_gridder_nondask():
         cell = np.rad2deg(
             wavelength[0] /
             (max(np.max(np.absolute(uvw[:, 0])),
-                    np.max(np.absolute(uvw[:, 1]))) * pxacrossbeam))
+                 np.max(np.absolute(uvw[:, 1]))) * pxacrossbeam))
         npixfacet = 100
         fftpad = 1.1
 
@@ -200,14 +199,14 @@ def test_gridder_nondask():
     print(tictoc)
     assert (np.abs(np.max(ftvisfacet[0, :, :]) - 1.0) < 1.0e-6)
 
+
 def test_degrid_dft_packed_nondask():
-    da = pytest.importorskip("dask.array")
     # construct kernel
     W = 5
     OS = 3
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
-                                W,
-                                oversample=OS)
+                               W,
+                               oversample=OS)
     nrow = int(5e4)
     uvw = np.column_stack(
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, nrow)),
@@ -249,15 +248,17 @@ def test_degrid_dft_packed_nondask():
 
     print(tictoc)
 
+
 def test_degrid_dft_packed_dask():
     da = pytest.importorskip("dask.array")
+    ProgressBar = pytest.importorskip("dask.diagnostics").ProgressBar
 
     # construct kernel
     W = 5
     OS = 3
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
-                                W,
-                                oversample=OS)
+                               W,
+                               oversample=OS)
     nrow = int(5e4)
     nrow_chunk = nrow // 32
     uvw = np.column_stack(
@@ -300,15 +301,17 @@ def test_degrid_dft_packed_dask():
             vis_degrid = vis_degrid.compute()
     print(tictoc)
 
+
 def test_degrid_dft_packed_dask_dft_check():
     da = pytest.importorskip("dask.array")
+    ProgressBar = pytest.importorskip("dask.diagnostics").ProgressBar
 
     # construct kernel
     W = 5
     OS = 3
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
-                                W,
-                                oversample=OS)
+                               W,
+                               oversample=OS)
     nrow = 100
     nrow_chunk = nrow // 8
     uvw = np.column_stack(
