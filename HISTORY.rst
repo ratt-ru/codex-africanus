@@ -2,6 +2,11 @@
 History
 =======
 
+0.2.6 (YYYY-MM-DD)
+------------------
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`)
+
+
 0.2.5 (2020-07-01)
 ------------------
 * Convert WSClean Gaussian arcsecond and degree quantities to radians (:pr:`206`)
