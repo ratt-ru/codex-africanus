@@ -41,7 +41,6 @@ class clock:
 
 def test_gridder_dask():
     da = pytest.importorskip("dask.array")
-    ProgressBar = pytest.importorskip("dask.diagnostics").ProgressBar
 
     with clock("DASK gridding") as tictoc:
         # construct kernel
@@ -106,8 +105,9 @@ def test_gridder_dask():
             "I_FROM_XXYY",
             "conv_1d_axisymmetric_packed_scatter",
             do_normalize=True)
-        with ProgressBar():
-            vis_grid_facet = vis_grid_facet.compute()
+
+        vis_grid_facet = vis_grid_facet.compute()
+
         ftvisfacet = (np.fft.fftshift(
             np.fft.ifft2(np.fft.ifftshift(
                 vis_grid_facet[0, :, :]))).reshape(
@@ -251,7 +251,6 @@ def test_degrid_dft_packed_nondask():
 
 def test_degrid_dft_packed_dask():
     da = pytest.importorskip("dask.array")
-    ProgressBar = pytest.importorskip("dask.diagnostics").ProgressBar
 
     # construct kernel
     W = 5
@@ -281,6 +280,7 @@ def test_degrid_dft_packed_dask():
     ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(
         mod[0, :, :]))).reshape((1, 1, npix, npix))
     chanmap = np.zeros(nchan, dtype=np.int64)
+
     with clock("DASK degridding") as tictoc:
         vis_degrid = dwrap.degridder(
             da.from_array(uvw, chunks=(nrow_chunk, 3)),
@@ -297,14 +297,14 @@ def test_degrid_dft_packed_dask():
             "None",  # no faceting
             "XXYY_FROM_I",
             "conv_1d_axisymmetric_packed_gather")
-        with ProgressBar():
-            vis_degrid = vis_degrid.compute()
+
+        vis_degrid = vis_degrid.compute()
+
     print(tictoc)
 
 
 def test_degrid_dft_packed_dask_dft_check():
     da = pytest.importorskip("dask.array")
-    ProgressBar = pytest.importorskip("dask.diagnostics").ProgressBar
 
     # construct kernel
     W = 5
@@ -356,8 +356,9 @@ def test_degrid_dft_packed_dask_dft_check():
         "None",  # no faceting
         "XXYY_FROM_I",
         "conv_1d_axisymmetric_packed_gather")
-    with ProgressBar():
-        vis_degrid = vis_degrid.compute()
+
+    vis_degrid = vis_degrid.compute()
+
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
         99.0) < 0.05
