@@ -183,7 +183,8 @@ def test_degrid_dft(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Imag of predicted")
-        plt.savefig(tmp_path_factory.mktemp("plots") / "degrid_vs_dft_im.png")
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft") /
+                    "degrid_vs_dft_im.png")
 
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
@@ -269,7 +270,7 @@ def test_degrid_dft_packed(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Imag of predicted")
-        plt.savefig(tmp_path_factory.mktemp("plots") /
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft_packed") /
                     "degrid_vs_dft_im_packed.png")
 
     assert np.percentile(
@@ -309,7 +310,7 @@ def test_detaper(tmp_path_factory):
         plt.title("ABS error")
         plt.imshow(np.abs(detaper - detaperdft))
         plt.colorbar()
-        plt.savefig(tmp_path_factory.mktemp("plots") / "detaper.png")
+        plt.savefig(tmp_path_factory.mktemp("detaper") / "detaper.png")
 
     assert (np.percentile(np.abs(detaper - detaperdft), 99.0) < 1.0e-14)
     assert (np.max(np.abs(detaperdft - detaperdftsep)) < 1.0e-14)
@@ -410,7 +411,7 @@ def test_grid_dft(tmp_path_factory):
         plt.title("ABS diff")
         plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
         plt.colorbar()
-        plt.savefig(tmp_path_factory.mktemp("plots") /
+        plt.savefig(tmp_path_factory.mktemp("grid_dft") /
                     "grid_diff_dft.png")
 
     assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
@@ -511,7 +512,7 @@ def test_grid_dft_packed(tmp_path_factory):
         plt.title("ABS diff")
         plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
         plt.colorbar()
-        plt.savefig(tmp_path_factory.mktemp("plots") /
+        plt.savefig(tmp_path_factory.mktemp("grid_dft_packed") /
                     "grid_diff_dft_packed.png")
 
     assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
@@ -629,6 +630,8 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
     else:
         matplotlib.use("agg")
         from matplotlib import pyplot as plt
+        plot_dir = tmp_path_factory.mktemp("wcorrection_backward")
+
         plt.figure()
         plt.subplot(121)
         plt.imshow(ftvis[0, 1624 - 50:1624 + 50, 1447 - 50:1447 + 50])
@@ -638,7 +641,7 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
         plt.imshow(ftvisfacet[0, :, :])
         plt.colorbar()
         plt.title("Faceted FFT (peak={0:.1f})".format(np.max(ftvisfacet)))
-        plt.savefig(tmp_path_factory.mktemp("plots") / "facet_imaging.png")
+        plt.savefig(plot_dir / "facet_imaging.png")
 
     assert (np.abs(np.max(ftvisfacet[0, :, :]) - 1.0) < 1.0e-6)
 
@@ -709,6 +712,8 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
     else:
         matplotlib.use("agg")
         from matplotlib import pyplot as plt
+        plot_dir = tmp_path_factory.mktemp("wcorrection_forward")
+
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].real,
                  label=r"$\Re(\mathtt{degrid facet})$")
@@ -718,9 +723,7 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                         "facet_degrid_vs_dft_re_packed.png"))
+        plt.savefig(plot_dir / "facet_degrid_vs_dft_re_packed.png")
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag,
                  label=r"$\Im(\mathtt{degrid facet})$")
@@ -730,8 +733,7 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Imag of predicted")
-        plt.savefig(tmp_path_factory.mktemp("plots") /
-                    "facet_degrid_vs_dft_im_packed.png")
+        plt.savefig(plot_dir / "facet_degrid_vs_dft_im_packed.png")
 
     assert np.percentile(
         np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),

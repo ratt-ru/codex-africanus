@@ -1,5 +1,6 @@
 import numpy as np
-from africanus.util.requirements import requires_optional
+from numba import prange
+
 try:
     from scipy.special import jn
 except ImportError as e:
@@ -7,8 +8,9 @@ except ImportError as e:
     scipy_import_error = e
 else:
     scipy_import_error = None
+
 from africanus.util.numba import jit
-from numba import prange
+from africanus.util.requirements import requires_optional
 
 
 def uspace(W, oversample):

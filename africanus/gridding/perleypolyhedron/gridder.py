@@ -1,9 +1,13 @@
 import numpy as np
-from africanus.util.numba import jit
 from numba import literally
-from .policies import baseline_transform_policies as btp
-from .policies import phase_transform_policies as ptp
-from .policies import convolution_policies as cp
+
+from africanus.util.numba import jit
+from africanus.gridding.perleypolyhedron.policies import (
+    baseline_transform_policies as btp)
+from africanus.gridding.perleypolyhedron.policies import (
+    phase_transform_policies as ptp)
+from africanus.gridding.perleypolyhedron.policies import (
+    convolution_policies as cp)
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
