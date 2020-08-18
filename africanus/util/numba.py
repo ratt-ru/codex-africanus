@@ -23,14 +23,9 @@ if on_rtd():
     njit = _fake_decorator
     stencil = _fake_decorator
     overload = _fake_decorator
-    jitclass = _fake_decorator
-
 else:
-    from numba import (cfunc, jit, jitclass,  # noqa: F401
-                       njit, generated_jit,
-                       stencil)
-
-    from numba.extending import overload  # noqa: F401
+    from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
+    from numba.extending import overload  # noqa
 
 
 def is_numba_type_none(arg):
