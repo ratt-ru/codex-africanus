@@ -375,8 +375,8 @@ def test_dask_im2residim():
 from ducc0.wgridder import ms2dirty
 def grid(uvw, freq, vis, npix, cell, epsilon, wstacking, nthreads):
     return ms2dirty(uvw=uvw, freq=freq, ms=vis,
-                    npix_x=30, npix_y=npix,
-                    nu=0, nv=0,
+                    npix_x=npix, npix_y=npix,
+                    nu=2*npix, nv=2*npix,
                     pixsize_x=cell, pixsize_y=cell,
                     epsilon=epsilon, nthreads=nthreads,
                     do_wstacking=wstacking, verbosity=0)
@@ -390,14 +390,14 @@ def test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, 
     freq = f0 + np.arange(nchan)*(f0/nchan)
     uvw = ()
     vis = ()
-    rows_per_task = int(np.ceil(nrow/nchunks))
+    rows_per_task = nrow//nchunks
     row_chunks = (nchunks-1) * (rows_per_task,)
     row_chunks += (nrow - np.sum(row_chunks),)
     print(row_chunks)
     for i in range(nchunks):
-        uvw += ((np.random.rand(nrow, 3)-0.5)/(cell*freq[-1]/lightspeed),)
-        vis += ((np.random.rand(nrow, nchan)-0.5 + 1j *
-                (np.random.rand(nrow, nchan)-0.5)),)
+        uvw += ((np.random.rand(row_chunks[i], 3)-0.5)/(cell*freq[-1]/lightspeed),)
+        vis += ((np.random.rand(row_chunks[i], nchan)-0.5 + 1j *
+                (np.random.rand(row_chunks[i], nchan)-0.5)),)
     
     futures = []
     dirties = []
@@ -431,11 +431,11 @@ if __name__ == "__main__":
     wstacking = True
     nthreads = 4
     nchunks = 3
-    # for i in range(100):
-    #     print(i)
-    #     test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads, nchunks)
-
     for i in range(100):
         print(i)
-        # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks
-        test_dask_vis2im(npix, npix, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks)
+        test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads, nchunks)
+
+    # for i in range(100):
+    #     print(i)
+    #     # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks
+    #     test_dask_vis2im(npix, npix, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks)
