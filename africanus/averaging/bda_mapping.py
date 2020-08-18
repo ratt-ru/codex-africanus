@@ -170,11 +170,9 @@ class Binner(object):
               (time[rs] - interval[rs] / 2.0))
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
-        dw = uvw[row, 2] - uvw[rs, 2]
 
         du_dt = du / dt
         dv_dt = dv / dt
-        dw_dt = dw / dt
         # Derive phase difference in time
         # from Equation (36) in Atemkeng
         # leaving out the factor of two
@@ -204,7 +202,8 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, nchan_factors, chan_width, chan_freq):
+    def finalise_bin(self, auto_corr, uvw, nchan_factors,
+                     chan_width, chan_freq):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
