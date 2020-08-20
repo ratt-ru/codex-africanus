@@ -7,13 +7,6 @@ except ImportError as e:
 else:
     dask_import_error = None
 
-try:
-    from ducc0.wgridder import dirty2ms, ms2dirty
-except ImportError as e:
-    ducc_import_error = e
-else:
-    ducc_import_error = None
-
 from africanus.gridding.wgridder.vis2im import VIS2IM_DOCS
 from africanus.gridding.wgridder.im2vis import IM2VIS_DOCS
 from africanus.gridding.wgridder.im2residim import IM2RESIDIM_DOCS
@@ -34,7 +27,6 @@ def _im2vis_wrapper(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
 
 
 @requires_optional('dask.array', dask_import_error)
-@requires_optional('ducc0.wgridder', ducc_import_error)
 def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
            cellx, celly, nu, nv, epsilon, nthreads, do_wstacking,
            complex_type):
@@ -69,7 +61,6 @@ def _vis2im_wrapper(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
 
 
 @requires_optional('dask.array', dask_import_error)
-@requires_optional('ducc0.wgridder', ducc_import_error)
 def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
 
