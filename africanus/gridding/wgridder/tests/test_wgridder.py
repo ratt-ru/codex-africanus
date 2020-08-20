@@ -51,7 +51,7 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
 def test_gridder(nx, ny, fov, nrow, nchan, nband,
                  epsilon, wstacking, nthreads):
     # run comparison against dft with a frequency mapping imposed
-    dc = pytest.importorskip("ducc0.wgridder")
+    pytest.importorskip("ducc0.wgridder")
     if nband > nchan:
         return
     from africanus.gridding.wgridder import vis2im
@@ -112,7 +112,7 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband,
     #
     # where R.H is the gridder, R is the degridder and x and y are randomly
     # drawn image and visibilities respectively
-    dc = pytest.importorskip("ducc0.wgridder")
+    pytest.importorskip("ducc0.wgridder")
     if nband > nchan:
         return
     from africanus.gridding.wgridder import vis2im, im2vis
@@ -169,7 +169,7 @@ def test_im2residim(nx, ny, fov, nrow, nchan, nband,
     # Compare the result of im2residim to
     #   VR = V - Rx   - computed with im2vis
     #   IR = R.H VR   - computed with vis2im
-    dc = pytest.importorskip("ducc0.wgridder")
+    pytest.importorskip("ducc0.wgridder")
     from africanus.gridding.wgridder import vis2im, im2vis, im2residim
     np.random.seed(420)
     if epsilon >= 5e-6:
