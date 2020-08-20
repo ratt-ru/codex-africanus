@@ -3,7 +3,6 @@
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_almost_equal
 import pytest
-import dask.array as da
 from africanus.constants import c as lightspeed
 
 pmp = pytest.mark.parametrize
