@@ -6,11 +6,11 @@ from ducc0.wgridder import dirty2ms, ms2dirty
 
 
 def _im2residim_internal(uvw, freq, model, vis, weights, freq_bin_idx,
-                        freq_bin_counts, cellx, celly, nu, nv, epsilon,
-                        nthreads, do_wstacking):
+                         freq_bin_counts, cellx, celly, nu, nv, epsilon,
+                         nthreads, do_wstacking):
     # adjust for chunking
     # need a copy here if using multiple row chunks
-    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()  
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
     nband = freq_bin_idx.size
     _, nx, ny = model.shape
     # the extra dimension is required to allow for chunking over row

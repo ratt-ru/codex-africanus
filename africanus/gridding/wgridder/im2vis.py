@@ -10,7 +10,7 @@ def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
            complex_type):
     # adjust for chunking
     # need a copy here if using multiple row chunks
-    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()  
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
     nband = freq_bin_idx.size
     nrow = uvw.shape[0]
     nchan = freq.size
