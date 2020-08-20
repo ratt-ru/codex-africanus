@@ -62,18 +62,6 @@ def _vis2im_wrapper(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
 def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
 
-    import multiprocessing
-    from multiprocessing.pool import ThreadPool
-    ncpu = multiprocessing.cpu_count()
-    nblocks = len(uvw.chunks[0]) * len(freq.chunks[0])
-    if nblocks * nthreads > ncpu:
-        nworkers  = ncpu//nthreads
-        dask.config.set(pool=ThreadPool(nworkers))
-    else:
-        nworkers = ncpu
-    
-    print(nblocks, ncpu, nthreads, nworkers)
-
     dirty = da.blockwise(_vis2im_wrapper, ('row', 'chan', 'nx', 'ny'),
                          uvw, ('row', 'three'),
                          freq, ('chan',),

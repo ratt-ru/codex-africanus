@@ -8,13 +8,15 @@ from ducc0.wgridder import dirty2ms, ms2dirty
 def _im2residim_internal(uvw, freq, model, vis, weights, freq_bin_idx,
                         freq_bin_counts, cellx, celly, nu, nv, epsilon,
                         nthreads, do_wstacking):
-    freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
+    # adjust for chunking
+    # need a copy here if using multiple row chunks
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()  
     nband = freq_bin_idx.size
     _, nx, ny = model.shape
     # the extra dimension is required to allow for chunking over row
     residim = np.zeros((1, nband, nx, ny), dtype=model.dtype)
     for i in range(nband):
-        ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
+        ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
         residvis = vis[:, ind] - dirty2ms(uvw=uvw, freq=freq[ind],
                                           dirty=model[i], wgt=None,
                                           pixsize_x=cellx, pixsize_y=celly,

@@ -37,16 +37,15 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
                         * np.exp(2j*np.pi*phase)).real
     return res/n
 
-@pytest.mark.skip
-@pmp("nx", (20, 32))
-@pmp("ny", (26, 18))
-@pmp("fov", (1.0, 5.0))
+@pmp("nx", (32,))
+@pmp("ny", (18,))
+@pmp("fov", (1.0,))
 @pmp("nrow", (1000,))
-@pmp("nchan", (1, 8))
-@pmp("nband", (1, 3))
-@pmp("epsilon", (1e-10,))
-@pmp("wstacking", (True, False))
-@pmp("nthreads", (1, 6))
+@pmp("nchan", (5,))
+@pmp("nband", (1,))
+@pmp("epsilon", (1e-5,))
+@pmp("wstacking", (True,))
+@pmp("nthreads", (1,))
 def test_gridder(nx, ny, fov, nrow, nchan, nband,
                  epsilon, wstacking, nthreads):
     # run comparison against dft with a frequency mapping imposed
@@ -54,9 +53,11 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
     if epsilon >= 5e-6:
         real_type = "f4"
         complex_type = "c8"
+        to_float = np.float32
     else:
         real_type = "f8"
         complex_type = "c16"
+        to_float = np.float64
     np.random.seed(420)
     cellx = fov*np.pi/180/nx
     celly = fov*np.pi/180/ny * 1.1  # to test different cell sizes
@@ -73,16 +74,17 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
         freq_mapping = np.append(freq_bin_idx, nchan)
         freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
     else:
-        freq_bin_idx = np.array([0], dtype=np.int8)
-        freq_bin_counts = np.array([1], dtype=np.int8)
+        freq_bin_idx = np.array([0], dtype=np.int16)
+        freq_bin_counts = np.array([1], dtype=np.int16)
     dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
-                   nx, ny, cellx, celly, 2*nx, 2*ny, epsilon, 8, 1)
+                   nx, ny, to_float(cellx), to_float(celly), 2*nx, 2*ny,
+                   epsilon, nthreads, wstacking)
     nband = freq_bin_idx.size
     ref = np.zeros((nband, nx, ny), dtype=np.float64)
     for i in range(nband):
         ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
         ref[i] = explicit_gridder(uvw, freq[ind], vis[:, ind], wgt[:, ind],
-                                  nx, ny, cellx, celly, 1)
+                                  nx, ny, to_float(cellx), to_float(celly), wstacking)
 
     # l2 error should be within epsilon of zero
     assert_allclose(_l2error(dirty, ref), 0, atol=epsilon)
@@ -203,6 +205,7 @@ def test_im2residim(nx, ny, fov, nrow, nchan, nband,
     assert_array_almost_equal(
         residim1, residim2, decimal=decimal)
 
+@pytest.mark.skip
 @pmp("nx", (30,250))
 @pmp("ny", (128,))
 @pmp("fov", (5.0,))
@@ -257,185 +260,165 @@ def test_dask_vis2im(nx, ny, fov, nrow, nchan, nband,
     freq_bin_idx_da = da.from_array(freq_bin_idx, chunks=1)
     freq_bin_counts_da = da.from_array(freq_bin_counts, chunks=1)
 
-    print(uvw_da)
-    print(vis_da)
-    print(freq_bin_idx_da)
-    print(freq_bin_counts_da)
     dirty_da = vis2im(uvw_da, freq_da, vis_da, wgt_da, freq_bin_idx_da,
                       freq_bin_counts_da, nx, ny, cellx, celly, 2*nx, 2*ny,
-                      epsilon, nthreads, wstacking).compute()  #scheduler='single-threaded'
+                      epsilon, nthreads, wstacking).compute()  
     
-    # # should agree to within epsilon
-    # # print(np.abs(dirty - dirty_da).max())
-    # try:
-    assert_array_almost_equal(dirty, dirty_da,
-                            decimal=-int(np.log10(epsilon)))
-    # except:
-    #     import matplotlib.pyplot as plt
-    #     for i in range(nband):
-    #         plt.figure(1)
-    #         plt.imshow(dirty[i])
-    #         plt.colorbar()
-    #         plt.figure(2)
-    #         plt.imshow(dirty_da[i])
-    #         plt.colorbar()
-    #         plt.show()
+    # relative error should agree to within epsilon
+    dmax = np.maximum(np.abs(dirty).max(), np.abs(dirty_da).max())
+    assert_array_almost_equal(dirty/dmax, dirty_da/dmax,
+                              decimal=-int(np.log10(epsilon)))
 
 @pytest.mark.skip
-def test_dask_im2vis():
+@pmp("nx", (30,250))
+@pmp("ny", (128,))
+@pmp("fov", (5.0,))
+@pmp("nrow", (10000,))
+@pmp("nchan", (8,))
+@pmp("nband", (1, 3))
+@pmp("epsilon", (1e-10,))
+@pmp("wstacking", (False, True))
+@pmp("nthreads", (1, 4))
+@pmp("nchunks", (1, 3))
+def test_dask_im2vis(nx, ny, fov, nrow, nchan, nband,
+                     epsilon, wstacking, nthreads, nchunks):
     from africanus.gridding.wgridder import im2vis as im2vis_np
     from africanus.gridding.wgridder.dask import im2vis
     np.random.seed(420)
-    nrow = 1000
-    nchan = 8
-    fov = 5.0  # degrees
-    nx = 32
-    ny = 32
+    if epsilon >= 5e-6:
+        real_type = "f4"
+        complex_type = "c8"
+    else:
+        real_type = "f8"
+        complex_type = "c16"
     cellx = fov*np.pi/180/nx
-    celly = fov*np.pi/180/ny
+    celly = fov*np.pi/180/ny 
     f0 = 1e9
-    freq = f0 + np.arange(nchan)*(f0/nchan)
-    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
-    wgt = np.random.rand(nrow, nchan)
-    epsilon = 1e-7
-    freq_chunks = 3
-    freq_bin_idx = np.arange(0, nchan, freq_chunks)
-    freq_mapping = np.append(freq_bin_idx, nchan)
-    freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    freq = (f0 + np.arange(nchan)*(f0/nchan)).astype(real_type)
+    uvw = ((np.random.rand(nrow, 3)-0.5) /
+           (cellx*freq[-1]/lightspeed)).astype(real_type)
+    vis = (np.random.rand(nrow, nchan)-0.5 + 1j *
+           (np.random.rand(nrow, nchan)-0.5)).astype(complex_type)
+    wgt = np.random.rand(nrow, nchan).astype(real_type)
+    
+    step = np.maximum(1, nchan//nband)
+    if step:
+        freq_bin_idx = np.arange(0, nchan, step)
+        freq_mapping = np.append(freq_bin_idx, nchan)
+        freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    else:
+        freq_bin_idx = np.array([0], dtype=np.int8)
+        freq_bin_counts = np.array([1], dtype=np.int8)
     nband = freq_bin_idx.size
     model = np.random.randn(nband, nx, ny)
+
     vis = im2vis_np(uvw, freq, model, wgt, freq_bin_idx, freq_bin_counts,
-                    cellx, celly, 2*nx, 2*ny, epsilon, 8, 1, np.complex128)
+                    cellx, celly, 2*nx, 2*ny, epsilon, nthreads, wstacking,
+                    complex_type)
 
     # now get result using dask
-    row_chunks = nrow//2
-    freq_da = da.from_array(freq, chunks=freq_chunks)
+    rows_per_task = int(np.ceil(nrow/nchunks))
+    row_chunks = (nchunks-1) * (rows_per_task,)
+    row_chunks += (nrow - np.sum(row_chunks),)
+    freq_da = da.from_array(freq, chunks=step)
     uvw_da = da.from_array(uvw, chunks=(row_chunks, -1))
     model_da = da.from_array(model, chunks=(1, nx, ny))
-    wgt_da = da.from_array(wgt, chunks=(row_chunks, freq_chunks))
+    wgt_da = da.from_array(wgt, chunks=(row_chunks, step))
     freq_bin_idx_da = da.from_array(freq_bin_idx, chunks=1)
     freq_bin_counts_da = da.from_array(freq_bin_counts, chunks=1)
 
-    vis_da = im2vis(uvw_da, freq_da, model_da, wgt_da, freq_bin_idx_da, freq_bin_counts_da,
-cellx, celly, 2*nx, 2*ny, epsilon, 1, 1, np.complex128).compute()
+    vis_da = im2vis(uvw_da, freq_da, model_da, wgt_da, freq_bin_idx_da,
+                    freq_bin_counts_da, cellx, celly, 2*nx, 2*ny, epsilon,
+                    nthreads, wstacking, complex_type).compute()
 
-    # should agree to within epsilon
-    assert_array_almost_equal(vis, vis_da, decimal=-int(np.log10(epsilon)))
-
+    # relative error should agree to within epsilon
+    vmax = np.maximum(np.abs(vis).max(), np.abs(vis_da).max())
+    assert_array_almost_equal(vis/vmax, vis_da/vmax,
+                              decimal=-int(np.log10(epsilon)))
 @pytest.mark.skip
-def test_dask_im2residim():
-    # Compare the result of im2residim to
-    #   VR = V - Rx   - computed with im2vis
-    #   IR = R.H VR   - computed with vis2im
+@pmp("nx", (30,250))
+@pmp("ny", (128,))
+@pmp("fov", (5.0,))
+@pmp("nrow", (10000,))
+@pmp("nchan", (8,))
+@pmp("nband", (1, 3))
+@pmp("epsilon", (1e-10,))
+@pmp("wstacking", (False, True))
+@pmp("nthreads", (1, 4))
+@pmp("nchunks", (1, 3))
+def test_dask_im2residim(nx, ny, fov, nrow, nchan, nband,
+                         epsilon, wstacking, nthreads, nchunks):
+    # Compare the result of im2residim to chunked dask version
     from africanus.gridding.wgridder import im2residim as im2residim_np
     from africanus.gridding.wgridder.dask import im2residim
     np.random.seed(420)
-    nrow = 1000
-    nchan = 8
-    fov = 5.0  # degrees
-    nx = 32
-    ny = 32
+    if epsilon >= 5e-6:
+        real_type = "f4"
+        complex_type = "c8"
+    else:
+        real_type = "f8"
+        complex_type = "c16"
     cellx = fov*np.pi/180/nx
-    celly = fov*np.pi/180/ny
+    celly = fov*np.pi/180/ny * 1.1
     f0 = 1e9
-    freq = f0 + np.arange(nchan)*(f0/nchan)
-    uvw = (np.random.rand(nrow, 3)-0.5)/(cellx*freq[-1]/lightspeed)
-    vis = np.random.rand(nrow, nchan)-0.5 + 1j * \
-        (np.random.rand(nrow, nchan)-0.5)
-    wgt = np.random.rand(nrow, nchan)
-    epsilon = 1e-7
-    freq_chunks = 3
-    freq_bin_idx = np.arange(0, nchan, freq_chunks)
-    freq_mapping = np.append(freq_bin_idx, nchan)
-    freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    freq = (f0 + np.arange(nchan)*(f0/nchan)).astype(real_type)
+    uvw = ((np.random.rand(nrow, 3)-0.5) /
+           (cellx*freq[-1]/lightspeed)).astype(real_type)
+    vis = (np.random.rand(nrow, nchan)-0.5 + 1j *
+          (np.random.rand(nrow, nchan)-0.5)).astype(complex_type)
+    wgt = np.random.rand(nrow, nchan).astype(real_type)
+    step = np.maximum(1, nchan//nband)
+    if step:
+        freq_bin_idx = np.arange(0, nchan, step)
+        freq_mapping = np.append(freq_bin_idx, nchan)
+        freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    else:
+        freq_bin_idx = np.array([0], dtype=np.int8)
+        freq_bin_counts = np.array([1], dtype=np.int8)
     nband = freq_bin_idx.size
     model = np.random.randn(nband, nx, ny)
     residim_np = im2residim_np(uvw, freq, model, vis, wgt, freq_bin_idx,
                                freq_bin_counts, cellx, celly, 2*nx, 2*ny,
-                               epsilon, 8, 1)
+                               epsilon, nthreads, wstacking)
 
-    row_chunks = nrow//2
-    freq_da = da.from_array(freq, chunks=freq_chunks)
+    rows_per_task = int(np.ceil(nrow/nchunks))
+    row_chunks = (nchunks-1) * (rows_per_task,)
+    row_chunks += (nrow - np.sum(row_chunks),)
+    freq_da = da.from_array(freq, chunks=step)
     uvw_da = da.from_array(uvw, chunks=(row_chunks, -1))
     model_da = da.from_array(model, chunks=(1, nx, ny))
-    vis_da = da.from_array(vis, chunks=(row_chunks, freq_chunks))
-    wgt_da = da.from_array(wgt, chunks=(row_chunks, freq_chunks))
+    vis_da = da.from_array(vis, chunks=(row_chunks, step))
+    wgt_da = da.from_array(wgt, chunks=(row_chunks, step))
     freq_bin_idx_da = da.from_array(freq_bin_idx, chunks=1)
     freq_bin_counts_da = da.from_array(freq_bin_counts, chunks=1)
 
 
-    residim_da = im2residim(uvw_da, freq_da, model_da, vis_da, wgt_da, freq_bin_idx_da,
-                            freq_bin_counts_da, cellx, celly, 2*nx, 2*ny,
-                            epsilon, 1, 1).compute()
+    residim_da = im2residim(uvw_da, freq_da, model_da, vis_da, wgt_da,
+                            freq_bin_idx_da, freq_bin_counts_da, 
+                            cellx, celly, 2*nx, 2*ny,
+                            epsilon, nthreads, wstacking).compute()
 
     # should agree to within epsilon
+    rmax = np.maximum(np.abs(residim_np).max(), np.abs(residim_da).max())
     assert_array_almost_equal(
-        residim_np, residim_da, decimal=-int(np.log10(epsilon))-1)
-
-from ducc0.wgridder import ms2dirty
-def grid(uvw, freq, vis, npix, cell, epsilon, wstacking, nthreads):
-    return ms2dirty(uvw=uvw, freq=freq, ms=vis,
-                    npix_x=npix, npix_y=npix,
-                    nu=2*npix, nv=2*npix,
-                    pixsize_x=cell, pixsize_y=cell,
-                    epsilon=epsilon, nthreads=nthreads,
-                    do_wstacking=wstacking, verbosity=0)
-
-def test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads, nchunks):
-    import concurrent.futures as cf
-        
-    np.random.seed(420)
-    cell = fov*np.pi/180/npix
-    f0 = 1e9
-    freq = f0 + np.arange(nchan)*(f0/nchan)
-    uvw = ()
-    vis = ()
-    rows_per_task = nrow//nchunks
-    row_chunks = (nchunks-1) * (rows_per_task,)
-    row_chunks += (nrow - np.sum(row_chunks),)
-    print(row_chunks)
-    for i in range(nchunks):
-        uvw += ((np.random.rand(row_chunks[i], 3)-0.5)/(cell*freq[-1]/lightspeed),)
-        vis += ((np.random.rand(row_chunks[i], nchan)-0.5 + 1j *
-                (np.random.rand(row_chunks[i], nchan)-0.5)),)
-    
-    futures = []
-    dirties = []
-    with cf.ThreadPoolExecutor(max_workers=nchunks) as executor:
-        for k in range(nchunks):
-            future = executor.submit(grid, uvw[k], freq, vis[k], npix, cell, epsilon, wstacking, nthreads)
-            futures.append(future)
-        for f in cf.as_completed(futures):
-            dirties.append(f.result())
-    dirty = np.sum(dirties, axis=0)
-
-    uvw = np.concatenate(uvw)
-    vis = np.concatenate(vis)
-
-    dirty2 = grid(uvw, freq, vis, npix, cell, epsilon, wstacking, nthreads)
-
-    assert_array_almost_equal(dirty, dirty2, decimal=8)
+        residim_np/rmax, residim_da/rmax, decimal=-int(np.log10(epsilon)))
 
 
+# if __name__ == "__main__":
+#     npix = 128
+#     fov = 5.0
+#     nrow = 10000
+#     nchan = 8
+#     nband = 1
+#     epsilon = 1e-10
+#     wstacking = True
+#     nthreads = 2
+#     nchunks = 3
+#     # for i in range(100):
+#     #     print(i)
+#     #     test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads, nchunks)
 
-
-
-
-if __name__ == "__main__":
-    npix = 128
-    fov = 5.0
-    nrow = 10000
-    nchan = 8
-    nband = 1
-    epsilon = 1e-10
-    wstacking = True
-    nthreads = 4
-    nchunks = 3
-    for i in range(100):
-        print(i)
-        test_multiple_gridder_instances(npix, fov, nrow, nchan, epsilon, wstacking, nthreads, nchunks)
-
-    # for i in range(100):
-    #     print(i)
-    #     # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks
-    #     test_dask_vis2im(npix, npix, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks)
+#     for i in range(100):
+#         print(i)
+#         # nx, ny, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks
+#         test_dask_vis2im(npix, npix, fov, nrow, nchan, nband, epsilon, wstacking, nthreads, nchunks)

@@ -8,13 +8,15 @@ from ducc0.wgridder import dirty2ms
 def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
            cellx, celly, nu, nv, epsilon, nthreads, do_wstacking,
            complex_type):
-    freq_bin_idx -= freq_bin_idx.min()  # adjust for chunking
+    # adjust for chunking
+    # need a copy here if using multiple row chunks
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()  
     nband = freq_bin_idx.size
     nrow = uvw.shape[0]
     nchan = freq.size
     vis = np.zeros((nrow, nchan), dtype=complex_type)
     for i in range(nband):
-        ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
+        ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
         if weights is not None:
             wgt = weights[:, ind]
         else:
