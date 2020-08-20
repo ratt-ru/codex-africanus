@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
 
+try:
+    from ducc0.wgridder import dirty2ms, ms2dirty
+except ImportError as e:
+    ducc_import_error = e
+else:
+    ducc_import_error = None
+
 import numpy as np
 from africanus.util.docs import DocstringTemplate
-from ducc0.wgridder import dirty2ms, ms2dirty
+from africanus.util.requirements import requires_optional
 
 
+@requires_optional('ducc0.wgridder', ducc_import_error)
 def _im2residim_internal(uvw, freq, model, vis, weights, freq_bin_idx,
                          freq_bin_counts, cellx, celly, nu, nv, epsilon,
                          nthreads, do_wstacking):
@@ -31,10 +39,10 @@ def _im2residim_internal(uvw, freq, model, vis, weights, freq_bin_idx,
                                  do_wstacking=do_wstacking)
     return residim
 
+
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
-
-
+@requires_optional('ducc0.wgridder', ducc_import_error)
 def im2residim(uvw, freq, model, vis, weights, freq_bin_idx, freq_bin_counts,
                cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     residim = _im2residim_internal(uvw, freq, model, vis, weights,

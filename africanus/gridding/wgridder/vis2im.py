@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
 
+try:
+    from ducc0.wgridder import ms2dirty
+except ImportError as e:
+    ducc_import_error = e
+else:
+    ducc_import_error = None
+
 import numpy as np
 from africanus.util.docs import DocstringTemplate
-from ducc0.wgridder import ms2dirty
+from africanus.util.requirements import requires_optional
 
 
+@requires_optional('ducc0.wgridder', ducc_import_error)
 def _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
                      nx, ny, cellx, celly, nu, nv, epsilon, nthreads,
                      do_wstacking):
@@ -28,6 +36,7 @@ def _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
 # to chunk over row
 
 
+@requires_optional('ducc0.wgridder', ducc_import_error)
 def vis2im(uvw, freq, vis, weights, freq_bin_idx, freq_bin_counts,
            nx, ny, cellx, celly, nu, nv, epsilon, nthreads, do_wstacking):
     dirty = _vis2im_internal(uvw, freq, vis, weights, freq_bin_idx,

@@ -52,17 +52,16 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
 def test_gridder(nx, ny, fov, nrow, nchan, nband,
                  epsilon, wstacking, nthreads):
     # run comparison against dft with a frequency mapping imposed
+    dc = pytest.importorskip("ducc0.wgridder")
     if nband > nchan:
         return
     from africanus.gridding.wgridder import vis2im
     if epsilon >= 5e-6:
         real_type = "f4"
         complex_type = "c8"
-        to_float = np.float32
     else:
         real_type = "f8"
         complex_type = "c16"
-        to_float = np.float64
     np.random.seed(420)
     cellx = fov*np.pi/180/nx
     celly = fov*np.pi/180/ny * 1.1  # to test different cell sizes
@@ -82,14 +81,14 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
         freq_bin_idx = np.array([0], dtype=np.int16)
         freq_bin_counts = np.array([1], dtype=np.int16)
     dirty = vis2im(uvw, freq, vis, wgt, freq_bin_idx, freq_bin_counts,
-                   nx, ny, to_float(cellx), to_float(celly), 2*nx, 2*ny,
+                   nx, ny, cellx, celly, 2*nx, 2*ny,
                    epsilon, nthreads, wstacking)
     nband = freq_bin_idx.size
     ref = np.zeros((nband, nx, ny), dtype=np.float64)
     for i in range(nband):
         ind = slice(freq_bin_idx[i], freq_bin_idx[i] + freq_bin_counts[i])
         ref[i] = explicit_gridder(uvw, freq[ind], vis[:, ind], wgt[:, ind],
-                                  nx, ny, to_float(cellx), to_float(celly),
+                                  nx, ny, cellx, celly,
                                   wstacking)
 
     # l2 error should be within epsilon of zero
@@ -114,6 +113,7 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband,
     #
     # where R.H is the gridder, R is the degridder and x and y are randomly
     # drawn image and visibilities respectively
+    dc = pytest.importorskip("ducc0.wgridder")
     if nband > nchan:
         return
     from africanus.gridding.wgridder import vis2im, im2vis
@@ -170,6 +170,7 @@ def test_im2residim(nx, ny, fov, nrow, nchan, nband,
     # Compare the result of im2residim to
     #   VR = V - Rx   - computed with im2vis
     #   IR = R.H VR   - computed with vis2im
+    dc = pytest.importorskip("ducc0.wgridder")
     from africanus.gridding.wgridder import vis2im, im2vis, im2residim
     np.random.seed(420)
     if epsilon >= 5e-6:
@@ -229,6 +230,7 @@ def test_im2residim(nx, ny, fov, nrow, nchan, nband,
 @pmp("nchunks", (1, 3))
 def test_dask_vis2im(nx, ny, fov, nrow, nchan, nband,
                      epsilon, wstacking, nthreads, nchunks):
+    da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import vis2im as vis2im_np
     from africanus.gridding.wgridder.dask import vis2im
     np.random.seed(420)
@@ -293,6 +295,7 @@ def test_dask_vis2im(nx, ny, fov, nrow, nchan, nband,
 @pmp("nchunks", (1, 3))
 def test_dask_im2vis(nx, ny, fov, nrow, nchan, nband,
                      epsilon, wstacking, nthreads, nchunks):
+    da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import im2vis as im2vis_np
     from africanus.gridding.wgridder.dask import im2vis
     np.random.seed(420)
@@ -360,7 +363,7 @@ def test_dask_im2vis(nx, ny, fov, nrow, nchan, nband,
 @pmp("nchunks", (1, 3))
 def test_dask_im2residim(nx, ny, fov, nrow, nchan, nband,
                          epsilon, wstacking, nthreads, nchunks):
-    # Compare the result of im2residim to chunked dask version
+    da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import im2residim as im2residim_np
     from africanus.gridding.wgridder.dask import im2residim
     np.random.seed(420)

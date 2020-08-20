@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
 
+try:
+    from ducc0.wgridder import dirty2ms
+except ImportError as e:
+    ducc_import_error = e
+else:
+    ducc_import_error = None
+
 import numpy as np
 from africanus.util.docs import DocstringTemplate
-from ducc0.wgridder import dirty2ms
+from africanus.util.requirements import requires_optional
 
 
+@requires_optional('ducc0.wgridder', ducc_import_error)
 def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
            cellx, celly, nu, nv, epsilon, nthreads, do_wstacking,
            complex_type):

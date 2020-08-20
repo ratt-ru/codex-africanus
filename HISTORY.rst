@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Add wrapper for ducc0.wgridder (:pr:204`)
 * Update classifiers and correct license in setup.py to BSD3
 
 0.2.4 (2020-05-29)
