@@ -4,7 +4,8 @@ History
 
 0.2.6 (YYYY-MM-DD)
 ------------------
-* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`)
+* Correct Irregular Grid nesting in BeamAxes (:pr:`217`)
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`)
 
 
 0.2.5 (2020-07-01)
