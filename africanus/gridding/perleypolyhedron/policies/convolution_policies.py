@@ -1,7 +1,9 @@
-from africanus.util.numba import overload
 from numba import literally
 import numpy as np
-from . import stokes_conversion_policies as scp
+
+from africanus.util.numba import overload
+from africanus.gridding.perleypolyhedron.policies import (
+    stokes_conversion_policies as scp)
 
 
 def convolve_1d_axisymmetric_unpacked_scatter(
@@ -270,6 +272,15 @@ def policy_impl(scaled_u, scaled_v, scaled_w, npix, grid, vis, r, c,
                 convolution_kernel, convolution_kernel_width,
                 convolution_kernel_oversampling, stokes_conversion_policy,
                 policy_type):
+    # from numba.extending import SentryLiteralArgs
+    # literal_args = ['stokes_conversion_policy', 'policy_type']
+
+    # SentryLiteralArgs(literal_args).for_function(policy_impl).bind(
+    #             scaled_u, scaled_v, scaled_w, npix, grid, vis, r, c,
+    #             convolution_kernel, convolution_kernel_width,
+    #             convolution_kernel_oversampling, stokes_conversion_policy,
+    #             policy_type)
+
     if policy_type.literal_value == "conv_1d_axisymmetric_packed_scatter":
         return convolve_1d_axisymmetric_packed_scatter
     elif policy_type.literal_value == "conv_nn_scatter":
