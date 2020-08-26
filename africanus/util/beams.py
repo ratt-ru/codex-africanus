@@ -70,10 +70,10 @@ class BeamAxes(FitsAxes):
         super(BeamAxes, self).__init__(header)
         # Check for custom irregular grid format.
         # Currently only implemented for FREQ dimension.
-        irregular_grid = np.asarray([
-            [header.get('G%s%d' % (self._ctype[i], j), None)
-             for j in range(1, self._naxis[i]+1)]
-            for i in range(self._ndims)])
+        irregular_grid = [np.asarray(
+                    [header.get('G%s%d' % (self._ctype[i], j), None)
+                     for j in range(1, self._naxis[i]+1)])
+                for i in range(self._ndims)]
 
         # Irregular grids are only valid if values exist for all grid points
         self._irreg = [all(x is not None for x in irregular_grid[i])
@@ -95,7 +95,7 @@ class BeamAxes(FitsAxes):
 
             # Set up the grid
             self._grid[i] = (_regular_grid(i) if not self._irreg[i]
-                             else np.asarray(irregular_grid[i]))
+                             else irregular_grid[i])
 
     @property
     def ndims(self):
