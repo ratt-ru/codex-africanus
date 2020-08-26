@@ -198,6 +198,32 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
+
+def test_bda_simple():
+    L, M = np.sin(np.deg2rad([3, 1.2]))
+    lm_dist = np.sqrt(L**2 + M**2)
+    uvw = np.asarray([[100.0, 110.0, 0], [140.0, 160.0, 0.0]])
+    time = np.asarray([0.0, 4])
+
+    duvw = np.diff(uvw, axis=0)
+    du = duvw[0, 0]
+    dv = duvw[0, 1]
+    dt = np.diff(time).item()
+
+    du_dt = du / dt
+    dv_dt = dv / dt
+
+    x = du_dt * L + dv_dt * M
+    sinc_x = np.sin(x) / x
+
+    y = np.sqrt(du_dt**2 + dv_dt**2) * lm_dist
+    sinc_y = np.sin(y) / y
+    print(f"x = {x:.3f} sinc(x) = {sinc_x:.3f} "
+          f"y = {y:.3f} sinc_y = {sinc_y:.3f} "
+          f"np.abs(sinc_x - sinc_y) = {np.abs(sinc_x - sinc_y):.3f}")
+
+
+
 @pytest.mark.parametrize("auto_corrs", [False, True])
 def test_bda_binner(time, ants, interval, phase_dir,
                     ref_freq, chan_freq, chan_width,
