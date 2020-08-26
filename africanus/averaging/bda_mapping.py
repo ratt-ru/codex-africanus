@@ -91,7 +91,7 @@ FinaliseOutput = namedtuple("FinaliseOutput",
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 lm_max,
+                 max_lm,
                  ref_freq,
                  decorrelation):
         # Index of the time bin to which all rows in the bin will contribute
@@ -113,13 +113,13 @@ class Binner(object):
 
         # Quantities cached to make Binner.method arguments smaller
         self.ref_freq = ref_freq
-        self.lm_max = lm_max
-        n = -1.0 if lm_max > 1.0 else np.sqrt(1.0 - lm_max**2) - 1.0
+        self.max_lm = max_lm
+        n = -1.0 if max_lm > 1.0 else np.sqrt(1.0 - max_lm**2) - 1.0
         self.n_max = np.abs(n)
         self.decorrelation = decorrelation
 
     def reset(self):
-        self.__init__(0, 0, self.lm_max, self.ref_freq, self.decorrelation)
+        self.__init__(0, 0, self.max_lm, self.ref_freq, self.decorrelation)
 
     def start_bin(self, row, time, interval, flag_row):
         """
@@ -177,7 +177,7 @@ class Binner(object):
         # from Equation (36) in Atemkeng
         # leaving out the factor of two
         # which is divided out when computing the sinc
-        half_𝞓𝞇 = np.pi * np.sqrt(du_dt**2 + dv_dt**2) * self.lm_max
+        half_𝞓𝞇 = np.pi * np.sqrt(du_dt**2 + dv_dt**2) * self.max_lm
         sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it
@@ -225,7 +225,7 @@ class Binner(object):
 
             cuv = np.sqrt(cu**2 + cv**2)
 
-            max_abs_dist = np.sqrt(np.abs(cuv)*np.abs(self.lm_max) +
+            max_abs_dist = np.sqrt(np.abs(cuv)*np.abs(self.max_lm) +
                                    np.abs(cw)*np.abs(self.n_max))
 
             if max_abs_dist == 0.0:
@@ -275,7 +275,7 @@ RowMapOutput = namedtuple("RowMapOutput",
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     chan_width, chan_freq,
                     ref_freq, max_uvw_dist,
-                    flag_row=None, lm_max=1.0,
+                    flag_row=None, max_fov=3.0,
                     decorrelation=0.98, min_nchan=1):
 
     Omitted = numba.types.misc.Omitted
@@ -284,9 +284,9 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                    if isinstance(decorrelation, Omitted)
                    else decorrelation)
 
-    lm_type = (numba.typeof(lm_max.value)
-               if isinstance(lm_max, Omitted)
-               else lm_max)
+    fov_type = (numba.typeof(max_fov.value)
+                if isinstance(max_fov, Omitted)
+                else max_fov)
 
     ref_freq_dtype = ref_freq
 
@@ -299,8 +299,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('rs', numba.uintp),
         ('re', numba.uintp),
         ('bin_sinc_half_Δψ', uvw.dtype),
-        ('lm_max', lm_type),
-        ('n_max', lm_type),
+        ('max_lm', fov_type),
+        ('n_max', fov_type),
         ('ref_freq', ref_freq_dtype),
         ('decorrelation', decorr_type),
         ('max_uvw_dist', max_uvw_dist)]
@@ -310,15 +310,17 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
     def impl(time, interval, ant1, ant2, uvw,
              chan_width, chan_freq,
              ref_freq, max_uvw_dist,
-             flag_row=None, lm_max=1.0,
+             flag_row=None, max_fov=3.0,
              decorrelation=0.98, min_nchan=1):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
             raise ValueError("0.0 <= decorrelation <= 1.0 must hold")
 
-        if lm_max < 0.0 or lm_max > 1.0:
-            raise ValueError("0.0 <= lm_max <= 1.0 must hold")
+        if max_fov <= 0.0 or max_fov > 90.0:
+            raise ValueError("0.0 < max_fov <= 90.0 must hold")
+
+        max_lm = np.sin(np.deg2rad(max_fov))
 
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
@@ -339,7 +341,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if nchan == 0:
             raise ValueError("zero channels")
 
-        binner = JitBinner(0, 0, lm_max, ref_freq, decorrelation)
+        binner = JitBinner(0, 0, max_lm, ref_freq, decorrelation)
 
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)

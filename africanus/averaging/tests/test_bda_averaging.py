@@ -64,7 +64,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                            chan_width, chan_freq,
                            ref_freq, max_uvw_dist,
-                           flag_row=flag_row, lm_max=1.0,
+                           flag_row=flag_row, max_fov=3.0,
                            decorrelation=decorrelation)
 
     print("mapping: %f" % (timing.perf_counter() - start))

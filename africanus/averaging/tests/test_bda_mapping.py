@@ -187,7 +187,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                                chan_width, chan_freq,
                                ref_freq, max_uvw_dist,
                                flag_row=flag_row,
-                               lm_max=1.0,
+                               max_fov=3.0,
                                decorrelation=decorrelation,
                                min_nchan=min_nchan)
 

@@ -354,7 +354,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         effective_bw=None, resolution=None,
         vis=None, flag=None,
         weight_spectrum=None, sigma_spectrum=None,
-        max_uvw_dist=None, lm_max=1.0,
+        max_uvw_dist=None, max_fov=3.0,
         decorrelation=0.98,
         min_nchan=1):
 
@@ -365,7 +365,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
              effective_bw=None, resolution=None,
              vis=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
-             max_uvw_dist=None, lm_max=1.0,
+             max_uvw_dist=None, max_fov=3.0,
              decorrelation=0.98,
              min_nchan=1):
 
@@ -376,7 +376,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
                                chan_width, chan_freq,
                                ref_freq, max_uvw_dist,
                                flag_row=flag_row,
-                               lm_max=lm_max,
+                               max_fov=max_fov,
                                decorrelation=decorrelation,
                                min_nchan=min_nchan)
 
