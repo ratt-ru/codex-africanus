@@ -21,7 +21,9 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.46.0']
+        # version 0.5 causes issues with
+        'numba <= 0.49.0'
+        ]
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
@@ -30,6 +32,7 @@ extras_require = {
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
+    'ducc0': ['ducc0 >= 0.4.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
@@ -51,7 +54,8 @@ test_requirements = (extras_require['testing'] +
                      extras_require['astropy'] +
                      extras_require['python-casacore'] +
                      extras_require['dask'] +
-                     extras_require['scipy'])
+                     extras_require['scipy'] +
+                     extras_require['ducc0'])
 
 
 with open('README.rst') as readme_file:
@@ -90,6 +94,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.2.4',
+    version='0.2.5',
     zip_safe=False,
 )

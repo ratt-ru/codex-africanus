@@ -39,10 +39,10 @@ def format_time(t):
 
 
 def key_bin(key):
-    if type(key) == tuple:
+    if isinstance(key, tuple):
         key = key[0]
 
-    if type(key) == bytes:
+    if isinstance(key, bytes):
         key = key.decode()
 
     try:
