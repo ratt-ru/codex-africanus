@@ -9,11 +9,10 @@ except ImportError as e:
 else:
     scipy_import_error = None
 
-from africanus.util.numba import jit, register_jitable
+from africanus.util.numba import jit
 from africanus.util.requirements import requires_optional
 
 
-@register_jitable
 def uspace(W, oversample):
     """
     Generates a kernel sampling of the form
@@ -129,7 +128,6 @@ def compute_detaper(npix, K, W, oversample=5):
     return np.abs(fk)
 
 
-@jit(nopython=True, nogil=True, fastmath=True, cache=True)
 def compute_detaper_dft(npix, K, W, oversample=5):
     """
     Computes detapering function of a oversampled kernel
@@ -139,22 +137,24 @@ def compute_detaper_dft(npix, K, W, oversample=5):
     """
     pk = np.zeros((npix, npix), dtype=np.complex128)
     ksample = uspace(W, oversample=oversample)
-    rK = K.ravel()
 
-    for p in prange(npix * npix):
-        ll = p % npix
-        mm = p // npix
-        llN = (ll - npix // 2) / float(npix)
-        mmN = (mm - npix // 2) / float(npix)
-        for x in range(K.size):
-            xx = ksample[x % K.shape[1]]
-            yy = ksample[x // K.shape[1]]
-            pk[mm, ll] += rK[x] * np.exp(-2.0j * np.pi *
-                                         (llN * xx + mmN * yy))
-    return np.abs(pk)
+    @jit(nopython=True, nogil=True, fastmath=True, parallel=True)
+    def __absdft(npix, K, W, oversample, pk, ksample):
+        for p in prange(npix * npix):
+            ll = p % npix
+            mm = p // npix
+            llN = (ll - npix // 2) / float(npix)
+            mmN = (mm - npix // 2) / float(npix)
+            for x in range(K.size):
+                xx = ksample[x % K.shape[1]]
+                yy = ksample[x // K.shape[1]]
+                pk[mm, ll] += K.flatten()[x] * np.exp(-2.0j * np.pi *
+                                                      (llN * xx + mmN * yy))
+        return np.abs(pk)
+
+    return __absdft(npix, K, W, oversample, pk, ksample)
 
 
-@jit(nopython=True, nogil=True, fastmath=True, cache=True)
 def compute_detaper_dft_seperable(npix, K, W, oversample=5):
     """
     Computes detapering function of a oversampled seperable kernel
@@ -167,12 +167,15 @@ def compute_detaper_dft_seperable(npix, K, W, oversample=5):
     """
     pkX = np.zeros((npix), dtype=np.complex128)
     ksample = uspace(W, oversample=oversample)
-    rK = K.ravel()
 
-    for ll in range(npix):
-        llN = (ll - npix // 2) / float(npix)
-        for x in range(K.size):
-            xx = ksample[x]
-            pkX[ll] += rK[x] * np.exp(-2.0j * np.pi * (llN * xx))
+    @jit(nopython=True, nogil=True, fastmath=True)
+    def __dft1d(npix, K, W, oversample, pk, ksample):
+        for ll in range(npix):
+            llN = (ll - npix // 2) / float(npix)
+            for x in range(K.size):
+                xx = ksample[x]
+                pk[ll] += K.flatten()[x] * np.exp(-2.0j * np.pi * (llN * xx))
+        return pk
 
-    return np.abs(np.outer(pkX, pkX))
+    fpkX = __dft1d(npix, K, W, oversample, pkX, ksample)
+    return np.abs(np.outer(fpkX, fpkX))
