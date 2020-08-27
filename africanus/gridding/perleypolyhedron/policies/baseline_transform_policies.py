@@ -83,11 +83,11 @@ def policy(uvw, ra0, dec0, ra, dec, policy_type):
     pass
 
 
-
 @overload(policy, inline="always")
 def policy_impl(uvw, ra0, dec0, ra, dec, policy_type):
     from numba.extending import SentryLiteralArgs
-    SentryLiteralArgs(['policy_type']).for_function(policy_impl).bind(uvw, ra0, dec0, ra, dec, policy_type)
+    SentryLiteralArgs(['policy_type']).for_function(policy_impl).bind(
+        uvw, ra0, dec0, ra, dec, policy_type)
     if policy_type.literal_value == "None":
         return uvw_norotate
     elif policy_type.literal_value == "rotate":
