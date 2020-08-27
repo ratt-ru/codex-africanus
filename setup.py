@@ -21,8 +21,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.51.0'
-        ]
+        'numba >= 0.51.0']
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
