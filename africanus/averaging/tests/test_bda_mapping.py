@@ -167,7 +167,7 @@ def ref_freq(chan_freq):
 @pytest.mark.parametrize("decorrelation", [0.95])
 @pytest.mark.parametrize("min_nchan", [1])
 def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
-                             ref_freq, chan_freq, chan_width,
+                             chan_freq, chan_width,
                              auto_corrs, decorrelation, min_nchan):
     time = np.unique(time)
     ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, auto_corrs)
@@ -185,7 +185,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
 
     row_meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
                                chan_width, chan_freq,
-                               ref_freq, max_uvw_dist,
+                               max_uvw_dist,
                                flag_row=flag_row,
                                max_fov=3.0,
                                decorrelation=decorrelation,
@@ -196,7 +196,6 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     assert np.all(remainder == 0)
     decorr_cw = chan_width.sum() / row_meta.num_chan
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
-
 
 
 def test_bda_simple():
@@ -221,7 +220,6 @@ def test_bda_simple():
     print(f"x = {x:.3f} sinc(x) = {sinc_x:.3f} "
           f"y = {y:.3f} sinc_y = {sinc_y:.3f} "
           f"np.abs(sinc_x - sinc_y) = {np.abs(sinc_x - sinc_y):.3f}")
-
 
 
 @pytest.mark.parametrize("auto_corrs", [False, True])

@@ -350,25 +350,28 @@ def time_and_channel(time, interval, antenna1, antenna2,
 
 def _bda_mapper_wrapper(time, interval, ant1, ant2,
                         uvw, chan_width, chan_freq,
-                        ref_freq, max_uvw_dist, flag_row,
+                        max_uvw_dist, flag_row,
                         max_fov=None,
                         decorrelation=None,
+                        time_bin_secs=None,
                         min_nchan=None):
     return np_bda_mapper(time, interval, ant1, ant2,
                          None if uvw is None else uvw[0],
                          chan_width[0], chan_freq[0],
-                         ref_freq=ref_freq, max_uvw_dist=max_uvw_dist,
+                         max_uvw_dist=max_uvw_dist,
                          flag_row=flag_row,
                          max_fov=max_fov,
                          decorrelation=decorrelation,
+                         time_bin_secs=time_bin_secs,
                          min_nchan=min_nchan)
 
 
 def bda_mapper(time, interval, antenna1, antenna2, uvw,
                chan_width, chan_freq,
-               ref_freq, max_uvw_dist,
+               max_uvw_dist,
                flag_row=None, max_fov=None,
                decorrelation=None,
+               time_bin_secs=None,
                min_nchan=None):
     """ Createask row mapping structure for each row chunk """
     return da.blockwise(_bda_mapper_wrapper, ("row",),
@@ -379,11 +382,11 @@ def bda_mapper(time, interval, antenna1, antenna2, uvw,
                         uvw, ("row", "uvw"),
                         chan_width, ("chan",),
                         chan_freq, ("chan",),
-                        ref_freq, None,
                         max_uvw_dist, None if max_uvw_dist is None else (),
                         flag_row, None if flag_row is None else ("row",),
                         max_fov=max_fov,
                         decorrelation=decorrelation,
+                        time_bin_secs=time_bin_secs,
                         min_nchan=min_nchan,
                         adjust_chunks={"row": lambda x: np.nan},
                         meta=np.empty((0, 0), dtype=np.object))
@@ -586,7 +589,7 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
 
 
 @requires_optional("dask.array", dask_import_error)
-def bda(time, interval, antenna1, antenna2, ref_freq,
+def bda(time, interval, antenna1, antenna2,
         time_centroid=None, exposure=None, flag_row=None,
         uvw=None, weight=None, sigma=None,
         chan_freq=None, chan_width=None,
@@ -597,14 +600,12 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         max_uvw_dist=None,
         max_fov=3.0,
         decorrelation=0.98,
+        time_bin_secs=None,
         min_nchan=1,
         format="flat"):
 
     if uvw is None:
         raise ValueError("uvw must be supplied")
-
-    if ref_freq is None:
-        raise ValueError("ref_freq must be supplied")
 
     if chan_width is None:
         raise ValueError("chan_width must be supplied")
@@ -630,10 +631,12 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
 
     # Generate row mapping metadata
     meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
-                      chan_width, chan_freq, ref_freq, max_uvw_dist,
+                      chan_width, chan_freq,
+                      max_uvw_dist,
                       flag_row=flag_row,
                       max_fov=max_fov,
                       decorrelation=decorrelation,
+                      time_bin_secs=time_bin_secs,
                       min_nchan=min_nchan)
 
     # Average row data

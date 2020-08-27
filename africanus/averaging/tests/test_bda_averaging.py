@@ -9,7 +9,6 @@ from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
                             interval,
                             ants,
                             phase_dir,
-                            ref_freq,
                             chan_width,
                             chan_freq)
 
@@ -37,7 +36,7 @@ def flag():
 
 
 def test_bda_avg(time, interval, ants,   # noqa: F811
-                 phase_dir, ref_freq,    # noqa: F811
+                 phase_dir,              # noqa: F811
                  chan_freq, chan_width,  # noqa: F811
                  vis, flag):             # noqa: F811
     time = np.unique(time)
@@ -63,8 +62,9 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     start = timing.perf_counter()
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                            chan_width, chan_freq,
-                           ref_freq, max_uvw_dist,
+                           max_uvw_dist,
                            flag_row=flag_row, max_fov=3.0,
+                           time_bin_secs=4.0,
                            decorrelation=decorrelation)
 
     print("mapping: %f" % (timing.perf_counter() - start))
@@ -96,7 +96,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     print(vis.shape, vis.nbytes / (1024.**2),
           row_chan.vis.shape, row_chan.vis.nbytes / (1024.**2))
 
-    avg = bda(time, interval, ant1, ant2, ref_freq,  # noqa: F841
+    avg = bda(time, interval, ant1, ant2,  # noqa: F841
               time_centroid=time_centroid, exposure=exposure,
               flag_row=flag_row, uvw=uvw,
               chan_freq=chan_freq, chan_width=chan_width,
@@ -107,7 +107,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
 
 def test_dask_bda_avg(time, interval, ants,   # noqa: F811
-                      phase_dir, ref_freq,    # noqa: F811
+                      phase_dir,              # noqa: F811
                       chan_freq, chan_width,  # noqa: F811
                       vis, flag):             # noqa: F811
     da = pytest.importorskip('dask.array')
@@ -149,7 +149,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
     da_vis = da.from_array(vis, chunks=(chunks, nchan, ncorr))
     da_flag = da.from_array(flag, chunks=(chunks, nchan, ncorr))
 
-    avg = dask_bda(da_time, da_interval, da_ant1, da_ant2, ref_freq,
+    avg = dask_bda(da_time, da_interval, da_ant1, da_ant2,
                    time_centroid=da_time_centroid, exposure=da_exposure,
                    flag_row=da_flag_row, uvw=da_uvw,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,

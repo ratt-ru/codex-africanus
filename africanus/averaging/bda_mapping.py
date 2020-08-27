@@ -8,7 +8,7 @@ from numba.experimental import jitclass
 import numba.types
 
 from africanus.constants import c as lightspeed
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import generated_jit, njit, is_numba_type_none
 from africanus.averaging.support import unique_time, unique_baselines
 
 
@@ -91,9 +91,7 @@ FinaliseOutput = namedtuple("FinaliseOutput",
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 max_lm,
-                 ref_freq,
-                 decorrelation):
+                 max_lm, decorrelation, time_bin_secs):
         # Index of the time bin to which all rows in the bin will contribute
         self.tbin = 0
         # Number of rows in the bin
@@ -112,14 +110,16 @@ class Binner(object):
         self.bin_sinc_half_Δψ = 0.0
 
         # Quantities cached to make Binner.method arguments smaller
-        self.ref_freq = ref_freq
         self.max_lm = max_lm
         n = -1.0 if max_lm > 1.0 else np.sqrt(1.0 - max_lm**2) - 1.0
         self.n_max = np.abs(n)
         self.decorrelation = decorrelation
+        self.time_bin_secs = time_bin_secs
 
     def reset(self):
-        self.__init__(0, 0, self.max_lm, self.ref_freq, self.decorrelation)
+        self.__init__(0, 0, self.max_lm,
+                      self.decorrelation,
+                      self.time_bin_secs)
 
     def start_bin(self, row, time, interval, flag_row):
         """
@@ -164,10 +164,12 @@ class Binner(object):
 
             return True
 
+        time_start = time[rs] - interval[rs] / 2.0
+        time_end = time[row] + interval[row] / 2.0
+
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
-        dt = (time[row] + (interval[row] / 2.0) -
-              (time[rs] - interval[rs] / 2.0))
+        dt = time_end - time_start
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
 
@@ -182,7 +184,8 @@ class Binner(object):
 
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
-        if sinc_half_𝞓𝞇 <= self.decorrelation:
+        # or the required number of seconds in the bin
+        if sinc_half_𝞓𝞇 <= self.decorrelation or dt > self.time_bin_secs:
             return False
 
         # Add the row by making it the end of the bin
@@ -252,8 +255,6 @@ class Binner(object):
             s = np.searchsorted(nchan_factors, nchan, side='left')
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
 
-            # print(self.bin_count, half_sinc_𝞓𝞍, max_𝞓𝝼, nchan1, nchan)
-
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
                              self.time_sum / self.bin_count,
@@ -274,9 +275,14 @@ RowMapOutput = namedtuple("RowMapOutput",
 @generated_jit(nopython=True, nogil=True, cache=True)
 def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                     chan_width, chan_freq,
-                    ref_freq, max_uvw_dist,
-                    flag_row=None, max_fov=3.0,
-                    decorrelation=0.98, min_nchan=1):
+                    max_uvw_dist,
+                    flag_row=None,
+                    max_fov=3.0,
+                    decorrelation=0.98,
+                    time_bin_secs=None,
+                    min_nchan=1):
+
+    have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
     Omitted = numba.types.misc.Omitted
 
@@ -288,7 +294,10 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if isinstance(max_fov, Omitted)
                 else max_fov)
 
-    ref_freq_dtype = ref_freq
+    # If time_bin_secs is None,
+    # then we set it to the max of the time dtype
+    # lower down
+    time_bin_secs_type = time_bin_secs if have_time_bin_secs else time.dtype
 
     spec = [
         ('tbin', numba.uintp),
@@ -301,17 +310,20 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('bin_sinc_half_Δψ', uvw.dtype),
         ('max_lm', fov_type),
         ('n_max', fov_type),
-        ('ref_freq', ref_freq_dtype),
         ('decorrelation', decorr_type),
+        ('time_bin_secs', time_bin_secs_type),
         ('max_uvw_dist', max_uvw_dist)]
 
     JitBinner = jitclass(spec)(Binner)
 
     def impl(time, interval, ant1, ant2, uvw,
              chan_width, chan_freq,
-             ref_freq, max_uvw_dist,
-             flag_row=None, max_fov=3.0,
-             decorrelation=0.98, min_nchan=1):
+             max_uvw_dist,
+             flag_row=None,
+             max_fov=3.0,
+             decorrelation=0.98,
+             time_bin_secs=None,
+             min_nchan=1):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
@@ -341,12 +353,10 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if nchan == 0:
             raise ValueError("zero channels")
 
-        binner = JitBinner(0, 0, max_lm, ref_freq, decorrelation)
-
         # Create the row lookup
         row_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
         bin_lookup = np.full((nbl, ntime), -1, dtype=np.int32)
-        bin_chan_width = np.full((nbl, ntime), 0.0, dtype=ref_freq_dtype)
+        bin_chan_width = np.full((nbl, ntime), 0.0, dtype=chan_width.dtype)
         sentinel = np.finfo(time.dtype).max
         time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
         interval_lookup = np.full((nbl, ntime), sentinel, dtype=interval.dtype)
@@ -392,6 +402,16 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2)")
 
             row_lookup[bl, t] = r
+
+        # If we don't have time_bin_secs
+        # set it to the maximum floating point value,
+        # effectively ignoring this limit
+        if not have_time_bin_secs:
+            time_bin_secs = np.finfo(time.dtype).max
+
+        binner = JitBinner(0, 0, max_lm,
+                           decorrelation,
+                           time_bin_secs)
 
         for bl in range(nbl):
             # Reset the binner for this baseline

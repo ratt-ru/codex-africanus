@@ -347,7 +347,7 @@ AverageOutput = namedtuple("AverageOutput",
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def bda(time, interval, antenna1, antenna2, ref_freq,
+def bda(time, interval, antenna1, antenna2,
         time_centroid=None, exposure=None, flag_row=None,
         uvw=None, weight=None, sigma=None,
         chan_freq=None, chan_width=None,
@@ -356,9 +356,10 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
         weight_spectrum=None, sigma_spectrum=None,
         max_uvw_dist=None, max_fov=3.0,
         decorrelation=0.98,
+        time_bin_secs=None,
         min_nchan=1):
 
-    def impl(time, interval, antenna1, antenna2, ref_freq,
+    def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
              chan_freq=None, chan_width=None,
@@ -367,6 +368,7 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
              weight_spectrum=None, sigma_spectrum=None,
              max_uvw_dist=None, max_fov=3.0,
              decorrelation=0.98,
+             time_bin_secs=None,
              min_nchan=1):
 
         # Merge flag_row and flag arrays
@@ -374,10 +376,11 @@ def bda(time, interval, antenna1, antenna2, ref_freq,
 
         meta = atemkeng_mapper(time, interval, antenna1, antenna2, uvw,
                                chan_width, chan_freq,
-                               ref_freq, max_uvw_dist,
+                               max_uvw_dist,
                                flag_row=flag_row,
                                max_fov=max_fov,
                                decorrelation=decorrelation,
+                               time_bin_secs=time_bin_secs,
                                min_nchan=min_nchan)
 
         row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
