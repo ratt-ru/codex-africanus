@@ -60,9 +60,9 @@ IM2RESIDIM_DOCS = DocstringTemplate(
     .. math::
 
 
-        I^R = R^\\dagger \\Sigma^{-1}(V - Rx)
+        I^R = R^\dagger \Sigma^{-1}(V - Rx)
 
-    where :math:`R` is an implicit degridding operator, :math:``V`
+    where :math:`R` is an implicit degridding operator, :math:`V`
     denotes visibilities of shape :code:`(row, chan)` and
     :math:`x` is the image of shape :code:`(band, nx, ny)`.
 
@@ -81,11 +81,11 @@ IM2RESIDIM_DOCS = DocstringTemplate(
     .. math::
 
 
-        I^R = R^\\dagger \\Sigma^{-\\frac{1}{2}}(\\tilde{V}
-              - \\Sigma^{-\\frac{1}{2}}Rx)
+        I^R = R^\dagger \Sigma^{-\frac{1}{2}}(\tilde{V}
+              - \Sigma^{-\frac{1}{2}}Rx)
 
     which is identical to the above expression if
-    :math:`\\tilde{V} = \\Sigma^{-\\frac{1}{2}}V`.
+    :math:`\tilde{V} = \Sigma^{-\frac{1}{2}}V`.
 
     Parameters
     ----------

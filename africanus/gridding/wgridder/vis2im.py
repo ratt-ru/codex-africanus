@@ -55,7 +55,7 @@ VIS2IM_DOCS = DocstringTemplate(
         I^D = R^\dagger \Sigma^{-1} V
 
     where :math:`R^\dagger` is an implicit gridding operator,
-    :math:``V` denotes visibilities of shape :code:`(row, chan)` and
+    :math:`V` denotes visibilities of shape :code:`(row, chan)` and
     :math:`I^D` is the dirty image of shape :code:`(band, nx, ny)`.
 
     The number of imaging bands :code:`(band)` is has to

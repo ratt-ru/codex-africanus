@@ -45,7 +45,7 @@ IM2VIS_DOCS = DocstringTemplate(
 
         V = Rx
 
-    where :math:`R` is an implicit degridding operator, :math:``V`
+    where :math:`R` is an implicit degridding operator, :math:`V`
     denotes visibilities of shape :code:`(row, chan)` and
     :math:`x` is the image of shape :code:`(band, nx, ny)`.
 
@@ -67,7 +67,7 @@ IM2VIS_DOCS = DocstringTemplate(
     .. math::
 
 
-        V = \Sigma^{-\\frac{1}{2}} R x
+        V = \Sigma^{-\frac{1}{2}} R x
 
     where :math:`\Sigma` refers to the inverse of the weights
     (i.e. the data covariance matrix when using natural weighting).
