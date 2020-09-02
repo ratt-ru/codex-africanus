@@ -171,7 +171,6 @@ def row_average(meta, ant1, ant2, flag_row=None,
                     for co in range(sigma.shape[1]):
                         sigma_avg[ro, co] = sigma_avg[bro, co]
 
-
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg,
                                 exposure_avg, uvw_avg,
