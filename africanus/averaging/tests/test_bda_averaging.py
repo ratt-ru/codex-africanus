@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
@@ -90,6 +91,9 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                                 vis=vis, flag=flag,
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
+
+    assert_array_almost_equal(row_avg.time_centroid, meta.time)
+    assert_array_almost_equal(row_avg.exposure, meta.interval)
 
     print("row_chan_average: %f" % (timing.perf_counter() - start))
 

@@ -72,49 +72,57 @@ def row_average(meta, ant1, ant2, flag_row=None,
             np.zeros((out_rows,) + sigma.shape[1:],
                      dtype=sigma.dtype))
 
-        # Iterate over input rows, accumulating into output rows
+        # Average each array, if present
+        # The output is a flattened row-channel array
+        # where the values for each row are repeated along the channel
+        # Individual runs in this output are described by
+        # meta.offset and meta.num_chan
+        # Thus, we only compute the sum in the first position
         for ri in range(meta.map.shape[0]):
-            for fi in range(meta.map.shape[1]):
-                ro = meta.map[ri, fi]
-                # Here we can simply assign because input_row baselines
-                # should always match output row baselines
-                ant1_avg[ro] = ant1[ri]
-                ant2_avg[ro] = ant2[ri]
+            ro = meta.map[ri, 0]
 
-                # Input and output flags must match in order for the
-                # current row to contribute to these columns
-                if have_flag_row and flag_row[ri] != meta.flag_row[ro]:
-                    continue
+            # Here we can simply assign because input_row baselines
+            # should always match output row baselines
+            ant1_avg[ro] = ant1[ri]
+            ant2_avg[ro] = ant2[ri]
 
-                if have_uvw:
-                    uvw_avg[ro, 0] += uvw[ri, 0]
-                    uvw_avg[ro, 1] += uvw[ri, 1]
-                    uvw_avg[ro, 2] += uvw[ri, 2]
+            # Input and output flags must match in order for the
+            # current row to contribute to these columns
+            if have_flag_row and flag_row[ri] != meta.flag_row[ro]:
+                continue
 
-                if have_time_centroid:
-                    time_centroid_avg[ro] += time_centroid[ri]
+            counts[ro] += 1
 
-                if have_exposure:
-                    exposure_avg[ro] += exposure[ri]
+            if have_uvw:
+                uvw_avg[ro, 0] += uvw[ri, 0]
+                uvw_avg[ro, 1] += uvw[ri, 1]
+                uvw_avg[ro, 2] += uvw[ri, 2]
 
-                if have_weight:
-                    for co in range(weight.shape[1]):
-                        weight_avg[ro, co] += weight[ri, co]
+            if have_time_centroid:
+                time_centroid_avg[ro] += time_centroid[ri]
 
-                if have_sigma:
-                    for co in range(sigma.shape[1]):
-                        # Use weights if present else natural weights
-                        wt = weight[ri, co] if have_weight else 1.0
+            if have_exposure:
+                exposure_avg[ro] += exposure[ri]
 
-                        # Assign
-                        sigma_avg[ro, co] += sigma[ri, co]**2 * wt**2
-                        sigma_weight_sum[ro, co] += wt
+            if have_weight:
+                for co in range(weight.shape[1]):
+                    weight_avg[ro, co] += weight[ri, co]
 
-                counts[ro] += 1
+            if have_sigma:
+                for co in range(sigma.shape[1]):
+                    # Use weights if present else natural weights
+                    wt = weight[ri, co] if have_weight else 1.0
 
-        # Normalise
-        for ro in range(out_rows):
-            count = counts[ro]
+                    # Assign
+                    sigma_avg[ro, co] += sigma[ri, co]**2 * wt**2
+                    sigma_weight_sum[ro, co] += wt
+
+        # Compute the average in the output row position
+        # then copy to the other positions for each channel
+        for ri in range(meta.map.shape[0]):
+            # Normalise the first output position for the input row
+            count = counts[meta.map[ri, 0]]
+            bro = ro = meta.map[ri, 0]
 
             if count > 0:
                 # Normalise uvw
@@ -137,6 +145,32 @@ def row_average(meta, ant1, ant2, flag_row=None,
                             ssva /= (wt**2)
 
                         sigma_avg[ro, co] = np.sqrt(ssva)
+
+            # Copy first value into all channel positions
+            for fi in range(1, meta.map.shape[1]):
+                ro = meta.map[ri, fi]
+                ant1_avg[ro] = ant1[bro]
+                ant2_avg[ro] = ant2[bro]
+
+                if have_uvw:
+                    uvw_avg[ro, 0] = uvw_avg[bro, 0]
+                    uvw_avg[ro, 1] = uvw_avg[bro, 1]
+                    uvw_avg[ro, 2] = uvw_avg[bro, 2]
+
+                if have_time_centroid:
+                    time_centroid_avg[ro] = time_centroid_avg[bro]
+
+                if have_exposure:
+                    exposure_avg[ro] = exposure_avg[bro]
+
+                if have_weight:
+                    for co in range(weight.shape[1]):
+                        weight_avg[ro, co] = weight_avg[bro, co]
+
+                if have_sigma:
+                    for co in range(sigma.shape[1]):
+                        sigma_avg[ro, co] = sigma_avg[bro, co]
+
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg,

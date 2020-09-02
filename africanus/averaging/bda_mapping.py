@@ -183,7 +183,7 @@ class Binner(object):
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if sinc_half_𝞓𝞇 <= self.decorrelation or dt > self.time_bin_secs:
+        if (sinc_half_𝞓𝞇 <= self.decorrelation) or (dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
