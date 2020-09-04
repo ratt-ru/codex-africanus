@@ -44,9 +44,9 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell, weights=None,
           flag=None, celly=None, epsilon=None, nthreads=1, do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(image[0,0,0])==np.float64:
+        if type(image[0, 0, 0]) == np.float64:
             epsilon = 1e-7
-        elif type(image[0,0,0])==np.float32:
+        elif type(image[0, 0, 0]) == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("Model of incorrect type")
@@ -62,8 +62,6 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell, weights=None,
                            cell, weights, flag, celly, epsilon, nthreads,
                            do_wstacking)
 
-    
-    
 
 MODEL_DOCS = DocstringTemplate(
     r"""

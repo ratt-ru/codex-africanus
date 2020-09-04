@@ -35,16 +35,16 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
 
     # set precision
     if epsilon is None:
-        if image[0,0].dtype == np.float64:
+        if image[0, 0].dtype == np.float64:
             epsilon = 1e-7
-        elif image[0,0].dtype == np.float32:
+        elif image[0, 0].dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("image of incorrect type")
-    
+
     if celly is None:
         celly = cell
-    
+
     if not nthreads:
         import multiprocessing
         nthreads = multiprocessing.cpu_count()
@@ -58,7 +58,7 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
         flag_out = None
     else:
         flag_out = ('row', 'chan')
-    
+
     vis = da.blockwise(_model_wrapper, ('row', 'chan'),
                        uvw, ('row', 'three'),
                        freq, ('chan',),
@@ -79,12 +79,12 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
 
 
 def _dirty_wrapper(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
-                    cell, weights, flag, celly, epsilon, nthreads,
-                    do_wstacking):
+                   cell, weights, flag, celly, epsilon, nthreads,
+                   do_wstacking):
 
     return dirty_np(uvw[0], freq, vis, freq_bin_idx, freq_bin_counts,
-                     nx, ny, cell, weights, flag, celly, epsilon,
-                     nthreads, do_wstacking)
+                    nx, ny, cell, weights, flag, celly, epsilon,
+                    nthreads, do_wstacking)
 
 
 @requires_optional('dask.array', dask_import_error)
@@ -94,16 +94,16 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
     # set precision
     if epsilon is None:
-        if vis[0,0].dtype == np.complex128:
+        if vis[0, 0].dtype == np.complex128:
             epsilon = 1e-7
-        elif vis[0,0].dtype == np.complex64:
+        elif vis[0, 0].dtype == np.complex64:
             epsilon = 1e-5
         else:
             raise ValueError("vis of incorrect type")
-    
+
     if celly is None:
         celly = cell
-    
+
     if not nthreads:
         import multiprocessing
         nthreads = multiprocessing.cpu_count()
@@ -158,16 +158,16 @@ def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
 
     # set precision
     if epsilon is None:
-        if image[0,0,0].dtype == np.float64:
+        if image[0, 0, 0].dtype == np.float64:
             epsilon = 1e-7
-        elif image[0,0,0].dtype == np.float32:
+        elif image[0, 0, 0].dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("image of incorrect type")
-    
+
     if celly is None:
         celly = cell
-    
+
     if not nthreads:
         import multiprocessing
         nthreads = multiprocessing.cpu_count()

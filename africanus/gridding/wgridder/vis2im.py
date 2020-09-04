@@ -20,9 +20,9 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
     nband = freq_bin_idx.size
-    if type(vis[0,0]) == np.complex64:
+    if type(vis[0, 0]) == np.complex64:
         real_type = np.float32
-    elif type(vis[0,0]) == np.complex128:
+    elif type(vis[0, 0]) == np.complex128:
         real_type = np.float64
     else:
         raise ValueError("Vis of incorrect type")
@@ -55,20 +55,20 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
           do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(vis[0,0]) == np.complex128:
+        if type(vis[0, 0]) == np.complex128:
             epsilon = 1e-7
-        elif type(vis[0,0]) == np.complex64:
+        elif type(vis[0, 0]) == np.complex64:
             epsilon = 1e-5
         else:
             raise ValueError("vis of incorrect type")
-    
+
     if celly is None:
         celly = cell
-    
+
     if not nthreads:
         import multiprocessing
         nthreads = multiprocessing.cpu_count()
-    
+
     dirty = _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
                             nx, ny, cell, weights, flag, celly,
                             epsilon, nthreads, do_wstacking)

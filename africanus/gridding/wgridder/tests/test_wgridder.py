@@ -138,7 +138,7 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband,
         freq_bin_counts = np.array([1], dtype=np.int8)
     nband = freq_bin_idx.size
     image = dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
-                 weights=wgt, nthreads=nthreads)
+                  weights=wgt, nthreads=nthreads)
     model_im = np.random.randn(nband, nx, ny).astype(real_type)
     modelvis = model(uvw, freq, model_im, freq_bin_idx, freq_bin_counts,
                      cell, weights=wgt, nthreads=nthreads)
@@ -157,7 +157,7 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband,
 @pmp("precision", ('single', 'double'))
 @pmp("nthreads", (3,))
 def test_residual(nx, ny, fov, nrow, nchan, nband,
-                    precision, nthreads):
+                  precision, nthreads):
     # Compare the result of im2residim to
     #   VR = V - Rx   - computed with im2vis
     #   IR = R.H VR   - computed with vis2im
@@ -195,8 +195,9 @@ def test_residual(nx, ny, fov, nrow, nchan, nband,
     residim1 = dirty(uvw, freq, residualvis, freq_bin_idx, freq_bin_counts,
                      nx, ny, cell, weights=wgt, nthreads=nthreads)
 
-    residim2 = residual(uvw, freq, model_im, vis, freq_bin_idx, freq_bin_counts,
-                        cell, weights=wgt, nthreads=nthreads)
+    residim2 = residual(uvw, freq, model_im, vis, freq_bin_idx,
+                        freq_bin_counts, cell, weights=wgt,
+                        nthreads=nthreads)
 
     # These are essentially computing the same thing just in a different
     # order so should be close to machine precision
@@ -259,9 +260,9 @@ def test_dask_dirty(nx, ny, fov, nrow, nchan, nband,
     freq_bin_idx_da = da.from_array(freq_bin_idx, chunks=1)
     freq_bin_counts_da = da.from_array(freq_bin_counts, chunks=1)
 
-    image_da =dirty(uvw_da, freq_da, vis_da, freq_bin_idx_da,
-                    freq_bin_counts_da, nx, ny, cell, weights=wgt_da,
-                    nthreads=nthreads).compute()
+    image_da = dirty(uvw_da, freq_da, vis_da, freq_bin_idx_da,
+                     freq_bin_counts_da, nx, ny, cell, weights=wgt_da,
+                     nthreads=nthreads).compute()
 
     # relative error should agree to within epsilon
     dmax = np.maximum(np.abs(image).max(), np.abs(image_da).max())

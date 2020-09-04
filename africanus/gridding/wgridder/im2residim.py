@@ -52,14 +52,14 @@ def _residual_internal(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts,
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
 @requires_optional('ducc0.wgridder', ducc_import_error)
-def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell, 
+def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
              weights=None, flag=None, celly=None, epsilon=None, nthreads=1,
              do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(image[0,0,0])==np.float64:
+        if type(image[0, 0, 0]) == np.float64:
             epsilon = 1e-7
-        elif type(image[0,0,0])==np.float32:
+        elif type(image[0, 0, 0]) == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("Model of incorrect type")
