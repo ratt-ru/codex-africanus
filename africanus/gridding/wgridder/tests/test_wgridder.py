@@ -56,7 +56,7 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = "f4"
         complex_type = "c8"
-        epsilon = 1e-5
+        epsilon = 1e-4
     else:
         real_type = "f8"
         complex_type = "c16"
@@ -114,7 +114,7 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = np.float32
         complex_type = np.complex64
-        tol = 1e-5
+        tol = 1e-4
     else:
         real_type = np.float64
         complex_type = np.complex128
@@ -166,7 +166,7 @@ def test_residual(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = np.float32
         complex_type = np.complex64
-        decimal = 5
+        decimal = 4
     else:
         real_type = np.float64
         complex_type = np.complex128
@@ -346,8 +346,8 @@ def test_dask_model(nx, ny, fov, nrow, nchan, nband,
 @pmp("precision", ('single', 'double'))
 @pmp("nthreads", (1, 4))
 @pmp("nchunks", (1, 3))
-def test_dask_im2residim(nx, ny, fov, nrow, nchan, nband,
-                         precision, nthreads, nchunks):
+def test_dask_residual(nx, ny, fov, nrow, nchan, nband,
+                       precision, nthreads, nchunks):
     da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import residual as residual_np
     from africanus.gridding.wgridder.dask import residual
