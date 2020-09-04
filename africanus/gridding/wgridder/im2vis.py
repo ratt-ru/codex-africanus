@@ -13,30 +13,59 @@ from africanus.util.requirements import requires_optional
 
 
 @requires_optional('ducc0.wgridder', ducc_import_error)
-def im2vis(uvw, freq, model, weights, freq_bin_idx, freq_bin_counts,
-           cellx, celly, nu, nv, epsilon, nthreads, do_wstacking,
-           complex_type):
+def _model_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
+                    weights, flag, celly, epsilon, nthreads, do_wstacking):
     # adjust for chunking
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
-    nband = freq_bin_idx.size
+    nband, nx, ny = image.shape
     nrow = uvw.shape[0]
     nchan = freq.size
-    vis = np.zeros((nrow, nchan), dtype=complex_type)
+    vis = np.zeros((nrow, nchan), dtype=np.result_type(image, np.complex64))
     for i in range(nband):
         ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
         if weights is not None:
             wgt = weights[:, ind]
         else:
             wgt = None
-        vis[:, ind] = dirty2ms(uvw=uvw, freq=freq[ind], dirty=model[i],
-                               wgt=wgt, pixsize_x=cellx, pixsize_y=celly,
-                               nu=nu, nv=nv, epsilon=epsilon,
+        if flag is not None:
+            mask = flag[:, ind]
+        else:
+            mask = None
+        vis[:, ind] = dirty2ms(uvw=uvw, freq=freq[ind], dirty=image[i],
+                               wgt=wgt, pixsize_x=cell, pixsize_y=celly,
+                               nu=0, nv=0, epsilon=epsilon, mask=mask,
                                nthreads=nthreads, do_wstacking=do_wstacking)
     return vis
 
 
-IM2VIS_DOCS = DocstringTemplate(
+@requires_optional('ducc0.wgridder', ducc_import_error)
+def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell, weights=None,
+          flag=None, celly=None, epsilon=None, nthreads=1, do_wstacking=True):
+    # set precision
+    if epsilon is None:
+        if type(image[0,0,0])==np.float64:
+            epsilon = 1e-7
+        elif type(image[0,0,0])==np.float32:
+            epsilon = 1e-5
+        else:
+            raise ValueError("Model of incorrect type")
+
+    if celly is None:
+        celly = cell
+
+    if not nthreads:
+        import multiprocessing
+        nthreads = multiprocessing.cpu_count()
+
+    return _model_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts,
+                           cell, weights, flag, celly, epsilon, nthreads,
+                           do_wstacking)
+
+    
+    
+
+MODEL_DOCS = DocstringTemplate(
     r"""
     Compute image to visibility mapping using ducc degridder i.e.
 
@@ -81,30 +110,30 @@ IM2VIS_DOCS = DocstringTemplate(
         Observational frequencies of shape :code:`(chan,)`.
     model : $(array_type)
         Model image to degrid of shape :code:`(nband, nx, ny)`.
-    weights : $(array_type)
-        Imaging weights of shape :code:`(row, chan)`.
     freq_bin_idx : $(array_type)
         Starting indices of frequency bins for each imaging
         band of shape :code:`(band,)`.
     freq_bin_counts : $(array_type)
         The number of channels in each imaging band of shape :code:`(band,)`.
-    cellx : float
+    cell : float
         The cell size of a pixel along the :math:`x` direction in radians.
-    celly : float
+    weights : $(array_type), optional
+        Imaging weights of shape :code:`(row, chan)`.
+    flag: $(array_type), optional
+        Flags of shape :code:`(row,chan)`. Will only process visibilities
+        for which flag!=0
+    celly : float, optional
         The cell size of a pixel along the :math:`y` direction in radians.
-    nu : int
-        The number of pixels in the padded grid along the :math:`x` direction.
-    nv : int
-        The number of pixels in the padded grid along the :math:`y` direction.
-    epsilon : float
-        The precision of the degridding operator with respect to the
-        direct Fourier transform.
-    nthreads : int
-        The number of threads to use.
-    do_wstacking : bool
-        Whether to correct for the w-term or not.
-    complex_type : np.dtype
-        The data type of output visibilities.
+        By default same as cell size along :math:`x` direction.
+    epsilon : float, optional
+        The precision of the gridder with respect to the direct Fourier
+        transform. By deafult, this is set to :code:`1e-5` for single
+        precision and :code:`1e-7` for double precision.
+    nthreads : int, optional
+        The number of threads to use. Defaults to one.
+        If set to zero will use all available cores.
+    do_wstacking : bool, optional
+        Whether to correct for the w-term or not. Defaults to True
 
     Returns
     -------
@@ -114,7 +143,7 @@ IM2VIS_DOCS = DocstringTemplate(
     """)
 
 try:
-    im2vis.__doc__ = IM2VIS_DOCS.substitute(
+    model.__doc__ = MODEL_DOCS.substitute(
                         array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass
