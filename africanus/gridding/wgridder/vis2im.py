@@ -88,7 +88,7 @@ DIRTY_DOCS = DocstringTemplate(
     :math:`V` denotes visibilities of shape :code:`(row, chan)` and
     :math:`I^D` is the dirty image of shape :code:`(band, nx, ny)`.
 
-    The number of imaging bands :code:`(band)` is has to
+    The number of imaging bands :code:`(band)` must
     be less than or equal to the number of channels
     :code:`(chan)` at which the data were obtained.
     The mapping from :code:`(chan)` to :code:`(band)` is described
