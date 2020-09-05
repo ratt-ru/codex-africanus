@@ -76,7 +76,7 @@ MODEL_DOCS = DocstringTemplate(
     denotes visibilities of shape :code:`(row, chan)` and
     :math:`x` is the image of shape :code:`(band, nx, ny)`.
 
-    The number of imaging bands :code:`(band)` is has to
+    The number of imaging bands :code:`(band)` has to
     be less than or equal to the number of channels
     :code:`(chan)` at which the data were obtained.
     The mapping from :code:`(chan)` to :code:`(band)` is described
