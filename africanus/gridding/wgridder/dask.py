@@ -35,9 +35,9 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
 
     # set precision
     if epsilon is None:
-        if image[0, 0].dtype == np.float64:
+        if image.dtype == np.float64:
             epsilon = 1e-7
-        elif image[0, 0].dtype == np.float32:
+        elif image.dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("image of incorrect type")
@@ -94,9 +94,9 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
     # set precision
     if epsilon is None:
-        if vis[0, 0].dtype == np.complex128:
+        if vis.dtype == np.complex128:
             epsilon = 1e-7
-        elif vis[0, 0].dtype == np.complex64:
+        elif vis.dtype == np.complex64:
             epsilon = 1e-5
         else:
             raise ValueError("vis of incorrect type")
@@ -158,9 +158,9 @@ def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
 
     # set precision
     if epsilon is None:
-        if image[0, 0, 0].dtype == np.float64:
+        if image.dtype == np.float64:
             epsilon = 1e-7
-        elif image[0, 0, 0].dtype == np.float32:
+        elif image.dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("image of incorrect type")

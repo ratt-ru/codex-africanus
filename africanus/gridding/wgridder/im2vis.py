@@ -44,9 +44,9 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell, weights=None,
           flag=None, celly=None, epsilon=None, nthreads=1, do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(image[0, 0, 0]) == np.float64:
+        if image.dtype == np.float64:
             epsilon = 1e-7
-        elif type(image[0, 0, 0]) == np.float32:
+        elif image.dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("Model of incorrect type")
@@ -83,9 +83,8 @@ MODEL_DOCS = DocstringTemplate(
     by :code:`freq_bin_idx` and :code:`freq_bin_counts` as
     described below.
 
-    There is an option to provide weights during degridding.
-    This option is made available to allow for the possibility
-    of having self adjoint gridding and degridding operators.
+    There is an option to provide weights during degridding
+    to cater for self adjoint gridding and degridding operators.
     In this case :code:`weights` should actually be the square
     root of what is typically referred to as imaging weights.
     In this case the degridder computes the whitened model

@@ -55,9 +55,9 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
           do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(vis[0, 0]) == np.complex128:
+        if vis.dtype == np.complex128:
             epsilon = 1e-7
-        elif type(vis[0, 0]) == np.complex64:
+        elif vis.dtype == np.complex64:
             epsilon = 1e-5
         else:
             raise ValueError("vis of incorrect type")

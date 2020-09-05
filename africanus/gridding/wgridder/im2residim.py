@@ -57,9 +57,9 @@ def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
              do_wstacking=True):
     # set precision
     if epsilon is None:
-        if type(image[0, 0, 0]) == np.float64:
+        if image.dtype == np.float64:
             epsilon = 1e-7
-        elif type(image[0, 0, 0]) == np.float32:
+        elif image.dtype == np.float32:
             epsilon = 1e-5
         else:
             raise ValueError("Model of incorrect type")
