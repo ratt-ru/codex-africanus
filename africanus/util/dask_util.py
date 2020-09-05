@@ -39,7 +39,7 @@ def format_time(t):
 
 
 def key_bin(key):
-    if isinstance(key, tuple):
+    if type(key) is tuple:
         key = key[0]
 
     if isinstance(key, bytes):
