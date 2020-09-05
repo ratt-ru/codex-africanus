@@ -98,7 +98,7 @@ DIRTY_DOCS = DocstringTemplate(
     Note that, if self adjoint gridding and degridding operators
     are required then :code:`weights` should be the square
     root of what is typically referred to as imaging weights and
-    the same weights need to be passed into the degridder.
+    should also be passed into the degridder.
     In this case, the data that are passed in need be pre-whitened.
 
     Parameters
