@@ -95,7 +95,7 @@ DIRTY_DOCS = DocstringTemplate(
     by :code:`freq_bin_idx` and :code:`freq_bin_counts` as
     described below.
 
-    Note that, if self adjoint gridding and degridding opeartors
+    Note that, if self adjoint gridding and degridding operators
     are required then :code:`weights` should actually be the square
     root of what is typically referred to as imaging weights and
     the same weights need to be passed into the degridder.
