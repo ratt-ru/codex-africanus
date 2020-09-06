@@ -30,6 +30,7 @@ extras_require = {
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
+    'ducc0': ['ducc0 >= 0.4.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
@@ -51,7 +52,8 @@ test_requirements = (extras_require['testing'] +
                      extras_require['astropy'] +
                      extras_require['python-casacore'] +
                      extras_require['dask'] +
-                     extras_require['scipy'])
+                     extras_require['scipy'] +
+                     extras_require['ducc0'])
 
 
 with open('README.rst') as readme_file:

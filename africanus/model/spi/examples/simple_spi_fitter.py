@@ -24,7 +24,7 @@ try:
     def ifft(y, ax, ncpu, lastsize):
         return c2r(y, axes=ax, forward=False, lastsize=lastsize,
                    nthreads=args.ncpu, inorm=2)
-except:
+except BaseException:
     warnings.warn("No pypocketfft installation found. "
                   "FFT's will be performed in serial. "
                   "Install pypocketfft from "
@@ -91,7 +91,7 @@ def convolve_model(model, gausskern, args):
         padding = ((0, 0), (npad_ll, npad_lr), (npad_ml, npad_mr))
         unpad_l = slice(npad_ll, -npad_lr)
         unpad_m = slice(npad_ml, -npad_mr)
-    except:
+    except BaseException:
         warnings.warn("Could not determine fast fft size. "
                       "Install scipy for optimal performance.",
                       ImportWarning)
