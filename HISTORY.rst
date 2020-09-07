@@ -2,7 +2,7 @@
 History
 =======
 
-0.2.6 (YYYY-MM-DD)
+0.2.6 (2020-08-07)
 ------------------
 * Add wrapper for ducc0.wgridder (:pr:204`)
 * Correct Irregular Grid nesting in BeamAxes (:pr:`217`)
