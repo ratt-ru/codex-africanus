@@ -73,13 +73,13 @@ Numpy
 .. currentmodule:: africanus.gridding.wgridder
 
 .. autosummary::
-    vis2im
-    im2vis
-    im2residim
+    dirty
+    model
+    residual
     
-.. autofunction:: vis2im
-.. autofunction:: im2vis
-.. autofunction:: im2residim
+.. autofunction:: dirty
+.. autofunction:: model
+.. autofunction:: residual
 
 Dask
 ++++
@@ -87,13 +87,13 @@ Dask
 .. currentmodule:: africanus.gridding.wgridder.dask
 
 .. autosummary::
-    vis2im
-    im2vis
-    im2residim
+    dirty
+    model
+    residual
     
-.. autofunction:: vis2im
-.. autofunction:: im2vis
-.. autofunction:: im2residim
+.. autofunction:: dirty
+.. autofunction:: model
+.. autofunction:: residual
 
 Utilities
 ~~~~~~~~~

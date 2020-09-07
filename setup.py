@@ -21,9 +21,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        # version 0.5 causes issues with
-        'numba <= 0.49.0'
-        ]
+        'numba >= 0.46.0']
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
@@ -94,6 +92,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.2.5',
+    version='0.2.6',
     zip_safe=False,
 )

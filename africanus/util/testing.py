@@ -25,7 +25,7 @@ def in_pytest():
 
 def mark_in_pytest(in_pytest=True):
     """ Mark if we're in a pytest run """
-    if not isinstance(in_pytest, bool):
+    if type(in_pytest) is not bool:
         raise TypeError('in_pytest %s is not a boolean' % in_pytest)
 
     with __run_marker_lock:
