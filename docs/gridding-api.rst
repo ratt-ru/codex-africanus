@@ -61,7 +61,39 @@ Dask
 .. autofunction:: degrid
 .. autofunction:: model
 
+wgridder
+~~~~~~~~
 
+Wrappers around 'ducc.wgridder <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_.
+
+
+Numpy
++++++
+
+.. currentmodule:: africanus.gridding.wgridder
+
+.. autosummary::
+    dirty
+    model
+    residual
+    
+.. autofunction:: dirty
+.. autofunction:: model
+.. autofunction:: residual
+
+Dask
+++++
+
+.. currentmodule:: africanus.gridding.wgridder.dask
+
+.. autosummary::
+    dirty
+    model
+    residual
+    
+.. autofunction:: dirty
+.. autofunction:: model
+.. autofunction:: residual
 
 Utilities
 ~~~~~~~~~
