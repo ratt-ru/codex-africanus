@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
 
 from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
@@ -58,6 +58,13 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     decorrelation = 0.999
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
+    vis = vis(time.shape[0], nchan, ncorr)
+    flag = flag(time.shape[0], nchan, ncorr)
+    flag_row = np.all(flag, axis=(1, 2))
+    weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
+    sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
+
+
     import time as timing
 
     start = timing.perf_counter()
@@ -70,6 +77,31 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
     print("mapping: %f" % (timing.perf_counter() - start))
 
+    from africanus.averaging.bda_avg import rca
+    flag_row = None
+    start = timing.perf_counter()
+    rca_avg = rca(meta, flag_row=flag_row,
+                  visibilities=vis, flag=flag,
+                  weight_spectrum=weight_spectrum,
+                  sigma_spectrum=sigma_spectrum)
+    print("rca: %f" % (timing.perf_counter() - start))
+
+    rca_avg2 = rca(meta, flag_row=flag_row,
+                   visibilities=(vis, vis), flag=flag,
+                   weight_spectrum=weight_spectrum,
+                   sigma_spectrum=sigma_spectrum)
+
+    assert_array_almost_equal(rca_avg.vis, rca_avg2.vis[0])
+    assert_array_almost_equal(rca_avg.vis, rca_avg2.vis[1])
+
+    vis2 = vis.astype(np.complex64)
+    row_avg = rca(meta, flag_row=flag_row, visibilities=(vis, vis2),
+                  flag=None, weight_spectrum=weight_spectrum,
+                  sigma_spectrum=sigma_spectrum)
+    assert row_avg.vis[0].dtype == vis.dtype
+    assert row_avg.vis[1].dtype == vis2.dtype
+
+
     time_centroid = time
     exposure = interval
 
@@ -80,10 +112,11 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
     print("row_average: %f" % (timing.perf_counter() - start))
 
-    vis = vis(time.shape[0], nchan, ncorr)
-    flag = flag(time.shape[0], nchan, ncorr)
-    weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
-    sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
+
+    # vis = vis(time.shape[0], nchan, ncorr)
+    # flag = flag(time.shape[0], nchan, ncorr)
+    # weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
+    # sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
 
     start = timing.perf_counter()
     row_chan = row_chan_average(meta,  # noqa: F841
@@ -91,6 +124,13 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                                 vis=vis, flag=flag,
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
+
+    assert_array_almost_equal(row_chan.vis, rca_avg.vis)
+    assert_array_almost_equal(row_chan.vis, rca_avg2.vis[0])
+    assert_array_almost_equal(row_chan.vis, rca_avg2.vis[1])
+    assert_array_almost_equal(row_chan.flag, rca_avg.flag)
+    assert_array_almost_equal(row_chan.weight_spectrum, rca_avg.weight_spectrum)
+    assert_array_almost_equal(row_chan.sigma_spectrum, rca_avg.sigma_spectrum)
 
     assert_array_almost_equal(row_avg.time_centroid, meta.time)
     assert_array_almost_equal(row_avg.exposure, meta.interval)
@@ -163,8 +203,92 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
 
     avg = {f: getattr(avg, f) for f in ("time", "interval", "vis")}
 
+    avg2 = dask_bda(da_time, da_interval, da_ant1, da_ant2,
+                    time_centroid=da_time_centroid, exposure=da_exposure,
+                    flag_row=da_flag_row, uvw=da_uvw,
+                    chan_freq=da_chan_freq, chan_width=da_chan_width,
+                    vis=(da_vis, da_vis), flag=da_flag,
+                    decorrelation=decorrelation,
+                    format="ragged")
+
+    avg2 = {f: getattr(avg2, f) for f in ("time", "interval", "vis")}
+
     import dask
     result = dask.persist(avg, scheduler='single-threaded')[0]
+    result2 = dask.persist(avg2, scheduler='single-threaded')[0]
 
-    from pprint import pprint
-    pprint({k: v.shape for k, v in result.items() if v is not None})
+    # Flatten both all three visibility graphs
+    dsk1 = dict(result['vis'].__dask_graph__())
+    dsk2 = dict(result2['vis'][0].__dask_graph__())
+    dsk3 = dict(result2['vis'][1].__dask_graph__())
+    dsk2_name = result2['vis'][0].name
+    dsk3_name = result2['vis'][1].name
+
+    # For each task, compare the row dictionaries
+    for k, v in dsk1.items():
+        v2 = dsk2[(dsk2_name,) + k[1:]]
+        v3 = dsk3[(dsk3_name,) + k[1:]]
+
+        assert isinstance(v, dict)
+        assert isinstance(v2, dict)
+        assert isinstance(v3, dict)
+
+        # Each row in first, second and third graph match
+        for rk, rv in v.items():
+            assert_array_almost_equal(rv, v2[rk])
+            assert_array_almost_equal(rv, v3[rk])
+
+
+@pytest.fixture
+def check_leaks():
+    import gc
+    from numba.core.runtime import rtsys
+
+    try:
+        yield None
+    finally:
+        gc.collect()
+
+    stats = rtsys.get_allocation_stats()
+    assert stats.alloc == stats.free
+    assert stats.mi_alloc == stats.mi_free
+
+@pytest.mark.parametrize("dtype", [np.complex64])
+def test_bda_output_arrays(dtype, check_leaks):
+    from africanus.averaging.bda_avg import vis_output_arrays
+    from numba import njit, literal_unroll
+
+    @njit
+    def fn(a, o):
+        return vis_output_arrays(a, o)
+
+    vis = np.random.random((10, 4, 2)).astype(dtype)
+    vis2 = vis.astype(np.complex128)
+
+    res = fn((vis, vis2), (5, 5))
+    avg_vis = res[0]
+    avg_weights = res[1]
+
+    assert avg_vis[0].dtype == vis.dtype
+    assert avg_vis[0].shape == (5, 5)
+    assert avg_vis[1].dtype == vis2.dtype
+    assert avg_vis[1].shape == (5, 5)
+    assert np.all(avg_vis[0] == 0)
+    assert np.all(avg_vis[1] == 0)
+    assert avg_weights[0].dtype == vis.real.dtype
+    assert avg_weights[0].shape == (5, 5)
+    assert avg_weights[1].dtype == vis2.real.dtype
+    assert avg_weights[1].shape == (5, 5)
+    assert np.all(avg_weights[0] == 0)
+    assert np.all(avg_weights[1] == 0)
+
+    res = fn((vis), (5, 5))
+    avg_vis = res[0]
+    avg_weights = res[1]
+
+    assert avg_vis.dtype == vis.dtype
+    assert avg_vis.shape == (5, 5)
+    assert avg_weights.dtype == vis.real.dtype
+    assert avg_weights.shape == (5, 5)
+    assert np.all(avg_vis == 0)
+    assert np.all(avg_weights == 0)

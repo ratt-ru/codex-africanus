@@ -21,9 +21,13 @@ _SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
 
 @njit(nogil=True, cache=True, inline='always')
 def inv_sinc(sinc_x, tol=1e-12):
+    # Invalid input
+    if sinc_x > 1.0:
+        raise ValueError("sinc_x > 1.0")
+
     # Initial guess from reversion of Taylor series
     # https://math.stackexchange.com/questions/3189307/inverse-of-frac-sinxx
-    x = t_pow = np.sqrt(6*(1 - sinc_x))
+    x = t_pow = np.sqrt(6*np.abs((1 - sinc_x)))
     t_squared = t_pow*t_pow
 
     for coeff in numba.literal_unroll(_SERIES_COEFFS):
@@ -45,6 +49,7 @@ def inv_sinc(sinc_x, tol=1e-12):
         x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
 
     return x
+
 
 
 @njit(nogil=True, cache=True, inline='always')

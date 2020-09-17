@@ -198,28 +198,84 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
-def test_bda_simple():
-    L, M = np.sin(np.deg2rad([3, 1.2]))
-    lm_dist = np.sqrt(L**2 + M**2)
-    uvw = np.asarray([[100.0, 110.0, 0], [140.0, 160.0, 0.0]])
-    time = np.asarray([0.0, 4])
+@pytest.mark.parametrize("radec", [np.deg2rad([87, 90]), (.1, .2)], ids=lambda s: str(s))
+@pytest.mark.parametrize("decorrelation", [0.99, 0.95, 0.80])
+def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
+    from africanus.averaging.bda_mapping import inv_sinc
+    from africanus.constants import c as lightspeed
+    from africanus.coordinates import radec_to_lm
 
-    duvw = np.diff(uvw, axis=0)
+    auto_corrs = False
+    _, _, uvw = synthesize_uvw(ants, time, phase_dir, auto_corrs)
+
+    L, M = np.sin(radec_to_lm(np.array([radec])))[0]
+    lm_dist = np.sqrt(L**2 + M**2)
+    duvw = np.abs(np.diff(uvw, axis=0))
+
     du = duvw[0, 0]
     dv = duvw[0, 1]
-    dt = np.diff(time).item()
+    dt = np.unique(np.diff(time))[-1]
 
     du_dt = du / dt
     dv_dt = dv / dt
+    duv_dt = np.sqrt(du**2 + dv**2) / dt
 
-    x = du_dt * L + dv_dt * M
-    sinc_x = np.sin(x) / x
+    def sinc(x):
+        return 1.0 if x == 0.0 else np.sin(x) / x
 
-    y = np.sqrt(du_dt**2 + dv_dt**2) * lm_dist
-    sinc_y = np.sin(y) / y
-    print(f"x = {x:.3f} sinc(x) = {sinc_x:.3f} "
-          f"y = {y:.3f} sinc_y = {sinc_y:.3f} "
-          f"np.abs(sinc_x - sinc_y) = {np.abs(sinc_x - sinc_y):.3f}")
+    psi = 2.0*np.pi*(du_dt*L + dv_dt*M)
+    psi = 2.0*np.pi*duv_dt*lm_dist
+
+    print(f"psi1={2.0*np.pi*(du_dt*L + dv_dt*M)} psi2={2.0*np.pi*duv_dt*lm_dist}")
+
+    sinc_half_psi = np.abs(sinc(psi / 2.0))
+
+    cuvw = np.mean(uvw, axis=0)
+    cu = cuvw[0]
+    cv = cuvw[1]
+
+    # Corresponds to no averaging case sinc_psi < decorrelation
+    if sinc_half_psi <= decorrelation:
+        sinc_half_phi = decorrelation
+    else:
+        sinc_half_phi = decorrelation / sinc_half_psi
+
+    sinc_phi = 2.0*sinc_half_phi
+
+    print(f"sinc_half_psi = {sinc_half_psi:.3f} sinc_half_phi = {sinc_half_phi:.3f}")
+
+    dist = np.sqrt(np.abs(cu)*np.abs(L) + np.abs(cv)*np.abs(M))
+    half_phi = inv_sinc.py_func(sinc_phi / 2.0)
+    phi = 2.0 * half_phi
+    max_dfreq = (phi / (2.0 * np.pi)) * (lightspeed / dist)
+
+    print(f"psi = {psi:.3f} phi = {phi:.3f} max_dfreq = {max_dfreq / (1000.**2):.1f}MHz")
+
+    def phase(freq, u, v, w, l, m):
+        n = np.sqrt(1.0 - l**2 - m**2) - 1.0
+        # print(l, m, n, (l*u + m*v + n*w), -2*np.pi*1j*freq*(l*u + m*v + n*w)/lightspeed)
+        return np.exp(-2*np.pi*1j*freq*(l*u + m*v + n*w)/lightspeed)
+
+    ref_freq = 3*.856e9/2
+
+    t0fc = phase(ref_freq, uvw[ 0, 0], uvw[ 0, 1], uvw[ 0, 2], L, M)
+    t1fc = phase(ref_freq, uvw[ 1, 0], uvw[ 1, 1], uvw[ 1, 2], L, M)
+
+    cu, cv, cw = np.mean(uvw[:2, :], axis=0)
+    tcf0 = phase(.856e9, cu, cv, cw, L, M)
+    tcf1 = phase(2*.856e9, cu, cv, cw, L, M)
+
+    print(f"t0f0 = {np.angle(t0fc)}")
+    print(f"t1f0 = {np.angle(t1fc)}")
+    print(f"tcf0 = {np.angle(tcf0)}")
+    print(f"tcf1 = {np.angle(tcf1)}")
+
+
+
+
+    # print(f"x = {x:.3f} sinc(x) = {sinc_x:.3f} "
+    #       f"y = {y:.3f} sinc_y = {sinc_y:.3f} "
+    #       f"np.abs(sinc_x - sinc_y) = {np.abs(sinc_x - sinc_y):.3f}")
 
 
 @pytest.mark.parametrize("auto_corrs", [False, True])

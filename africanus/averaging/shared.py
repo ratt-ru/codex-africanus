@@ -3,8 +3,10 @@
 import numpy as np
 
 from africanus.util.numba import (is_numba_type_none,
-                                  njit, overload,
-                                  generated_jit)
+                                  intrinsic,
+                                  njit,
+                                  generated_jit,
+                                  overload)
 
 
 def shape_or_invalid_shape(array, ndim):
@@ -76,6 +78,11 @@ def merge_flags(flag_row, flag):
 def _shape_or_invalid_shape(array, ndim):
     """ Return array shape tuple or (-1,)*ndim if the array is None """
 
+    import numba.core.types as nbtypes
+    from numba.extending import SentryLiteralArgs
+
+    SentryLiteralArgs(['ndim']).for_function(_shape_or_invalid_shape).bind(array, ndim)
+
     try:
         ndim_lit = getattr(ndim, "literal_value")
     except AttributeError:
@@ -86,11 +93,42 @@ def _shape_or_invalid_shape(array, ndim):
 
         def impl(array, ndim):
             return tup
-    else:
+
+        return impl
+    elif isinstance(array, nbtypes.Array):
         def impl(array, ndim):
             return array.shape
 
-    return impl
+        return impl
+    elif (isinstance(array, nbtypes.UniTuple) and
+            isinstance(array.dtype, nbtypes.Array)):
+        def impl(array, ndim):
+            shape = array[0].shape
+
+            for a in array[1:]:
+                if a.shape != shape:
+                    raise ValueError("Array shapes in Tuple don't match")
+
+            return shape
+
+        return impl
+    elif isinstance(array, nbtypes.Tuple):
+        if not all(isinstance(a, nbtypes.Array) for a in array.types):
+            raise ValueError("Must be Tuple of Arrays")
+
+        if not all(array.types[0].ndim == a.ndim for a in array.types[1:]):
+            raise ValueError("Array ndims in Tuple don't match")
+
+        def impl(array, ndim):
+            shape = array[0].shape
+
+            for a in array[1:]:
+                if a.shape != shape:
+                    raise ValueError("Array shapes in Tuple don't match")
+
+            return shape
+
+        return impl
 
 
 # TODO(sjperkins)
@@ -209,3 +247,116 @@ def _flags_match(flag_row, ri, out_flag_row, ro):
             return flag_row[ri] == out_flag_row[ro]
 
     return impl
+
+
+
+@intrinsic
+def vis_output_arrays(typingctx, vis, out_shape):
+    from numba.core import types, cgutils, typing
+    from numba.np import numpy_support
+
+    def vis_weight_types(vis):
+        """ Determine output visibility and weight types """
+
+        if isinstance(vis.dtype, types.Complex):
+            # Use the float representation as dtype if vis is complex
+            # (and it will be most of the time)
+            weight_type = vis.dtype.underlying_float
+        else:
+            # Default case
+            weight_type = vis.dtype
+
+        ndim = out_shape.count
+        # Visibility type will be the same, except for ndim change
+        avg_array_type = vis.copy(ndim=ndim)
+        # Weight type changes the dtype and ndim
+        weight_array_type = vis.copy(ndim=ndim, dtype=weight_type)
+
+        return avg_array_type, weight_array_type
+
+    if isinstance(vis, types.Array):
+        have_vis_array = True
+        have_vis_tuple = False
+
+        vt, wt = vis_weight_types(vis)
+        return_type = types.Tuple((vt, wt))
+    elif isinstance(vis, types.UniTuple):
+        have_vis_array = False
+        have_vis_tuple = True
+
+        vt, wt = vis_weight_types(vis.dtype)
+        vt = (vt,) * vis.count
+        wt = (wt,) * vis.count
+        # Create a two-tier tuple (likely heterogenous):
+        # (avg_vis, avg_vis_weights))
+        return_type = types.Tuple(tuple(map(types.Tuple, (vt, wt))))
+
+    elif isinstance(vis, types.Tuple):
+        have_vis_array = False
+        have_vis_tuple = True
+
+        vt, wt = zip(*(vis_weight_types(v) for v in vis))
+        # Create a two-tier tuple (likely heterogenous):
+        # (avg_vis, avg_vis_weights))
+        return_type = types.Tuple(tuple(map(types.Tuple, (vt, wt))))
+    else:
+        raise TypeError(f"vis must be an Array or Tuple. Got {vis}")
+
+    sig = return_type(vis, out_shape)
+
+    def codegen(context, builder, signature, args):
+        vis_type, out_shape_type = signature.args
+        return_type = signature.return_type
+        vis, out_shape = args
+
+        # Create the outer tuple
+        llvm_outer_tuple_type = context.get_value_type(return_type)
+        outer_tuple = cgutils.get_null_value(llvm_outer_tuple_type)
+
+        def gen_array_factory(numba_dtype):
+            """
+            Create a funtion that creates an array.
+            Bind the numpy dtype because I don't know how to create
+            the numba version
+            """
+            np_dtype = numpy_support.as_dtype(numba_dtype)
+            return lambda shape: np.zeros(shape, np_dtype)
+
+        for i, inner_type in enumerate(return_type.types):
+            # Generate an array and insert into return tuple
+            if have_vis_array:
+                array_factory = gen_array_factory(inner_type.dtype)
+                factory_sig = inner_type(out_shape_type)
+                factory_args = [out_shape]
+
+                # Compile function and get handle to output array
+                inner_value = context.compile_internal(builder, array_factory,
+                                                       factory_sig, factory_args)
+
+            # Insert inner tuple into outer tuple
+            elif have_vis_tuple:
+                # Create the inner tuple
+                llvm_inner_type = context.get_value_type(inner_type)
+                inner_value = cgutils.get_null_value(llvm_inner_type)
+
+                for j, array_type in enumerate(inner_type.types):
+                    # Create function, it's signature and arguments
+                    array_factory = gen_array_factory(array_type.dtype)
+                    factory_sig = array_type(out_shape_type)
+                    factory_args = [out_shape]
+
+                    # Compile function and get handle to output
+                    data = context.compile_internal(builder, array_factory,
+                                                    factory_sig, factory_args)
+
+                    # Insert data into inner_value
+                    inner_value = builder.insert_value(inner_value, data, j)
+            else:
+                raise ValueError("Internal logic error")
+
+            # Insert inner tuple into outer tuple
+            outer_tuple = builder.insert_value(outer_tuple, inner_value, i)
+
+        return outer_tuple
+
+    return sig, codegen
