@@ -102,14 +102,19 @@ def _shape_or_invalid_shape(array, ndim):
         return impl
     elif (isinstance(array, nbtypes.UniTuple) and
             isinstance(array.dtype, nbtypes.Array)):
-        def impl(array, ndim):
-            shape = array[0].shape
 
-            for a in array[1:]:
-                if a.shape != shape:
-                    raise ValueError("Array shapes in Tuple don't match")
+        if len(array) == 1:
+            def impl(array, ndim):
+                return array[0].shape
+        else:
+            def impl(array, ndim):
+                shape = array[0].shape
 
-            return shape
+                for a in array[1:]:
+                    if a.shape != shape:
+                        raise ValueError("Array shapes in Tuple don't match")
+
+                return shape
 
         return impl
     elif isinstance(array, nbtypes.Tuple):
@@ -119,14 +124,18 @@ def _shape_or_invalid_shape(array, ndim):
         if not all(array.types[0].ndim == a.ndim for a in array.types[1:]):
             raise ValueError("Array ndims in Tuple don't match")
 
-        def impl(array, ndim):
-            shape = array[0].shape
+        if len(array) == 1:
+            def impl(array, ndim):
+                return array[0].shape
+        else:
+            def impl(array, ndim):
+                shape = array[0].shape
 
-            for a in array[1:]:
-                if a.shape != shape:
-                    raise ValueError("Array shapes in Tuple don't match")
+                for a in array[1:]:
+                    if a.shape != shape:
+                        raise ValueError("Array shapes in Tuple don't match")
 
-            return shape
+                return shape
 
         return impl
 
