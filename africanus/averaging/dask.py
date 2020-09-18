@@ -588,6 +588,14 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
     # We don't know how many rows are in each row chunk,
     adjust_chunks = {"row": lambda r: np.nan}
 
+    if format == "flat":
+        bda_dims = ("row", "corr")
+    elif format == "ragged":
+        bda_dims = ("row", "chan", "corr")
+    else:
+        raise ValueError(f"Invalid format {format}")
+
+
     flag_row_dims = None if flag_row is None else ("row",)
     weight_dims = None if weight is None else ("row", "corr")
     vis_dims = None if vis is None else _row_chan_avg_dims
@@ -612,10 +620,9 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
         have_vis_tuple = True
         nvis_elements = len(vis)
 
-        vis = da.blockwise(lambda *a: tuple(a), vis_dims,
+        vis = da.blockwise(lambda *a: a, _row_chan_avg_dims,
                            *[elem for a in vis for elem in (a, vis_dims)],
-                           meta=np.empty((0,0,0),
-                           dtype=vis[0].dtype))
+                           meta=np.empty((0,)*len(bda_dims), dtype=vis[0].dtype))
     elif isinstance(flag, da.Array):
         nchan = flag.shape[1]
     elif isinstance(weight_spectrum, da.Array):
@@ -652,8 +659,8 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
         tuple_vis = []
 
         for v in range(nvis_elements):
-            v = da.blockwise(getitem, _row_chan_avg_dims,
-                             vis_array, _row_chan_avg_dims,
+            v = da.blockwise(getitem, bda_dims,
+                             vis_array, bda_dims,
                              v, None,
                              dtype=vis_array.dtype)
             tuple_vis.append(v)

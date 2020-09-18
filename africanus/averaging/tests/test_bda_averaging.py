@@ -150,10 +150,12 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
               max_uvw_dist=max_uvw_dist)
 
 
+@pytest.mark.parametrize("vis_format", ["ragged", "flat"])
 def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                       phase_dir,              # noqa: F811
                       chan_freq, chan_width,  # noqa: F811
-                      vis, flag):             # noqa: F811
+                      vis, flag,              # noqa: F811
+                      vis_format):            # noqa: F811
     da = pytest.importorskip('dask.array')
     from africanus.averaging.dask import bda as dask_bda
 
@@ -199,7 +201,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
                    vis=da_vis, flag=da_flag,
                    decorrelation=decorrelation,
-                   format="ragged")
+                   format=vis_format)
 
     avg = {f: getattr(avg, f) for f in ("time", "interval", "vis")}
 
@@ -209,7 +211,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                     chan_freq=da_chan_freq, chan_width=da_chan_width,
                     vis=(da_vis, da_vis), flag=da_flag,
                     decorrelation=decorrelation,
-                    format="ragged")
+                    format=vis_format)
 
     avg2 = {f: getattr(avg2, f) for f in ("time", "interval", "vis")}
 
@@ -229,14 +231,21 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
         v2 = dsk2[(dsk2_name,) + k[1:]]
         v3 = dsk3[(dsk3_name,) + k[1:]]
 
-        assert isinstance(v, dict)
-        assert isinstance(v2, dict)
-        assert isinstance(v3, dict)
+        if vis_format == "ragged":
+            assert isinstance(v, dict)
+            assert isinstance(v2, dict)
+            assert isinstance(v3, dict)
 
-        # Each row in first, second and third graph match
-        for rk, rv in v.items():
-            assert_array_almost_equal(rv, v2[rk])
-            assert_array_almost_equal(rv, v3[rk])
+            # Each row in first, second and third graph match
+            for rk, rv in v.items():
+                assert_array_almost_equal(rv, v2[rk])
+                assert_array_almost_equal(rv, v3[rk])
+        elif vis_format == "flat":
+            assert_array_almost_equal(v, v2)
+            assert_array_almost_equal(v, v3)
+        else:
+            raise ValueError(f"Invalid vis_format: {vis_format}")
+
 
 
 @pytest.fixture
