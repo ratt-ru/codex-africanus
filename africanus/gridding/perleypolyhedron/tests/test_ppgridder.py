@@ -109,8 +109,11 @@ def test_facetcodepath():
                     "phase_rotate", "I_FROM_XXYY",
                     "conv_1d_axisymmetric_packed_scatter")
 
+@pytest.fixture(scope="module")
+def global_var_degrid():
+    pytest.__CACHE_DEGRID_DFT = None
 
-def test_degrid_dft(tmp_path_factory):
+def test_degrid_dft(tmp_path_factory, global_var_degrid):
     # construct kernel
     W = 5
     OS = 3
@@ -155,8 +158,11 @@ def test_degrid_dft(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
-                        uvw, radec, frequency)
+    if pytest.__CACHE_DEGRID_DFT is None:
+        pytest.__CACHE_DEGRID_DFT = im_to_vis(mod[0, :, :].reshape(
+            1, 1, npix * npix).T.copy(),
+            uvw, radec, frequency)
+    vis_dft = pytest.__CACHE_DEGRID_DFT
 
     try:
         import matplotlib
@@ -173,9 +179,8 @@ def test_degrid_dft(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                         "degrid_vs_dft_re.png"))
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft") /
+                    "degrid_vs_dft_re.png")
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
@@ -195,7 +200,7 @@ def test_degrid_dft(tmp_path_factory):
         99.0) < 0.05
 
 
-def test_degrid_dft_packed(tmp_path_factory):
+def test_degrid_dft_packed(tmp_path_factory, global_var_degrid):
     # construct kernel
     W = 5
     OS = 3
@@ -242,8 +247,11 @@ def test_degrid_dft_packed(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
-                        uvw, radec, frequency)
+    if pytest.__CACHE_DEGRID_DFT is None:
+        pytest.__CACHE_DEGRID_DFT = im_to_vis(mod[0, :, :].reshape(
+            1, 1, npix * npix).T.copy(),
+            uvw, radec, frequency)
+    vis_dft = pytest.__CACHE_DEGRID_DFT
 
     try:
         import matplotlib
@@ -260,9 +268,8 @@ def test_degrid_dft_packed(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                         "degrid_vs_dft_re_packed.png"))
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft_packed") /
+                    "degrid_vs_dft_re_packed.png")
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
@@ -317,7 +324,13 @@ def test_detaper(tmp_path_factory):
     assert (np.max(np.abs(detaperdft - detaperdftsep)) < 1.0e-14)
 
 
-def test_grid_dft(tmp_path_factory):
+@pytest.fixture(scope="module")
+def global_vars_grid():
+    pytest.__CACHE_GRID_MOD = None
+    pytest.__CACHE_GRID_DFT = None
+
+
+def test_grid_dft(tmp_path_factory, global_vars_grid):
     # construct kernel
     W = 7
     OS = 9
@@ -354,9 +367,14 @@ def test_grid_dft(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                             npix * npix).T.copy(), uvw,
-                        radec, frequency).repeat(2).reshape(nrow, 1, 2)
+    if pytest.__CACHE_GRID_MOD is None:
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]\
+                                            .reshape(1, 1,
+                                                     npix * 
+                                                     npix).T.copy(), uvw,
+                                     radec, frequency)\
+                                    .repeat(2).reshape(nrow, 1, 2)
+    vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
 
     detaper = kernels.compute_detaper(int(npix * fftpad),
@@ -388,11 +406,14 @@ def test_grid_dft(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
                   int(npix * fftpad) // 2 -
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
-    dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                       np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
-                                    2, 1, npix, npix) / nrow
-
+    if pytest.__CACHE_GRID_DFT is None:
+        pytest.__CACHE_GRID_DFT = \
+            vis_to_im(vis_dft, uvw, radec, frequency,
+                      np.zeros(vis_dft.shape,
+                               dtype=np.bool))\
+                      .T.copy().reshape(2, 1, 
+                                        npix, npix) / nrow
+    dftvis = pytest.__CACHE_GRID_DFT
     try:
         import matplotlib
     except ImportError:
@@ -420,7 +441,7 @@ def test_grid_dft(tmp_path_factory):
                           85.0) < 0.20)
 
 
-def test_grid_dft_packed(tmp_path_factory):
+def test_grid_dft_packed(tmp_path_factory, global_vars_grid):
     # construct kernel
     W = 7
     OS = 1009
@@ -457,9 +478,14 @@ def test_grid_dft_packed(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                             npix * npix).T.copy(), uvw,
-                        radec, frequency).repeat(2).reshape(nrow, 1, 2)
+    if pytest.__CACHE_GRID_MOD is None:
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]\
+                                            .reshape(1, 1,
+                                                     npix * 
+                                                     npix).T.copy(), uvw,
+                                     radec, frequency)\
+                                    .repeat(2).reshape(nrow, 1, 2)
+    vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
     detaper = kernels.compute_detaper_dft_seperable(
         int(npix * fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
@@ -490,10 +516,14 @@ def test_grid_dft_packed(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
                   int(npix * fftpad) // 2 -
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
-    dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                       np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
-                                    2, 1, npix, npix) / nrow
+    if pytest.__CACHE_GRID_DFT is None:
+        pytest.__CACHE_GRID_DFT = \
+            vis_to_im(vis_dft, uvw, radec, frequency,
+                      np.zeros(vis_dft.shape,
+                               dtype=np.bool))\
+                      .T.copy().reshape(2, 1, 
+                                        npix, npix) / nrow
+    dftvis = pytest.__CACHE_GRID_DFT
 
     try:
         import matplotlib

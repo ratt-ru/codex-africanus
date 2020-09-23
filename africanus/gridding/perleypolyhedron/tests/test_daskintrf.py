@@ -48,7 +48,7 @@ def test_gridder_dask():
         W = 5
         OS = 9
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-        nrow = int(1e5)
+        nrow = int(1e3)
 
         np.random.seed(0)
         # simulate some ficticious baselines rotated by an hour angle
@@ -134,7 +134,7 @@ def test_gridder_nondask():
         W = 5
         OS = 9
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-        nrow = int(1e5)
+        nrow = int(1e3)
 
         np.random.seed(0)
         # simulate some ficticious baselines rotated by an hour angle
@@ -211,7 +211,7 @@ def test_degrid_dft_packed_nondask():
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
                                W,
                                oversample=OS)
-    nrow = int(5e4)
+    nrow = int(5e3)
     uvw = np.column_stack(
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, nrow)),
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, nrow)), np.zeros(nrow)))
@@ -263,7 +263,7 @@ def test_degrid_dft_packed_dask():
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS),
                                W,
                                oversample=OS)
-    nrow = int(5e4)
+    nrow = int(5e3)
     nrow_chunk = nrow // 32
     uvw = np.column_stack(
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, nrow)),
@@ -325,7 +325,7 @@ def test_degrid_dft_packed_dask_dft_check():
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, nrow)), np.zeros(nrow)))
 
     pxacrossbeam = 10
-    nchan = 16
+    nchan = 1
 
     frequency = np.linspace(1.0e9, 1.4e9, nchan)
 
