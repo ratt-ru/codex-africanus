@@ -67,7 +67,6 @@ def kbsinc(W, b=None, oversample=5, order=15):
     return res / np.sum(res)
 
 
-
 _HANNING_AUTOCOEFFS = np.polyfit(
         [1.5, 2.0, 2.5, 3.0, 3.5],
         [0.7600, 0.7146, 0.6185, 0.5534, 0.5185], 3)
