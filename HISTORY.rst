@@ -4,6 +4,7 @@ History
 
 0.2.7 (YYYY-MM-DD)
 ------------------
+* Deprecate old gridder and filters (:pr:`224`)
 * Upgrade to ducc0 0.6.0 (:pr:`223`)
 * Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`, :pr:`222`)
 

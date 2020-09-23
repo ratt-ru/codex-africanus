@@ -74,11 +74,6 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
     description="Radio Astronomy Building Blocks",
-    entry_points={
-        'console_scripts': [
-            'plot-filter=africanus.filters.plot_filter:main',
-            'plot-taper=africanus.filters.plot_taper:main'],
-    },
     extras_require=extras_require,
     install_requires=requirements,
     license="BSD-3-Clause",
