@@ -206,6 +206,7 @@ def test_degrid_dft_packed(tmp_path_factory):
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 100)),
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, 100)), np.zeros(100)))
 
+
     pxacrossbeam = 10
     frequency = np.array([1.4e9])
     wavelength = lightspeed / frequency
@@ -323,6 +324,7 @@ def test_grid_dft(tmp_path_factory):
     OS = 9
     kern = kernels.kbsinc(W, oversample=OS)
     nrow = 1500
+
     np.random.seed(0)
     uvw = np.random.normal(scale=6000, size=(nrow, 3))
     uvw[:, 2] = 0.0  # ignore widefield effects for now
@@ -419,12 +421,14 @@ def test_grid_dft(tmp_path_factory):
                           85.0) < 0.20)
 
 
+
 def test_grid_dft_packed(tmp_path_factory):
     # construct kernel
     W = 7
     OS = 1009
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
     nrow = 1500
+
     np.random.seed(0)
     uvw = np.random.normal(scale=6000, size=(nrow, 3))
     uvw[:, 2] = 0.0  # ignore widefield effects for now
@@ -653,6 +657,7 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
     OS = 9
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
     nrow = 500
+
     np.random.seed(0)
     # simulate some ficticious baselines rotated by an hour angle
     uvw = np.zeros((nrow, 3), dtype=np.float64)
