@@ -44,6 +44,11 @@ def sinc(W, oversample=5, a=1.0):
     return res / np.sum(res)
 
 
+_KBSINC_AUTOCOEFFS = np.polyfit(
+        [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
+        [1.9980, 2.3934, 3.3800, 4.2054, 4.9107, 5.7567, 6.6291, 7.4302], 1)
+
+
 @requires_optional('scipy', scipy_import_error)
 def kbsinc(W, b=None, oversample=5, order=15):
     """
@@ -52,11 +57,8 @@ def kbsinc(W, b=None, oversample=5, order=15):
     with a modification of higher order bessels as default, as
     this improves the kernel at low number of taps.
     """
-    autocoeffs = np.polyfit(
-        [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
-        [1.9980, 2.3934, 3.3800, 4.2054, 4.9107, 5.7567, 6.6291, 7.4302], 1)
     if b is None:
-        b = np.poly1d(autocoeffs)((W + 2))
+        b = np.poly1d(_KBSINC_AUTOCOEFFS)((W + 2))
 
     u = uspace(W, oversample)
     wnd = jn(order, b * np.sqrt(1 - (2 * u /
@@ -65,14 +67,18 @@ def kbsinc(W, b=None, oversample=5, order=15):
     return res / np.sum(res)
 
 
+
+_HANNING_AUTOCOEFFS = np.polyfit(
+        [1.5, 2.0, 2.5, 3.0, 3.5],
+        [0.7600, 0.7146, 0.6185, 0.5534, 0.5185], 3)
+
+
 def hanningsinc(W, a=None, oversample=5):
     """
     Basic hanning windowed sinc
     """
-    autocoeffs = np.polyfit([1.5, 2.0, 2.5, 3.0, 3.5],
-                            [0.7600, 0.7146, 0.6185, 0.5534, 0.5185], 3)
     if a is None:
-        a = np.poly1d(autocoeffs)((W + 2))
+        a = np.poly1d(_HANNING_AUTOCOEFFS)((W + 2))
     u = uspace(W, oversample)
     wnd = a + (1 - a) * np.cos(2 * np.pi / ((W + 2) + 1) * u)
     res = sinc(W, oversample=oversample) * wnd
