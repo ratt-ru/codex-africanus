@@ -108,7 +108,7 @@ def gridder(uvw,
                 convolution_kernel,
                 convolution_kernel_width,
                 convolution_kernel_oversampling,
-                stokes_conversion_policy,
+                literally(stokes_conversion_policy),
                 policy_type=literally(convolution_policy))
     if do_normalize:
         for c in range(nband):

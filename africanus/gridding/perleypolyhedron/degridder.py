@@ -39,7 +39,7 @@ def degridder_row_kernel(uvw,
     ra0, dec0 = phase_centre
     ra, dec = image_centre
     btp.policy(uvw[r, :], ra, dec, ra0, dec0,
-               literally(baseline_transform_policy))
+               baseline_transform_policy)
     for c in range(nvischan):
         scaled_u = uvw[r, 0] * scale_factor / lambdas[c]
         scaled_v = uvw[r, 1] * scale_factor / lambdas[c]
@@ -57,7 +57,7 @@ def degridder_row_kernel(uvw,
                   convolution_kernel_width,
                   convolution_kernel_oversampling,
                   stokes_conversion_policy,
-                  policy_type=literally(convolution_policy))
+                  policy_type=convolution_policy)
     ptp.policy(vis[r, :, :],
                uvw[r, :],
                lambdas,
@@ -65,7 +65,7 @@ def degridder_row_kernel(uvw,
                dec0,
                ra,
                dec,
-               policy_type=literally(phase_transform_policy),
+               policy_type=phase_transform_policy,
                phasesign=-1.0)
 
 
@@ -151,10 +151,10 @@ def degridder(uvw,
                              convolution_kernel,
                              convolution_kernel_width,
                              convolution_kernel_oversampling,
-                             baseline_transform_policy,
-                             phase_transform_policy,
-                             stokes_conversion_policy,
-                             convolution_policy,
+                             literally(baseline_transform_policy),
+                             literally(phase_transform_policy),
+                             literally(stokes_conversion_policy),
+                             literally(convolution_policy),
                              vis_dtype=vis_dtype,
                              nband=nband,
                              nrow=nrow,
@@ -249,10 +249,10 @@ def degridder_serial(uvw,
                              convolution_kernel,
                              convolution_kernel_width,
                              convolution_kernel_oversampling,
-                             baseline_transform_policy,
-                             phase_transform_policy,
-                             stokes_conversion_policy,
-                             convolution_policy,
+                             literally(baseline_transform_policy),
+                             literally(phase_transform_policy),
+                             literally(stokes_conversion_policy),
+                             literally(convolution_policy),
                              vis_dtype=vis_dtype,
                              nband=nband,
                              nrow=nrow,

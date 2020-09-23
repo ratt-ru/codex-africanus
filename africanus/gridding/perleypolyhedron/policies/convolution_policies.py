@@ -1,5 +1,4 @@
 from africanus.util.numba import overload
-from numba import literally
 import numpy as np
 from . import stokes_conversion_policies as scp
 
@@ -49,7 +48,7 @@ def convolve_1d_axisymmetric_unpacked_scatter(
                 grid[grid_v_lookup, grid_u_lookup] += \
                     conv_v * conv_u * \
                     scp.corr2stokes(vis[r, c, :],
-                                    literally(stokes_conversion_policy))
+                                    stokes_conversion_policy)
             cw += conv_v * conv_u
     return cw
 
@@ -108,7 +107,7 @@ def convolve_1d_axisymmetric_packed_scatter(
                 grid[grid_v_lookup, grid_u_lookup] += \
                     conv_v * conv_u * \
                     scp.corr2stokes(vis[r, c, :],
-                                    literally(stokes_conversion_policy))
+                                    stokes_conversion_policy)
             cw += conv_v * conv_u
     return cw
 
@@ -142,7 +141,7 @@ def convolve_nn_scatter(scaled_u, scaled_v, scaled_w, npix, grid, vis, r, c,
     cw = 1.0
     grid[disc_v, disc_u] += \
         scp.corr2stokes(vis[r, c, :],
-                        literally(stokes_conversion_policy))
+                        stokes_conversion_policy)
     return cw
 
 
@@ -204,7 +203,7 @@ def convolve_1d_axisymmetric_packed_gather(scaled_u, scaled_v, scaled_w, npix,
                     grid[disc_v + tv - convolution_kernel_width // 2, disc_u +
                          tu - convolution_kernel_width // 2] * conv_v * conv_u,
                     vis[r, c, :],
-                    policy_type=literally(stokes_conversion_policy))
+                    policy_type=stokes_conversion_policy)
                 cw += conv_v * conv_u
     vis[r, c, :] /= cw + 1.0e-8
 
@@ -253,7 +252,7 @@ def convolve_1d_axisymmetric_unpacked_gather(
                 scp.stokes2corr(
                     grid[grid_v_lookup, grid_u_lookup] * conv_v * conv_u,
                     vis[r, c, :],
-                    policy_type=literally(stokes_conversion_policy))
+                    policy_type=stokes_conversion_policy)
                 cw += conv_v * conv_u
     vis[r, c, :] /= cw + 1.0e-8
 
