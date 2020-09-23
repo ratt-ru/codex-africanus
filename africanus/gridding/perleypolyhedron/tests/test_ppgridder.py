@@ -206,7 +206,6 @@ def test_degrid_dft_packed(tmp_path_factory):
         (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 100)),
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, 100)), np.zeros(100)))
 
-
     pxacrossbeam = 10
     frequency = np.array([1.4e9])
     wavelength = lightspeed / frequency
@@ -419,7 +418,6 @@ def test_grid_dft(tmp_path_factory):
 
     assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
                           85.0) < 0.20)
-
 
 
 def test_grid_dft_packed(tmp_path_factory):

@@ -156,7 +156,6 @@ def test_gridder_nondask():
                 uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
         pxacrossbeam = 5
         nchan = 64
-  
         frequency = np.linspace(1.0e9, 1.4e9, nchan)
         wavelength = lightspeed / frequency
         cell = np.rad2deg(
