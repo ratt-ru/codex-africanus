@@ -13,7 +13,7 @@ from africanus.gridding.perleypolyhedron.policies import (
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
 def gridder(uvw,
             vis,
-            lambdas,
+            wavelengths,
             chanmap,
             npix,
             cell,
@@ -32,7 +32,7 @@ def gridder(uvw,
     2D Convolutional gridder, contiguous to discrete
     @uvw: value coordinates, (nrow, 3)
     @vis: complex data, (nrow, nchan, ncorr)
-    @lambdas: wavelengths of data channels
+    @wavelengths: wavelengths of data channels
     @chanmap: MFS band mapping
     @npix: number of pixels per axis
     @cell: cell_size in degrees
@@ -57,11 +57,11 @@ def gridder(uvw,
     @grid_dtype: accumulation grid dtype (default complex 128)
     @do_normalize: normalize grid by convolution weights
     """
-    if chanmap.size != lambdas.size:
+    if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding lambdas must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape")
     chanmap = chanmap.ravel()
-    lambdas = lambdas.ravel()
+    wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
     nrow, nvischan, ncorr = vis.shape
     if uvw.shape[1] != 3:
@@ -69,7 +69,7 @@ def gridder(uvw,
     if uvw.shape[0] != nrow:
         raise ValueError(
             "UVW array must have same number of rows as vis array")
-    if nvischan != lambdas.size:
+    if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
     gridstack = np.zeros((nband, npix, npix), dtype=grid_dtype)
@@ -82,7 +82,7 @@ def gridder(uvw,
         ra, dec = image_centre
         ptp.policy(vis[r, :, :],
                    uvw[r, :],
-                   lambdas,
+                   wavelengths,
                    ra0,
                    dec0,
                    ra,
@@ -92,9 +92,9 @@ def gridder(uvw,
         btp.policy(uvw[r, :], ra0, dec0, ra, dec,
                    literally(baseline_transform_policy))
         for c in range(nvischan):
-            scaled_u = uvw[r, 0] * scale_factor / lambdas[c]
-            scaled_v = uvw[r, 1] * scale_factor / lambdas[c]
-            scaled_w = uvw[r, 2] * scale_factor / lambdas[c]
+            scaled_u = uvw[r, 0] * scale_factor / wavelengths[c]
+            scaled_v = uvw[r, 1] * scale_factor / wavelengths[c]
+            scaled_w = uvw[r, 2] * scale_factor / wavelengths[c]
             grid = gridstack[chanmap[c], :, :]
             wt_ch[chanmap[c]] += cp.policy(
                 scaled_u,

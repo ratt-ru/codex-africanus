@@ -65,7 +65,7 @@ def kbsinc(W, b=None, oversample=5, order=15):
     return res / np.sum(res)
 
 
-def hanningsinc(W, a=0.5, oversample=5):
+def hanningsinc(W, a=None, oversample=5):
     """
     Basic hanning windowed sinc
     """

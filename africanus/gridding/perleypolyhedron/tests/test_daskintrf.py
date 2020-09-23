@@ -9,6 +9,7 @@ from africanus.gridding.perleypolyhedron import (kernels,
                                                  degridder)
 from africanus.gridding.perleypolyhedron import dask as dwrap
 from africanus.dft.kernels import im_to_vis
+from africanus.constants import c as lightspeed
 
 
 class clock:
@@ -72,7 +73,7 @@ def test_gridder_dask():
         nchan = 128
         frequency = da.from_array(np.linspace(1.0e9, 1.4e9, nchan),
                                   chunks=(nchan, ))
-        wavelength = 299792458.0 / frequency
+        wavelength = lightspeed / frequency
         cell = da.rad2deg(
             wavelength[0] /
             (max(da.max(da.absolute(uvw[:, 0])),
@@ -153,7 +154,7 @@ def test_gridder_nondask():
         pxacrossbeam = 5
         nchan = 128
         frequency = np.linspace(1.0e9, 1.4e9, nchan)
-        wavelength = 299792458.0 / frequency
+        wavelength = lightspeed / frequency
         cell = np.rad2deg(
             wavelength[0] /
             (max(np.max(np.absolute(uvw[:, 0])),
@@ -215,7 +216,7 @@ def test_degrid_dft_packed_nondask():
     pxacrossbeam = 10
     nchan = 1024
     frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -267,7 +268,7 @@ def test_degrid_dft_packed_dask():
     pxacrossbeam = 10
     nchan = 1024
     frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -321,7 +322,7 @@ def test_degrid_dft_packed_dask_dft_check():
     pxacrossbeam = 10
     nchan = 16
     frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /

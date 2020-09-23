@@ -15,7 +15,7 @@ from africanus.gridding.perleypolyhedron.policies import (
 @jit(nopython=True, nogil=True, fastmath=True, inline="always")
 def degridder_row_kernel(uvw,
                          gridstack,
-                         lambdas,
+                         wavelengths,
                          chanmap,
                          cell,
                          image_centre,
@@ -41,9 +41,9 @@ def degridder_row_kernel(uvw,
     btp.policy(uvw[r, :], ra, dec, ra0, dec0,
                baseline_transform_policy)
     for c in range(nvischan):
-        scaled_u = uvw[r, 0] * scale_factor / lambdas[c]
-        scaled_v = uvw[r, 1] * scale_factor / lambdas[c]
-        scaled_w = uvw[r, 2] * scale_factor / lambdas[c]
+        scaled_u = uvw[r, 0] * scale_factor / wavelengths[c]
+        scaled_v = uvw[r, 1] * scale_factor / wavelengths[c]
+        scaled_w = uvw[r, 2] * scale_factor / wavelengths[c]
         grid = gridstack[chanmap[c], :, :]
         cp.policy(scaled_u,
                   scaled_v,
@@ -60,7 +60,7 @@ def degridder_row_kernel(uvw,
                   policy_type=convolution_policy)
     ptp.policy(vis[r, :, :],
                uvw[r, :],
-               lambdas,
+               wavelengths,
                ra0,
                dec0,
                ra,
@@ -72,7 +72,7 @@ def degridder_row_kernel(uvw,
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True)
 def degridder(uvw,
               gridstack,
-              lambdas,
+              wavelengths,
               chanmap,
               cell,
               image_centre,
@@ -89,7 +89,7 @@ def degridder(uvw,
     2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
     @gridstack: complex gridded data, (nband, npix, npix)
-    @lambdas: wavelengths of data channels
+    @wavelengths: wavelengths of data channels
     @chanmap: MFS band mapping per channel
     @cell: cell_size in degrees
     @image_centres: new phase centre of image (radians, ra, dec)
@@ -113,17 +113,17 @@ def degridder(uvw,
     @vis_dtype: accumulation vis dtype (default complex 128)
     """
 
-    if chanmap.size != lambdas.size:
+    if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding lambdas must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape")
     chanmap = chanmap.ravel()
-    lambdas = lambdas.ravel()
+    wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
     nrow = uvw.shape[0]
     npix = gridstack.shape[1]
     if gridstack.shape[1] != gridstack.shape[2]:
         raise ValueError("Grid must be square")
-    nvischan = lambdas.size
+    nvischan = wavelengths.size
     ncorr = scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
     if gridstack.shape[0] < nband:
         raise ValueError(
@@ -133,7 +133,7 @@ def degridder(uvw,
     if uvw.shape[0] != nrow:
         raise ValueError(
             "UVW array must have same number of rows as vis array")
-    if nvischan != lambdas.size:
+    if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
     vis = np.zeros((nrow, nvischan, ncorr), dtype=vis_dtype)
@@ -143,7 +143,7 @@ def degridder(uvw,
     for r in prange(nrow):
         degridder_row_kernel(uvw,
                              gridstack,
-                             lambdas,
+                             wavelengths,
                              chanmap,
                              cell,
                              image_centre,
@@ -170,7 +170,7 @@ def degridder(uvw,
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
 def degridder_serial(uvw,
                      gridstack,
-                     lambdas,
+                     wavelengths,
                      chanmap,
                      cell,
                      image_centre,
@@ -187,7 +187,7 @@ def degridder_serial(uvw,
     2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
     @gridstack: complex gridded data, (nband, npix, npix)
-    @lambdas: wavelengths of data channels
+    @wavelengths: wavelengths of data channels
     @chanmap: MFS band mapping per channel
     @cell: cell_size in degrees
     @image_centres: new phase centre of image (radians, ra, dec)
@@ -211,17 +211,17 @@ def degridder_serial(uvw,
     @vis_dtype: accumulation vis dtype (default complex 128)
     """
 
-    if chanmap.size != lambdas.size:
+    if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding lambdas must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape")
     chanmap = chanmap.ravel()
-    lambdas = lambdas.ravel()
+    wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
     nrow = uvw.shape[0]
     npix = gridstack.shape[1]
     if gridstack.shape[1] != gridstack.shape[2]:
         raise ValueError("Grid must be square")
-    nvischan = lambdas.size
+    nvischan = wavelengths.size
     ncorr = scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
     if gridstack.shape[0] < nband:
         raise ValueError(
@@ -231,7 +231,7 @@ def degridder_serial(uvw,
     if uvw.shape[0] != nrow:
         raise ValueError(
             "UVW array must have same number of rows as vis array")
-    if nvischan != lambdas.size:
+    if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
     vis = np.zeros((nrow, nvischan, ncorr), dtype=vis_dtype)
@@ -241,7 +241,7 @@ def degridder_serial(uvw,
     for r in range(nrow):
         degridder_row_kernel(uvw,
                              gridstack,
-                             lambdas,
+                             wavelengths,
                              chanmap,
                              cell,
                              image_centre,

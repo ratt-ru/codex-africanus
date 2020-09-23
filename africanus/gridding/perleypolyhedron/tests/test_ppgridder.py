@@ -10,6 +10,7 @@ from africanus.gridding.perleypolyhedron import (kernels,
                                                  degridder)
 from africanus.dft.kernels import im_to_vis, vis_to_im
 from africanus.coordinates import radec_to_lmn
+from africanus.constants import c as lightspeed
 
 
 def test_construct_kernels(tmp_path_factory):
@@ -120,7 +121,7 @@ def test_degrid_dft(tmp_path_factory):
 
     pxacrossbeam = 10
     frequency = np.array([1.4e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -207,7 +208,7 @@ def test_degrid_dft_packed(tmp_path_factory):
 
     pxacrossbeam = 10
     frequency = np.array([1.4e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -328,7 +329,7 @@ def test_grid_dft(tmp_path_factory):
 
     pxacrossbeam = 10
     frequency = np.array([30.0e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -430,7 +431,7 @@ def test_grid_dft_packed(tmp_path_factory):
 
     pxacrossbeam = 10
     frequency = np.array([30.0e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -545,7 +546,7 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
 
     pxacrossbeam = 5
     frequency = np.array([1.4e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
@@ -672,7 +673,7 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
 
     pxacrossbeam = 5
     frequency = np.array([1.4e9])
-    wavelength = np.array([299792458.0 / f for f in frequency])
+    wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
         wavelength[0] /
