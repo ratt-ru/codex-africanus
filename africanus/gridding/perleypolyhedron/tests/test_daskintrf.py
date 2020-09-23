@@ -48,7 +48,7 @@ def test_gridder_dask():
         W = 5
         OS = 9
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-        nrow = int(1e6)
+        nrow = int(1e5)
         np.random.seed(0)
         # simulate some ficticious baselines rotated by an hour angle
         row_chunks = nrow // 10
@@ -70,7 +70,7 @@ def test_gridder_dask():
                 uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
         uvw = da.from_array(uvw, chunks=(row_chunks, 3))
         pxacrossbeam = 5
-        nchan = 128
+        nchan = 64
         frequency = da.from_array(np.linspace(1.0e9, 1.4e9, nchan),
                                   chunks=(nchan, ))
         wavelength = lightspeed / frequency
@@ -132,7 +132,7 @@ def test_gridder_nondask():
         W = 5
         OS = 9
         kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-        nrow = int(1e6)
+        nrow = int(1e5)
         np.random.seed(0)
         # simulate some ficticious baselines rotated by an hour angle
         uvw = np.zeros((nrow, 3), dtype=np.float64)
@@ -152,7 +152,7 @@ def test_gridder_nondask():
                                s(d0)]])
                 uvw[n * ntime + ih0, :] = np.dot(R, blpos[n, :].T)
         pxacrossbeam = 5
-        nchan = 128
+        nchan = 64
         frequency = np.linspace(1.0e9, 1.4e9, nchan)
         wavelength = lightspeed / frequency
         cell = np.rad2deg(
@@ -214,7 +214,7 @@ def test_degrid_dft_packed_nondask():
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, nrow)), np.zeros(nrow)))
 
     pxacrossbeam = 10
-    nchan = 1024
+    nchan = 64
     frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
     wavelength = lightspeed / frequency
 
@@ -266,7 +266,7 @@ def test_degrid_dft_packed_dask():
             5000.0 * np.sin(np.linspace(0, 2 * np.pi, nrow)), np.zeros(nrow)))
 
     pxacrossbeam = 10
-    nchan = 1024
+    nchan = 64
     frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
     wavelength = lightspeed / frequency
 
