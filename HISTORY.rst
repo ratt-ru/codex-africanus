@@ -2,6 +2,10 @@
 History
 =======
 
+0.2.7 (YYYY-MM-DD)
+------------------
+* Upgrade to ducc0 0.6.0 (:pr:`223`)
+
 0.2.6 (2020-08-07)
 ------------------
 * Add wrapper for ducc0.wgridder (:pr:204`)
