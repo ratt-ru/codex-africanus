@@ -31,7 +31,7 @@ extras_require = {
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
-    'ducc0': ['ducc0 >= 0.4.0'],
+    'ducc0': ['ducc0 >= 0.6.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
