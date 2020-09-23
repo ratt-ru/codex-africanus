@@ -6,6 +6,8 @@ History
 ------------------
 * Add wrapper for ducc0.wgridder (:pr:204`)
 * Correct Irregular Grid nesting in BeamAxes (:pr:`217`)
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`)
+
 
 0.2.5 (2020-07-01)
 ------------------
