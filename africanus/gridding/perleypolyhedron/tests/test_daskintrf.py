@@ -215,7 +215,7 @@ def test_degrid_dft_packed_nondask():
 
     pxacrossbeam = 10
     nchan = 1024
-    frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
+    frequency = np.linspace(1.0e9, 1.4e9, nchan)
     wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
@@ -267,7 +267,7 @@ def test_degrid_dft_packed_dask():
 
     pxacrossbeam = 10
     nchan = 1024
-    frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
+    frequency = np.linspace(1.0e9, 1.4e9, nchan)
     wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
@@ -321,7 +321,7 @@ def test_degrid_dft_packed_dask_dft_check():
 
     pxacrossbeam = 10
     nchan = 16
-    frequency = np.array(np.linspace(1.0e9, 1.4e9, nchan))
+    frequency = np.linspace(1.0e9, 1.4e9, nchan)
     wavelength = lightspeed / frequency
 
     cell = np.rad2deg(
