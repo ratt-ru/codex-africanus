@@ -111,7 +111,7 @@ WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
     uvw : $(array_type)
         UVW coordinates of shape :code:`(row, 3)`
     lm : $(array_type)
-        Source LM coordinates of shape :code:`(source, 2)`.
+        Source LM coordinates of shape :code:`(source, 2)`, in radians.
         Derived from the ``Ra`` and ``Dec`` fields.
     source_type : $(array_type)
         Strings defining the source type of shape :code:`(source,)`.
@@ -135,7 +135,7 @@ WSCLEAN_PREDICT_DOCS = DocstringTemplate("""
         Gaussian shape parameters of shape :code:`(source, 3)`
         used when the corresponding ``source_type`` is ``"GAUSSIAN"``.
         The 3 components should contain the ``MajorAxis``, ``MinorAxis``
-        and ``Orientation`` fields, respectively.
+        and ``Orientation`` fields in radians, respectively.
     frequency : $(array_type)
         Frequency of shape :code:`(chan,)`.
 

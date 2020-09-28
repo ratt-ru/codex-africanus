@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import threading
 
 import numpy as np
 
@@ -15,8 +16,8 @@ else:
     casa_import_error = None
     have_casa_parangles = True
 
-    # Create a measures server
-    meas_serv = pyrap.measures.measures()
+    # Create thread local storage for the measures server
+    _thread_local = threading.local()
 
 
 @requires_optional('pyrap.measures', 'pyrap.quanta', casa_import_error)
@@ -26,6 +27,12 @@ def casa_parallactic_angles(times, antenna_positions, field_centre,
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
     """
+
+    try:
+        meas_serv = _thread_local.meas_serv
+    except AttributeError:
+        # Create a measures server
+        _thread_local.meas_serv = meas_serv = pyrap.measures.measures()
 
     # Create direction measure for the zenith
     zenith = meas_serv.direction(zenith_frame, '0deg', '90deg')

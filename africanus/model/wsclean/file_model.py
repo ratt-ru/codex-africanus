@@ -5,6 +5,8 @@ from ast import literal_eval
 import math
 import re
 
+import numpy as np
+
 hour_re = re.compile(r"(?P<sign>[+-]*)"
                      r"(?P<hours>\d+):"
                      r"(?P<mins>\d+):"
@@ -48,6 +50,10 @@ def _deg_converter(deg_str):
     return 2.0 * math.pi * value
 
 
+def arcsec2rad(arcseconds=0.0):
+    return np.deg2rad(float(arcseconds) / 3600.)
+
+
 _COLUMN_CONVERTERS = {
     'Name': str,
     'Type': str,
@@ -57,9 +63,9 @@ _COLUMN_CONVERTERS = {
     'SpectralIndex': literal_eval,
     'LogarithmicSI': lambda x: bool(x == "true"),
     'ReferenceFrequency': float,
-    'MajorAxis': float,
-    'MinorAxis': float,
-    'Orientation': float,
+    'MajorAxis': arcsec2rad,
+    'MinorAxis': arcsec2rad,
+    'Orientation': lambda x=0.0: np.deg2rad(float(x)),
 }
 
 

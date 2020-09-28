@@ -21,15 +21,17 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.46.0']
+        'numba >= 0.49.0'
+        ]
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
     'dask': ['dask[array] >= 1.1.0'],
-    'jax': ['jax == 0.1.27', 'jaxlib == 0.1.14'],
-    'scipy': ['scipy >= 1.0.0'],
+    'jax': ['jax == 0.1.68', 'jaxlib == 0.1.47'],
+    'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
-    'python-casacore': ['python-casacore >= 3.2.0'],
+    'python-casacore': ['python-casacore >= 3.3.1'],
+    'ducc0': ['ducc0 >= 0.6.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
@@ -51,7 +53,8 @@ test_requirements = (extras_require['testing'] +
                      extras_require['astropy'] +
                      extras_require['python-casacore'] +
                      extras_require['dask'] +
-                     extras_require['scipy'])
+                     extras_require['scipy'] +
+                     extras_require['ducc0'])
 
 
 with open('README.rst') as readme_file:
@@ -61,23 +64,19 @@ setup(
     author="Simon Perkins",
     author_email='sperkins@ska.ac.za',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
+        'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
     description="Radio Astronomy Building Blocks",
-    entry_points={
-        'console_scripts': [
-            'plot-filter=africanus.filters.plot_filter:main',
-            'plot-taper=africanus.filters.plot_taper:main'],
-    },
     extras_require=extras_require,
     install_requires=requirements,
-    license="GNU General Public License v2",
+    license="BSD-3-Clause",
     long_description=readme,
     long_description_content_type='text/x-rst',
     include_package_data=True,
@@ -89,6 +88,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.2.3',
+    version='0.2.7',
     zip_safe=False,
 )

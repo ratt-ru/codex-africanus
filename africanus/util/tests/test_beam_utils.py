@@ -3,6 +3,7 @@
 
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
 
 
@@ -22,12 +23,12 @@ def fits_header():
         "TELESCO": 'VLA     ',
         "OBJECT":  'beam    ',
         "EQUINOX":               2000.0,
-        "CTYPE1": 'L       ',           # points right on the sky
+        "CTYPE1": 'L       ',            # points right on the sky
         "CUNIT1": 'DEG     ',
         "CDELT1":             0.011082,  # degrees
         "CRPIX1":                  257,  # reference pixel (one relative)
         "CRVAL1":      0.0110828777007,
-        "CTYPE2": '-M      ',           # points up on the sky
+        "CTYPE2": 'M       ',            # points up on the sky
         "CUNIT2": 'DEG     ',
         "CDELT2":             0.011082,  # degrees
         "CRPIX2":                  257,  # reference pixel (one relative)
@@ -88,22 +89,20 @@ def test_fits_axes(fits_header):
     assert beam_axes.cunit[0] == 'RAD'
     assert beam_axes.crval[0] == np.deg2rad(fits_header['CRVAL1'])
     assert beam_axes.cdelt[0] == np.deg2rad(fits_header['CDELT1'])
-    assert beam_axes.sign[0] == 1.0
 
     # M axis converted to radian and sign flipped
-    assert fits_header['CTYPE2'].strip() == '-M'
+    assert fits_header['CTYPE2'].strip() == 'M'
     assert beam_axes.ctype[1] == 'M'
     assert fits_header['CUNIT2'].strip() == 'DEG'
     assert beam_axes.cunit[1] == 'RAD'
     assert beam_axes.crval[1] == np.deg2rad(fits_header['CRVAL2'])
     assert beam_axes.cdelt[1] == np.deg2rad(fits_header['CDELT2'])
-    assert beam_axes.sign[1] == -1.0
 
     # GFREQS used for the frequency grid
     gfreqs = [fits_header.get('GFREQ%d' % (i+1)) for i
               in range(fits_header['NAXIS3'])]
 
-    assert np.allclose(beam_axes.grid[2], np.asarray(gfreqs))
+    assert_array_almost_equal(beam_axes.grid[2], np.asarray(gfreqs))
 
     # Now remove a GFREQ, forcing usage of the regular frequency grid
     fits_header = fits_header.copy()
@@ -114,46 +113,55 @@ def test_fits_axes(fits_header):
     R = np.arange(beam_axes.naxis[2])
     g = (R - beam_axes.crpix[2])*beam_axes.cdelt[2] + beam_axes.crval[2]
 
-    assert np.all(g == beam_axes.grid[2])
+    assert_array_equal(g, beam_axes.grid[2])
 
 
-def test_beam_grids(fits_header):
-    from africanus.util.beams import beam_grids
+@pytest.mark.parametrize("m_axis", [None, "M", "-M", "Y", "-Y"])
+@pytest.mark.parametrize("l_axis", [None, "L", "-L", "X", "-X"])
+@pytest.mark.parametrize("header_m", ["M", "Y"])
+@pytest.mark.parametrize("header_l", ["L", "X"])
+def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
+    from africanus.util.beams import beam_grids, axis_and_sign
 
     hdr = fits_header
+    hdr['CTYPE1'] = header_l
+    hdr['CTYPE2'] = header_m
+
+    l_ax, l_sgn = axis_and_sign(l_axis, "L")
+    m_ax, m_sgn = axis_and_sign(m_axis, "M")
 
     # Extract l, m and frequency axes and grids
-    (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header)
+    (l, l_grid), (m, m_grid), (freq, freq_grid) = beam_grids(fits_header,
+                                                             l_axis, m_axis)
 
     # Check expected L
+    assert hdr['CTYPE%d' % l] == header_l
     crval = hdr['CRVAL%d' % l]
     cdelt = hdr['CDELT%d' % l]
     crpix = hdr['CRPIX%d' % l] - 1  # C-indexing
     R = np.arange(0.0, float(hdr['NAXIS%d' % l]))
 
     exp_l = (R - crpix)*cdelt + crval
-    exp_l = np.deg2rad(exp_l)
+    exp_l = np.deg2rad(exp_l) * l_sgn
 
-    assert np.allclose(exp_l, l_grid)
+    assert_array_almost_equal(exp_l, l_grid)
 
+    assert hdr['CTYPE%d' % m] == header_m
     crval = hdr['CRVAL%d' % m]
     cdelt = hdr['CDELT%d' % m]
     crpix = hdr['CRPIX%d' % m] - 1  # C-indexing
     R = np.arange(0.0, float(hdr['NAXIS%d' % m]))
 
-    # Check expected M. It's -M in the FITS header
-    # so there's a flip in direction here
     exp_m = (R - crpix)*cdelt + crval
-    exp_m = np.deg2rad(exp_m)
-    exp_m = np.flipud(exp_m)
+    exp_m = np.deg2rad(exp_m) * m_sgn
 
-    assert np.allclose(exp_m, m_grid)
+    assert_array_almost_equal(exp_m, m_grid)
 
     # GFREQS used for the frequency grid
     gfreqs = [fits_header.get('GFREQ%d' % (i+1)) for i
               in range(fits_header['NAXIS3'])]
 
-    assert np.allclose(freq_grid, gfreqs)
+    assert_array_almost_equal(freq_grid, gfreqs)
 
 
 def test_beam_filenames():
