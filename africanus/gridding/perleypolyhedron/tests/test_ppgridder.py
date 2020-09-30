@@ -69,9 +69,8 @@ def ftimage(image):
 
 @pytest.fixture(scope="module")
 def cell_size(request, uvw, wavelength, pxacrossbeam):
-    return np.rad2deg(wavelength[0] /
-        (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) *
-        pxacrossbeam))
+    max_uv = np.max(uvw[:, :2], axis=(0, 1), keepdims=False)
+    return np.rad2deg(wavelength[0] / (2 * max_uv * pxacrossbeam))
 
 
 def test_construct_kernels(tmp_path_factory):
@@ -183,7 +182,7 @@ def vis_dft(request, image, cell_size, uvw, frequency):
     ra, dec = np.meshgrid(extent, extent)
     radec = np.column_stack((ra.flatten(), dec.flatten()))
     return im_to_vis(image[0, :, :].reshape(1, 1, npix * npix).T.copy(),
-                      uvw, radec, frequency)
+                     uvw, radec, frequency)
 
 
 # We can indirectly parametrize the number of rows in the uvw
@@ -419,11 +418,11 @@ def test_grid_dft(tmp_path_factory, global_vars_grid):
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
     if pytest.__CACHE_GRID_MOD is None:
-        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]\
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]
                                             .reshape(1, 1,
                                                      npix *
                                                      npix).T.copy(), uvw,
-                                     radec, frequency)\
+                                            radec, frequency)\
                                     .repeat(2).reshape(nrow, 1, 2)
     vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
@@ -462,8 +461,8 @@ def test_grid_dft(tmp_path_factory, global_vars_grid):
             vis_to_im(vis_dft, uvw, radec, frequency,
                       np.zeros(vis_dft.shape,
                                dtype=np.bool))\
-                      .T.copy().reshape(2, 1,
-                                        npix, npix) / nrow
+            .T.copy().reshape(2, 1,
+                              npix, npix) / nrow
     dftvis = pytest.__CACHE_GRID_DFT
     try:
         import matplotlib
@@ -530,11 +529,11 @@ def test_grid_dft_packed(tmp_path_factory, global_vars_grid):
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
     if pytest.__CACHE_GRID_MOD is None:
-        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]\
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]
                                             .reshape(1, 1,
                                                      npix *
                                                      npix).T.copy(), uvw,
-                                     radec, frequency)\
+                                            radec, frequency)\
                                     .repeat(2).reshape(nrow, 1, 2)
     vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
@@ -572,8 +571,8 @@ def test_grid_dft_packed(tmp_path_factory, global_vars_grid):
             vis_to_im(vis_dft, uvw, radec, frequency,
                       np.zeros(vis_dft.shape,
                                dtype=np.bool))\
-                      .T.copy().reshape(2, 1,
-                                        npix, npix) / nrow
+            .T.copy().reshape(2, 1,
+                              npix, npix) / nrow
     dftvis = pytest.__CACHE_GRID_DFT
 
     try:
