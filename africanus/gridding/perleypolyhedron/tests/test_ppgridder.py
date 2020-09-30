@@ -191,11 +191,9 @@ def vis_dft(request, image, cell_size, uvw, frequency):
 def test_degrid_dft(npix, oversampling, kernel_width,
                     frequency, wavelength, pxacrossbeam, uvw,
                     image, ftimage, cell_size, vis_dft, tmp_path_factory):
-    OS = oversampling
-    W = kernel_width
 
     # construct kernel
-    kern = kernels.kbsinc(W, oversample=OS)
+    kern = kernels.kbsinc(kernel_width, oversample=oversampling)
 
     chanmap = np.array([0])
     vis_degrid = degridder.degridder(
@@ -207,8 +205,8 @@ def test_degrid_dft(npix, oversampling, kernel_width,
         (0, np.pi / 4.0),
         (0, np.pi / 4.0),
         kern,
-        W,
-        OS,
+        kernel_width,
+        oversampling,
         "None",  # no faceting
         "None",  # no faceting
         "XXYY_FROM_I",
