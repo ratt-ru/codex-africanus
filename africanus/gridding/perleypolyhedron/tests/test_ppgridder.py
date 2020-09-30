@@ -53,7 +53,7 @@ def uvw(request):
 
 
 @pytest.fixture(scope="module")
-def image(npix, kernel_width):
+def model(npix, kernel_width):
     W = kernel_width
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - W, npix // 2 - W] = 1.0
@@ -61,10 +61,10 @@ def image(npix, kernel_width):
 
 
 @pytest.fixture(scope="module")
-def ftimage(image):
-    _, npix, _ = image.shape
+def ftmodel(model):
+    _, npix, _ = model.shape
     return np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(
-        image[0, :, :]))).reshape((1, npix, npix))
+        model[0, :, :]))).reshape((1, npix, npix))
 
 
 @pytest.fixture(scope="module")
@@ -176,21 +176,24 @@ def global_var_degrid():
 
 
 @pytest.fixture(scope="module")
-def vis_dft(request, image, cell_size, uvw, frequency):
-    _, npix, _ = image.shape
+def vis_dft(request, model, cell_size, uvw, frequency):
+    _, npix, _ = model.shape
     extent = np.arange(-npix // 2, npix // 2) * np.deg2rad(cell_size)
     ra, dec = np.meshgrid(extent, extent)
     radec = np.column_stack((ra.flatten(), dec.flatten()))
-    return im_to_vis(image[0, :, :].reshape(1, 1, npix * npix).T.copy(),
+    return im_to_vis(model[0, :, :].reshape(1, 1, npix * npix).T.copy(),
                      uvw, radec, frequency)
 
 
-# We can indirectly parametrize the number of rows in the uvw
-# fixture like so:
-# @pytest.mark.parametrize("uvw", [172], indirect=True)
-def test_degrid_dft(npix, oversampling, kernel_width,
-                    frequency, wavelength, pxacrossbeam, uvw,
-                    image, ftimage, cell_size, vis_dft, tmp_path_factory):
+# We can indirectly parametrize the number of pixels
+# in the model and ftmodel like so
+# @pytest.mark.parametrize("npix", [256], indirect=True)
+# or the number of UVW rows like so
+# @pytest.mark.parametrize("uvw", [128], indirect=True)
+def test_degrid_dft(oversampling, kernel_width,
+                    wavelength, uvw,
+                    ftmodel, cell_size,
+                    vis_dft, tmp_path_factory):
 
     # construct kernel
     kern = kernels.kbsinc(kernel_width, oversample=oversampling)
@@ -198,7 +201,7 @@ def test_degrid_dft(npix, oversampling, kernel_width,
     chanmap = np.array([0])
     vis_degrid = degridder.degridder(
         uvw,
-        ftimage,
+        ftmodel,
         wavelength,
         chanmap,
         cell_size * 3600.0,
