@@ -163,8 +163,6 @@ def degridder(uvw,
         cell=cell,
         phase_centre=phase_centre,
         vis_dtype=vis_dtype,
-        # goes to one set of grids per row chunk
-        adjust_chunks={"row": 1},
         new_axes={
             "corr":
             stokes_conversion_policies.ncorr_outpy(
