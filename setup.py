@@ -21,7 +21,8 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         'numpy >= 1.14.0, != 1.15.3',
-        'numba >= 0.46.0']
+        'numba >= 0.49.0'
+        ]
 
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
@@ -30,7 +31,7 @@ extras_require = {
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
-    'ducc0': ['ducc0 >= 0.4.0'],
+    'ducc0': ['ducc0 >= 0.6.0'],
     'testing': ['pytest', 'flaky', 'pytest-flake8 >= 1.0.6']
 }
 
@@ -73,11 +74,6 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
     description="Radio Astronomy Building Blocks",
-    entry_points={
-        'console_scripts': [
-            'plot-filter=africanus.filters.plot_filter:main',
-            'plot-taper=africanus.filters.plot_taper:main'],
-    },
     extras_require=extras_require,
     install_requires=requirements,
     license="BSD-3-Clause",
@@ -92,6 +88,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ska-sa/codex-africanus',
-    version='0.2.6',
+    version='0.2.7',
     zip_safe=False,
 )

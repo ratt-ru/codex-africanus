@@ -2,6 +2,16 @@
 History
 =======
 
+x.x.x (xxxx-xx-xx)
+------------------
+* Bounding hull geometric and image manipulation routines (:pr:`192`, :pr:`154`)
+
+0.2.7 (2020-09-23)
+------------------
+* Deprecate old gridder and filters (:pr:`224`)
+* Upgrade to ducc0 0.6.0 (:pr:`223`)
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`, :pr:`222`)
+
 0.2.6 (2020-08-07)
 ------------------
 * Add wrapper for ducc0.wgridder (:pr:204`)
