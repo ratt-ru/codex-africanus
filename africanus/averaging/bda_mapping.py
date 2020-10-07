@@ -51,7 +51,6 @@ def inv_sinc(sinc_x, tol=1e-12):
     return x
 
 
-
 @njit(nogil=True, cache=True, inline='always')
 def factors(n):
     result = []

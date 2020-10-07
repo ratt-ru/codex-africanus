@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal, assert_array_equal
+from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
@@ -64,7 +64,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
     sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
 
-
     import time as timing
 
     start = timing.perf_counter()
@@ -101,7 +100,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     assert row_avg.vis[0].dtype == vis.dtype
     assert row_avg.vis[1].dtype == vis2.dtype
 
-
     time_centroid = time
     exposure = interval
 
@@ -111,7 +109,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                           uvw, weight=None, sigma=None)
 
     print("row_average: %f" % (timing.perf_counter() - start))
-
 
     # vis = vis(time.shape[0], nchan, ncorr)
     # flag = flag(time.shape[0], nchan, ncorr)
@@ -129,7 +126,8 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     assert_array_almost_equal(row_chan.vis, rca_avg2.vis[0])
     assert_array_almost_equal(row_chan.vis, rca_avg2.vis[1])
     assert_array_almost_equal(row_chan.flag, rca_avg.flag)
-    assert_array_almost_equal(row_chan.weight_spectrum, rca_avg.weight_spectrum)
+    assert_array_almost_equal(
+        row_chan.weight_spectrum, rca_avg.weight_spectrum)
     assert_array_almost_equal(row_chan.sigma_spectrum, rca_avg.sigma_spectrum)
 
     assert_array_almost_equal(row_avg.time_centroid, meta.time)
@@ -247,7 +245,6 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
             raise ValueError(f"Invalid vis_format: {vis_format}")
 
 
-
 @pytest.fixture
 def check_leaks():
     import gc
@@ -262,10 +259,11 @@ def check_leaks():
     assert stats.alloc == stats.free
     assert stats.mi_alloc == stats.mi_free
 
+
 @pytest.mark.parametrize("dtype", [np.complex64])
 def test_bda_output_arrays(dtype, check_leaks):
     from africanus.averaging.bda_avg import vis_output_arrays
-    from numba import njit, literal_unroll
+    from numba import njit
 
     @njit
     def fn(a, o):

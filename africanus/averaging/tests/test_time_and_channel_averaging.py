@@ -312,7 +312,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
                 exp_wts = weight_spectrum[idx, cs:ce, corr]
                 exp_sigma = sigma_spectrum[idx, cs:ce, corr]
 
-                # Use matching to flags to decide which 
+                # Use matching to flags to decide which
                 # samples contribute to the bin
                 chunk_exp_vis = exp_vis[flags_match]
                 chunk_exp_wts = exp_wts[flags_match]

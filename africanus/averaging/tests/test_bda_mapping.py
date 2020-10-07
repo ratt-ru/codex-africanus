@@ -200,7 +200,7 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
 
 @pytest.mark.parametrize("radec", [
     np.deg2rad([87, 90]), np.deg2rad([10/3600., 15/3600.])],
-ids=lambda s: str(s))
+    ids=lambda s: str(s))
 @pytest.mark.parametrize("decorrelation", [0.99, 0.95, 0.80])
 def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
     from africanus.averaging.bda_mapping import inv_sinc
@@ -227,12 +227,13 @@ def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
 
     print(" "*80)
     print(f"L={L} M={M}")
-    print(f"psi1={2.0*np.pi*(du_dt*L + dv_dt*M)} psi2={2.0*np.pi*duv_dt*lm_dist}")
-    print(f"sinc(psi1)={sinc(np.pi*(du_dt*L + dv_dt*M))} sinc(psi2)={sinc(np.pi*duv_dt*lm_dist)}")
+    print(f"psi1={2.0*np.pi*(du_dt*L + dv_dt*M)} "
+          f"psi2={2.0*np.pi*duv_dt*lm_dist}")
+    print(f"sinc(psi1)={sinc(np.pi*(du_dt*L + dv_dt*M))} "
+          f"sinc(psi2)={sinc(np.pi*duv_dt*lm_dist)}")
 
     psi = 2.0*np.pi*(du_dt*L + dv_dt*M)
     psi = 2.0*np.pi*duv_dt*lm_dist
-
 
     sinc_half_psi = np.abs(sinc(psi / 2.0))
 
@@ -248,24 +249,25 @@ def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
 
     sinc_phi = 2.0*sinc_half_phi
 
-    print(f"sinc_half_psi = {sinc_half_psi:.3f} sinc_half_phi = {sinc_half_phi:.3f}")
+    print(f"sinc_half_psi = {sinc_half_psi:.3f}"
+          f"sinc_half_phi = {sinc_half_phi:.3f}")
 
     dist = np.sqrt(np.abs(cu)*np.abs(L) + np.abs(cv)*np.abs(M))
     half_phi = inv_sinc.py_func(sinc_phi / 2.0)
     phi = 2.0 * half_phi
     max_dfreq = (phi / (2.0 * np.pi)) * (lightspeed / dist)
 
-    print(f"psi = {psi:.3f} phi = {phi:.3f} max_dfreq = {max_dfreq / (1000.**2):.1f}MHz")
+    print(f"psi = {psi:.3f} phi = {phi:.3f} "
+          f"max_dfreq = {max_dfreq / (1000.**2):.1f}MHz")
 
-    def phase(freq, u, v, w, l, m):
+    def phase(freq, u, v, w, l, m):  # noqa
         n = np.sqrt(1.0 - l**2 - m**2) - 1.0
-        # print(l, m, n, (l*u + m*v + n*w), -2*np.pi*1j*freq*(l*u + m*v + n*w)/lightspeed)
         return np.exp(-2*np.pi*1j*freq*(l*u + m*v + n*w)/lightspeed)
 
     ref_freq = 3*.856e9/2
 
-    t0fc = phase(ref_freq, uvw[ 0, 0], uvw[ 0, 1], uvw[ 0, 2], L, M)
-    t1fc = phase(ref_freq, uvw[ 1, 0], uvw[ 1, 1], uvw[ 1, 2], L, M)
+    t0fc = phase(ref_freq, uvw[0, 0], uvw[0, 1], uvw[0, 2], L, M)
+    t1fc = phase(ref_freq, uvw[1, 0], uvw[1, 1], uvw[1, 2], L, M)
 
     cu, cv, cw = np.mean(uvw[:2, :], axis=0)
     tcf0 = phase(.856e9, cu, cv, cw, L, M)
@@ -275,9 +277,6 @@ def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
     print(f"t1f0 = {np.angle(t1fc)}")
     print(f"tcf0 = {np.angle(tcf0)}")
     print(f"tcf1 = {np.angle(tcf1)}")
-
-
-
 
     # print(f"x = {x:.3f} sinc(x) = {sinc_x:.3f} "
     #       f"y = {y:.3f} sinc_y = {sinc_y:.3f} "

@@ -81,7 +81,8 @@ def _shape_or_invalid_shape(array, ndim):
     import numba.core.types as nbtypes
     from numba.extending import SentryLiteralArgs
 
-    SentryLiteralArgs(['ndim']).for_function(_shape_or_invalid_shape).bind(array, ndim)
+    SentryLiteralArgs(['ndim']).for_function(
+        _shape_or_invalid_shape).bind(array, ndim)
 
     try:
         ndim_lit = getattr(ndim, "literal_value")
@@ -258,10 +259,9 @@ def _flags_match(flag_row, ri, out_flag_row, ro):
     return impl
 
 
-
 @intrinsic
 def vis_output_arrays(typingctx, vis, out_shape):
-    from numba.core import types, cgutils, typing
+    from numba.core import types, cgutils
     from numba.np import numpy_support
 
     def vis_weight_types(vis):
@@ -339,8 +339,10 @@ def vis_output_arrays(typingctx, vis, out_shape):
                 factory_args = [out_shape]
 
                 # Compile function and get handle to output array
-                inner_value = context.compile_internal(builder, array_factory,
-                                                       factory_sig, factory_args)
+                inner_value = context.compile_internal(builder,
+                                                       array_factory,
+                                                       factory_sig,
+                                                       factory_args)
 
             # Insert inner tuple into outer tuple
             elif have_vis_tuple:

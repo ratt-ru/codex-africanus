@@ -3,7 +3,6 @@
 from collections import namedtuple
 
 import numpy as np
-import numba
 
 from africanus.averaging.bda_mapping import (atemkeng_mapper,
                                              RowMapOutput)
@@ -232,7 +231,7 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
 
             # Compile function and get handle to output
             context.compile_internal(builder, avg_fn,
-                                    avg_sig, avg_args)
+                                     avg_sig, avg_args)
         elif have_tuple:
             for i in range(len(vis_type)):
                 avg_sig = return_type(vis_type.types[i],
@@ -248,7 +247,7 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
 
                 # Compile function and get handle to output
                 context.compile_internal(builder, avg_fn,
-                                        avg_sig, avg_args)
+                                         avg_sig, avg_args)
         else:
             # noop
             pass
@@ -300,7 +299,7 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, co):
 
                 # Compile function and get handle to output
                 context.compile_internal(builder, normalise_fn,
-                                        norm_sig, norm_args)
+                                         norm_sig, norm_args)
         else:
             # noop
             pass
@@ -371,16 +370,17 @@ def rca(meta, flag_row=None, weight=None,
                     else:
                         counts[ro, co] += 1
 
-        #------
+        # ------
         # Flags
-        #------
+        # ------
 
         # Determine whether input samples should contribute to an output bin
         # and, if flags are parent, whether the output bin is flagged
 
         # This follows from the definition of an effective average:
         #
-        # * bad or flagged values should be excluded when calculating the average
+        # * bad or flagged values should be excluded
+        #   when calculating the average
         #
         # Note that if a bin is completely flagged we still compute an average,
         # to which all relevant input samples contribute.
@@ -417,13 +417,14 @@ def rca(meta, flag_row=None, weight=None,
                         match = flags_match[ri, fi, co] == out_flag
                         flags_match[ri, fi, co] = match
 
-        #-------------
+        # -------------
         # Visibilities
-        #-------------
+        # -------------
         if not have_vis:
             vis_avg = None
         else:
-            vis_avg, vis_weight_sum = vis_output_arrays(visibilities, out_shape)
+            vis_avg, vis_weight_sum = vis_output_arrays(
+                visibilities, out_shape)
 
             # Aggregate
             for ri in range(meta.map.shape[0]):
@@ -438,7 +439,8 @@ def rca(meta, flag_row=None, weight=None,
                               if have_weight_spectrum else
                               weight[ri, co] if have_weight else 1.0)
 
-                        average_visibilities(visibilities, vis_avg, vis_weight_sum,
+                        average_visibilities(visibilities,
+                                             vis_avg, vis_weight_sum,
                                              wt, ri, fi, ro, co)
 
             # Normalise
@@ -446,9 +448,9 @@ def rca(meta, flag_row=None, weight=None,
                 for co in range(ncorrs):
                     normalise_visibilities(vis_avg, vis_weight_sum, ro, co)
 
-        #----------------
+        # ----------------
         # Weight Spectrum
-        #----------------
+        # ----------------
         if not have_weight_spectrum:
             weight_spectrum_avg = None
         else:
@@ -466,9 +468,9 @@ def rca(meta, flag_row=None, weight=None,
                         weight_spectrum_avg[ro, co] += (
                             weight_spectrum[ri, fi, co])
 
-        #---------------
+        # ---------------
         # Sigma Spectrum
-        #---------------
+        # ---------------
         if not have_sigma_spectrum:
             sigma_spectrum_avg = None
         else:
@@ -504,8 +506,8 @@ def rca(meta, flag_row=None, weight=None,
                                     weight_spectrum_avg,
                                     sigma_spectrum_avg)
 
-
     return impl
+
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def row_chan_average(meta, flag_row=None, weight=None,

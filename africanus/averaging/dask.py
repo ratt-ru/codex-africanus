@@ -207,11 +207,12 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
 
         have_vis_tuple = True
         nvis_elements = len(visibilities)
+        meta = np.empty((0, 0, 0), visibilities[0].dtype)
 
         visibilities = da.blockwise(lambda *a: a, _row_chan_avg_dims,
                                     *[elem for a in visibilities
                                       for elem in (a, _row_chan_avg_dims)],
-                                     meta=np.empty((0, 0, 0), visibilities[0].dtype))
+                                    meta=meta)
 
     avg = da.blockwise(np_tc_row_chan_average, _row_chan_avg_dims,
                        row_meta, ("row",),
@@ -248,7 +249,6 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
             tuple_vis.append(v)
 
         tuple_gets = (tuple(tuple_vis),) + tuple_gets[1:]
-
 
     return TcRowChanAverageOutput(*tuple_gets)
 
@@ -603,7 +603,6 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
     else:
         raise ValueError(f"Invalid format {format}")
 
-
     flag_row_dims = None if flag_row is None else ("row",)
     weight_dims = None if weight is None else ("row", "corr")
     vis_dims = None if vis is None else _row_chan_avg_dims
@@ -627,10 +626,11 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
         # convert them into an array of tuples of visibilities
         have_vis_tuple = True
         nvis_elements = len(vis)
+        meta = np.empty((0,)*len(bda_dims), dtype=vis[0].dtype)
 
         vis = da.blockwise(lambda *a: a, _row_chan_avg_dims,
                            *[elem for a in vis for elem in (a, vis_dims)],
-                           meta=np.empty((0,)*len(bda_dims), dtype=vis[0].dtype))
+                           meta=meta)
     elif isinstance(flag, da.Array):
         nchan = flag.shape[1]
     elif isinstance(weight_spectrum, da.Array):

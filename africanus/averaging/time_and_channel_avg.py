@@ -9,7 +9,6 @@ import numpy as np
 from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 from africanus.averaging.shared import (chan_corrs,
-                                        flags_match,
                                         merge_flags,
                                         vis_output_arrays)
 
@@ -239,7 +238,7 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
 
             # Compile function and get handle to output
             context.compile_internal(builder, avg_fn,
-                                    avg_sig, avg_args)
+                                     avg_sig, avg_args)
         elif have_tuple:
             for i in range(len(vis_type)):
                 avg_sig = return_type(vis_type.types[i],
@@ -255,7 +254,7 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
 
                 # Compile function and get handle to output
                 context.compile_internal(builder, avg_fn,
-                                        avg_sig, avg_args)
+                                         avg_sig, avg_args)
         else:
             raise TypeError("Unhandled visibility array type")
 
@@ -307,12 +306,11 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, fo, co):
 
                 # Compile function and get handle to output
                 context.compile_internal(builder, normalise_fn,
-                                        norm_sig, norm_args)
+                                         norm_sig, norm_args)
         else:
             raise TypeError("Unhandled visibility array type")
 
     return sig, codegen
-
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -374,16 +372,17 @@ def row_chan_average(row_meta, chan_meta,
                     else:
                         counts[ro, fo, co] += 1
 
-        #------
+        # ------
         # Flags
-        #------
+        # ------
 
         # Determine whether input samples should contribute to an output bin
         # and, if flags are parent, whether the output bin is flagged
 
         # This follows from the definition of an effective average:
         #
-        # * bad or flagged values should be excluded when calculating the average
+        # * bad or flagged values should be excluded
+        #   when calculating the average
         #
         # Note that if a bin is completely flagged we still compute an average,
         # to which all relevant input samples contribute.
@@ -420,38 +419,41 @@ def row_chan_average(row_meta, chan_meta,
                                    (have_flag and flag[ri, fi, co] != 0))
                         flags_match[ri, fi, co] = in_flag == out_flag
 
-
-        #-------------
+        # -------------
         # Visibilities
-        #-------------
+        # -------------
         if not have_vis:
             vis_avg = None
         else:
-            vis_avg, vis_weight_sum = vis_output_arrays(visibilities, out_shape)
+            vis_avg, vis_weight_sum = vis_output_arrays(
+                visibilities, out_shape)
 
             # # Aggregate
             for ri, ro in enumerate(row_meta.map):
                 for fi, fo in enumerate(chan_map):
                     for co in range(ncorrs):
                         if have_flags and not flags_match[ri, fi, co]:
-                                continue
+                            continue
 
                         wt = (weight_spectrum[ri, fi, co]
                               if have_weight_spectrum else
                               weight[ri, co] if have_weight else 1.0)
 
-                        average_visibilities(visibilities, vis_avg, vis_weight_sum,
+                        average_visibilities(visibilities,
+                                             vis_avg,
+                                             vis_weight_sum,
                                              wt, ri, fi, ro, fo, co)
 
             # Normalise
             for ro in range(out_rows):
                 for fo in range(out_chans):
                     for co in range(ncorrs):
-                        normalise_visibilities(vis_avg, vis_weight_sum, ro, fo, co)
+                        normalise_visibilities(
+                            vis_avg, vis_weight_sum, ro, fo, co)
 
-        #----------------
+        # ----------------
         # Weight Spectrum
-        #----------------
+        # ----------------
 
         if not have_weight_spectrum:
             weight_spectrum_avg = None
@@ -463,14 +465,14 @@ def row_chan_average(row_meta, chan_meta,
                 for fi, fo in enumerate(chan_map):
                     for co in range(ncorrs):
                         if have_flags and not flags_match[ri, fi, co]:
-                                continue
+                            continue
 
                         weight_spectrum_avg[ro, fo, co] += (
                             weight_spectrum[ri, fi, co])
 
-        #---------------
+        # ---------------
         # Sigma Spectrum
-        #---------------
+        # ---------------
         if not have_sigma_spectrum:
             sigma_spectrum_avg = None
         else:
@@ -499,7 +501,8 @@ def row_chan_average(row_meta, chan_meta,
                         sswsum = sigma_spectrum_weight_sum[ro, fo, co]
                         if sswsum != 0.0:
                             ssv = sigma_spectrum_avg[ro, fo, co]
-                            sigma_spectrum_avg[ro, fo, co] = np.sqrt(ssv / sswsum**2)
+                            sigma_spectrum_avg[ro, fo, co] = np.sqrt(
+                                ssv / sswsum**2)
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
