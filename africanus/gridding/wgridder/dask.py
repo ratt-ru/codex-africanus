@@ -96,8 +96,10 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
     if epsilon is None:
         if vis.dtype == np.complex128:
             epsilon = 1e-7
+            real_type = np.float64
         elif vis.dtype == np.complex64:
             epsilon = 1e-5
+            real_type = np.float64
         else:
             raise ValueError("vis of incorrect type")
 
@@ -136,7 +138,7 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
                        adjust_chunks={'chan': freq_bin_idx.chunks[0],
                                       'row': (1,)*len(vis.chunks[0])},
                        new_axes={"nx": nx, "ny": ny},
-                       dtype=weights.dtype,
+                       dtype=real_type,
                        align_arrays=False)
 
     return img.sum(axis=0)
