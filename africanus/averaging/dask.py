@@ -45,8 +45,14 @@ def tc_chan_metadata(row_chan_arrays, chan_arrays, chan_bin_size):
     chan_chunks = None
 
     for array in row_chan_arrays:
-        if array is not None:
+        if isinstance(array, tuple):
+            for a in array:
+                chan_chunks = a.chunks[1]
+                break
+        elif array is not None:
             chan_chunks = array.chunks[1]
+
+        if chan_chunks is not None:
             break
 
     if chan_chunks is None:
@@ -167,7 +173,7 @@ _row_chan_avg_dims = ("row", "chan", "corr")
 
 
 def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
-                        vis=None, flag=None,
+                        visibilities=None, flag=None,
                         weight_spectrum=None, sigma_spectrum=None,
                         chan_bin_size=1):
     """ Average (row,chan,corr)-based dask arrays """
@@ -184,7 +190,7 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
 
     flag_row_dims = None if flag_row is None else ("row",)
     weight_dims = None if weight is None else ("row", "corr")
-    vis_dims = None if vis is None else _row_chan_avg_dims
+    vis_dims = None if visibilities is None else _row_chan_avg_dims
     flag_dims = None if flag is None else _row_chan_avg_dims
     ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
     ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
@@ -194,25 +200,25 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
 
     # If we received a tuple of visibility arrays
     # convert them into an array of tuples of visibilities
-    if isinstance(vis, (tuple, list)):
-        if not all(isinstance(a, da.Array) for a in vis):
+    if isinstance(visibilities, (tuple, list)):
+        if not all(isinstance(a, da.Array) for a in visibilities):
             raise ValueError("Visibility tuple must exclusively "
                              "contain dask arrays")
 
         have_vis_tuple = True
-        nvis_elements = len(vis)
+        nvis_elements = len(visibilities)
 
-        vis = da.blockwise(lambda *a: tuple(a),
-                           *[elem for a in vis for elem in (a, vis_dims)],
-                           meta=np.empty((0,0,0),
-                           dtype=vis[0].dtype))
+        visibilities = da.blockwise(lambda *a: a, _row_chan_avg_dims,
+                                    *[elem for a in visibilities
+                                      for elem in (a, _row_chan_avg_dims)],
+                                     meta=np.empty((0, 0, 0), visibilities[0].dtype))
 
     avg = da.blockwise(np_tc_row_chan_average, _row_chan_avg_dims,
                        row_meta, ("row",),
                        chan_meta, ("chan",),
                        flag_row, flag_row_dims,
                        weight, weight_dims,
-                       vis, vis_dims,
+                       visibilities, vis_dims,
                        flag, flag_dims,
                        weight_spectrum, ws_dims,
                        sigma_spectrum, ss_dims,
@@ -223,13 +229,14 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                        dtype=np.object)
 
     tuple_gets = (None if a is None else _getitem_row_chan(avg, i, a.dtype)
-                  for i, a in enumerate([vis, flag,
+                  for i, a in enumerate([visibilities, flag,
                                          weight_spectrum,
                                          sigma_spectrum]))
 
     # If we received an array of tuples of visibilities
     # convert them into a tuple of visibility arrays
     if have_vis_tuple:
+        tuple_gets = tuple(tuple_gets)
         vis_tuple = tuple_gets[0]
         tuple_vis = []
 
@@ -238,6 +245,7 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                              vis_tuple, _row_chan_avg_dims,
                              v, None,
                              dtype=vis_tuple.dtype)
+            tuple_vis.append(v)
 
         tuple_gets = (tuple(tuple_vis),) + tuple_gets[1:]
 
@@ -316,11 +324,11 @@ def time_and_channel(time, interval, antenna1, antenna2,
                      uvw=None, weight=None, sigma=None,
                      chan_freq=None, chan_width=None,
                      effective_bw=None, resolution=None,
-                     vis=None, flag=None,
+                     visibilities=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
 
-    row_chan_arrays = (vis, flag, weight_spectrum, sigma_spectrum)
+    row_chan_arrays = (visibilities, flag, weight_spectrum, sigma_spectrum)
     chan_arrays = (chan_freq, chan_width, effective_bw, resolution)
 
     # The flow of this function should match that of the numba
@@ -348,7 +356,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
     # Average channel data
     row_chan_data = tc_row_chan_average(row_meta, chan_meta,
                                         flag_row=flag_row, weight=weight,
-                                        vis=vis, flag=flag,
+                                        visibilities=visibilities, flag=flag,
                                         weight_spectrum=weight_spectrum,
                                         sigma_spectrum=sigma_spectrum,
                                         chan_bin_size=chan_bin_size)

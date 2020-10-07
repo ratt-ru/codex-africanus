@@ -198,7 +198,9 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
-@pytest.mark.parametrize("radec", [np.deg2rad([87, 90]), (.1, .2)], ids=lambda s: str(s))
+@pytest.mark.parametrize("radec", [
+    np.deg2rad([87, 90]), np.deg2rad([10/3600., 15/3600.])],
+ids=lambda s: str(s))
 @pytest.mark.parametrize("decorrelation", [0.99, 0.95, 0.80])
 def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
     from africanus.averaging.bda_mapping import inv_sinc
@@ -212,8 +214,8 @@ def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
     lm_dist = np.sqrt(L**2 + M**2)
     duvw = np.abs(np.diff(uvw, axis=0))
 
-    du = duvw[0, 0]
-    dv = duvw[0, 1]
+    du = -duvw[0, 0]
+    dv = -duvw[0, 1]
     dt = np.unique(np.diff(time))[-1]
 
     du_dt = du / dt
@@ -223,10 +225,14 @@ def test_bda_simple(radec, decorrelation, interval, time, ants, phase_dir):
     def sinc(x):
         return 1.0 if x == 0.0 else np.sin(x) / x
 
+    print(" "*80)
+    print(f"L={L} M={M}")
+    print(f"psi1={2.0*np.pi*(du_dt*L + dv_dt*M)} psi2={2.0*np.pi*duv_dt*lm_dist}")
+    print(f"sinc(psi1)={sinc(np.pi*(du_dt*L + dv_dt*M))} sinc(psi2)={sinc(np.pi*duv_dt*lm_dist)}")
+
     psi = 2.0*np.pi*(du_dt*L + dv_dt*M)
     psi = 2.0*np.pi*duv_dt*lm_dist
 
-    print(f"psi1={2.0*np.pi*(du_dt*L + dv_dt*M)} psi2={2.0*np.pi*duv_dt*lm_dist}")
 
     sinc_half_psi = np.abs(sinc(psi / 2.0))
 

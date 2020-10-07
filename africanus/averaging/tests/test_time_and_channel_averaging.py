@@ -232,7 +232,9 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     # flagged_row and flag should agree
     flag_row[flagged_rows] = 1
-    flag[flagged_rows, :, :] = 1
+    flag[flag_row.astype(np.bool), :, :] = 1
+    flag[~flag_row.astype(np.bool), :, :] = 0
+    assert_array_equal(flag.all(axis=(1, 2)).astype(np.uint8), flag_row)
 
     row_meta = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     chan_map, chan_bins = channel_mapper(nchan, chan_bin_size)
@@ -256,7 +258,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
                            time_centroid=time, exposure=exposure, uvw=uvw,
                            weight=weight, sigma=sigma,
                            chan_freq=frequency, chan_width=chan_width,
-                           vis=vis, flag=flag,
+                           visibilities=vis, flag=flag,
                            weight_spectrum=weight_spectrum,
                            sigma_spectrum=sigma_spectrum,
                            time_bin_secs=time_bin_secs,
@@ -301,39 +303,34 @@ def test_averager(time, ant1, ant2, flagged_rows,
     for orow, idx in enumerate(eff_idx):
         for ch, (cs, ce) in enumerate(zip(chan_ranges[:-1], chan_ranges[1:])):
             for corr in range(ncorr):
-                chunk_flags = flag[idx, cs:ce, corr] == 1
-                expected_flags = chunk_flags.all()
-                assert_array_equal(expected_flags,  avg.flag[orow, ch, corr])
+                in_flags = flag[idx, cs:ce, corr] != 0
+                out_flag = in_flags.all()
+                assert_array_equal(out_flag, avg.flag[orow, ch, corr])
+                flags_match = in_flags == out_flag
 
                 exp_vis = vis[idx, cs:ce, corr]
                 exp_wts = weight_spectrum[idx, cs:ce, corr]
                 exp_sigma = sigma_spectrum[idx, cs:ce, corr]
 
-                # If all rows+chans in this correlation are flagged
-                # then we use flagged values to calculate vis
-                if expected_flags:
-                    exp_vis = exp_vis[chunk_flags]
-                    exp_wts = exp_wts[chunk_flags]
-                    exp_sigma = exp_sigma[chunk_flags]
-                # Otherwise we used unflagged values to calculate vis
-                else:
-                    exp_vis = exp_vis[~chunk_flags]
-                    exp_wts = exp_wts[~chunk_flags]
-                    exp_sigma = exp_sigma[~chunk_flags]
+                # Use matching to flags to decide which 
+                # samples contribute to the bin
+                chunk_exp_vis = exp_vis[flags_match]
+                chunk_exp_wts = exp_wts[flags_match]
+                chunk_exp_sigma = exp_sigma[flags_match]
 
-                exp_vis = (exp_vis*exp_wts).sum()
-                exp_sigma = (exp_sigma**2 * exp_wts**2).sum()
-                exp_wts = exp_wts.sum()
+                exp_vis = (chunk_exp_vis * chunk_exp_wts).sum()
+                exp_sigma = (chunk_exp_sigma**2 * chunk_exp_wts**2).sum()
+                exp_wts = chunk_exp_wts.sum()
 
                 if exp_wts != 0.0:
                     exp_vis = exp_vis / exp_wts
                     exp_sigma = np.sqrt(exp_sigma / (exp_wts**2))
 
                 assert_array_almost_equal(exp_vis, avg.vis[orow, ch, corr])
-                assert_array_almost_equal(exp_sigma,
-                                          avg.sigma_spectrum[orow, ch, corr])
                 assert_array_almost_equal(exp_wts,
                                           avg.weight_spectrum[orow, ch, corr])
+                assert_array_almost_equal(exp_sigma,
+                                          avg.sigma_spectrum[orow, ch, corr])
 
 
 @pytest.mark.parametrize("flagged_rows", [
@@ -367,13 +364,14 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     flag = flag(rows, chans, corrs)
     flag_row = np.zeros(time_centroid.shape[0], dtype=np.uint8)
     flag_row[flagged_rows] = 1
-    flag[flagged_rows, :, :] = 1
+    flag[flag_row.astype(np.bool), :, :] = 1
+    flag[~flag_row.astype(np.bool), :, :] = 0
 
     np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
                               flag_row=flag_row,
                               chan_freq=frequency, chan_width=chan_width,
                               effective_bw=chan_width, resolution=chan_width,
-                              vis=vis, flag=flag,
+                              visibilities=vis, flag=flag,
                               sigma_spectrum=sigma_spectrum,
                               weight_spectrum=weight_spectrum,
                               time_bin_secs=time_bin_secs,
@@ -401,7 +399,7 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
                    effective_bw=da_chan_width, resolution=da_chan_width,
                    weight=da_weight, sigma=da_sigma,
-                   vis=da_vis, flag=da_flag,
+                   visibilities=da_vis, flag=da_flag,
                    weight_spectrum=da_weight_spectrum,
                    sigma_spectrum=da_sigma_spectrum,
                    time_bin_secs=time_bin_secs,
@@ -445,10 +443,21 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
                    flag_row=da_flag_row,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
-                   vis=da_vis, flag=da_flag,
+                   visibilities=da_vis, flag=da_flag,
                    time_bin_secs=time_bin_secs,
                    chan_bin_size=chan_bin_size)
 
     # Compute all the fields
     fields = [getattr(avg, f) for f in avg._fields]
     avg = type(avg)(*da.compute(fields)[0])
+
+    # Get same result with a visibility tuple
+    avg2 = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
+                    flag_row=da_flag_row,
+                    chan_freq=da_chan_freq, chan_width=da_chan_width,
+                    visibilities=(da_vis, da_vis), flag=da_flag,
+                    time_bin_secs=time_bin_secs,
+                    chan_bin_size=chan_bin_size)
+
+    assert_array_equal(avg.vis, avg2.vis[0])
+    assert_array_equal(avg.vis, avg2.vis[1])

@@ -10,11 +10,12 @@ from africanus.averaging.time_and_channel_mapping import (row_mapper,
                                                           channel_mapper)
 from africanus.averaging.shared import (chan_corrs,
                                         flags_match,
-                                        merge_flags)
+                                        merge_flags,
+                                        vis_output_arrays)
 
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import (is_numba_type_none, generated_jit,
-                                  njit, overload)
+                                  njit, overload, intrinsic)
 
 TUPLE_TYPE = 0
 ARRAY_TYPE = 1
@@ -196,182 +197,309 @@ class RowChannelAverageException(Exception):
     pass
 
 
+@intrinsic
+def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
+                         weight, ri, fi, ro, fo, co):
+
+    import numba.core.types as nbtypes
+
+    have_array = isinstance(vis, nbtypes.Array)
+    have_tuple = isinstance(vis, (nbtypes.Tuple, nbtypes.UniTuple))
+
+    def avg_fn(vis, vis_avg, vis_ws, wt, ri, fi, ro, fo, co):
+        vis_avg[ro, fo, co] += vis[ri, fi, co] * wt
+        vis_ws[ro, fo, co] += wt
+
+    return_type = nbtypes.NoneType("none")
+
+    sig = return_type(vis, vis_avg, vis_weight_sum,
+                      weight, ri, fi, ro, fo, co)
+
+    def codegen(context, builder, signature, args):
+        vis, vis_type = args[0], signature.args[0]
+        vis_avg, vis_avg_type = args[1], signature.args[1]
+        vis_weight_sum, vis_weight_sum_type = args[2], signature.args[2]
+        weight, weight_type = args[3], signature.args[3]
+        ri, ri_type = args[4], signature.args[4]
+        fi, fi_type = args[5], signature.args[5]
+        ro, ro_type = args[6], signature.args[6]
+        fo, fo_type = args[7], signature.args[7]
+        co, co_type = args[8], signature.args[8]
+        return_type = signature.return_type
+
+        if have_array:
+            avg_sig = return_type(vis_type,
+                                  vis_avg_type,
+                                  vis_weight_sum_type,
+                                  weight_type,
+                                  ri_type, fi_type,
+                                  ro_type, fo_type, co_type)
+            avg_args = [vis, vis_avg, vis_weight_sum,
+                        weight, ri, fi, ro, fo, co]
+
+            # Compile function and get handle to output
+            context.compile_internal(builder, avg_fn,
+                                    avg_sig, avg_args)
+        elif have_tuple:
+            for i in range(len(vis_type)):
+                avg_sig = return_type(vis_type.types[i],
+                                      vis_avg_type.types[i],
+                                      vis_weight_sum_type.types[i],
+                                      weight_type,
+                                      ri_type, fi_type,
+                                      ro_type, fo_type, co_type)
+                avg_args = [builder.extract_value(vis, i),
+                            builder.extract_value(vis_avg, i),
+                            builder.extract_value(vis_weight_sum, i),
+                            weight, ri, fi, ro, fo, co]
+
+                # Compile function and get handle to output
+                context.compile_internal(builder, avg_fn,
+                                        avg_sig, avg_args)
+        else:
+            raise TypeError("Unhandled visibility array type")
+
+    return sig, codegen
+
+
+@intrinsic
+def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, fo, co):
+    import numba.core.types as nbtypes
+
+    have_array = isinstance(vis_avg, nbtypes.Array)
+    have_tuple = isinstance(vis_avg, (nbtypes.Tuple, nbtypes.UniTuple))
+
+    def normalise_fn(vis_avg, vis_ws, ro, fo, co):
+        weight_sum = vis_ws[ro, fo, co]
+
+        if weight_sum != 0.0:
+            vis_avg[ro, fo, co] /= weight_sum
+
+    return_type = nbtypes.NoneType("none")
+    sig = return_type(vis_avg, vis_weight_sum, ro, fo, co)
+
+    def codegen(context, builder, signature, args):
+        vis_avg, vis_avg_type = args[0], signature.args[0]
+        vis_weight_sum, vis_weight_sum_type = args[1], signature.args[1]
+        ro, ro_type = args[2], signature.args[2]
+        fo, fo_type = args[3], signature.args[3]
+        co, co_type = args[4], signature.args[4]
+        return_type = signature.return_type
+
+        if have_array:
+            # Normalise single array
+            norm_sig = return_type(vis_avg_type,
+                                   vis_weight_sum_type,
+                                   ro_type, fo_type, co_type)
+            norm_args = [vis_avg, vis_weight_sum, ro, fo, co]
+
+            context.compile_internal(builder, normalise_fn,
+                                     norm_sig, norm_args)
+        elif have_tuple:
+            # Normalise each array in the tuple
+            for i in range(len(vis_avg_type)):
+                norm_sig = return_type(vis_avg_type.types[i],
+                                       vis_weight_sum_type.types[i],
+                                       ro_type, fo_type, co_type)
+                norm_args = [builder.extract_value(vis_avg, i),
+                             builder.extract_value(vis_weight_sum, i),
+                             ro, fo, co]
+
+                # Compile function and get handle to output
+                context.compile_internal(builder, normalise_fn,
+                                        norm_sig, norm_args)
+        else:
+            raise TypeError("Unhandled visibility array type")
+
+    return sig, codegen
+
+
+
 @generated_jit(nopython=True, nogil=True, cache=True)
 def row_chan_average(row_meta, chan_meta,
                      flag_row=None, weight=None,
-                     vis=None, flag=None,
+                     visibilities=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
 
     dummy_chan_freq = None
     dummy_chan_width = None
 
-    have_weight = not is_numba_type_none(weight)
-
-    have_vis = not is_numba_type_none(vis)
+    have_vis = not is_numba_type_none(visibilities)
     have_flag = not is_numba_type_none(flag)
+    have_flag_row = not is_numba_type_none(flag_row)
+    have_flags = have_flag_row or have_flag
+
+    have_weight = not is_numba_type_none(weight)
     have_weight_spectrum = not is_numba_type_none(weight_spectrum)
     have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
 
     def impl(row_meta, chan_meta, flag_row=None, weight=None,
-             vis=None, flag=None,
+             visibilities=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None):
 
         out_rows = row_meta.time.shape[0]
-        nchan, ncorrs = chan_corrs(vis, flag,
+        nchan, ncorrs = chan_corrs(visibilities, flag,
                                    weight_spectrum, sigma_spectrum,
                                    dummy_chan_freq, dummy_chan_width,
                                    dummy_chan_width, dummy_chan_width)
 
         chan_map, out_chans = chan_meta
 
+        in_shape = (row_meta.map.shape[0], nchan, ncorrs)
         out_shape = (out_rows, out_chans, ncorrs)
 
-        # Visibility output and intermediate arrays
-        if vis is None:
-            vis_avg = None
-            vis_weight_sum = None
-            flagged_vis_avg = None
-            flagged_vis_weight_sum = None
-        else:
-            vis_avg = np.zeros(out_shape, dtype=vis.dtype)
-            vis_weight_sum = np.zeros(out_shape, dtype=vis.real.dtype)
-            flagged_vis_avg = np.zeros_like(vis_avg)
-            flagged_vis_weight_sum = np.zeros_like(vis_weight_sum)
-
-        # Flagged output and intermediate arrays
-        if flag is None:
+        if not have_flag:
             flag_avg = None
         else:
-            flag_avg = np.zeros(out_shape, dtype=flag.dtype)
+            flag_avg = np.full(out_shape, False, dtype=np.bool_)
 
-        # Weight spectrum output and intermediate arrays
-        if weight_spectrum is None:
-            weight_spectrum_avg = None
-            flagged_weight_spectrum_avg = None
-        else:
-            weight_spectrum_avg = np.zeros(
-                out_shape, dtype=weight_spectrum.dtype)
-            flagged_weight_spectrum_avg = np.zeros_like(weight_spectrum_avg)
-
-        # Sigma spectrum output and intermediate arrays
-        if sigma_spectrum is None:
-            sigma_spectrum_avg = None
-            sigma_spectrum_weight_sum = None
-            flagged_sigma_spectrum_avg = None
-            flagged_sigma_spectrum_weight_sum = None
-        else:
-            sigma_spectrum_avg = np.zeros(
-                out_shape, dtype=sigma_spectrum.dtype)
-            sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
-            flagged_sigma_spectrum_avg = np.zeros_like(sigma_spectrum_avg)
-            flagged_sigma_spectrum_weight_sum = np.zeros_like(
-                sigma_spectrum_avg)
+        # If either flag_row or flag is present, we need to ensure that
+        # effective averaging takes place.
+        if have_flags:
+            flags_match = np.full(in_shape, False, dtype=np.bool_)
+            flag_counts = np.zeros(out_shape, dtype=np.uint32)
 
         counts = np.zeros(out_shape, dtype=np.uint32)
-        flag_counts = np.zeros(out_shape, dtype=np.uint32)
 
-        # Iterate over input rows, accumulating into output rows
+        # Determine output bin counts both unflagged and flagged
         for ri, ro in enumerate(row_meta.map):
-            # TIME_CENTROID/EXPOSURE case applies here,
-            # must have flagged input and output OR unflagged input and output
-            if not flags_match(flag_row, ri, row_meta.flag_row, ro):
-                continue
-
+            row_flagged = have_flag_row and flag_row[ri] != 0
             for fi, fo in enumerate(chan_map):
                 for co in range(ncorrs):
-                    flagged = have_flag and flag[ri, fi, co] != 0
+                    flagged = (row_flagged or
+                               (have_flag and flag[ri, fi, co] != 0))
 
-                    if flagged:
+                    if have_flags and flagged:
                         flag_counts[ro, fo, co] += 1
                     else:
                         counts[ro, fo, co] += 1
 
-                    # Aggregate visibilities
-                    if have_vis:
-                        # Use full-resolution weight spectrum if given
-                        # else weights, else natural weights
-                        wt = (weight_spectrum[ri, fi, co]
-                              if have_weight_spectrum else
-                              weight[ri, co] if have_weight else 1.0)
+        #------
+        # Flags
+        #------
 
-                        iv = vis[ri, fi, co] * wt
+        # Determine whether input samples should contribute to an output bin
+        # and, if flags are parent, whether the output bin is flagged
 
-                        if flagged:
-                            flagged_vis_avg[ro, fo, co] += iv
-                            flagged_vis_weight_sum[ro, fo, co] += wt
-                        else:
-                            vis_avg[ro, fo, co] += iv
-                            vis_weight_sum[ro, fo, co] += wt
+        # This follows from the definition of an effective average:
+        #
+        # * bad or flagged values should be excluded when calculating the average
+        #
+        # Note that if a bin is completely flagged we still compute an average,
+        # to which all relevant input samples contribute.
+        for ri, ro in enumerate(row_meta.map):
+            row_flagged = have_flag_row and flag_row[ri] != 0
+            for fi, fo in enumerate(chan_map):
+                for co in range(ncorrs):
+                    if counts[ro, fo, co] > 0:
+                        # Output bin should only contain unflagged samples
+                        out_flag = False
 
-                    # Weight Spectrum
-                    if have_weight_spectrum:
-                        if flagged:
-                            flagged_weight_spectrum_avg[ro, fo, co] += (
-                                weight_spectrum[ri, fi, co])
-                        else:
-                            weight_spectrum_avg[ro, fo, co] += (
-                                weight_spectrum[ri, fi, co])
+                        if have_flag:
+                            # Set output flags
+                            flag_avg[ro, fo, co] = False
 
-                    # Sigma Spectrum
-                    if have_sigma_spectrum:
-                        # Use full-resolution weight spectrum if given
-                        # else weights, else natural weights
-                        wt = (weight_spectrum[ri, fi, co]
-                              if have_weight_spectrum else
-                              weight[ri, co] if have_weight else 1.0)
+                    elif have_flags and flag_counts[ro, fo, co] > 0:
+                        # Output bin is completely flagged
+                        out_flag = True
 
-                        ssin = sigma_spectrum[ri, fi, co]**2 * wt**2
-
-                        if flagged:
-                            flagged_sigma_spectrum_avg[ro, fo, co] += ssin
-                            flagged_sigma_spectrum_weight_sum[ro, fo, co] += wt
-                        else:
-                            sigma_spectrum_avg[ro, fo, co] += ssin
-                            sigma_spectrum_weight_sum[ro, fo, co] += wt
-
-        for r in range(out_rows):
-            for f in range(out_chans):
-                for c in range(ncorrs):
-                    if counts[r, f, c] > 0:
-                        if have_vis:
-                            vwsum = vis_weight_sum[r, f, c]
-                            vin = vis_avg[r, f, c]
-
-                        if have_sigma_spectrum:
-                            sswsum = sigma_spectrum_weight_sum[r, f, c]
-                            ssin = sigma_spectrum_avg[r, f, c]
-
-                        flagged = 0
-                    elif flag_counts[r, f, c] > 0:
-                        if have_vis:
-                            vwsum = flagged_vis_weight_sum[r, f, c]
-                            vin = flagged_vis_avg[r, f, c]
-
-                        if have_sigma_spectrum:
-                            sswsum = flagged_sigma_spectrum_weight_sum[r, f, c]
-                            ssin = flagged_sigma_spectrum_avg[r, f, c]
-
-                        flagged = 1
+                        if have_flag:
+                            # Set output flags
+                            flag_avg[ro, fo, co] = True
                     else:
                         raise RowChannelAverageException("Zero-filled bin")
 
-                    # Normalise visibilities
-                    if have_vis and vwsum != 0.0:
-                        vis_avg[r, f, c] = vin / vwsum
+                    # We should only add a sample to an output bin
+                    # if the input flag matches the output flag.
+                    # This is because flagged samples don't contribute
+                    # to a bin with some unflagged samples while
+                    # unflagged samples never contribute to a
+                    # completely flagged bin
+                    if have_flags:
+                        in_flag = (row_flagged or
+                                   (have_flag and flag[ri, fi, co] != 0))
+                        flags_match[ri, fi, co] = in_flag == out_flag
 
-                    # Normalise Sigma Spectrum
-                    if have_sigma_spectrum and sswsum != 0.0:
-                        # sqrt(sigma**2 * weight**2 / (weight(sum**2)))
-                        sigma_spectrum_avg[r, f, c] = np.sqrt(ssin / sswsum**2)
 
-                    # Set flag
-                    if have_flag:
-                        flag_avg[r, f, c] = flagged
+        #-------------
+        # Visibilities
+        #-------------
+        if not have_vis:
+            vis_avg = None
+        else:
+            vis_avg, vis_weight_sum = vis_output_arrays(visibilities, out_shape)
 
-                    # Copy Weights if flagged
-                    if have_weight_spectrum and flagged:
-                        weight_spectrum_avg[r, f, c] = (
-                            flagged_weight_spectrum_avg[r, f, c])
+            # # Aggregate
+            for ri, ro in enumerate(row_meta.map):
+                for fi, fo in enumerate(chan_map):
+                    for co in range(ncorrs):
+                        if have_flags and not flags_match[ri, fi, co]:
+                                continue
+
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
+                        average_visibilities(visibilities, vis_avg, vis_weight_sum,
+                                             wt, ri, fi, ro, fo, co)
+
+            # Normalise
+            for ro in range(out_rows):
+                for fo in range(out_chans):
+                    for co in range(ncorrs):
+                        normalise_visibilities(vis_avg, vis_weight_sum, ro, fo, co)
+
+        #----------------
+        # Weight Spectrum
+        #----------------
+
+        if not have_weight_spectrum:
+            weight_spectrum_avg = None
+        else:
+            weight_spectrum_avg = np.zeros(out_shape, weight_spectrum.dtype)
+
+            # Aggregate
+            for ri, ro in enumerate(row_meta.map):
+                for fi, fo in enumerate(chan_map):
+                    for co in range(ncorrs):
+                        if have_flags and not flags_match[ri, fi, co]:
+                                continue
+
+                        weight_spectrum_avg[ro, fo, co] += (
+                            weight_spectrum[ri, fi, co])
+
+        #---------------
+        # Sigma Spectrum
+        #---------------
+        if not have_sigma_spectrum:
+            sigma_spectrum_avg = None
+        else:
+            sigma_spectrum_avg = np.zeros(out_shape, sigma_spectrum.dtype)
+            sigma_spectrum_weight_sum = np.zeros_like(sigma_spectrum_avg)
+
+            # Aggregate
+            for ri, ro in enumerate(row_meta.map):
+                for fi, fo in enumerate(chan_map):
+                    for co in range(ncorrs):
+                        if have_flags and not flags_match[ri, fi, co]:
+                            continue
+
+                        wt = (weight_spectrum[ri, fi, co]
+                              if have_weight_spectrum else
+                              weight[ri, co] if have_weight else 1.0)
+
+                        ssv = sigma_spectrum[ri, fi, co]**2 * wt**2
+                        sigma_spectrum_avg[ro, fo, co] += ssv
+                        sigma_spectrum_weight_sum[ro, fo, co] += wt
+
+            # Normalise
+            for ro in range(out_rows):
+                for fo in range(out_chans):
+                    for co in range(ncorrs):
+                        sswsum = sigma_spectrum_weight_sum[ro, fo, co]
+                        if sswsum != 0.0:
+                            ssv = sigma_spectrum_avg[ro, fo, co]
+                            sigma_spectrum_avg[ro, fo, co] = np.sqrt(ssv / sswsum**2)
 
         return RowChanAverageOutput(vis_avg, flag_avg,
                                     weight_spectrum_avg,
@@ -448,7 +576,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
                      uvw=None, weight=None, sigma=None,
                      chan_freq=None, chan_width=None,
                      effective_bw=None, resolution=None,
-                     vis=None, flag=None,
+                     visibilities=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
 
@@ -468,11 +596,11 @@ def time_and_channel(time, interval, antenna1, antenna2,
              uvw=None, weight=None, sigma=None,
              chan_freq=None, chan_width=None,
              effective_bw=None, resolution=None,
-             vis=None, flag=None,
+             visibilities=None, flag=None,
              weight_spectrum=None, sigma_spectrum=None,
              time_bin_secs=1.0, chan_bin_size=1):
 
-        nchan, ncorrs = chan_corrs(vis, flag,
+        nchan, ncorrs = chan_corrs(visibilities, flag,
                                    weight_spectrum, sigma_spectrum,
                                    chan_freq, chan_width,
                                    effective_bw, resolution)
@@ -501,7 +629,7 @@ def time_and_channel(time, interval, antenna1, antenna2,
         # Average row and channel data
         row_chan_data = row_chan_average(row_meta, chan_meta,
                                          flag_row=flag_row, weight=weight,
-                                         vis=vis, flag=flag,
+                                         visibilities=visibilities, flag=flag,
                                          weight_spectrum=weight_spectrum,
                                          sigma_spectrum=sigma_spectrum)
 
@@ -562,8 +690,10 @@ effective_bw : $(array_type), optional
     Effective channel bandwidth of shape :code:`(chan,)`.
 resolution : $(array_type), optional
     Effective channel resolution of shape :code:`(chan,)`.
-vis : $(array_type), optional
+visibility : $(array_type) or tuple of $(array_type), optional
     Visibility data of shape :code:`(row, chan, corr)`.
+    Tuples of visibilities arrays may be supplied,
+    in which case tuples will be output.
 flag : $(array_type), optional
     Flag data of shape :code:`(row, chan, corr)`.
 weight_spectrum : $(array_type), optional
