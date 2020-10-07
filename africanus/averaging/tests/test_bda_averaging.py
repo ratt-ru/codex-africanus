@@ -74,32 +74,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                            time_bin_secs=4.0,
                            decorrelation=decorrelation)
 
-    print("mapping: %f" % (timing.perf_counter() - start))
-
-    from africanus.averaging.bda_avg import rca
-    flag_row = None
-    start = timing.perf_counter()
-    rca_avg = rca(meta, flag_row=flag_row,
-                  visibilities=vis, flag=flag,
-                  weight_spectrum=weight_spectrum,
-                  sigma_spectrum=sigma_spectrum)
-    print("rca: %f" % (timing.perf_counter() - start))
-
-    rca_avg2 = rca(meta, flag_row=flag_row,
-                   visibilities=(vis, vis), flag=flag,
-                   weight_spectrum=weight_spectrum,
-                   sigma_spectrum=sigma_spectrum)
-
-    assert_array_almost_equal(rca_avg.vis, rca_avg2.vis[0])
-    assert_array_almost_equal(rca_avg.vis, rca_avg2.vis[1])
-
-    vis2 = vis.astype(np.complex64)
-    row_avg = rca(meta, flag_row=flag_row, visibilities=(vis, vis2),
-                  flag=None, weight_spectrum=weight_spectrum,
-                  sigma_spectrum=sigma_spectrum)
-    assert row_avg.vis[0].dtype == vis.dtype
-    assert row_avg.vis[1].dtype == vis2.dtype
-
     time_centroid = time
     exposure = interval
 
@@ -118,17 +92,23 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     start = timing.perf_counter()
     row_chan = row_chan_average(meta,  # noqa: F841
                                 flag_row=flag_row,
-                                vis=vis, flag=flag,
+                                visibilities=vis, flag=flag,
                                 weight_spectrum=weight_spectrum,
                                 sigma_spectrum=sigma_spectrum)
 
-    assert_array_almost_equal(row_chan.vis, rca_avg.vis)
-    assert_array_almost_equal(row_chan.vis, rca_avg2.vis[0])
-    assert_array_almost_equal(row_chan.vis, rca_avg2.vis[1])
-    assert_array_almost_equal(row_chan.flag, rca_avg.flag)
-    assert_array_almost_equal(
-        row_chan.weight_spectrum, rca_avg.weight_spectrum)
-    assert_array_almost_equal(row_chan.sigma_spectrum, rca_avg.sigma_spectrum)
+    row_chan2 = row_chan_average(meta,  # noqa: F841
+                                 flag_row=flag_row,
+                                 visibilities=(vis, vis), flag=flag,
+                                 weight_spectrum=weight_spectrum,
+                                 sigma_spectrum=sigma_spectrum)
+
+    assert_array_almost_equal(row_chan.vis, row_chan2.vis[0])
+    assert_array_almost_equal(row_chan.vis, row_chan2.vis[1])
+    assert_array_almost_equal(row_chan.flag, row_chan2.flag)
+    assert_array_almost_equal(row_chan.weight_spectrum,
+                              row_chan2.weight_spectrum)
+    assert_array_almost_equal(row_chan.sigma_spectrum,
+                              row_chan2.sigma_spectrum)
 
     assert_array_almost_equal(row_avg.time_centroid, meta.time)
     assert_array_almost_equal(row_avg.exposure, meta.interval)
@@ -142,7 +122,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
               time_centroid=time_centroid, exposure=exposure,
               flag_row=flag_row, uvw=uvw,
               chan_freq=chan_freq, chan_width=chan_width,
-              vis=vis, flag=flag,
+              visibilities=vis, flag=flag,
               weight_spectrum=weight_spectrum,
               sigma_spectrum=sigma_spectrum,
               max_uvw_dist=max_uvw_dist)
@@ -197,7 +177,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                    time_centroid=da_time_centroid, exposure=da_exposure,
                    flag_row=da_flag_row, uvw=da_uvw,
                    chan_freq=da_chan_freq, chan_width=da_chan_width,
-                   vis=da_vis, flag=da_flag,
+                   visibilities=da_vis, flag=da_flag,
                    decorrelation=decorrelation,
                    format=vis_format)
 
@@ -207,7 +187,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                     time_centroid=da_time_centroid, exposure=da_exposure,
                     flag_row=da_flag_row, uvw=da_uvw,
                     chan_freq=da_chan_freq, chan_width=da_chan_width,
-                    vis=(da_vis, da_vis), flag=da_flag,
+                    visibilities=(da_vis, da_vis), flag=da_flag,
                     decorrelation=decorrelation,
                     format=vis_format)
 
@@ -217,7 +197,7 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
     result = dask.persist(avg, scheduler='single-threaded')[0]
     result2 = dask.persist(avg2, scheduler='single-threaded')[0]
 
-    # Flatten both all three visibility graphs
+    # Flatten all three visibility graphs
     dsk1 = dict(result['vis'].__dask_graph__())
     dsk2 = dict(result2['vis'][0].__dask_graph__())
     dsk3 = dict(result2['vis'][1].__dask_graph__())

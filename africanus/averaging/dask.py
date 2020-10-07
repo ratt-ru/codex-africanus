@@ -7,7 +7,7 @@ from africanus.averaging.bda_mapping import (
                 atemkeng_mapper as np_bda_mapper)
 from africanus.averaging.bda_avg import (
                 row_average as np_bda_row_avg,
-                rca as np_bda_row_chan_avg,
+                row_chan_average as np_bda_row_chan_avg,
                 AverageOutput as BDAAverageOutput,
                 RowAverageOutput as BDARowAverageOutput,
                 RowChanAverageOutput as BDARowChanAverageOutput)
@@ -495,7 +495,7 @@ def _ragged_row_chan_getitem(avg, idx, meta):
             in enumerate(zip(meta.offsets, meta.num_chan))}
 
 
-def _bda_getitem_row_chan(avg, idx, dtype, format, meta, nchan):
+def _bda_getitem_row_chan(avg, idx, dtype, format, avg_meta, nchan):
     """ Extract (row, corr) arrays from dask array of tuples """
     f = BDARowChanAverageOutput._fields[idx]
     name = "row-chan-average-getitem-%s-%s-" % (f, format)
@@ -519,11 +519,11 @@ def _bda_getitem_row_chan(avg, idx, dtype, format, meta, nchan):
         layers = db.blockwise(_ragged_row_chan_getitem, name, dims,
                               avg.name, ("row", "corr"),
                               idx, None,
-                              meta.name, ("row",),
+                              avg_meta.name, ("row",),
                               new_axes=new_axes,
                               numblocks={
                                   avg.name: avg.numblocks,
-                                  meta.name: meta.numblocks})
+                                  avg_meta.name: avg_meta.numblocks})
 
         chunks = (avg.chunks[0], (nchan,), avg.chunks[1])
         meta = np.empty((0, 0, 0), dtype=np.object)
@@ -571,26 +571,28 @@ def bda_row_average(meta, ant1, ant2, flag_row=None,
     return BDARowAverageOutput(*tuple_gets)
 
 
-def _bda_row_chan_average_wrapper(meta, flag_row, weight,
+def _bda_row_chan_average_wrapper(avg_meta, flag_row, weight,
                                   vis, flag,
                                   weight_spectrum,
                                   sigma_spectrum):
     return np_bda_row_chan_avg(
-                meta, flag_row, weight,
+                avg_meta, flag_row, weight,
                 None if vis is None else vis[0],
                 None if flag is None else flag[0],
                 None if weight_spectrum is None else weight_spectrum[0],
                 None if sigma_spectrum is None else sigma_spectrum[0])
 
 
-def bda_row_chan_average(meta, flag_row=None, weight=None,
-                         vis=None, flag=None,
+def bda_row_chan_average(avg_meta, flag_row=None, weight=None,
+                         visibilities=None, flag=None,
                          weight_spectrum=None,
                          sigma_spectrum=None,
                          format="flat"):
     """ Average (row,chan,corr)-based dask arrays """
-
-    if all(v is None for v in (vis, flag, weight_spectrum, sigma_spectrum)):
+    if all(v is None for v in (visibilities,
+                               flag,
+                               weight_spectrum,
+                               sigma_spectrum)):
         return BDARowChanAverageOutput(None, None, None, None)
 
     # We don't know how many rows are in each row chunk,
@@ -605,7 +607,7 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
 
     flag_row_dims = None if flag_row is None else ("row",)
     weight_dims = None if weight is None else ("row", "corr")
-    vis_dims = None if vis is None else _row_chan_avg_dims
+    vis_dims = None if visibilities is None else _row_chan_avg_dims
     flag_dims = None if flag is None else _row_chan_avg_dims
     ws_dims = None if weight_spectrum is None else _row_chan_avg_dims
     ss_dims = None if sigma_spectrum is None else _row_chan_avg_dims
@@ -613,24 +615,25 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
     have_vis_tuple = False
     nvis_elements = 0
 
-    if isinstance(vis, da.Array):
-        nchan = vis.shape[1]
-    elif isinstance(vis, (tuple, list)):
-        nchan = vis[0].shape[1]
+    if isinstance(visibilities, da.Array):
+        nchan = visibilities.shape[1]
+    elif isinstance(visibilities, (tuple, list)):
+        nchan = visibilities[0].shape[1]
 
-        if not all(isinstance(a, da.Array) for a in vis):
+        if not all(isinstance(a, da.Array) for a in visibilities):
             raise ValueError("Visibility tuple must exclusively "
                              "contain dask arrays")
 
         # If we received a tuple of visibility arrays
         # convert them into an array of tuples of visibilities
         have_vis_tuple = True
-        nvis_elements = len(vis)
-        meta = np.empty((0,)*len(bda_dims), dtype=vis[0].dtype)
+        nvis_elements = len(visibilities)
+        meta = np.empty((0,)*len(bda_dims), dtype=visibilities[0].dtype)
 
-        vis = da.blockwise(lambda *a: a, _row_chan_avg_dims,
-                           *[elem for a in vis for elem in (a, vis_dims)],
-                           meta=meta)
+        visibilities = da.blockwise(lambda *a: a, _row_chan_avg_dims,
+                                    *[elem for a in visibilities
+                                      for elem in (a, vis_dims)],
+                                    meta=meta)
     elif isinstance(flag, da.Array):
         nchan = flag.shape[1]
     elif isinstance(weight_spectrum, da.Array):
@@ -641,10 +644,10 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
         raise ValueError("Couldn't infer nchan")
 
     avg = da.blockwise(_bda_row_chan_average_wrapper, ("row", "corr"),
-                       meta, ("row",),
+                       avg_meta, ("row",),
                        flag_row, flag_row_dims,
                        weight, weight_dims,
-                       vis, vis_dims,
+                       visibilities, vis_dims,
                        flag, flag_dims,
                        weight_spectrum, ws_dims,
                        sigma_spectrum, ss_dims,
@@ -654,8 +657,9 @@ def bda_row_chan_average(meta, flag_row=None, weight=None,
                        dtype=np.object)
 
     tuple_gets = (None if a is None else
-                  _bda_getitem_row_chan(avg, i, a.dtype, format, meta, nchan)
-                  for i, a in enumerate([vis, flag,
+                  _bda_getitem_row_chan(avg, i, a.dtype,
+                                        format, avg_meta, nchan)
+                  for i, a in enumerate([visibilities, flag,
                                          weight_spectrum,
                                          sigma_spectrum]))
 
@@ -684,7 +688,7 @@ def bda(time, interval, antenna1, antenna2,
         uvw=None, weight=None, sigma=None,
         chan_freq=None, chan_width=None,
         effective_bw=None, resolution=None,
-        vis=None, flag=None,
+        visibilities=None, flag=None,
         weight_spectrum=None,
         sigma_spectrum=None,
         max_uvw_dist=None,
@@ -741,7 +745,7 @@ def bda(time, interval, antenna1, antenna2,
     # Average channel data
     row_chan_data = bda_row_chan_average(meta,
                                          flag_row=flag_row, weight=weight,
-                                         vis=vis, flag=flag,
+                                         visibilities=visibilities, flag=flag,
                                          weight_spectrum=weight_spectrum,
                                          sigma_spectrum=sigma_spectrum,
                                          format=format)

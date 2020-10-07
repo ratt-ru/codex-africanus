@@ -356,6 +356,9 @@ def row_chan_average(row_meta, chan_meta,
         if have_flags:
             flags_match = np.full(in_shape, False, dtype=np.bool_)
             flag_counts = np.zeros(out_shape, dtype=np.uint32)
+        else:
+            flags_match = None
+            flag_counts = None
 
         counts = np.zeros(out_shape, dtype=np.uint32)
 
