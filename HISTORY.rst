@@ -2,10 +2,11 @@
 History
 =======
 
-x.x.x (xxxx-xx-xx)
+0.2.8 (2020-10-08)
 ------------------
 * Fix NoneType issue in wgridder when weights are None (:pr:`228`)
 * Bounding hull geometric and image manipulation routines (:pr:`192`, :pr:`154`)
+* Fix row chunk chunking in Perley Polyhedron Degridder Dask Interface
 
 0.2.7 (2020-09-23)
 ------------------
