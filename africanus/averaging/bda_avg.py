@@ -122,37 +122,40 @@ def row_average(meta, ant1, ant2, flag_row=None,
         # Compute the average in the output row position
         # then copy to the other positions for each channel
         for ri in range(meta.map.shape[0]):
-            # Normalise the first output position for the input row
-            count = counts[meta.map[ri, 0]]
-            bro = ro = meta.map[ri, 0]
+            # Normalise the base output row
+            bro = meta.map[ri, 0]
+            count = counts[bro]
+
+            ant1_avg[bro] = ant1[ri]
+            ant2_avg[bro] = ant2[ri]
 
             if count > 0:
                 # Normalise uvw
                 if have_uvw:
-                    uvw_avg[ro, 0] /= count
-                    uvw_avg[ro, 1] /= count
-                    uvw_avg[ro, 2] /= count
+                    uvw_avg[bro, 0] /= count
+                    uvw_avg[bro, 1] /= count
+                    uvw_avg[bro, 2] /= count
 
                 # Normalise time centroid
                 if have_time_centroid:
-                    time_centroid_avg[ro] /= count
+                    time_centroid_avg[bro] /= count
 
                 # Normalise sigma
                 if have_sigma:
                     for co in range(sigma.shape[1]):
-                        ssva = sigma_avg[ro, co]
-                        wt = sigma_weight_sum[ro, co]
+                        ssva = sigma_avg[bro, co]
+                        wt = sigma_weight_sum[bro, co]
 
                         if wt != 0.0:
                             ssva /= (wt**2)
 
-                        sigma_avg[ro, co] = np.sqrt(ssva)
+                        sigma_avg[bro, co] = np.sqrt(ssva)
 
             # Copy first value into all channel positions
             for fi in range(1, meta.map.shape[1]):
                 ro = meta.map[ri, fi]
-                ant1_avg[ro] = ant1[bro]
-                ant2_avg[ro] = ant2[bro]
+                ant1_avg[ro] = ant1_avg[bro]
+                ant2_avg[ro] = ant2_avg[bro]
 
                 if have_uvw:
                     uvw_avg[ro, 0] = uvw_avg[bro, 0]
