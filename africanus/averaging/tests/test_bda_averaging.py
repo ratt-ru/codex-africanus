@@ -84,6 +84,9 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
     print("row_average: %f" % (timing.perf_counter() - start))
 
+    assert_array_almost_equal(row_avg.time_centroid, meta.time)
+    assert_array_almost_equal(row_avg.exposure, meta.interval)
+
     # vis = vis(time.shape[0], nchan, ncorr)
     # flag = flag(time.shape[0], nchan, ncorr)
     # weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
@@ -109,9 +112,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
                               row_chan2.weight_spectrum)
     assert_array_almost_equal(row_chan.sigma_spectrum,
                               row_chan2.sigma_spectrum)
-
-    assert_array_almost_equal(row_avg.time_centroid, meta.time)
-    assert_array_almost_equal(row_avg.exposure, meta.interval)
 
     print("row_chan_average: %f" % (timing.perf_counter() - start))
 
