@@ -181,7 +181,8 @@ class Binner(object):
         # from Equation (36) in Atemkeng
         # leaving out the factor of two
         # which is divided out when computing the sinc
-        half_𝞓𝞇 = np.pi * self.max_lm * (du + dv)
+        l = m = np.sqrt(self.max_lm / 2)  # noqa: E741
+        half_𝞓𝞇 = np.pi * (du * l + dv * m)
         sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it
