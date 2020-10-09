@@ -735,10 +735,10 @@ def bda(time, interval, antenna1, antenna2,
 
     # Average row data
     row_data = bda_row_average(meta, antenna1, antenna2,
-                               uvw=uvw,
                                flag_row=flag_row,
                                time_centroid=time_centroid,
                                exposure=exposure,
+                               uvw=uvw,
                                weight=weight, sigma=sigma,
                                format=format)
 

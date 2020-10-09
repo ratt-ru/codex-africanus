@@ -36,7 +36,6 @@ def row_average(meta, ant1, ant2, flag_row=None,
              weight=None, sigma=None):
 
         out_rows = meta.time.shape[0]
-
         counts = np.zeros(out_rows, dtype=np.uint32)
 
         # These outputs are always present
@@ -115,66 +114,61 @@ def row_average(meta, ant1, ant2, flag_row=None,
                     # Use weights if present else natural weights
                     wt = weight[ri, co] if have_weight else 1.0
 
-                    # Assign
+                    # Aggregate
                     sigma_avg[ro, co] += sigma[ri, co]**2 * wt**2
                     sigma_weight_sum[ro, co] += wt
 
-        # Compute the average in the output row position
-        # then copy to the other positions for each channel
-        for ri in range(meta.map.shape[0]):
-            # Normalise the base output row
-            bro = meta.map[ri, 0]
+        # Normalise and copy
+        for bro, nchan in zip(meta.offsets, meta.num_chan):
             count = counts[bro]
 
-            ant1_avg[bro] = ant1[ri]
-            ant2_avg[bro] = ant2[ri]
-
-            if count > 0:
-                # Normalise uvw
-                if have_uvw:
+            if have_uvw:
+                # Normalise channel 0 value
+                if count > 0:
                     uvw_avg[bro, 0] /= count
                     uvw_avg[bro, 1] /= count
                     uvw_avg[bro, 2] /= count
 
-                # Normalise time centroid
-                if have_time_centroid:
+                # Copy to other channels
+                for c in range(1, nchan):
+                    uvw_avg[bro + c, 0] += uvw_avg[bro, 0]
+                    uvw_avg[bro + c, 1] += uvw_avg[bro, 1]
+                    uvw_avg[bro + c, 2] += uvw_avg[bro, 2]
+
+            if have_time_centroid:
+                # Normalise channel 0 value
+                if count > 0:
                     time_centroid_avg[bro] /= count
 
-                # Normalise sigma
-                if have_sigma:
+                # Copy to other channels
+                for c in range(1, nchan):
+                    time_centroid_avg[bro + c] = time_centroid_avg[bro]
+
+            if have_exposure:
+                # Copy to other channels
+                for c in range(1, nchan):
+                    exposure_avg[bro + c] = exposure_avg[bro]
+
+            if have_weight:
+                # Copy to other channels
+                for c in range(1, nchan):
+                    for co in range(weight.shape[0]):
+                        weight_avg[bro + c, co] += weight_avg[bro, co]
+
+            if have_sigma:
+                # Normalise channel 0 values
+                if counts > 0:
                     for co in range(sigma.shape[1]):
-                        ssva = sigma_avg[bro, co]
-                        wt = sigma_weight_sum[bro, co]
+                        sswsum = sigma_weight_sum[bro, co]
 
-                        if wt != 0.0:
-                            ssva /= (wt**2)
+                        if sswsum != 0.0:
+                            ssva = sigma_avg[bro, co]
+                            sigma_avg[bro, co] = np.sqrt(ssva / (sswsum**2))
 
-                        sigma_avg[bro, co] = np.sqrt(ssva)
-
-            # Copy first value into all channel positions
-            for fi in range(1, meta.map.shape[1]):
-                ro = meta.map[ri, fi]
-                ant1_avg[ro] = ant1_avg[bro]
-                ant2_avg[ro] = ant2_avg[bro]
-
-                if have_uvw:
-                    uvw_avg[ro, 0] = uvw_avg[bro, 0]
-                    uvw_avg[ro, 1] = uvw_avg[bro, 1]
-                    uvw_avg[ro, 2] = uvw_avg[bro, 2]
-
-                if have_time_centroid:
-                    time_centroid_avg[ro] = time_centroid_avg[bro]
-
-                if have_exposure:
-                    exposure_avg[ro] = exposure_avg[bro]
-
-                if have_weight:
-                    for co in range(weight.shape[1]):
-                        weight_avg[ro, co] = weight_avg[bro, co]
-
-                if have_sigma:
+                # Copy values to other channels
+                for c in range(1, nchan):
                     for co in range(sigma.shape[1]):
-                        sigma_avg[ro, co] = sigma_avg[bro, co]
+                        sigma_avg[bro + c, co] = sigma_avg[bro, co]
 
         return RowAverageOutput(ant1_avg, ant2_avg,
                                 time_centroid_avg,

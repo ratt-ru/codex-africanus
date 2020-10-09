@@ -66,26 +66,26 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
     import time as timing
 
+    none_flag_row = None
     start = timing.perf_counter()
     meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
                            chan_width, chan_freq,
                            max_uvw_dist,
-                           flag_row=flag_row, max_fov=3.0,
-                           time_bin_secs=4.0,
+                           flag_row=none_flag_row, max_fov=3.0,
                            decorrelation=decorrelation)
 
     time_centroid = time
     exposure = interval
 
     start = timing.perf_counter()
-    row_avg = row_average(meta, ant1, ant2, flag_row,  # noqa: F841
+    row_avg = row_average(meta, ant1, ant2, none_flag_row,  # noqa: F841
                           time_centroid, exposure,
                           uvw, weight=None, sigma=None)
 
     print("row_average: %f" % (timing.perf_counter() - start))
 
-    assert_array_almost_equal(row_avg.time_centroid, meta.time)
     assert_array_almost_equal(row_avg.exposure, meta.interval)
+    assert_array_almost_equal(row_avg.time_centroid, meta.time)
 
     # vis = vis(time.shape[0], nchan, ncorr)
     # flag = flag(time.shape[0], nchan, ncorr)
@@ -151,9 +151,11 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
     interval = np.repeat(interval, nbl)
     ant1 = np.tile(ant1, ntime)
     ant2 = np.tile(ant2, ntime)
-    flag_row = np.zeros(time.shape[0], dtype=np.int8)
+    flag_row = np.zeros(time.shape[0], dtype=np.uint8)
     vis = vis(time.shape[0], nchan, ncorr)
     flag = flag(time.shape[0], nchan, ncorr)
+    mask = flag_row.astype(np.bool)
+    flag[mask, :, :] = 1
 
     assert time.shape == ant1.shape
 
@@ -181,7 +183,9 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                    decorrelation=decorrelation,
                    format=vis_format)
 
-    avg = {f: getattr(avg, f) for f in ("time", "interval", "vis")}
+    avg = {f: getattr(avg, f) for f in ("time", "interval",
+                                        "time_centroid", "exposure",
+                                        "vis")}
 
     avg2 = dask_bda(da_time, da_interval, da_ant1, da_ant2,
                     time_centroid=da_time_centroid, exposure=da_exposure,
@@ -191,11 +195,16 @@ def test_dask_bda_avg(time, interval, ants,   # noqa: F811
                     decorrelation=decorrelation,
                     format=vis_format)
 
-    avg2 = {f: getattr(avg2, f) for f in ("time", "interval", "vis")}
+    avg2 = {f: getattr(avg2, f) for f in ("time", "interval",
+                                          "time_centroid",
+                                          "exposure", "vis")}
 
     import dask
     result = dask.persist(avg, scheduler='single-threaded')[0]
     result2 = dask.persist(avg2, scheduler='single-threaded')[0]
+
+    assert_array_almost_equal(result['interval'], result['exposure'])
+    assert_array_almost_equal(result['time'], result['time_centroid'])
 
     # Flatten all three visibility graphs
     dsk1 = dict(result['vis'].__dask_graph__())
