@@ -31,6 +31,9 @@ def row_average(meta, ant1, ant2, flag_row=None,
     have_weight = not is_numba_type_none(weight)
     have_sigma = not is_numba_type_none(sigma)
 
+    if have_flag_row and flag_row.ndim != 1:
+        import pdb; pdb.set_trace()
+
     def impl(meta, ant1, ant2, flag_row=None,
              time_centroid=None, exposure=None, uvw=None,
              weight=None, sigma=None):
@@ -122,6 +125,10 @@ def row_average(meta, ant1, ant2, flag_row=None,
         for bro, nchan in zip(meta.offsets, meta.num_chan):
             count = counts[bro]
 
+            for c in range(1, nchan):
+                ant1_avg[bro + c] = ant1_avg[bro]
+                ant2_avg[bro + c] = ant2_avg[bro]
+
             if have_uvw:
                 # Normalise channel 0 value
                 if count > 0:
@@ -152,18 +159,17 @@ def row_average(meta, ant1, ant2, flag_row=None,
             if have_weight:
                 # Copy to other channels
                 for c in range(1, nchan):
-                    for co in range(weight.shape[0]):
-                        weight_avg[bro + c, co] += weight_avg[bro, co]
+                    for co in range(weight.shape[1]):
+                        weight_avg[bro + c, co] = weight_avg[bro, co]
 
             if have_sigma:
                 # Normalise channel 0 values
-                if counts > 0:
-                    for co in range(sigma.shape[1]):
-                        sswsum = sigma_weight_sum[bro, co]
+                for co in range(sigma.shape[1]):
+                    sswsum = sigma_weight_sum[bro, co]
 
-                        if sswsum != 0.0:
-                            ssva = sigma_avg[bro, co]
-                            sigma_avg[bro, co] = np.sqrt(ssva / (sswsum**2))
+                    if sswsum != 0.0:
+                        ssva = sigma_avg[bro, co]
+                        sigma_avg[bro, co] = np.sqrt(ssva / (sswsum**2))
 
                 # Copy values to other channels
                 for c in range(1, nchan):
