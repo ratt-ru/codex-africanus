@@ -31,9 +31,6 @@ def row_average(meta, ant1, ant2, flag_row=None,
     have_weight = not is_numba_type_none(weight)
     have_sigma = not is_numba_type_none(sigma)
 
-    if have_flag_row and flag_row.ndim != 1:
-        import pdb; pdb.set_trace()
-
     def impl(meta, ant1, ant2, flag_row=None,
              time_centroid=None, exposure=None, uvw=None,
              weight=None, sigma=None):
