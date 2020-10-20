@@ -219,8 +219,9 @@ class Binner(object):
         # that ||(l,m)||=l_max, n_max=|sqrt(1-l_max^2)-1|;
         # the max phase change will be ||(du,dv)||*l_max+|dw|*n_max
         duvw = np.sqrt(du**2 + dv**2)
-        half_𝞓𝞇 = (np.pi*self.max_chan_freq*
-                    (duvw*self.max_lm + np.abs(dw)*self.n_max)/lightspeed)
+        half_𝞓𝞇 = (np.pi * self.max_chan_freq *
+                   (duvw * self.max_lm + np.abs(dw) * self.n_max) /
+                   lightspeed)
         sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it

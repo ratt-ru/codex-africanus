@@ -36,7 +36,6 @@ def flag():
     return _flag
 
 
-
 @pytest.fixture
 def bda_test_map():
     # 5 rows, 4 channels => 3 rows
@@ -51,15 +50,16 @@ def bda_test_map():
                      [2, 3, 3, 4],
                      [5, 5, 5, 5]])
 
+
 @pytest.fixture(params=[
     [[0, 1, 0, 1],
      [0, 1, 0, 0],
      [0, 0, 0, 0],
      [1, 1, 1, 1],
-     [1, 0, 0, 0],
-    ]
+     [1, 0, 0, 0]],
 ])
 def flags(request):
+    pass
 
 
 @pytest.fixture
@@ -81,6 +81,7 @@ def inv_bda_test_row_map(inv_bda_test_map):
             for ro, (rm, _)
             in inv_bda_test_map.items()}
 
+
 @pytest.fixture(params=[[], [0, 1], [2]])
 def flag_row(request, bda_test_map):
     row, _ = bda_test_map.shape
@@ -93,7 +94,6 @@ def flag_row(request, bda_test_map):
 def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row):
     from africanus.averaging.bda_mapping import RowMapOutput
     rs = np.random.RandomState(42)
-
 
     in_row, in_chan = bda_test_map.shape
     out_row = bda_test_map.max() + 1
@@ -154,7 +154,6 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row
     assert_array_equal(row_avg.time_centroid, out_time)
     assert_array_equal(row_avg.exposure, out_interval)
     assert row_avg.uvw.shape == (out_row, 3)
-
 
 def test_bda_avg(time, interval, ants,   # noqa: F811
                  phase_dir,              # noqa: F811
@@ -246,7 +245,6 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
               weight_spectrum=weight_spectrum,
               sigma_spectrum=sigma_spectrum,
               max_uvw_dist=max_uvw_dist)
-
 
 @pytest.mark.parametrize("vis_format", ["ragged", "flat"])
 def test_dask_bda_avg(time, interval, ants,   # noqa: F811

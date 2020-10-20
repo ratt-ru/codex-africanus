@@ -195,7 +195,6 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     assert_array_equal(offsets, row_meta.offsets[:-1])
     assert row_meta.map.max() + 1 == row_meta.offsets[-1]
 
-
     # NUM_CHAN divides number of channels exactly
     num_chan = np.diff(row_meta.offsets)
     _, remainder = np.divmod(chan_width.shape[0], num_chan)
