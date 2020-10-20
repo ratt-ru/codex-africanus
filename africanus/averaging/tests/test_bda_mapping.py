@@ -191,10 +191,16 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
                                decorrelation=decorrelation,
                                min_nchan=min_nchan)
 
+    offsets = np.unique(row_meta.map[np.arange(time.shape[0]), 0])
+    assert_array_equal(offsets, row_meta.offsets[:-1])
+    assert row_meta.map.max() + 1 == row_meta.offsets[-1]
+
+
     # NUM_CHAN divides number of channels exactly
-    _, remainder = np.divmod(chan_width.shape[0], row_meta.num_chan)
+    num_chan = np.diff(row_meta.offsets)
+    _, remainder = np.divmod(chan_width.shape[0], num_chan)
     assert np.all(remainder == 0)
-    decorr_cw = chan_width.sum() / row_meta.num_chan
+    decorr_cw = chan_width.sum() / num_chan
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 

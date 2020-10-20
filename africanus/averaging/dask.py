@@ -444,7 +444,7 @@ def _bda_row_average_wrapper(meta, ant1, ant2, flag_row,
 
 
 def _ragged_row_getitem(avg, idx, meta):
-    return avg[idx][meta.offsets, ...]
+    return avg[idx][meta.offsets[:-1], ...]
 
 
 def _bda_getitem_row(avg, idx, array, dims, meta, format="flat"):
@@ -485,14 +485,14 @@ def _ragged_row_chan_getitem(avg, idx, meta):
     data = avg[idx]
 
     if isinstance(data, tuple):
-        return tuple({"r%d" % (r+1): d[None, o:o + c, ...]
-                      for r, (o, c)
-                      in enumerate(zip(meta.offsets, meta.num_chan))}
+        return tuple({"r%d" % (r+1): d[None, s:e, ...]
+                      for r, (s, e)
+                      in enumerate(zip(meta.offsets[:-1], meta.offsets[1:]))}
                      for d in data)
 
-    return {"r%d" % (r+1): data[None, o:o + c, ...]
-            for r, (o, c)
-            in enumerate(zip(meta.offsets, meta.num_chan))}
+    return {"r%d" % (r+1): data[None, s:e, ...]
+            for r, (s, e)
+            in enumerate(zip(meta.offsets[:-1], meta.offsets[1:]))}
 
 
 def _bda_getitem_row_chan(avg, idx, dtype, format, avg_meta, nchan):
@@ -765,21 +765,19 @@ def bda(time, interval, antenna1, antenna2,
 
     meta_map = _bda_getitem_row(meta, 0, fake_map, ("row", "chan"), meta)
     meta_offsets = _bda_getitem_row(meta, 1, fake_ints, ("row",), meta)
-    meta_nchan = _bda_getitem_row(meta, 2, fake_ints, ("row",), meta)
-    meta_decorr_cw = _bda_getitem_row(meta, 3, fake_floats, ("row",), meta)
-    meta_time = _bda_getitem_row(meta, 4, time, ("row",),
+    meta_decorr_cw = _bda_getitem_row(meta, 2, fake_floats, ("row",), meta)
+    meta_time = _bda_getitem_row(meta, 3, time, ("row",),
                                  meta, format=format)
-    meta_interval = _bda_getitem_row(meta, 5, interval, ("row",),
+    meta_interval = _bda_getitem_row(meta, 4, interval, ("row",),
                                      meta, format=format)
-    meta_chan_width = _bda_getitem_row(meta, 6, chan_width, ("row",), meta)
-    meta_flag_row = (_bda_getitem_row(meta, 7, flag_row, ("row",),
+    meta_chan_width = _bda_getitem_row(meta, 5, chan_width, ("row",), meta)
+    meta_flag_row = (_bda_getitem_row(meta, 6, flag_row, ("row",),
                                       meta, format=format)
                      if flag_row is not None else None)
 
     # Merge output tuples
     return BDAAverageOutput(meta_map,
                             meta_offsets,
-                            meta_nchan,
                             meta_decorr_cw,
                             meta_time,
                             meta_interval,

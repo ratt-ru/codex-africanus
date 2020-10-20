@@ -76,8 +76,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
         # Average each array, if present
         # The output is a flattened row-channel array
         # where the values for each row are repeated along the channel
-        # Individual runs in this output are described by
-        # meta.offset and meta.num_chan
+        # Individual runs in this output are described by meta.offset
         # Thus, we only compute the sum in the first position
         for ri in range(meta.map.shape[0]):
             ro = meta.map[ri, 0]
@@ -119,7 +118,9 @@ def row_average(meta, ant1, ant2, flag_row=None,
                     sigma_weight_sum[ro, co] += wt
 
         # Normalise and copy
-        for bro, nchan in zip(meta.offsets, meta.num_chan):
+        for o in range(len(meta.offsets) - 1):
+            bro = meta.offsets[o]
+            nchan = meta.offsets[o + 1] - bro
             count = counts[bro]
 
             for c in range(1, nchan):
@@ -569,7 +570,6 @@ def bda(time, interval, antenna1, antenna2,
         # are highly constrained types
         return AverageOutput(meta.map,
                              meta.offsets,
-                             meta.num_chan,
                              meta.decorr_chan_width,
                              meta.time,
                              meta.interval,

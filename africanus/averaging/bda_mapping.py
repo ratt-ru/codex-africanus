@@ -16,6 +16,38 @@ class RowMapperError(Exception):
     pass
 
 
+@njit(nogil=True, cache=True)
+def erf26(x):
+    """Implements 7.1.26 erf approximation from Abramowitz and
+       Stegun (1972), pg. 299. Accurate for abs(eps(x)) <= 1.5e-7."""
+
+    # Constants
+    p = 0.3275911
+    a1 = 0.254829592
+    a2 = -0.284496736
+    a3 = 1.421413741
+    a4 = -1.453152027
+    a5 = 1.061405429
+    e = 2.718281828
+
+    # t
+    t = 1.0/(1.0 + (p * x))
+
+    # Erf calculation
+    erf = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t)
+    erf *= e ** -(x ** 2)
+
+    return -round(erf, 9) if x < 0 else round(erf, 0)
+
+
+@njit(nogil=True, cache=True)
+def time_decorrelation(u, v, w, max_lm, time_bin_secs, min_wavelength):
+    sidereal_rotation_rate = 7.292118516e-5
+    diffraction_limit = min_wavelength / np.sqrt(u**2 + v**2 + w**2)
+    term = max_lm * time_bin_secs * sidereal_rotation_rate / diffraction_limit
+    return 1.0 - 1.0645 * erf26(0.8326*term) / term
+
+
 _SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
 
 
@@ -271,7 +303,7 @@ class Binner(object):
 
 
 RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "offsets", "num_chan", "decorr_chan_width",
+                          ["map", "offsets", "decorr_chan_width",
                            "time", "interval", "chan_width", "flag_row"])
 
 
@@ -475,8 +507,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
         # Generate row offsets
         fbin_chan_map = bin_chan_map.reshape((-1, nchan))
-        offsets = np.empty(out_rows, dtype=np.uint32)
-        out_chans = np.empty(out_rows, dtype=np.uint32)
+        offsets = np.zeros(out_rows + 1, dtype=np.uint32)
         decorr_chan_width = np.empty(out_rows, dtype=chan_width.dtype)
 
         # NOTE(sjperkins)
@@ -484,12 +515,10 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         # does not work here for some strange (numba reason?)
         if offsets.shape[0] > 0:
             offsets[0] = 0
-            out_chans[0] = fbin_chan_map[argsort[0]].max() + 1
 
-            for r in range(1, offsets.shape[0]):
-                prev_bin_chans = out_chans[r - 1]
+            for r in range(1, out_rows + 1):
+                prev_bin_chans = fbin_chan_map[argsort[r - 1]].max() + 1
                 offsets[r] = offsets[r - 1] + prev_bin_chans
-                out_chans[r] = fbin_chan_map[argsort[r]].max() + 1
 
         # Construct the final row map
         row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
@@ -549,7 +578,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
                 if flag_row is not None:
                     out_flag_row[out_offset] = 1 if flagged else 0
 
-        return RowMapOutput(row_chan_map, offsets, out_chans,
+        return RowMapOutput(row_chan_map, offsets,
                             decorr_chan_width,
                             time_ret, int_ret,
                             chan_width_ret, out_flag_row)

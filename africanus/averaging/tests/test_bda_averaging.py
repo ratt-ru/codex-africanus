@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
 
 from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
@@ -34,6 +34,126 @@ def flag():
         return np.random.randint(0, 2, (row, chan, fcorrs))
 
     return _flag
+
+
+
+@pytest.fixture
+def bda_test_map():
+    # 5 rows, 4 channels => 3 rows
+    #
+    # row 1 contains 2 channel
+    # row 2 contains 3 channel
+    # row 3 contains 1 channel
+
+    return np.array([[0, 0, 1, 1],
+                     [0, 0, 1, 1],
+                     [2, 3, 3, 4],
+                     [2, 3, 3, 4],
+                     [5, 5, 5, 5]])
+
+@pytest.fixture(params=[
+    [[0, 1, 0, 1],
+     [0, 1, 0, 0],
+     [0, 0, 0, 0],
+     [1, 1, 1, 1],
+     [1, 0, 0, 0],
+    ]
+])
+def flags(request):
+
+
+@pytest.fixture
+def inv_bda_test_map(bda_test_map):
+    from collections import defaultdict
+
+    inv = defaultdict(list)
+    for idx in np.ndindex(*bda_test_map.shape):
+        inv[bda_test_map[idx]].append(idx)
+
+    return {ro: tuple(list(i)
+            for i in zip(*v))
+            for ro, v in inv.items()}
+
+
+@pytest.fixture
+def inv_bda_test_row_map(inv_bda_test_map):
+    return {ro: np.unique(rm, return_counts=True)
+            for ro, (rm, _)
+            in inv_bda_test_map.items()}
+
+@pytest.fixture(params=[[], [0, 1], [2]])
+def flag_row(request, bda_test_map):
+    row, _ = bda_test_map.shape
+    flag_row = np.zeros(row, np.uint8)
+    flag_row[request.param] = True
+
+    return flag_row
+
+
+def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row):
+    from africanus.averaging.bda_mapping import RowMapOutput
+    rs = np.random.RandomState(42)
+
+
+    in_row, in_chan = bda_test_map.shape
+    out_row = bda_test_map.max() + 1
+    offsets = np.array([0, 2, 5, out_row])
+    assert_array_equal(offsets[:-1], np.unique(bda_test_map[:, 0]))
+
+    time = np.linspace(1.0, float(in_row), in_row, dtype=np.float64)
+    interval = np.full(in_row, 1.0, dtype=np.float64)
+    uvw = np.arange(in_row*3).reshape(in_row, 3).astype(np.float64)
+
+    # Aggregate time and interval, in_row => out_row
+    # first channel in the map. We're only averaging over
+    # row so we don't want to aggregate per channel
+    idx = bda_test_map[np.arange(in_row), 0]
+    out_time = np.zeros(out_row, dtype=time.dtype)
+    out_counts =  np.zeros(out_row, dtype=np.uint32)
+    out_interval = np.zeros(out_row, dtype=interval.dtype)
+    np.add.at(out_time, idx, time)
+    np.add.at(out_counts, idx, 1)
+    np.add.at(out_interval, idx, interval)
+
+    # Now copy values to other channel positions
+    # and normalise time values
+    copy_idx = np.repeat(offsets[:-1], np.diff(offsets))
+    out_time[:] = out_time[copy_idx]
+    out_counts[:] = out_counts[copy_idx]
+    out_interval[:] = out_interval[copy_idx]
+    out_time /= out_counts
+
+    inv_row_map = {ro: np.unique(rm, return_counts=True)
+                   for ro, (rm, _) in inv_bda_test_map.items()}
+
+    out_time2 = [time[rm].sum() / len(rc) for _, (rm, rc)
+                 in sorted(inv_row_map.items())]
+    out_interval2 = [interval[rm].sum() for _, (rm, _)
+                     in sorted(inv_row_map.items())]
+
+
+    assert_array_equal(out_time, out_time2)
+    assert_array_equal(out_interval, out_interval2)
+
+    meta = RowMapOutput(bda_test_map, offsets,
+                        out_time, out_interval,
+                        None, None, None)
+
+    ant1 = np.full(in_row, 0, dtype=np.int32)
+    ant2 = np.full(in_row, 1, dtype=np.int32)
+
+    row_avg = row_average(meta, ant1, ant2,
+                          time_centroid=time,
+                          exposure=interval,
+                          uvw=uvw)
+
+    assert_array_equal(row_avg.antenna1, 0)
+    assert_array_equal(row_avg.antenna2, 1)
+
+    # Without flags, these should be the same
+    assert_array_equal(row_avg.time_centroid, out_time)
+    assert_array_equal(row_avg.exposure, out_interval)
+    assert row_avg.uvw.shape == (out_row, 3)
 
 
 def test_bda_avg(time, interval, ants,   # noqa: F811
