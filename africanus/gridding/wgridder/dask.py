@@ -141,7 +141,7 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
                        dtype=real_type,
                        align_arrays=False)
 
-    return img.sum(axis=0)
+    return img.sum(axis=0, split_every=2)
 
 
 def _residual_wrapper(uvw, freq, model, vis, freq_bin_idx, freq_bin_counts,
