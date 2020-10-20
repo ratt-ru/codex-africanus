@@ -307,7 +307,7 @@ def test_bda_binner(time, ants, interval, phase_dir,
 
     decorrelation = 0.95
     lm_max = 0.5  # noqa: E741
-    binner = Binner(0, 0, lm_max, ref_freq, decorrelation)
+    binner = Binner(0, 0, lm_max, ref_freq, decorrelation, chan_freq.max())
     binner.start_bin(0, time, interval, flag_row)
     binner.add_row(1, auto_corrs, time, interval, uvw, flag_row)
     binner.add_row(2, auto_corrs, time, interval, uvw, flag_row)

@@ -127,7 +127,8 @@ FinaliseOutput = namedtuple("FinaliseOutput",
 
 class Binner(object):
     def __init__(self, row_start, row_end,
-                 max_lm, decorrelation, time_bin_secs):
+                 max_lm, decorrelation, time_bin_secs,
+                 max_chan_freq):
         # Index of the time bin to which all rows in the bin will contribute
         self.tbin = 0
         # Number of rows in the bin
@@ -144,6 +145,8 @@ class Binner(object):
         self.re = row_end
         # Sinc of half the baseline speed
         self.bin_sinc_half_Δψ = 0.0
+        # Maximum band frequency
+        self.max_chan_freq = max_chan_freq
 
         # Quantities cached to make Binner.method arguments smaller
         self.max_lm = max_lm
@@ -155,7 +158,8 @@ class Binner(object):
     def reset(self):
         self.__init__(0, 0, self.max_lm,
                       self.decorrelation,
-                      self.time_bin_secs)
+                      self.time_bin_secs,
+                      self.max_chan_freq)
 
     def start_bin(self, row, time, interval, flag_row):
         """
@@ -208,13 +212,15 @@ class Binner(object):
         dt = time_end - time_start
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
+        dw = uvw[row, 2] - uvw[rs, 2]
 
-        # Derive phase difference in time
-        # from Equation (36) in Atemkeng
-        # leaving out the factor of two
-        # which is divided out when computing the sinc
-        l = m = np.sqrt(self.max_lm / 2)  # noqa: E741
-        half_𝞓𝞇 = np.pi * (du * l + dv * m)
+        # max delta phase occurs when duvw lines up with lmn-1.
+        # So assume we have an lmn vector such
+        # that ||(l,m)||=l_max, n_max=|sqrt(1-l_max^2)-1|;
+        # the max phase change will be ||(du,dv)||*l_max+|dw|*n_max
+        duvw = np.sqrt(du**2 + dv**2)
+        half_𝞓𝞇 = (np.pi*self.max_chan_freq*
+                    (duvw*self.max_lm + np.abs(dw)*self.n_max)/lightspeed)
         sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it
@@ -347,6 +353,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('n_max', fov_type),
         ('decorrelation', decorr_type),
         ('time_bin_secs', time_bin_secs_type),
+        ('max_chan_freq', chan_freq.dtype),
         ('max_uvw_dist', max_uvw_dist)]
 
     JitBinner = jitclass(spec)(Binner)
@@ -446,7 +453,8 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
 
         binner = JitBinner(0, 0, max_lm,
                            decorrelation,
-                           time_bin_secs)
+                           time_bin_secs,
+                           chan_freq.max())
 
         for bl in range(nbl):
             # Reset the binner for this baseline
