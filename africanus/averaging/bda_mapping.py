@@ -219,14 +219,13 @@ class Binner(object):
         # that ||(l,m)||=l_max, n_max=|sqrt(1-l_max^2)-1|;
         # the max phase change will be ||(du,dv)||*l_max+|dw|*n_max
         duvw = np.sqrt(du**2 + dv**2)
-        half_𝞓𝞇 = (np.pi * self.max_chan_freq *
-                   (duvw * self.max_lm + np.abs(dw) * self.n_max) /
-                   lightspeed)
+        half_𝞓𝞇 = (2 * np.pi * (self.max_chan_freq/lightspeed) *
+                   (duvw * self.max_lm + np.abs(dw) * self.n_max))
 
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (half_𝞓𝞇 <= self.decorrelation) or (dt > self.time_bin_secs):
+        if (half_𝞓𝞇 >= self.decorrelation) or (dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
