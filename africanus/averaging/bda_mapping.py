@@ -283,10 +283,26 @@ class Binner(object):
             # we can't meaningfully calculate baseline speed.
             # In this case frequency phase difference
             # just becomes the decorrelation factor
-            half_𝞓𝞍 = (self.decorrelation if rs == re else
-                        self.decorrelation / self.bin_half_Δψ)
-            max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
-            nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
+
+            u_sel = uvw[rs: re + 1, 0]
+            v_sel = uvw[rs: re + 1, 1]
+            w_sel = uvw[rs: re + 1, 2]
+
+            uv_dist = (np.sqrt(u_sel**2 + v_sel**2)*self.max_lm +
+                       np.abs(w_sel)*self.n_max)
+
+            delta_nu = (lightspeed / (2*np.pi)) * self.decorrelation / uv_dist
+
+            # half_𝞓𝞍 = (self.decorrelation if rs == re else
+            #             self.decorrelation / self.bin_half_Δψ)
+            # max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
+            # nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
+
+            fracsizeChanBlock = delta_nu / chan_width
+
+            fracsizeChanBlockMin = max(fracsizeChanBlock.min(), 1)
+
+            nchan = np.ceil(chan_width.size/fracsizeChanBlockMin)
 
             # Now find the next highest integer factorisation
             # of the input number of channels
