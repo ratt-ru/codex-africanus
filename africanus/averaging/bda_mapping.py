@@ -375,7 +375,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if max_fov <= 0.0 or max_fov > 90.0:
             raise ValueError("0.0 < max_fov <= 90.0 must hold")
 
-        max_lm = np.sin(np.deg2rad(max_fov))
+        max_lm = np.deg2rad(max_fov)
 
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
@@ -452,8 +452,12 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         if not have_time_bin_secs:
             time_bin_secs = np.finfo(time.dtype).max
 
+        # This derived from Synthesis & Imaging II (18-31)
+        # Converts decrease in amplitude into change in phase
+        dphi = np.sqrt(6. * (1. - decorrelation))
+
         binner = JitBinner(0, 0, max_lm,
-                           decorrelation,
+                           dphi,
                            time_bin_secs,
                            chan_freq.max())
 
