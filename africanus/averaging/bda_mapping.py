@@ -144,7 +144,7 @@ class Binner(object):
         # Ending row of the bin
         self.re = row_end
         # Sinc of half the baseline speed
-        self.bin_sinc_half_Δψ = 0.0
+        self.bin_half_Δψ = 0.0
         # Maximum band frequency
         self.max_chan_freq = max_chan_freq
 
@@ -194,7 +194,7 @@ class Binner(object):
             # Fast path for auto-correlated baseline.
             # By definition, uvw == (0, 0, 0) for these samples
             self.re = row
-            self.bin_sinc_half_Δψ = self.decorrelation
+            self.bin_half_Δψ = self.decorrelation
             self.bin_count += 1
             self.time_sum += time[row]
             self.interval_sum += interval[row]
@@ -222,18 +222,17 @@ class Binner(object):
         half_𝞓𝞇 = (np.pi * self.max_chan_freq *
                    (duvw * self.max_lm + np.abs(dw) * self.n_max) /
                    lightspeed)
-        sinc_half_𝞓𝞇 = 1.0 if half_𝞓𝞇 == 0.0 else np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (sinc_half_𝞓𝞇 <= self.decorrelation) or (dt > self.time_bin_secs):
+        if (half_𝞓𝞇 <= self.decorrelation) or (dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
-        # and keep a record of the sinc_half_𝞓𝞇
+        # and keep a record of the half_𝞓𝞇
         self.re = row
-        self.bin_sinc_half_Δψ = sinc_half_𝞓𝞇
+        self.bin_half_Δψ = half_𝞓𝞇
         self.bin_count += 1
         self.time_sum += time[row]
         self.interval_sum += interval[row]
@@ -285,10 +284,8 @@ class Binner(object):
             # we can't meaningfully calculate baseline speed.
             # In this case frequency phase difference
             # just becomes the decorrelation factor
-            half_sinc_𝞓𝞍 = (self.decorrelation if rs == re else
-                            self.decorrelation / self.bin_sinc_half_Δψ)
-            half_𝞓𝞍 = inv_sinc(half_sinc_𝞓𝞍)
-
+            half_𝞓𝞍 = (self.decorrelation if rs == re else
+                        self.decorrelation / self.bin_half_Δψ)
             max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
             nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
 
@@ -349,7 +346,7 @@ def atemkeng_mapper(time, interval, ant1, ant2, uvw,
         ('interval_sum', interval.dtype),
         ('rs', numba.uintp),
         ('re', numba.uintp),
-        ('bin_sinc_half_Δψ', uvw.dtype),
+        ('bin_half_Δψ', uvw.dtype),
         ('max_lm', fov_type),
         ('n_max', fov_type),
         ('decorrelation', decorr_type),
