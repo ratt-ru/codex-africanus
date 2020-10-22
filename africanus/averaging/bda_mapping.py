@@ -219,14 +219,13 @@ class Binner(object):
         # that ||(l,m)||=l_max, n_max=|sqrt(1-l_max^2)-1|;
         # the max phase change will be ||(du,dv)||*l_max+|dw|*n_max
         duvw = np.sqrt(du**2 + dv**2)
-        half_𝞓𝞇 = (np.pi * self.max_chan_freq *
-                   (duvw * self.max_lm + np.abs(dw) * self.n_max) /
-                   lightspeed)
+        half_𝞓𝞇 = (2 * np.pi * (self.max_chan_freq/lightspeed) *
+                   (duvw * self.max_lm + np.abs(dw) * self.n_max))
 
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (half_𝞓𝞇 <= self.decorrelation) or (dt > self.time_bin_secs):
+        if (half_𝞓𝞇 >= self.decorrelation) or (dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
@@ -284,10 +283,18 @@ class Binner(object):
             # we can't meaningfully calculate baseline speed.
             # In this case frequency phase difference
             # just becomes the decorrelation factor
-            half_𝞓𝞍 = (self.decorrelation if rs == re else
-                        self.decorrelation / self.bin_half_Δψ)
-            max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
-            nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
+
+            # The following is copied from DDFacet. Variables names could
+            # be changed but wanted to keep the correspondence clear.
+
+            delta_nu = (lightspeed / (2*np.pi)) * \
+                       (self.decorrelation / max_abs_dist)
+
+            fracsizeChanBlock = delta_nu / chan_width
+
+            fracsizeChanBlockMin = max(fracsizeChanBlock.min(), 1)
+
+            nchan = np.ceil(chan_width.size/fracsizeChanBlockMin)
 
             # Now find the next highest integer factorisation
             # of the input number of channels
