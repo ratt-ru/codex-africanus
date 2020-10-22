@@ -284,30 +284,43 @@ class Binner(object):
             # In this case frequency phase difference
             # just becomes the decorrelation factor
 
-            u_sel = uvw[rs: re + 1, 0]
-            v_sel = uvw[rs: re + 1, 1]
-            w_sel = uvw[rs: re + 1, 2]
+            # u_sel = uvw[rs: re + 1, 0]
+            # v_sel = uvw[rs: re + 1, 1]
+            # w_sel = uvw[rs: re + 1, 2]
 
-            uv_dist = (np.sqrt(u_sel**2 + v_sel**2)*self.max_lm +
-                       np.abs(w_sel)*self.n_max)
+            # uv_dist = (np.sqrt(u_sel**2 + v_sel**2)*self.max_lm +
+            #            np.abs(w_sel)*self.n_max)
 
-            delta_nu = (lightspeed / (2*np.pi)) * self.decorrelation / uv_dist
+            delta_nu = (lightspeed / (2*np.pi)) * \
+                       (self.decorrelation / max_abs_dist)
+
+            # print(delta_nu, self.max_lm, self.n_max)
 
             # half_𝞓𝞍 = (self.decorrelation if rs == re else
             #             self.decorrelation / self.bin_half_Δψ)
             # max_𝞓𝝼 = (half_𝞓𝞍 / np.pi) * (lightspeed / max_abs_dist)
             # nchan = max(int(1), int(chan_width.sum() / max_𝞓𝝼))
 
+            # print("dnu", delta_nu)
+
             fracsizeChanBlock = delta_nu / chan_width
+
+            # print(fracsizeChanBlock)
 
             fracsizeChanBlockMin = max(fracsizeChanBlock.min(), 1)
 
             nchan = np.ceil(chan_width.size/fracsizeChanBlockMin)
 
+            # print(rs, re, nchan)
+
             # Now find the next highest integer factorisation
             # of the input number of channels
             s = np.searchsorted(nchan_factors, nchan, side='left')
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
+
+            # if rs!=re:
+            #     print(rs, re, nchan)
+
 
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
