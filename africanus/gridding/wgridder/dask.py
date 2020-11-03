@@ -28,19 +28,10 @@ def _model_wrapper(uvw, freq, model, freq_bin_idx, freq_bin_counts, cell,
 
 @requires_optional('dask.array', dask_import_error)
 def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
-          weights=None, flag=None, celly=None, epsilon=None, nthreads=1,
+          weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
           do_wstacking=True):
     # determine output type
     complex_type = da.result_type(image, np.complex64)
-
-    # set precision
-    if epsilon is None:
-        if image.dtype == np.float64:
-            epsilon = 1e-7
-        elif image.dtype == np.float32:
-            epsilon = 1e-5
-        else:
-            raise ValueError("image of incorrect type")
 
     if celly is None:
         celly = cell
@@ -89,19 +80,14 @@ def _dirty_wrapper(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
 
 @requires_optional('dask.array', dask_import_error)
 def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
-          weights=None, flag=None, celly=None, epsilon=None, nthreads=1,
+          weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
           do_wstacking=True):
 
-    # set precision
-    if epsilon is None:
-        if vis.dtype == np.complex128:
-            epsilon = 1e-7
-            real_type = np.float64
-        elif vis.dtype == np.complex64:
-            epsilon = 1e-5
-            real_type = np.float64
-        else:
-            raise ValueError("vis of incorrect type")
+    # get real data type (not available from inputs)
+    if vis.dtype == np.complex128:
+        real_type = np.float64
+    elif vis.dtype == np.complex64:
+        real_type = np.float32
 
     if celly is None:
         celly = cell
@@ -155,18 +141,9 @@ def _residual_wrapper(uvw, freq, model, vis, freq_bin_idx, freq_bin_counts,
 
 @requires_optional('dask.array', dask_import_error)
 def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
-             weights=None, flag=None, celly=None, epsilon=None,
+             weights=None, flag=None, celly=None, epsilon=1e-5,
              nthreads=1, do_wstacking=True):
-
-    # set precision
-    if epsilon is None:
-        if image.dtype == np.float64:
-            epsilon = 1e-7
-        elif image.dtype == np.float32:
-            epsilon = 1e-5
-        else:
-            raise ValueError("image of incorrect type")
-
+    
     if celly is None:
         celly = cell
 
