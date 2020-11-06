@@ -143,7 +143,7 @@ def _residual_wrapper(uvw, freq, model, vis, freq_bin_idx, freq_bin_counts,
 def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
              weights=None, flag=None, celly=None, epsilon=1e-5,
              nthreads=1, do_wstacking=True):
-    
+
     if celly is None:
         celly = cell
 

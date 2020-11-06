@@ -59,7 +59,7 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
     else:
         real_type = "f8"
         complex_type = "c16"
-        
+
     epsilon = 1e-5
     np.random.seed(420)
     cell = fov*np.pi/180/nx
