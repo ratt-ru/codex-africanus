@@ -53,16 +53,8 @@ def _residual_internal(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts,
 # to chunk over row
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
-             weights=None, flag=None, celly=None, epsilon=None, nthreads=1,
+             weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
              do_wstacking=True):
-    # set precision
-    if epsilon is None:
-        if image.dtype == np.float64:
-            epsilon = 1e-7
-        elif image.dtype == np.float32:
-            epsilon = 1e-5
-        else:
-            raise ValueError("Model of incorrect type")
 
     if celly is None:
         celly = cell

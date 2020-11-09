@@ -51,16 +51,8 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
 # to chunk over row
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
-          weights=None, flag=None, celly=None, epsilon=None, nthreads=1,
+          weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
           do_wstacking=True):
-    # set precision
-    if epsilon is None:
-        if vis.dtype == np.complex128:
-            epsilon = 1e-7
-        elif vis.dtype == np.complex64:
-            epsilon = 1e-5
-        else:
-            raise ValueError("vis of incorrect type")
 
     if celly is None:
         celly = cell

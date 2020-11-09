@@ -46,9 +46,10 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
 @pmp("nchan", (1, 7))
 @pmp("nband", (1, 3))
 @pmp("precision", ('single', 'double'))
+@pmp("epsilon", (1e-3, 1e-4))
 @pmp("nthreads", (1, 6))
 def test_gridder(nx, ny, fov, nrow, nchan, nband,
-                 precision, nthreads):
+                 precision, epsilon, nthreads):
     # run comparison against dft with a frequency mapping imposed
     if nband > nchan:
         return
@@ -56,11 +57,10 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = "f4"
         complex_type = "c8"
-        epsilon = 1e-4
     else:
         real_type = "f8"
         complex_type = "c16"
-        epsilon = 1e-7
+
     np.random.seed(420)
     cell = fov*np.pi/180/nx
     f0 = 1e9
@@ -224,11 +224,11 @@ def test_dask_dirty(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = np.float32
         complex_type = np.complex64
-        decimal = 4  # does not pass at 5
+        decimal = 4  # sometimes fails at 5
     else:
         real_type = np.float64
         complex_type = np.complex128
-        decimal = 7
+        decimal = 5
     cell = fov*np.pi/180/nx
     f0 = 1e9
     freq = (f0 + np.arange(nchan)*(f0/nchan))
@@ -288,11 +288,11 @@ def test_dask_model(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = np.float32
         complex_type = np.complex64
-        decimal = 4  # does not pass at 5
+        decimal = 4  # sometimes fails at 5
     else:
         real_type = np.float64
         complex_type = np.complex128
-        decimal = 7
+        decimal = 5
     cell = fov*np.pi/180/nx
     f0 = 1e9
     freq = (f0 + np.arange(nchan)*(f0/nchan))
@@ -355,11 +355,11 @@ def test_dask_residual(nx, ny, fov, nrow, nchan, nband,
     if precision == 'single':
         real_type = np.float32
         complex_type = np.complex64
-        decimal = 4  # does not pass at 5
+        decimal = 4  # sometimes fails at 5
     else:
         real_type = np.float64
         complex_type = np.complex128
-        decimal = 7
+        decimal = 5
     cell = fov*np.pi/180/nx
     f0 = 1e9
     freq = (f0 + np.arange(nchan)*(f0/nchan))
