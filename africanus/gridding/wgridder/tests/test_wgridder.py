@@ -46,9 +46,10 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize,
 @pmp("nchan", (1, 7))
 @pmp("nband", (1, 3))
 @pmp("precision", ('single', 'double'))
+@pmp("epsilon", (1e-3, 1e-4))
 @pmp("nthreads", (1, 6))
 def test_gridder(nx, ny, fov, nrow, nchan, nband,
-                 precision, nthreads):
+                 precision, epsilon, nthreads):
     # run comparison against dft with a frequency mapping imposed
     if nband > nchan:
         return
@@ -60,7 +61,6 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband,
         real_type = "f8"
         complex_type = "c16"
 
-    epsilon = 1e-5
     np.random.seed(420)
     cell = fov*np.pi/180/nx
     f0 = 1e9
