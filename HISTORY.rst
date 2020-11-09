@@ -2,6 +2,10 @@
 History
 =======
 
+0.2.9 (????-??-??)
+------------------
+* Fix manually specifying wgridder precision (:pr:`230`) 
+
 0.2.8 (2020-10-08)
 ------------------
 * Fix NoneType issue in wgridder when weights are None (:pr:`228`)
