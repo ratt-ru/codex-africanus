@@ -105,7 +105,7 @@ def _nifty_indices(baselines, grid_config, flag,
 
 def _nifty_grid(baselines, grid_config, indices, vis, weights):
     """ Wrapper function for creating a grid of visibilities per row chunk """
-    assert len(vis) == 1 and type(vis) == list
+    assert len(vis) == 1 and type(vis) is list
     return ng.ms2grid_c(baselines, grid_config, indices,
                         vis[0], None, weights[0])[None, :, :]
 

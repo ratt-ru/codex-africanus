@@ -2,8 +2,67 @@
 History
 =======
 
-0.2.1 (YYYY-MM-DD)
+0.2.9 (????-??-??)
 ------------------
+* Fix manually specifying wgridder precision (:pr:`230`) 
+
+0.2.8 (2020-10-08)
+------------------
+* Fix NoneType issue in wgridder when weights are None (:pr:`228`)
+* Bounding hull geometric and image manipulation routines (:pr:`192`, :pr:`154`)
+* Fix row chunk chunking in Perley Polyhedron Degridder Dask Interface
+
+0.2.7 (2020-09-23)
+------------------
+* Deprecate old gridder and filters (:pr:`224`)
+* Upgrade to ducc0 0.6.0 (:pr:`223`)
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`, :pr:`222`)
+
+0.2.6 (2020-08-07)
+------------------
+* Add wrapper for ducc0.wgridder (:pr:`204`)
+* Correct Irregular Grid nesting in BeamAxes (:pr:`217`)
+
+0.2.5 (2020-07-01)
+------------------
+* Convert WSClean Gaussian arcsecond and degree quantities to radians (:pr:`206`)
+* Update classifiers and correct license in setup.py to BSD3 (:pr:`201`)
+
+0.2.4 (2020-05-29)
+------------------
+* Support overriding the l and m axis sign in beam_grids (:pr:`199`)
+* Upgrade to python-casacore 3.3.1 (:pr:`197`)
+* Upgrade to jax 0.1.68 and jaxlib 0.1.47 (:pr:`197`)
+* Upgrade to scipy 1.4.0 (:pr:`197`)
+* Use github workflows (:pr:`196`, :pr:`197`, :pr:`198`, :pr:`199`)
+* Make CASA parallactic angles thread-safe (:pr:`195`)
+* Fix spectral model documentation (:pr:`190`), to match changes in (:pr:`189`)
+
+0.2.3 (2020-05-14)
+------------------
+* Fix incorrect SPI calculation and make predict defaults MeqTree equivalent (:pr:`189`)
+* Depend on pytest-flake8 >= 1.0.6 (:pr:`187`, :pr:`188`)
+* MeqTrees Comparison Script Updates (:pr:`160`)
+* Improve requirements handling (:pr:`187`)
+* Use python-casacore wheels for travis testing, instead of kernsuite packages (:pr:`185`)
+
+0.2.2 (2020-04-09)
+------------------
+* Add a dask Estimating Progress Bar (:pr:`182`, :pr:`183`)
+
+0.2.1 (2020-04-03)
+------------------
+* Update trove to latest master commit (:pr:`178`)
+* Added Cubic Spline support (:pr:`174`)
+* Depend on python-casacore >= 3.2.0 (:pr:`172`)
+* Drop Python 3.5 support and test Python 3.7 (:pr:`168`)
+* Implement optimised WSClean predict (:pr:`166`, :pr:`167`, :pr:`177`, :pr:`179`, :pr:`180`, :pr:`181`)
+* Simplify dask predict_vis code (:pr:`164`, :pr:`165`)
+* Document and check weight shapes in simple gridder and degridder
+  (:pr:`162`, :pr:`163`)
+* Restructuring calibration module (:pr:`127`)
+* Upgrade to numba 0.46.0, using new inlining functionality
+  in the RIME and averaging code.
 * Modified predict to be compatible with eidos fits headers (:pr:`158`)
 
 0.2.0 (2019-09-30)

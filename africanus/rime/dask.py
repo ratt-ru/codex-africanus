@@ -9,7 +9,7 @@ from africanus.rime.feeds import FEED_ROTATION_DOCS
 from africanus.rime.transform import transform_sources as np_transform_sources
 from africanus.rime.fast_beam_cubes import (beam_cube_dde as np_beam_cube_dde,
                                             BEAM_CUBE_DOCS)
-from africanus.rime.dask_predict import predict_vis  # noqa
+from africanus.rime.dask_predict import predict_vis, wsclean_predict  # noqa
 from africanus.rime.zernike import zernike_dde as np_zernike_dde
 
 
@@ -27,17 +27,18 @@ else:
     da_import_error = None
 
 
-def _phase_delay_wrap(lm, uvw, frequency):
-    return np_phase_delay(lm[0], uvw[0], frequency)
+def _phase_delay_wrap(lm, uvw, frequency, convention):
+    return np_phase_delay(lm[0], uvw[0], frequency, convention=convention)
 
 
 @requires_optional('dask.array', da_import_error)
-def phase_delay(lm, uvw, frequency):
+def phase_delay(lm, uvw, frequency, convention='fourier'):
     """ Dask wrapper for phase_delay function """
     return da.core.blockwise(_phase_delay_wrap, ("source", "row", "chan"),
                              lm, ("source", "(l,m)"),
                              uvw, ("row", "(u,v,w)"),
                              frequency, ("chan",),
+                             convention=convention,
                              dtype=infer_complex_dtype(lm, uvw, frequency))
 
 
@@ -146,6 +147,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                              dtype=beam.dtype)
 
 
+@wraps(np_zernike_dde)
 def _zernike_wrapper(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
     # coords loses "three" dim
     # coeffs loses "poly" dim

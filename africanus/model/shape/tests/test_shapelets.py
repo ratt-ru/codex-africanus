@@ -90,6 +90,7 @@ def test_2d_shapelet():
 					sl_dimensional_basis = sl.dimBasis2d(n1, n2, beta=beta)
 					shapelets_basis_func = sl.computeBasis2d(sl_dimensional_basis, img_coords[:, 0], img_coords[:, 1])
 					gf_shapelets[:] += c * shapelets_basis_func[:]
+	# Compare griffinfoster (gf) shapelets to codex-africanus (ca) shapelets
 	assert np.allclose(gf_shapelets, ca_shapelets)
 
 def test_fourier_space_shapelets():

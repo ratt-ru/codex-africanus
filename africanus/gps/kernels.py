@@ -5,7 +5,7 @@ import numpy as np
 from africanus.gps.utils import abs_diff
 
 
-def exponential_squared(x, xp, sigmaf, l, pspec=False):
+def exponential_squared(x, xp, sigmaf, l, pspec=False):  # noqa: E741
     """
     Create exponential squared covariance
     function between :math:`D` dimensional
