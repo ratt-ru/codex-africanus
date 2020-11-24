@@ -17,8 +17,7 @@ from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 from africanus.rime.wsclean_predict import (
                                 WSCLEAN_PREDICT_DOCS,
-                                wsclean_predict_impl as wsclean_predict_body)
-from africanus.model.wsclean.spec_model import spectra as wsclean_spectra
+                                wsclean_predict as np_wsclean_predict)
 
 
 try:
@@ -280,76 +279,26 @@ def parallel_reduction(time_index, antenna1, antenna2,
         raise ValueError("need ddes or source coherencies")
 
     ajones_dims = ("src", "row", "ant", "chan") + cdims
+    src_coh_dims = ("src", "row", "chan") + cdims
 
-    # Setup
-    # 1. Optional blockwise arguments
-    # 2. Optional numblocks kwarg
-    # 3. HighLevelGraph dependencies
-    bw_args = [time_index.name, ("row",),
-               antenna1.name, ("row",),
-               antenna2.name, ("row",)]
-    numblocks = {
-        time_index.name: time_index.numblocks,
-        antenna1.name: antenna1.numblocks,
-        antenna2.name: antenna2.numblocks
-    }
+    coherencies = da.blockwise(
+        _predict_coh_wrapper, src_coh_dims,
+        time_index, ("row",),
+        antenna1, ("row",),
+        antenna2, ("row",),
+        dde1_jones, None if dde1_jones is None else ajones_dims,
+        source_coh, None if source_coh is None else src_coh_dims,
+        dde2_jones, None if dde2_jones is None else ajones_dims,
+        None, None,
+        # time+row dimension chunks are equivalent but differently sized
+        align_arrays=False,
+        # Force row dimension to take row chunking scheme,
+        # instead of time chunking scheme
+        adjust_chunks={'row': time_index.chunks[0]},
+        meta=np.empty((0,)*len(src_coh_dims), dtype=out_dtype),
+        dtype=out_dtype)
 
-    # Dependencies
-    deps = [time_index, antenna1, antenna2]
-
-    # Handle presence/absence of dde1_jones
-    if have_ddes:
-        bw_args.extend([dde1_jones.name, ajones_dims])
-        numblocks[dde1_jones.name] = dde1_jones.numblocks
-        deps.append(dde1_jones)
-        other_chunks = dde1_jones.chunks[3:]
-        src_chunks = dde1_jones.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # Handle presence/absence of source_coh
-    if have_coh:
-        print(source_coh)
-        bw_args.extend([source_coh.name, ("src", "row", "chan") + cdims])
-        numblocks[source_coh.name] = source_coh.numblocks
-        deps.append(source_coh)
-        other_chunks = source_coh.chunks[2:]
-        src_chunks = source_coh.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # Handle presence/absence of dde2_jones
-    if have_ddes:
-        bw_args.extend([dde2_jones.name, ajones_dims])
-        numblocks[dde2_jones.name] = dde2_jones.numblocks
-        deps.append(dde2_jones)
-        other_chunks = dde2_jones.chunks[3:]
-        src_chunks = dde2_jones.chunks[0]
-    else:
-        bw_args.extend([None, None])
-
-    # die1_jones, base_vis and die2_jones absent for this part of the graph
-    bw_args.extend([None, None, None, None, None, None])
-
-    assert len(bw_args) // 2 == 9, len(bw_args) // 2
-
-    token = da.core.tokenize(time_index, antenna1, antenna2,
-                             dde1_jones, source_coh, dde2_jones)
-    name = "-".join(("predict-vis-sum-coh", token))
-    layer = blockwise(_predict_coh_wrapper,
-                      name, ("src", "row", "chan") + cdims,
-                      *bw_args, numblocks=numblocks)
-
-    graph = HighLevelGraph.from_collections(name, layer, deps)
-
-    # We can infer output chunk sizes from source_coh
-    chunks = ((1,)*len(src_chunks), time_index.chunks[0],) + other_chunks
-
-    # Create array
-    sum_coherencies = da.Array(graph, name, chunks, dtype=out_dtype)
-
-    # Reduce source axis
-    return sum_coherencies.sum(axis=0)
+    return coherencies.sum(axis=0)
 
 
 def apply_dies(time_index, antenna1, antenna2,
@@ -505,43 +454,24 @@ def predict_vis(time_index, antenna1, antenna2,
                       predict_check_tup, out_dtype)
 
 
-def wsclean_spectrum_wrapper(flux, coeffs, log_poly, ref_freq, frequency):
-    return wsclean_spectra(flux, coeffs[0], log_poly, ref_freq, frequency)
-
-
-def wsclean_body_wrapper(uvw, lm, source_type, gauss_shape,
-                         frequency, spectrum, dtype_):
-    return wsclean_predict_body(uvw[0], lm[0], source_type,
-                                gauss_shape[0], frequency, spectrum,
-                                dtype_)[None, :]
+def wsclean_wrapper(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+    return np_wsclean_predict(uvw[0], lm[0],
+                              flux, coeffs[0],
+                              log_poly, ref_freq,
+                              frequency)[None, :]
 
 
 @requires_optional('dask.array', opt_import_error)
-def wsclean_predict(uvw, lm, source_type, flux, coeffs,
-                    log_poly, ref_freq, gauss_shape, frequency):
-    spectrum_dtype = np.result_type(*(a.dtype for a in (flux, coeffs,
-                                                        log_poly, ref_freq,
-                                                        frequency)))
-
-    spectrum = da.blockwise(wsclean_spectrum_wrapper, ("source", "chan"),
-                            flux, ("source",),
-                            coeffs, ("source", "comp"),
-                            log_poly, ("source",),
-                            ref_freq, ("source",),
-                            frequency, ("chan",),
-                            dtype=spectrum_dtype)
-
-    out_dtype = np.result_type(uvw.dtype, lm.dtype, frequency.dtype,
-                               spectrum.dtype, np.complex64)
-
-    vis = da.blockwise(wsclean_body_wrapper, ("source", "row", "chan", "corr"),
+def wsclean_predict(uvw, lm, flux, coeffs, log_poly, ref_freq, frequency):
+    out_dtype = np.result_type(uvw.dtype, np.complex64)
+    vis = da.blockwise(wsclean_wrapper, ("source", "row", "chan", "corr"),
                        uvw, ("row", "uvw"),
                        lm, ("source", "lm"),
-                       source_type, ("source",),
-                       gauss_shape, ("source", "gauss"),
+                       flux, ("source",),
+                       coeffs, ("source", "coeffs"),
+                       log_poly, ("source",),
+                       ref_freq, ("source",),
                        frequency, ("chan",),
-                       spectrum, ("source", "chan"),
-                       out_dtype, None,
                        adjust_chunks={"source": 1},
                        new_axes={"corr": 1},
                        dtype=out_dtype)

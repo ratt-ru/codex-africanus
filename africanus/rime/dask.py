@@ -147,7 +147,6 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                              dtype=beam.dtype)
 
 
-@wraps(np_zernike_dde)
 def _zernike_wrapper(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
     # coords loses "three" dim
     # coeffs loses "poly" dim

@@ -23,7 +23,6 @@ except ImportError as e:
 else:
     opt_import_error = None
 
-from africanus.util.beams import beam_filenames, beam_grids
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
                                  beam_cube_dde, feed_rotation, zernike_dde)
@@ -335,7 +334,7 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
     utime=utime.compute()
     ntime = len(utime)
     utime = utime[:ntime]
-    na = np.max(ant['row'].data) +1
+    na = ant.coords.get('ROWID').data.shape[0]#np.max(ant['row'].data) +1
     nbl = na * (na - 1) / 2
     ntime = int(nrow // nbl)
     nchan = len(frequency)
@@ -441,8 +440,9 @@ def vis_factory(args, source_type, sky_model,
 
 
     # Need unique times for parallactic angles
+    nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
     utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
+                                 chunks=nan_chunks,
                                  dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
