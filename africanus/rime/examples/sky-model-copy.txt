@@ -1,2 +1,0 @@
-#format:name ra_d dec_d i spi freq0     
-SRC0 0.83 0.00 1.0 0.0 1080000000
