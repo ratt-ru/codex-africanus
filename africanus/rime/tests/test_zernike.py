@@ -41,8 +41,6 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)[:, 0, 0, 0]
                     .reshape((npix, npix)))
-    write_fits(zernike_vals.real, [0], 'test_script_fits_beam.fits')
-    write_fits(eidos_data_xx, [0], "eidos_fits_beam.fits")
     assert np.allclose(eidos_data_xx, zernike_vals)
 
 
@@ -175,7 +173,7 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
     assert np.allclose(eidos_data_yy, zernike_vals)
 
 
-def _test_zernike_multiple_dims(coeff_xx, noll_index_xx):
+def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     """ Tests that we can call zernike_dde with multiple dimensions """
     from africanus.rime import zernike_dde as np_zernike_dde
 
@@ -200,6 +198,11 @@ def _test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
 
+    parallactic_angles = np.zeros((ntime, na))
+    frequency_scaling = np.ones((nchan,))
+    antenna_scaling = np.ones((na, nchan, 2))
+    pointing_errors = np.zeros((ntime, na, nchan, 2))
+
     # Assign Values to coeffs and noll_indices
     coeffs[:] = coeff_xx[:npoly]
     noll_indices[:] = noll_index_xx[:npoly]
@@ -209,11 +212,11 @@ def _test_zernike_multiple_dims(coeff_xx, noll_index_xx):
     coords[1, :, :, :, :] = lm[:, 1, None, None, None]
     coords[2, :, :, :, :] = 0
 
-    vals = np_zernike_dde(coords, coeffs, noll_indices)
+    vals = np_zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
     assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
 
 
-def _test_dask_zernike(coeff_xx, noll_index_xx):
+def test_dask_zernike(coeff_xx, noll_index_xx):
     """ Tests that dask zernike_dde agrees with numpy zernike_dde """
     da = pytest.importorskip("dask.array")
 
@@ -241,6 +244,12 @@ def _test_dask_zernike(coeff_xx, noll_index_xx):
     coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
 
+
+    parallactic_angles = np.zeros((ntime, na))
+    frequency_scaling = np.ones((nchan,))
+    antenna_scaling = np.ones((na, nchan, 2))
+    pointing_errors = np.zeros((ntime, na, nchan, 2))
+
     # Assign Values to coeffs and noll_indices
     coeffs[:] = coeff_xx[:npoly]
     noll_indices[:] = noll_index_xx[:npoly]
@@ -250,7 +259,7 @@ def _test_dask_zernike(coeff_xx, noll_index_xx):
     coords[1, :, :, :, :] = lm[:, 1, None, None, None]
     coords[2, :, :, :, :] = 0
 
-    vals = np_zernike_dde(coords, coeffs, noll_indices)
+    vals = np_zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
     assert vals.shape == (nsrc, ntime, na, nchan, corr1, corr2)
 
     # dimension chunking strategies
@@ -263,7 +272,13 @@ def _test_dask_zernike(coeff_xx, noll_index_xx):
     noll_indices = da.from_array(
         noll_indices, (ant_c, chan_c, corr1, corr2, npoly))
 
-    dask_vals = zernike_dde(coords, coeffs, noll_indices)
+    parallactic_angles = da.from_array(parallactic_angles)
+    frequency_scaling = da.from_array(frequency_scaling)
+    antenna_scaling = da.from_array(antenna_scaling)
+    pointing_errors = da.from_array(pointing_errors)
+
+
+    dask_vals = zernike_dde(coords, coeffs, noll_indices, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
 
     assert np.all(vals == dask_vals.compute())
 
