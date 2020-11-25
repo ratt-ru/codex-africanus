@@ -7,11 +7,10 @@ from africanus.constants import c as lightspeed
 Fs = np.fft.fftshift
 iFs = np.fft.ifftshift
 
-from scipy import fftpack
-fft = fftpack.fft
-ifft = fftpack.ifft
-fft2 = fftpack.fft2
-ifft2 = fftpack.ifft2
+fft = np.fft.fft
+ifft = np.fft.ifft
+fft2 = np.fft.fft2 
+ifft2 =  np.fft.ifft2 
 
 def test_1d_shapelet():
 	# set signal space coords
