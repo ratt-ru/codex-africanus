@@ -30,7 +30,9 @@ from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
 from africanus.model.shape.dask import shapelet as shapelet_fn
-from africanus.util.requirements import requires_optional
+from africanus.util.requirements import requires_optional\
+
+import packratt
 
 
 _einsum_corr_indices = 'ijkl'
@@ -363,10 +365,10 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
         zernike_coords[0,src,:,:,:], zernike_coords[1, src,:,:,:], zernike_coords[2,src,:,:,:] = lm[src,1]*180/np.pi/5, lm[src,0]*180/np.pi/5,0
     
     # Load in Zernike coefficients for MeerKAT at L-Band
-    coeffs_file = np.load("./zernike_coeffs.npz", allow_pickle=True)
-    c_freqs = coeffs_file['freqs']
+    packratt.get("/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", "./")
+    c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
     ch = [abs(c_freqs-i).argmin() for i in (frequency/1e06)]
-    params = coeffs_file['params'][ch,:]
+    params = np.load("./meerkat/params.npy", allow_pickle=True)
 
     # Assign coefficients
     for ant in range(na):
@@ -424,9 +426,8 @@ def vis_factory(args, source_type, sky_model,
         bl_jones_args.append("gauss_shape")
         bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
     elif source_type == "shapelet":
-        delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
         bl_jones_args.append("shapelet_shape")
-        s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm)
+        s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta)
         bl_jones_args.append(s_fn)
 
 
