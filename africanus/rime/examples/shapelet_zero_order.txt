@@ -1,2 +1,0 @@
-#format: name ra_d dec_d i spi freq0 emaj_s emin_s shapelet_coeffs
-N6251  0.00 -30.00 1.00 -0.700000 47713451.59236942 600 600 1

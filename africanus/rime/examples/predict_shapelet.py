@@ -23,16 +23,16 @@ except ImportError as e:
 else:
     opt_import_error = None
 
-from africanus.util.beams import beam_filenames, beam_grids
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
                                  beam_cube_dde, feed_rotation, zernike_dde)
 from africanus.model.coherency.dask import convert
 from africanus.model.spectral.dask import spectral_model
 from africanus.model.shape.dask import gaussian as gaussian_shape
-from africanus.model.shape.dask import shapelet_with_w_term as shapelet_fn
+from africanus.model.shape.dask import shapelet as shapelet_fn
 from africanus.util.requirements import requires_optional
-import matplotlib.pyplot as plt
+
+import packratt
 
 
 _einsum_corr_indices = 'ijkl'
@@ -336,7 +336,7 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
     utime=utime.compute()
     ntime = len(utime)
     utime = utime[:ntime]
-    na = np.max(ant['row'].data) +1
+    na = ant.coords.get('ROWID').data.shape[0]#np.max(ant['row'].data) +1
     nbl = na * (na - 1) / 2
     ntime = int(nrow // nbl)
     nchan = len(frequency)
@@ -365,10 +365,10 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
         zernike_coords[0,src,:,:,:], zernike_coords[1, src,:,:,:], zernike_coords[2,src,:,:,:] = lm[src,1]*180/np.pi/5, lm[src,0]*180/np.pi/5,0
     
     # Load in Zernike coefficients for MeerKAT at L-Band
-    coeffs_file = np.load("./zernike_coeffs.npz", allow_pickle=True)
-    c_freqs = coeffs_file['freqs']
+    packratt.get("/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", "./")
+    c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
     ch = [abs(c_freqs-i).argmin() for i in (frequency/1e06)]
-    params = coeffs_file['params'][ch,:]
+    params = np.load("./meerkat/params.npy", allow_pickle=True)
 
     # Assign coefficients
     for ant in range(na):
@@ -418,9 +418,14 @@ def vis_factory(args, source_type, sky_model,
                          corr_schema(pol))
 
     # Add any visibility amplitude terms
-    delta_lm = np.array([1 / (10 * np.max(uvw[:, 0])), 1 / (10 * np.max(uvw[:, 1]))])
-    s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta, delta_lm, lm)
-    bl_jones_args = ["shapelet_shape", s_fn]
+    if source_type == "gauss":
+        bl_jones_args.append("gauss_shape")
+        bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
+    elif source_type == "shapelet":
+        bl_jones_args.append("shapelet_shape")
+        s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta)
+        bl_jones_args.append(s_fn)
+
 
     bl_jones_args.extend(["brightness", brightness])
 
@@ -432,8 +437,9 @@ def vis_factory(args, source_type, sky_model,
 
 
     # Need unique times for parallactic angles
+    nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
     utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
+                                 chunks=nan_chunks,
                                  dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)

@@ -2,18 +2,21 @@
 
 
 import numpy as np
+from numpy.testing import assert_array_almost_equal
 
-from africanus.model.wsclean.file_model import load
+from africanus.model.wsclean.file_model import load, arcsec2rad
 
 
 def test_wsclean_model_file(wsclean_model_file):
     sources = dict(load(wsclean_model_file))
 
     (name, stype, ra, dec, I,
-     spi, log_si, ref_freq) = (sources[n] for n in (
-                                            "Name", "Type", "Ra", "Dec", "I",
-                                            "SpectralIndex", "LogarithmicSI",
-                                            "ReferenceFrequency"))
+     spi, log_si, ref_freq,
+     major, minor, orientation) = (sources[n] for n in (
+                                   "Name", "Type", "Ra", "Dec", "I",
+                                   "SpectralIndex", "LogarithmicSI",
+                                   "ReferenceFrequency",
+                                   "MajorAxis", "MinorAxis", "Orientation"))
 
     # Seven sources
     assert (len(I) == len(spi) == len(log_si) == len(ref_freq) == 7)
@@ -81,5 +84,10 @@ def test_wsclean_model_file(wsclean_model_file):
 
     # Last name and type correct
     assert name[-1] == "s1c2" and stype[-1] == "GAUSSIAN"
+
+    # https://www.convertunits.com/from/arcsecond/to/radian
+    assert_array_almost_equal(major[-1], arcsec2rad(83.6144111272856))
+    assert_array_almost_equal(minor[-1], arcsec2rad(83.6144111272856))
+    assert_array_almost_equal(orientation[-1], np.deg2rad(45))
 
     assert I[-1] == 0.000660490865128381

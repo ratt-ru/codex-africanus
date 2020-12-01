@@ -122,8 +122,6 @@ def baseline_jones_multiply(corrs, *args):
 
     output_schema = _bl_jones_output_schema(corrs, corr_index)
     schema = ",".join(input_einsum_schemas) + output_schema
-    print(schema)
-    # quit()
 
     return da.einsum(schema, *arrays)
 

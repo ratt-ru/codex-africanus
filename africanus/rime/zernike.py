@@ -156,6 +156,19 @@ coeffs : :class:`numpy.ndarray`
 noll_index : :class:`numpy.ndarray`
   Noll index associated with each polynomial coefficient.
   Has shape :code:`(ant, chan, corr_1, ..., corr_n, poly)`.
+  correlation dimensions.
+parallactic_angles : :class:`numpy.ndarray`
+  Parallactic angle rotation.
+  Has shape :code:`(time, ant)`.
+frequency_scaling : :class:`numpy.ndarray`
+  The scaling of frequency of the beam.
+  Has shape :code:`(chan,)`.
+antenna_scaling : :class:`numpy.ndarray`
+  The antenna scaling.
+  Has shape :code:`(ant, chan, 2)`.
+pointing_errors : :class:`numpy.ndarray`
+  The pointing error.
+  Has shape :code:`(time, ant, chan, 2)`.
 
 Returns
 ----------
