@@ -21,7 +21,7 @@ def read_coeffs(filename, frequency, na, npoly=20):
     if not os.path.exists("./meerkat/"): packratt.get(filename, "./")
     c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
     ch = [abs(c_freqs - i/1e06).argmin() for i in (frequency)]
-    params = np.load("./meerkat/params.npy", allow_pickle=True)
+    params = np.load("./meerkat/meerkat_zernike_coeffs.npz/params.npy", allow_pickle=True)
     for ant in range(na):
         for chan in range(len(frequency)):
             coeffs_r[ant, chan, :,:,:] = params[chan,0][0,:,:,:]
