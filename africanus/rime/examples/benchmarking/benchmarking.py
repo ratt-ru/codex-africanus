@@ -11,7 +11,6 @@ import os
 import packratt
 from zernike_helper_funcs import _convert_coords, zernike_func, noll_to_zern
 
-codex_grid = None
 
 def read_coeffs(filename, frequency, na, npoly=20):
     coeffs_r = np.empty((na, len(frequency), 2,2,npoly))
@@ -21,7 +20,7 @@ def read_coeffs(filename, frequency, na, npoly=20):
     if not os.path.exists("./meerkat/"): packratt.get(filename, "./")
     c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
     ch = [abs(c_freqs - i/1e06).argmin() for i in (frequency)]
-    params = np.load("./meerkat/meerkat_zernike_coeffs.npz/params.npy", allow_pickle=True)
+    params = np.load("./meerkat/params.npy", allow_pickle=True)
     for ant in range(na):
         for chan in range(len(frequency)):
             coeffs_r[ant, chan, :,:,:] = params[chan,0][0,:,:,:]
@@ -53,8 +52,6 @@ def codex_unit_disk(ntime, na, nchan, npix=512):
     return coords
 
 def create_zernike_beam(cores, npix):
-    global codex_grid
-    client = Client()
     dask.config.set(pool=ThreadPool(cores))
     pix_chunks = (npix**2) // cores
     ((coeffs_r, noll_index_r),(coeffs_i, noll_index_i)) = read_coeffs("/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", frequency, na)
@@ -69,17 +66,8 @@ def create_zernike_beam(cores, npix):
     pa_chunks = (1, 1)
     pe_chunks = (1, 1, nchan, 2)
 
-    # print(coord_chunks)
-    t_grid_0 = time.time()
     np_coords = codex_unit_disk(ntime, na, nchan, npix=npix)
-    codex_grid = np_coords
-    t_grid_1 = time.time()
-    print("Gridding time: ", t_grid_1 - t_grid_1, " seconds")
-    # plt.figure()
-    # plt.plot(np_coords[0,:,0,0,0])
-    # plt.plot(np_coords[1,:,0,0,0])
-    # plt.show()
-    # quit()
+
     da_coords = da.from_array(np_coords, chunks=coord_chunks)
     da_freq = da.from_array(np.ones(nchan))
     da_pa = da.from_array(parallactic_angles, chunks=pa_chunks)
@@ -90,21 +78,33 @@ def create_zernike_beam(cores, npix):
     da_ni_r = da.from_array(noll_index_r, chunks=coeff_chunks)
     da_ni_i = da.from_array(noll_index_i, chunks=coeff_chunks)
 
-    # print(np_coords)
-    # quit()
     t0 = time.time()
     zernike_beam = (zernike_dde(da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe) +
                 1j * zernike_dde(da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe)).compute()
-    # client.compute(zernike_beam)
-    # client.profile(filename="dask_profile.html", plot_data=True)
-    
     t1 = time.time()
-    return zernike_beam
+    return zernike_beam, t1 - t0
 
 
 
 def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
     l_coords, m_coords = coords[0,...], coords[1,...]
+    # Apply transforms
+    l_coords = np.einsum("rtac,c->rtac", l_coords, frequency_scaling)
+    m_coords = np.einsum("rtac,c->rtac", m_coords, frequency_scaling)
+
+    l_coords[:] = l_coords[:] + pointing_errors[:,:,:,0]
+    m_coords[:] = m_coords[:] + pointing_errors[:,:,:,1]
+    
+    
+    sin_pa = np.sin(parallactic_angles)
+    cos_pa = np.cos(parallactic_angles)
+
+    l_coords = np.einsum("rtac,ta->rtac", l_coords, cos_pa) - np.einsum("rtac,ta->rtac", l_coords, sin_pa)
+    m_coords = np.einsum("rtac,ta->rtac", m_coords, cos_pa) + np.einsum("rtac,ta->rtac", m_coords, sin_pa)
+    
+    l_coords = np.einsum("rtac,ac->rtac", l_coords, antenna_scaling[:,:,0])
+    m_coords = np.einsum("rtac,ac->rtac", m_coords, antenna_scaling[:,:,1])
+
     rho, phi = np.empty(l_coords.shape), np.empty(m_coords.shape)
     for a in range(l_coords.shape[0]):
         for b in range(l_coords.shape[1]):
@@ -125,6 +125,23 @@ def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scal
     return zern
     
 
+def _np_impl_wrapper(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
+    return numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
+
+
+def dask_numpy_implementation(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
+    coords = da.from_array(coords)
+    coeffs = da.from_array(coeffs)
+    noll_index = da.from_array(noll_index)
+    parallactic_angles = da.from_array(parallactic_angles)
+    frequency_scaling = da.from_array(frequency_scaling)
+    antenna_scaling = da.from_array(antenna_scaling)
+    pointing_errors = da.from_array(pointing_errors)
+    return da.core.blockwise(_np_impl_wrapper, ("source", "time", "ant"))
+    
+
+
+
 def numpy_implementation(npix):
     coords = codex_unit_disk(ntime, na, nchan, npix=npix)
     parallactic_angles = np.zeros((ntime, na))
@@ -134,56 +151,55 @@ def numpy_implementation(npix):
 
     ((coeffs_r, noll_index_r),(coeffs_i, noll_index_i)) = read_coeffs("/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", frequency, na)
 
+    t0 = time.time()
     zern_real = numpy_zernike(coords, coeffs_r, noll_index_r, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
     zern_imag = numpy_zernike(coords, coeffs_i, noll_index_i, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
+    complex_beam = zern_real + (1j * zern_imag)
+    t1 = time.time()
 
-    return zern_real + (1j * zern_imag)
+    return complex_beam, t1 - t0
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("-c", "--cores", type=int, default=8)
     args.add_argument("-n", "--num-pixels", type=int, default=512)
+    args.add_argument("-f", "--frequencies", type=int, default=32)
     args = args.parse_args()
     cores = args.cores
     debugCode = False
     t0 = time.time()
     ntime = 1
     na = 1
-    frequency = [1080000000]
-    nchan = len(frequency)
+    nchan = args.frequencies
+    frequency = [None] * nchan
+    for i in range(nchan):
+        frequency[i] = 1080000000 + (1000000 * i)
 
     npix = args.num_pixels
 
     # Time Numba implementation
-    t_numba_0 = time.time()
-    zernike_beam = create_zernike_beam(cores, npix)
-    t_numba_1 = time.time()
+    zernike_beam, numba_timing = create_zernike_beam(cores, npix)
+    print("Numba implementation: ", numba_timing)
 
-    print("Numba implementation: ", t_numba_1 - t_numba_0)
-    print("Numba maximum: ", np.max(zernike_beam))
-    # quit()
     # Time NumPy implementation
-    t_numpy_0 = time.time()
-    numpy_zernike_beam = numpy_implementation(npix)
-    t_numpy_1 = time.time()
-    print("NumPy implementation: ", t_numpy_1 - t_numpy_0)
-    print("NumPy maximum: ", np.max(numpy_zernike_beam))
+    numpy_zernike_beam, numpy_timing = numpy_implementation(npix)
+    print("NumPy implementation: ", numpy_timing)
 
     print("Beams match? ", np.allclose(zernike_beam[...,0,0], numpy_zernike_beam))
 
-    plt.figure()
-    plt.imshow(zernike_beam.real[:,0,0,0,0,0].reshape((npix,npix)))
-    plt.title("Numba Beam")
-    plt.colorbar()
-    plt.show()
-    plt.close()
+    # plt.figure()
+    # plt.imshow(zernike_beam.real[:,0,0,0,0,0].reshape((npix,npix)))
+    # plt.title("Numba Beam")
+    # plt.colorbar()
+    # plt.show()
+    # plt.close()
 
-    plt.figure()
-    plt.imshow(numpy_zernike_beam.real[:,0,0,0].reshape((npix,npix)))
-    plt.title("Numba Beam")
-    plt.colorbar()
-    plt.show()
+    # plt.figure()
+    # plt.imshow(numpy_zernike_beam.real[:,0,0,0].reshape((npix,npix)))
+    # plt.title("Numba Beam")
+    # plt.colorbar()
+    # plt.show()
 
     # print("Zernike Code: ", t1 - t0, " seconds")
     # print(np.sqrt(zernike_beam.shape[0]))
