@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import dask.array as da
 
 def fac(x):
     x = int(x)
@@ -41,7 +42,6 @@ def noll_to_zern(j):
     tmp = np.vectorize(int)((j1+((n+1) % 2)) / 2.0)
     m = (-1)**j * ((n % 2) + 2 * tmp)
     return n, m
-
 
 def zernike_func(n, m, rho, phi):
     output_arr = np.empty(rho.shape)

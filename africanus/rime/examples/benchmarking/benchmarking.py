@@ -10,6 +10,39 @@ import argparse
 import os
 import packratt
 from zernike_helper_funcs import _convert_coords, zernike_func, noll_to_zern
+from dask_helper_funcs import zernike_dde as np_zernike_dde_numpy
+
+
+
+def _zernike_wrapper_numpy(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
+    # coords loses "three" dim
+    # coeffs loses "poly" dim
+    # noll_index loses "poly" dim
+    return np_zernike_dde_numpy(coords[0], coeffs[0], noll_index[0], parallactic_angle, frequency_scaling, antenna_scaling[0], pointing_errors[0])
+
+def zernike_dde_numpy(coords, coeffs, noll_index, parallactic_angle, frequency_scaling, antenna_scaling, pointing_errors):
+    ncorrs = len(coeffs.shape[2:-1])
+    corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
+
+    return da.core.blockwise(_zernike_wrapper_numpy,
+                             ("source", "time", "ant", "chan") + corr_dims,
+                             coords,
+                             ("three", "source", "time", "ant", "chan"),
+                             coeffs,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             noll_index,
+                             ("ant", "chan") + corr_dims + ("poly",),
+                             parallactic_angle,
+                             ("time", "ant"),
+                             frequency_scaling,
+                             ("chan",),
+                             antenna_scaling,
+                             ("ant", "chan", "two"),
+                             pointing_errors,
+                             ("time", "ant", "chan", "two"),
+                             dtype=coeffs.dtype)
+
+
 
 
 def read_coeffs(filename, frequency, na, npoly=20):
@@ -82,11 +115,20 @@ def create_zernike_beam(cores, npix):
     zernike_beam = (zernike_dde(da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe) +
                 1j * zernike_dde(da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe)).compute()
     t1 = time.time()
-    return zernike_beam, t1 - t0
+
+
+    t_np0 = time.time()
+    zernike_beam_numpy = (zernike_dde_numpy(da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe) +
+                1j * zernike_dde_numpy(da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe)).compute()
+    t_np1 = time.time()
+
+    return zernike_beam, t1 - t0, zernike_beam_numpy, t_np1 - t_np0
 
 
 
 def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
+    # print(coords)
+    # quit()
     l_coords, m_coords = coords[0,...], coords[1,...]
     # Apply transforms
     l_coords = np.einsum("rtac,c->rtac", l_coords, frequency_scaling)
@@ -105,14 +147,8 @@ def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scal
     l_coords = np.einsum("rtac,ac->rtac", l_coords, antenna_scaling[:,:,0])
     m_coords = np.einsum("rtac,ac->rtac", m_coords, antenna_scaling[:,:,1])
 
-    rho, phi = np.empty(l_coords.shape), np.empty(m_coords.shape)
-    for a in range(l_coords.shape[0]):
-        for b in range(l_coords.shape[1]):
-            for c in range(l_coords.shape[2]):
-                for d in range(l_coords.shape[3]):
-                    rho[a,b,c,d], phi[a,b,c,d] = _convert_coords(l_coords[a,b,c,d], m_coords[a,b,c,d])
-    # (rho, phi) = _convert_coords(coords[0,:,:,:,:], coords[1,:,:,:,:])
-    a,b,c,d = np.where(rho > 1)
+    rho, phi =  _convert_coords(coords[0,:,:,:,:], coords[1,:,:,:,:])
+    
     n_indices, m_indices = noll_to_zern(noll_index)
     zern = np.zeros(coords.shape[1:] + (2,2))
     for c1 in range(2):
@@ -123,8 +159,47 @@ def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scal
                 zern[...,c1,c2] = zern[...,c1,c2] + np.einsum("c,rtac->rtac",c, zernike_func(n, m, rho, phi))
     return zern
     
+def dask_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
+    # print(coords)
+    # quit()
+    l_coords, m_coords = coords[0,...], coords[1,...]
+    # Apply transforms
+    print("Applying Transforms")
+    l_coords = np.einsum("rtac,c->rtac", l_coords, frequency_scaling)
+    m_coords = np.einsum("rtac,c->rtac", m_coords, frequency_scaling)
+
+    l_coords = l_coords + pointing_errors[:,:,:,0]
+    m_coords = m_coords + pointing_errors[:,:,:,1]
+    
+    
+    sin_pa = np.sin(parallactic_angles)
+    cos_pa = np.cos(parallactic_angles)
+
+    l_coords = np.einsum("rtac,ta->rtac", l_coords, cos_pa) - np.einsum("rtac,ta->rtac", l_coords, sin_pa)
+    m_coords = np.einsum("rtac,ta->rtac", m_coords, cos_pa) + np.einsum("rtac,ta->rtac", m_coords, sin_pa)
+    
+    l_coords = np.einsum("rtac,ac->rtac", l_coords, antenna_scaling[:,:,0])
+    m_coords = np.einsum("rtac,ac->rtac", m_coords, antenna_scaling[:,:,1])
+
+    print("Converting COords")
+    rho, phi =  _convert_coords(coords[0,:,:,:,:], coords[1,:,:,:,:])
+    print("converting Noll to Zern")
+    # n_indices, m_indices = dask_noll_to_zern(noll_index)
+    da_tmp = zernike_dde_numpy(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors).compute()
+    quit()
+    zern = np.zeros(coords.shape[1:] + (2,2))
+    for c1 in range(2):
+        for c2 in range(2):
+            for i in range(20):
+                n, m = n_indices[:,:,c1,c2,i], m_indices[:,:,c1,c2,i]
+                c = coeffs[0,:,c1,c2,i]
+                zern[...,c1,c2] = zern[...,c1,c2] + np.einsum("c,rtac->rtac",c, zernike_func(n, m, rho, phi))
+    return zern
+
 
 def _np_impl_wrapper(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
+    print(coords)
+    quit()
     return numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
 
 
@@ -136,12 +211,23 @@ def dask_numpy_implementation(coords, coeffs, noll_index, parallactic_angles, fr
     frequency_scaling = da.from_array(frequency_scaling)
     antenna_scaling = da.from_array(antenna_scaling)
     pointing_errors = da.from_array(pointing_errors)
-    return da.core.blockwise(_np_impl_wrapper, ("source", "time", "ant"))
+    return dask_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
+    # ncorrs = len(coeffs.shape[2:-1])
+    # corr_dims = tuple("corr-%d" % i for i in range(ncorrs))
+    # return da.core.blockwise(_np_impl_wrapper, ("source", "time", "ant", "chan"),
+    #                          coords, ("three", "source", "time", "ant", "chan"),
+    #                          coeffs, ("ant", "chan") + corr_dims + ("poly",),
+    #                          noll_index, ("ant", "chan") + corr_dims + ("poly",),
+    #                          parallactic_angles, ("time", "ant"),
+    #                          frequency_scaling, ("chan",),
+    #                          antenna_scaling, ("ant", "chan", "two"),
+    #                          pointing_errors, ("time", "ant", "chan", "two"),
+    #                          dtype=coeffs.dtype)
     
 
 
 
-def numpy_implementation(npix):
+def numpy_implementation(npix, dask=False):
     coords = codex_unit_disk(ntime, na, nchan, npix=npix)
     parallactic_angles = np.zeros((ntime, na))
     pointing_errors = np.zeros((ntime, na, nchan, 2))
@@ -150,10 +236,14 @@ def numpy_implementation(npix):
 
     ((coeffs_r, noll_index_r),(coeffs_i, noll_index_i)) = read_coeffs("/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", frequency, na)
 
+    if dask:
+        return dask_numpy_implementation(coords, coeffs_r, noll_index_r, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
+
     t0 = time.time()
     zern_real = numpy_zernike(coords, coeffs_r, noll_index_r, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
     zern_imag = numpy_zernike(coords, coeffs_i, noll_index_i, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
     complex_beam = zern_real + (1j * zern_imag)
+
     t1 = time.time()
 
     return complex_beam, t1 - t0
@@ -178,14 +268,22 @@ if __name__ == "__main__":
     npix = args.num_pixels
 
     # Time Numba implementation
-    zernike_beam, numba_timing = create_zernike_beam(cores, npix)
+    zernike_beam, numba_timing, zernike_np_beam, zernike_np_timing = create_zernike_beam(cores, npix)
     print("Numba implementation: ", numba_timing)
+    print("Numpy Implementation: ", zernike_np_timing)
+    print("Both match: ", np.allclose(zernike_beam, zernike_np_beam))
+    quit()
 
     # Time NumPy implementation
     numpy_zernike_beam, numpy_timing = numpy_implementation(npix)
     print("NumPy implementation: ", numpy_timing)
 
+    print("Starting Dask now")
+    da_tmp = numpy_implementation(npix, dask=True)
+
     print("Beams match? ", np.allclose(zernike_beam, numpy_zernike_beam))
+
+
 
     # plt.figure()
     # plt.imshow(zernike_beam.real[:,0,0,0,0,0].reshape((npix,npix)))
