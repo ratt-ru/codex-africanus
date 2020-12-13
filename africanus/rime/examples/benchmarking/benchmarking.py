@@ -114,14 +114,13 @@ def numpy_zernike(coords, coeffs, noll_index, parallactic_angles, frequency_scal
     # (rho, phi) = _convert_coords(coords[0,:,:,:,:], coords[1,:,:,:,:])
     a,b,c,d = np.where(rho > 1)
     n_indices, m_indices = noll_to_zern(noll_index)
-    zern = None
-    for i in range(20):
-        n, m = n_indices[:,:,0,0,i], m_indices[:,:,0,0,i]
-        c = coeffs[0,:,0,0,i]
-        if zern is None:
-            zern = np.einsum("c,rtac->rtac",c, zernike_func(n, m, rho, phi))
-        else:
-            zern = zern + np.einsum("c,rtac->rtac",c, zernike_func(n, m, rho, phi))
+    zern = np.zeros(coords.shape[1:] + (2,2))
+    for c1 in range(2):
+        for c2 in range(2):
+            for i in range(20):
+                n, m = n_indices[:,:,c1,c2,i], m_indices[:,:,c1,c2,i]
+                c = coeffs[0,:,c1,c2,i]
+                zern[...,c1,c2] = zern[...,c1,c2] + np.einsum("c,rtac->rtac",c, zernike_func(n, m, rho, phi))
     return zern
     
 
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     numpy_zernike_beam, numpy_timing = numpy_implementation(npix)
     print("NumPy implementation: ", numpy_timing)
 
-    print("Beams match? ", np.allclose(zernike_beam[...,0,0], numpy_zernike_beam))
+    print("Beams match? ", np.allclose(zernike_beam, numpy_zernike_beam))
 
     # plt.figure()
     # plt.imshow(zernike_beam.real[:,0,0,0,0,0].reshape((npix,npix)))
@@ -196,7 +195,7 @@ if __name__ == "__main__":
     # plt.close()
 
     # plt.figure()
-    # plt.imshow(numpy_zernike_beam.real[:,0,0,0].reshape((npix,npix)))
+    # plt.imshow(numpy_zernike_beam.real[:,0,0,0,0,0].reshape((npix,npix)))
     # plt.title("Numba Beam")
     # plt.colorbar()
     # plt.show()
