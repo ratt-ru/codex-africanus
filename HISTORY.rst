@@ -2,9 +2,13 @@
 History
 =======
 
+0.2.10 (YYYY-MM-DD)
+-------------------
+*
+
 0.2.9 (2020-12-15)
 ------------------
-* Upgrade ducc0 to version 0.7 (:pr:`232`)
+* Upgrade ducc0 to version 0.7 (:pr:`233`)
 * Fix manually specifying wgridder precision (:pr:`230`)
 
 0.2.8 (2020-10-08)
