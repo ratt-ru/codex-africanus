@@ -268,20 +268,67 @@ if __name__ == "__main__":
     npix = args.num_pixels
 
     # Time Numba implementation
-    zernike_beam, numba_timing, zernike_np_beam, zernike_np_timing = create_zernike_beam(cores, npix)
+    zernike_beam, numba_timing, zernike_np_beam, zernike_np_timing = create_zernike_beam(8, 32)
     print("Numba implementation: ", numba_timing)
     print("Numpy Implementation: ", zernike_np_timing)
     print("Both match: ", np.allclose(zernike_beam, zernike_np_beam))
-    quit()
+    if np.allclose(zernike_beam, zernike_np_beam):
+        print("Alright, starting now")
+        n_pix_vals = 4
+        pixel_vals = [None] * n_pix_vals
+        for i in range(n_pix_vals):
+            pixel_vals[i] = (i + 1) * 256
+        pixel_vals = np.array(pixel_vals)
+        numba_timings_pix = [None] * len(pixel_vals)
+        numpy_timings_pix = [None] * len(pixel_vals)
+        for p in range(len(pixel_vals)):
+            print("Testing for ", pixel_vals[p], " pixels")
+            _, numba_timings_pix[p], _, numpy_timings_pix[p] = create_zernike_beam(cores, pixel_vals[p])
+        
+        numba_timings_cores = [None] * cores
+        numpy_timings_cores = [None] * cores
+        print("Done! Testing cores now")
 
-    # Time NumPy implementation
-    numpy_zernike_beam, numpy_timing = numpy_implementation(npix)
-    print("NumPy implementation: ", numpy_timing)
+        cores_coords = [None] * cores
 
-    print("Starting Dask now")
-    da_tmp = numpy_implementation(npix, dask=True)
+        for c in range(cores):
+            print("Testing for ", c + 1, " cores")
+            cores_coords[c] = c+ 1
+            _, numba_timings_cores[c], _, numpy_timings_cores[c] = create_zernike_beam(c + 1, npix)
+        cores_coords = np.array(cores_coords)
+        width = 100
+        plt.figure()
+        plt.bar(pixel_vals, numba_timings_pix, label="Numba", width=width)
+        plt.bar(pixel_vals + width, numpy_timings_pix, label="NumPy", width=width)
+        plt.xlabel("Number of pixels")
+        plt.ylabel("Runtime (seconds)")
+        plt.legend(loc='upper left')
+        plt.title(("Number of pixels vs runtime for %d cores" %(cores)))
+        plt.show()
+        plt.close()
 
-    print("Beams match? ", np.allclose(zernike_beam, numpy_zernike_beam))
+        width = 0.25
+        plt.figure()
+        plt.bar(cores_coords, numba_timings_cores, label="Numba", width=width)
+        plt.bar(cores_coords + width, numpy_timings_cores, label="NumPy", width=width)
+        plt.xlabel("Number of cores")
+        plt.ylabel("Runtime (seconds)")
+        plt.legend(loc='upper left')
+        plt.title(("Cores vs Runtime for a grid of %d x %d" %(npix, npix)))
+        plt.show()
+        plt.close()
+
+        # plt.figure()
+        # plt.plot(range(cores), numba_timings_cores, label="Numba")
+        # plt.plot(range(cores), numpy_timings_cores, label="NumPy")
+        # plt.xlabel("Number of cores")
+        # plt.ylabel("Runtime (seconds)")
+        # plt.legend(loc='upper left')
+        # plt.show()
+        # plt.close()
+        
+            
+    
 
 
 
