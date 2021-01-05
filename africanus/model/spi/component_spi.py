@@ -32,7 +32,7 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
             jr0 = 0.0
             jr1 = 0.0
             for v in range(nfreqs):
-                lik += residual[v] * weights[v] * residual[v]  # /2
+                lik += residual[v] * weights[v] * residual[v]
                 jr0 += jac[0, v] * weights[v] * residual[v]
                 jr1 += jac[1, v] * weights[v] * residual[v]
                 hess00 += jac[0, v] * weights[v] * jac[0, v]
