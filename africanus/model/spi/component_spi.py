@@ -12,6 +12,7 @@ from africanus.util.numba import jit
 def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                              jac, ncomps, nfreqs, tol, maxiter, mindet):
     w = freqs/freq0
+    dof = w.size - 2
     for comp in range(ncomps):
         eps = 1.0
         k = 0
@@ -31,7 +32,7 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
             jr0 = 0.0
             jr1 = 0.0
             for v in range(nfreqs):
-                lik += residual[v] * weights[v] * residual[v]/2
+                lik += residual[v] * weights[v] * residual[v]  # /2
                 jr0 += jac[0, v] * weights[v] * residual[v]
                 jr1 += jac[1, v] * weights[v] * residual[v]
                 hess00 += jac[0, v] * weights[v] * jac[0, v]
@@ -45,9 +46,9 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
         if k == maxiter:
             print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
-        out[1, comp] = np.sqrt(hess11/det * lik/2)
+        out[1, comp] = hess11/det * lik/dof
         out[2, comp] = i0k
-        out[3, comp] = np.sqrt(hess00/det * lik/2)
+        out[3, comp] = hess00/det * lik/dof
     return out
 
 
