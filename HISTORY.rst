@@ -4,7 +4,8 @@ History
 
 0.2.10 (YYYY-MM-DD)
 -------------------
-*
+* Add mindet to avoid div0 errors in spi fitter and fix alpha and I0 variance
+  estimates (:pr:`234`)
 
 0.2.9 (2020-12-15)
 ------------------
