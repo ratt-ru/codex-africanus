@@ -5,6 +5,8 @@ History
 0.2.10 (YYYY-MM-DD)
 -------------------
 * Upgrade ducc0 to version 0.8.0 (:pr:`236`)
+* Add mindet to avoid div0 errors in spi fitter and fix alpha and I0 variance
+  estimates (:pr:`234`)
 
 0.2.9 (2020-12-15)
 ------------------

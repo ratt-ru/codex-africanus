@@ -17,7 +17,7 @@ def test_fit_spi_components_vs_scipy():
 
     np.random.seed(123)
 
-    ncomps = 25
+    ncomps = 250
     alphas = -0.7 + 0.25 * np.random.randn(ncomps, 1)
     i0s = 5.0 + np.random.randn(ncomps, 1)
     nfreqs = 100
@@ -42,18 +42,17 @@ def test_fit_spi_components_vs_scipy():
     for i in range(ncomps):
         popt, pcov = curve_fit(spi_func, (freqs / freq0).squeeze(), data[i, :],
                                sigma=np.diag(sigma**2),
-                               p0=np.array([1.0, -0.7]))
+                               p0=np.array([1.0, -0.7]),
+                               absolute_sigma=False)
         I02[i] = popt[0]
         I0var2[i] = pcov[0, 0]
         alpha2[i] = popt[1]
         alphavar2[i] = pcov[1, 1]
 
     np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=6)
-    # note variances not necessarily accurate to within tol because
-    # scipy uses LM instead of GN
-    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=3)
+    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=6)
     np.testing.assert_array_almost_equal(I01, I02, decimal=6)
-    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=3)
+    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=6)
 
 
 def test_dask_fit_spi_components_vs_np():
