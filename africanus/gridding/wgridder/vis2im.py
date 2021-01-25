@@ -15,7 +15,7 @@ from africanus.util.requirements import requires_optional
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                     cell, weights, flag, celly, epsilon, nthreads,
-                    do_wstacking):
+                    do_wstacking, double_accum):
     # adjust for chunking
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
@@ -43,7 +43,8 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                                pixsize_x=cell, pixsize_y=celly,
                                nu=0, nv=0, epsilon=epsilon,
                                nthreads=nthreads, mask=mask,
-                               do_wstacking=do_wstacking)
+                               do_wstacking=do_wstacking,
+                               double_precision_accumulation=double_accum)
     return dirty
 
 
@@ -52,7 +53,7 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
           weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
-          do_wstacking=True):
+          do_wstacking=True, double_accum=False):
 
     if celly is None:
         celly = cell
@@ -63,7 +64,7 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
     dirty = _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
                             nx, ny, cell, weights, flag, celly,
-                            epsilon, nthreads, do_wstacking)
+                            epsilon, nthreads, do_wstacking, double_accum)
     return dirty[0]
 
 
@@ -126,6 +127,9 @@ DIRTY_DOCS = DocstringTemplate(
         If set to zero will use all available cores.
     do_wstacking : bool, optional
         Whether to correct for the w-term or not. Defaults to True
+    double_accum : bool, optional
+        If true ducc will accumulate in double precision regardless of
+        the input type.
 
     Returns
     -------
