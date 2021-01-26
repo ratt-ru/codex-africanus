@@ -39,8 +39,7 @@ def _hessian_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts,
                             pixsize_x=cell, pixsize_y=celly,
                             nu=0, nv=0, epsilon=epsilon,
                             nthreads=nthreads, mask=mask,
-                            do_wstacking=do_wstacking,
-                            double_precision_accumulation=double_accum)
+                            do_wstacking=do_wstacking)
         convolvedim[0, i] = ms2dirty(
                                 uvw=uvw, freq=freq[ind], ms=modelvis,
                                 wgt=wgt, npix_x=nx, npix_y=ny,
