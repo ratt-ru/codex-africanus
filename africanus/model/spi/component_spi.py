@@ -10,7 +10,8 @@ from africanus.util.numba import jit
 
 @jit(nopython=True, nogil=True, cache=True)
 def _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                             jac, ncomps, nfreqs, tol, maxiter, mindet):
+                             jac, beam, ncomps, nfreqs,
+                             tol, maxiter, mindet):
     w = freqs/freq0
     dof = w.size - 2
     for comp in range(ncomps):
@@ -18,10 +19,11 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
         k = 0
         alphak = out[0, comp]
         i0k = out[2, comp]
+        b = beam[comp]
         while eps > tol and k < maxiter:
             alphap = alphak
             i0p = i0k
-            jac[1, :] = w**alphak
+            jac[1, :] = b*w**alphak
             model = i0k*jac[1, :]
             jac[0, :] = model * np.log(w)
             residual = data[comp] - model
@@ -53,8 +55,8 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
 
 
 def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None, tol=1e-4,
-                       maxiter=100):
+                       alphai=None, I0i=None, beam=None, 
+                       tol=1e-4, maxiter=100):
     ncomps, nfreqs = data.shape
     jac = np.zeros((2, nfreqs), dtype=data.dtype)
     out = np.zeros((4, ncomps), dtype=data.dtype)
@@ -67,6 +69,8 @@ def fit_spi_components(data, weights, freqs, freq0,
     else:
         tmp = np.abs(freqs - freq0)
         ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
+        if np.size(ref_freq_idx) > 1:
+            ref_freq_idx = ref_freq_idx.min()
         out[2, :] = data[:, ref_freq_idx]
     if data.dtype == np.float64:
         mindet = 1e-12
@@ -74,9 +78,12 @@ def fit_spi_components(data, weights, freqs, freq0,
         mindet = 1e-5
     else:
         raise ValueError("Unsupported data type. Must be float32 of float64.")
+    if beam is None:
+        beam = np.ones(data.shape, data.dtype)
 
     return _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                                    jac, ncomps, nfreqs, tol, maxiter, mindet)
+                                    jac, beam, ncomps, nfreqs,
+                                    tol, maxiter, mindet)
 
 
 SPI_DOCSTRING = DocstringTemplate(
@@ -86,7 +93,11 @@ SPI_DOCSTRING = DocstringTemplate(
 
     .. math::
 
-        I(\nu) = I(\nu_0) \left( \frac{\nu}{\nu_0} \right) ^ \alpha
+        I(\nu) = A(\nu) I(\nu_0) \left( \frac{\nu}{\nu_0} \right) ^ \alpha
+
+    where :math:`I(\nu)` is the apparent source spectrum,
+    :math:`A(\nu)` is the beam model for each component as a function of
+    frequency.
 
     Parameters
     ----------
@@ -109,6 +120,9 @@ SPI_DOCSTRING = DocstringTemplate(
         array of shape :code:`(comps,)`
         Initial guess for the intensities at the
         reference frequency. Defaults to 1.0.
+    beam_comps : $(array_type), optional
+        array of shape :code:`(comps, chan)`
+        Power beam for each component as a function of frequency. 
     tol : float, optional
         Solver absolute tolerance (optional).
         Defaults to 1e-6.
