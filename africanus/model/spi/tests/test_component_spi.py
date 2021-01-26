@@ -23,7 +23,10 @@ def test_fit_spi_components_vs_scipy():
     nfreqs = 100
     freqs = np.linspace(0.5, 1.5, nfreqs).reshape(1, nfreqs)
     freq0 = 0.7
-    model = i0s * (freqs / freq0) ** alphas
+    beams = np.zeros((ncomps, nfreqs))
+    for i in range(ncomps):
+        beams[i, :] = np.sinc(freqs - freqs[0])
+    model = beams * i0s * (freqs / freq0) ** alphas
     sigma = np.abs(0.25 + 0.1 * np.random.randn(nfreqs))
     data = model + sigma[None, :] * np.random.randn(ncomps, nfreqs)
 
@@ -31,8 +34,8 @@ def test_fit_spi_components_vs_scipy():
     alpha1, alphavar1, I01, I0var1 = fit_spi_components(
         data, weights, freqs.squeeze(), freq0, tol=1e-8)
 
-    def spi_func(nu, I0, alpha):
-        return I0 * nu ** alpha
+    def spi_func(nu, I0, alpha, beam=1.0):
+        return beam * I0 * nu ** alpha
 
     I02 = np.zeros(ncomps)
     I0var2 = np.zeros(ncomps)
@@ -40,8 +43,10 @@ def test_fit_spi_components_vs_scipy():
     alphavar2 = np.zeros(ncomps)
 
     for i in range(ncomps):
-        popt, pcov = curve_fit(spi_func, (freqs / freq0).squeeze(), data[i, :],
-                               sigma=np.diag(sigma**2),
+        def fit_func(nu, I0, alpha): return spi_func(nu, I0, alpha,
+                                                     beam=beams[i])
+        popt, pcov = curve_fit(fit_func, (freqs / freq0).squeeze(),
+                               data[i, :], sigma=np.diag(sigma**2),
                                p0=np.array([1.0, -0.7]),
                                absolute_sigma=False)
         I02[i] = popt[0]
@@ -49,10 +54,10 @@ def test_fit_spi_components_vs_scipy():
         alpha2[i] = popt[1]
         alphavar2[i] = pcov[1, 1]
 
-    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=6)
-    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=6)
-    np.testing.assert_array_almost_equal(I01, I02, decimal=6)
-    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=6)
+    np.testing.assert_array_almost_equal(alpha1, alpha2, decimal=5)
+    np.testing.assert_array_almost_equal(alphavar1, alphavar2, decimal=5)
+    np.testing.assert_array_almost_equal(I01, I02, decimal=5)
+    np.testing.assert_array_almost_equal(I0var1, I0var2, decimal=5)
 
 
 def test_dask_fit_spi_components_vs_np():
