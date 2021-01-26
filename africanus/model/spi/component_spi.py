@@ -71,7 +71,7 @@ def fit_spi_components(data, weights, freqs, freq0,
         ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
         if np.size(ref_freq_idx) > 1:
             ref_freq_idx = ref_freq_idx.min()
-        out[2, :] = data[:, ref_freq_idx]
+        out[2, :] = data[:, ref_freq_idx]/beam[:, ref_freq_idx]
     if data.dtype == np.float64:
         mindet = 1e-12
     elif data.dtype == np.float32:
