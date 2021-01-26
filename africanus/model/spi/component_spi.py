@@ -58,6 +58,8 @@ def fit_spi_components(data, weights, freqs, freq0,
                        alphai=None, I0i=None, beam=None,
                        tol=1e-4, maxiter=100):
     ncomps, nfreqs = data.shape
+    if beam is None:
+        beam = np.ones(data.shape, data.dtype)
     jac = np.zeros((2, nfreqs), dtype=data.dtype)
     out = np.zeros((4, ncomps), dtype=data.dtype)
     if alphai is not None:
@@ -78,8 +80,6 @@ def fit_spi_components(data, weights, freqs, freq0,
         mindet = 1e-5
     else:
         raise ValueError("Unsupported data type. Must be float32 of float64.")
-    if beam is None:
-        beam = np.ones(data.shape, data.dtype)
 
     return _fit_spi_components_impl(data, weights, freqs, freq0, out,
                                     jac, beam, ncomps, nfreqs,
