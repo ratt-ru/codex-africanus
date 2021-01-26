@@ -55,7 +55,7 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
 
 
 def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None, beam=None, 
+                       alphai=None, I0i=None, beam=None,
                        tol=1e-4, maxiter=100):
     ncomps, nfreqs = data.shape
     jac = np.zeros((2, nfreqs), dtype=data.dtype)
@@ -122,7 +122,7 @@ SPI_DOCSTRING = DocstringTemplate(
         reference frequency. Defaults to 1.0.
     beam_comps : $(array_type), optional
         array of shape :code:`(comps, chan)`
-        Power beam for each component as a function of frequency. 
+        Power beam for each component as a function of frequency.
     tol : float, optional
         Solver absolute tolerance (optional).
         Defaults to 1e-6.
