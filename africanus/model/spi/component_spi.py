@@ -9,9 +9,10 @@ from africanus.util.numba import jit
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                             jac, ncomps, nfreqs, tol, maxiter):
-    w = freqs/freq0
+def _fit_spi_components_impl(
+    data, weights, freqs, freq0, out, jac, ncomps, nfreqs, tol, maxiter
+):
+    w = freqs / freq0
     for comp in range(ncomps):
         eps = 1.0
         k = 0
@@ -20,8 +21,8 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
         while eps > tol and k < maxiter:
             alphap = alphak
             i0p = i0k
-            jac[1, :] = w**alphak
-            model = i0k*jac[1, :]
+            jac[1, :] = w ** alphak
+            model = i0k * jac[1, :]
             jac[0, :] = model * np.log(w)
             residual = data[comp] - model
             lik = 0.0
@@ -37,23 +38,23 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                 hess00 += jac[0, v] * weights[v] * jac[0, v]
                 hess01 += jac[0, v] * weights[v] * jac[1, v]
                 hess11 += jac[1, v] * weights[v] * jac[1, v]
-            det = hess00 * hess11 - hess01**2
-            alphak = alphap + (hess11 * jr0 - hess01 * jr1)/det
-            i0k = i0p + (-hess01 * jr0 + hess00 * jr1)/det
+            det = hess00 * hess11 - hess01 ** 2
+            alphak = alphap + (hess11 * jr0 - hess01 * jr1) / det
+            i0k = i0p + (-hess01 * jr0 + hess00 * jr1) / det
             eps = np.maximum(np.abs(alphak - alphap), np.abs(i0k - i0p))
             k += 1
         if k == maxiter:
             print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
-        out[1, comp] = hess11/det
+        out[1, comp] = hess11 / det
         out[2, comp] = i0k
-        out[3, comp] = hess00/det
+        out[3, comp] = hess00 / det
     return out
 
 
-def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None, tol=1e-4,
-                       maxiter=100):
+def fit_spi_components(
+    data, weights, freqs, freq0, alphai=None, I0i=None, tol=1e-4, maxiter=100
+):
     ncomps, nfreqs = data.shape
     jac = np.zeros((2, nfreqs), dtype=data.dtype)
     out = np.zeros((4, ncomps), dtype=data.dtype)
@@ -67,8 +68,9 @@ def fit_spi_components(data, weights, freqs, freq0,
         tmp = np.abs(freqs - freq0)
         ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
         out[2, :] = data[:, ref_freq_idx]
-    return _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                                    jac, ncomps, nfreqs, tol, maxiter)
+    return _fit_spi_components_impl(
+        data, weights, freqs, freq0, out, jac, ncomps, nfreqs, tol, maxiter
+    )
 
 
 SPI_DOCSTRING = DocstringTemplate(
@@ -117,10 +119,12 @@ SPI_DOCSTRING = DocstringTemplate(
         array of shape :code:`(4, comps)`
         The fitted components arranged
         as [alphas, alphavars, I0s, I0vars]
-    """)
+    """
+)
 
 try:
     fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
-                            array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

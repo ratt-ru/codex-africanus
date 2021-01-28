@@ -3,8 +3,8 @@ import pytest
 
 from africanus.rime.parangles import _discovered_backends
 
-no_casa = 'casa' not in _discovered_backends
-no_astropy = 'astropy' not in _discovered_backends
+no_casa = "casa" not in _discovered_backends
+no_astropy = "astropy" not in _discovered_backends
 
 
 def _julian_day(year, month, day):
@@ -26,9 +26,14 @@ def _julian_day(year, month, day):
     # Formula below from
     # http://scienceworld.wolfram.com/astronomy/JulianDate.html
     # Also agrees with https://gist.github.com/jiffyclub/1294443
-    return (367*year - int(7*(year + int((month+9)/12))/4)
-            - int((3*(int(year + (month - 9)/7)/100)+1)/4)
-            + int(275*month/9) + day + 1721028.5)
+    return (
+        367 * year
+        - int(7 * (year + int((month + 9) / 12)) / 4)
+        - int((3 * (int(year + (month - 9) / 7) / 100) + 1) / 4)
+        + int(275 * month / 9)
+        + day
+        + 1721028.5
+    )
 
 
 def _modified_julian_date(year, month, day):
@@ -57,25 +62,31 @@ def _observation_endpoints(year, month, day, hour_duration):
     in Modified Julian Date seconds
     """
     start = _modified_julian_date(year, month, day)
-    end = start + hour_duration / 24.
+    end = start + hour_duration / 24.0
 
     # Convert to seconds
-    start *= 86400.
-    end *= 86400.
+    start *= 86400.0
+    end *= 86400.0
 
     return (start, end)
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-@pytest.mark.parametrize('backend', [
-    'test',
-    pytest.param('casa', marks=pytest.mark.skipif(
-                    no_casa,
-                    reason='python-casascore not installed')),
-    pytest.param('astropy', marks=pytest.mark.skipif(
-                    no_astropy,
-                    reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "test",
+        pytest.param(
+            "casa",
+            marks=pytest.mark.skipif(no_casa, reason="python-casascore not installed"),
+        ),
+        pytest.param(
+            "astropy",
+            marks=pytest.mark.skipif(no_astropy, reason="astropy not installed"),
+        ),
+    ],
+)
+@pytest.mark.parametrize("observation", [(2018, 1, 1, 4)])
 def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
     from africanus.rime import parallactic_angles
@@ -90,13 +101,14 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-@pytest.mark.skipif(no_casa or no_astropy,
-                    reason="Neither python-casacore or astropy installed")
+@pytest.mark.skipif(
+    no_casa or no_astropy, reason="Neither python-casacore or astropy installed"
+)
 # Parametrize on observation length and error tolerance
-@pytest.mark.parametrize('obs_and_tol', [
-    ((2018, 1, 1, 4), "10s"),
-    ((2018, 2, 20, 8), "10s"),
-    ((2018, 11, 2, 4), "10s")])
+@pytest.mark.parametrize(
+    "obs_and_tol",
+    [((2018, 1, 1, 4), "10s"), ((2018, 2, 20, 8), "10s"), ((2018, 11, 2, 4), "10s")],
+)
 def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     Compare astropy and python-casacore parallactic angle implementations.
@@ -114,32 +126,38 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
 
     time = np.linspace(start, end, 5)
     ant = wsrt_ants[:4, :]
-    fc = np.array([0., 1.04719755], dtype=np.float64)
+    fc = np.array([0.0, 1.04719755], dtype=np.float64)
 
     astro_pa = astropy_parallactic_angles(time, ant, fc)
-    casa_pa = casa_parallactic_angles(time, ant, fc, zenith_frame='AZELGEO')
+    casa_pa = casa_parallactic_angles(time, ant, fc, zenith_frame="AZELGEO")
 
     # Convert to angle degrees
-    astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180*units.deg)
-    casa_pa = Angle(casa_pa*units.rad, unit=units.deg).wrap_at(180*units.deg)
+    astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180 * units.deg)
+    casa_pa = Angle(casa_pa * units.rad, unit=units.deg).wrap_at(180 * units.deg)
 
     # Difference in degrees, wrapped at 180
-    diff = np.abs((astro_pa - casa_pa).wrap_at(180*units.deg))
+    diff = np.abs((astro_pa - casa_pa).wrap_at(180 * units.deg))
     assert np.all(np.abs(diff) < Angle(rtol))
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-@pytest.mark.parametrize('backend', [
-    'test',
-    pytest.param('casa', marks=pytest.mark.skipif(
-                                no_casa,
-                                reason='python-casascore not installed')),
-    pytest.param('astropy', marks=pytest.mark.skipif(
-                                no_astropy,
-                                reason="astropy not installed"))])
-@pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "test",
+        pytest.param(
+            "casa",
+            marks=pytest.mark.skipif(no_casa, reason="python-casascore not installed"),
+        ),
+        pytest.param(
+            "astropy",
+            marks=pytest.mark.skipif(no_astropy, reason="astropy not installed"),
+        ),
+    ],
+)
+@pytest.mark.parametrize("observation", [(2018, 1, 1, 4)])
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
-    da = pytest.importorskip('dask.array')
+    da = pytest.importorskip("dask.array")
     from africanus.rime import parallactic_angles as np_parangle
     from africanus.rime.dask import parallactic_angles as da_parangle
 

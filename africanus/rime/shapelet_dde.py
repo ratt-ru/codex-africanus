@@ -7,7 +7,7 @@ from scipy.special import hermite
 e = 2.7182818284590452353602874713527
 square_root_of_pi = 1.77245385091
 
-#@numba.jit(nogil=True, nopython=True, cache=True)
+# @numba.jit(nogil=True, nopython=True, cache=True)
 def factorial(n):
     if n <= 1:
         return 1
@@ -16,13 +16,17 @@ def factorial(n):
         ans *= i
     return ans
 
-#@numba.jit(nogil=True, nopython=True, cache=True)
+
+# @numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, x, beta):
-    basis_component = ((2**n) * ((np.pi)**(0.5)) * factorial(n) * beta)**(-0.5)
-    exponential_component = hermite(n)(x / beta) * np.exp((-0.5) * (x**2) * (beta **(-2)))
+    basis_component = ((2 ** n) * ((np.pi) ** (0.5)) * factorial(n) * beta) ** (-0.5)
+    exponential_component = hermite(n)(x / beta) * np.exp(
+        (-0.5) * (x ** 2) * (beta ** (-2))
+    )
     return basis_component * exponential_component
 
-#@numba.jit(nogil=True, nopython=True, cache=True)
+
+# @numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet_dde(coords, coeffs, beta):
     """
     shapelet_dde: computes the shapelet in Fourier space
@@ -47,12 +51,12 @@ def shapelet_dde(coords, coeffs, beta):
                     shapelet_sum = 0
                     for n1 in range(nmax1):
                         for n2 in range(nmax2):
-                            #print("n1 is %d and n2 is %d" %(n1, n2))
+                            # print("n1 is %d and n2 is %d" %(n1, n2))
                             tmp_ans = coeffs[ant, chan, n1, n2] + 0j
-                            tmp_ans *= (1j**(n1)) * (1j ** (n2))
-                            tmp_ans *= basis_function(n1, u, betax**(-1))
-                            tmp_ans *= basis_function(n2, v, betay**(-1))
+                            tmp_ans *= (1j ** (n1)) * (1j ** (n2))
+                            tmp_ans *= basis_function(n1, u, betax ** (-1))
+                            tmp_ans *= basis_function(n2, v, betay ** (-1))
                             shapelet_sum += tmp_ans
-                           # shapelet_sum += coeffs[ant, chan, n1, n2] * 1j**(n1 + n2) * basis_function(n1, u, 1/betax) * basis_function(n2, v, 1/betay)
+                        # shapelet_sum += coeffs[ant, chan, n1, n2] * 1j**(n1 + n2) * basis_function(n1, u, 1/betax) * basis_function(n2, v, 1/betay)
                     out_shapelets[src, time, ant, chan] = shapelet_sum
     return out_shapelets

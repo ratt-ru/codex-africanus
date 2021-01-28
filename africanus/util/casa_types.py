@@ -34,7 +34,8 @@ STOKES_TYPES = [
     "Plinear",
     "PFtotal",
     "PFlinear",
-    "Pangle"]
+    "Pangle",
+]
 """
 List of stokes types as defined in
 Measurement Set 2.0 and Stokes.h in casacore:

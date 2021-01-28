@@ -11,8 +11,8 @@ def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = (freq[None, :, None] / ref_freq[:, None, None]) - 1.0
-    term = term**coeffs_idx[None, None, :]
-    term = coeffs[:, None, :]*term
+    term = term ** coeffs_idx[None, None, :]
+    term = coeffs[:, None, :] * term
     return I[:, None] + term.sum(axis=2)
 
 
@@ -23,20 +23,24 @@ def log_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = np.log(freq[None, :, None] / ref_freq[:, None, None])
-    term = term**coeffs_idx[None, None, :]
-    term = coeffs[:, None, :]*term
+    term = term ** coeffs_idx[None, None, :]
+    term = coeffs[:, None, :] * term
     return np.exp(np.log(I)[:, None] + term.sum(axis=2))
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def _check_log_poly_shape(coeffs, log_poly):
     if isinstance(log_poly, types.npytypes.Array):
+
         def impl(coeffs, log_poly):
             if coeffs.shape[0] != log_poly.shape[0]:
                 raise ValueError("coeffs.shape[0] != log_poly.shape[0]")
+
     elif isinstance(log_poly, types.scalars.Boolean):
+
         def impl(coeffs, log_poly):
             pass
+
     else:
         raise ValueError("log_poly must be ndarray or bool")
 
@@ -46,11 +50,15 @@ def _check_log_poly_shape(coeffs, log_poly):
 @generated_jit(nopython=True, nogil=True, cache=True)
 def _log_polynomial(log_poly, s):
     if isinstance(log_poly, types.npytypes.Array):
+
         def impl(log_poly, s):
             return log_poly[s]
+
     elif isinstance(log_poly, types.scalars.Boolean):
+
         def impl(log_poly, s):
             return log_poly
+
     else:
         raise ValueError("log_poly must be ndarray or bool")
 
@@ -59,14 +67,14 @@ def _log_polynomial(log_poly, s):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
-    arg_dtypes = tuple(np.dtype(a.dtype.name) for a
-                       in (I, coeffs, ref_freq, frequency))
+    arg_dtypes = tuple(np.dtype(a.dtype.name) for a in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
 
     def impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
         if not (I.shape[0] == coeffs.shape[0] == ref_freq.shape[0]):
-            raise ValueError("first dimensions of I, coeffs "
-                             "and ref_freq don't match.")
+            raise ValueError(
+                "first dimensions of I, coeffs " "and ref_freq don't match."
+            )
 
         _check_log_poly_shape(coeffs, log_poly)
 
@@ -95,10 +103,11 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
                         term = coeffs[s, c]
 
                         if term <= 0.0:
-                            raise ValueError("log polynomial coefficient "
-                                             "must be > 0")
+                            raise ValueError(
+                                "log polynomial coefficient " "must be > 0"
+                            )
 
-                        term *= np.log(nu/rf)**(c + 1)
+                        term *= np.log(nu / rf) ** (c + 1)
                         spectral_model[s, f] += term
 
                     spectral_model[s, f] = np.exp(spectral_model[s, f])
@@ -111,7 +120,7 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c]
-                        term *= ((nu/rf) - 1.0)**(c + 1)
+                        term *= ((nu / rf) - 1.0) ** (c + 1)
                         spectral_model[s, f] += term
 
         return spectral_model
@@ -119,7 +128,8 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     return impl
 
 
-SPECTRA_DOCS = DocstringTemplate(r"""
+SPECTRA_DOCS = DocstringTemplate(
+    r"""
 Produces a spectral model from a polynomial expansion of
 a wsclean file model. Depending on how `log_poly` is set
 ordinary or logarithmic polynomials are used to produce
@@ -167,10 +177,10 @@ Returns
 -------
 spectral_model : $(array_type)
     Spectral Model of shape :code:`(source, chan)`
-""")
+"""
+)
 
 try:
-    spectra.__doc__ = SPECTRA_DOCS.substitute(
-                            array_type=":class:`numpy.ndarray`")
+    spectra.__doc__ = SPECTRA_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

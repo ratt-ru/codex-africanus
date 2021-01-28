@@ -12,10 +12,22 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.requirements import requires_optional
 
 
-@requires_optional('ducc0.wgridder', ducc_import_error)
-def _residual_internal(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts,
-                       cell, weights, flag, celly, epsilon, nthreads,
-                       do_wstacking):
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def _residual_internal(
+    uvw,
+    freq,
+    image,
+    vis,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights,
+    flag,
+    celly,
+    epsilon,
+    nthreads,
+    do_wstacking,
+):
 
     # adjust for chunking
     # need a copy here if using multiple row chunks
@@ -34,38 +46,81 @@ def _residual_internal(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts,
             mask = flag[:, ind]
         else:
             mask = None
-        residvis = vis[:, ind] - dirty2ms(uvw=uvw, freq=freq[ind],
-                                          dirty=image[i], wgt=None,
-                                          pixsize_x=cell, pixsize_y=celly,
-                                          nu=0, nv=0, epsilon=epsilon,
-                                          nthreads=nthreads, mask=mask,
-                                          do_wstacking=do_wstacking)
-        residim[0, i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=residvis,
-                                 wgt=wgt, npix_x=nx, npix_y=ny,
-                                 pixsize_x=cell, pixsize_y=celly,
-                                 nu=0, nv=0, epsilon=epsilon,
-                                 nthreads=nthreads, mask=mask,
-                                 do_wstacking=do_wstacking)
+        residvis = vis[:, ind] - dirty2ms(
+            uvw=uvw,
+            freq=freq[ind],
+            dirty=image[i],
+            wgt=None,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            nthreads=nthreads,
+            mask=mask,
+            do_wstacking=do_wstacking,
+        )
+        residim[0, i] = ms2dirty(
+            uvw=uvw,
+            freq=freq[ind],
+            ms=residvis,
+            wgt=wgt,
+            npix_x=nx,
+            npix_y=ny,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            nthreads=nthreads,
+            mask=mask,
+            do_wstacking=do_wstacking,
+        )
     return residim
 
 
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
-@requires_optional('ducc0.wgridder', ducc_import_error)
-def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
-             weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
-             do_wstacking=True):
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def residual(
+    uvw,
+    freq,
+    image,
+    vis,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+):
 
     if celly is None:
         celly = cell
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
-    residim = _residual_internal(uvw, freq, image, vis, freq_bin_idx,
-                                 freq_bin_counts, cell, weights, flag,
-                                 celly, epsilon, nthreads, do_wstacking)
+    residim = _residual_internal(
+        uvw,
+        freq,
+        image,
+        vis,
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+    )
     return residim[0]
 
 
@@ -150,10 +205,10 @@ RESIDUAL_DOCS = DocstringTemplate(
     residual : $(array_type)
         Residual image corresponding to :code:`model` of shape
         :code:`(band, nx, ny)`.
-    """)
+    """
+)
 
 try:
-    residual.__doc__ = RESIDUAL_DOCS.substitute(
-                        array_type=":class:`numpy.ndarray`")
+    residual.__doc__ = RESIDUAL_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

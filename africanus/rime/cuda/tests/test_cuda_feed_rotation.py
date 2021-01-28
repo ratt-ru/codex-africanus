@@ -12,7 +12,7 @@ from africanus.rime.cuda.feeds import feed_rotation as cp_feed_rotation
 @pytest.mark.parametrize("shape", [(10, 7), (8,)])
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_cuda_feed_rotation(feed_type, shape, dtype):
-    cp = pytest.importorskip('cupy')
+    cp = pytest.importorskip("cupy")
 
     pa = np.random.random(shape).astype(dtype)
 

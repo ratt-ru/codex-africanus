@@ -28,9 +28,7 @@ def uspace(W, oversample):
     """
     # must be odd so that the taps can be centred at the origin
     assert W % 2 == 1
-    taps = np.arange(
-        oversample *
-        (W + 2)) / float(oversample) - (W + 2) // 2
+    taps = np.arange(oversample * (W + 2)) / float(oversample) - (W + 2) // 2
     # (|+.) * W centred at 0
     return taps
 
@@ -45,11 +43,13 @@ def sinc(W, oversample=5, a=1.0):
 
 
 _KBSINC_AUTOCOEFFS = np.polyfit(
-        [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
-        [1.9980, 2.3934, 3.3800, 4.2054, 4.9107, 5.7567, 6.6291, 7.4302], 1)
+    [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
+    [1.9980, 2.3934, 3.3800, 4.2054, 4.9107, 5.7567, 6.6291, 7.4302],
+    1,
+)
 
 
-@requires_optional('scipy', scipy_import_error)
+@requires_optional("scipy", scipy_import_error)
 def kbsinc(W, b=None, oversample=5, order=15):
     """
     Modified keiser bessel windowed sinc (Jackson et al.,
@@ -61,15 +61,14 @@ def kbsinc(W, b=None, oversample=5, order=15):
         b = np.poly1d(_KBSINC_AUTOCOEFFS)((W + 2))
 
     u = uspace(W, oversample)
-    wnd = jn(order, b * np.sqrt(1 - (2 * u /
-                                     ((W + 2) + 1))**2)) * 1 / ((W + 2) + 1)
+    wnd = jn(order, b * np.sqrt(1 - (2 * u / ((W + 2) + 1)) ** 2)) * 1 / ((W + 2) + 1)
     res = sinc(W, oversample=oversample) * wnd * np.sum(wnd)
     return res / np.sum(res)
 
 
 _HANNING_AUTOCOEFFS = np.polyfit(
-        [1.5, 2.0, 2.5, 3.0, 3.5],
-        [0.7600, 0.7146, 0.6185, 0.5534, 0.5185], 3)
+    [1.5, 2.0, 2.5, 3.0, 3.5], [0.7600, 0.7146, 0.6185, 0.5534, 0.5185], 3
+)
 
 
 def hanningsinc(W, a=None, oversample=5):
@@ -96,7 +95,7 @@ def pack_kernel(K, W, oversample=5):
     """
     pkern = np.empty(oversample * (W + 2), dtype=K.dtype)
     for t in range(oversample):
-        pkern[t * (W + 2):(t + 1) * (W + 2)] = K[t::oversample]
+        pkern[t * (W + 2) : (t + 1) * (W + 2)] = K[t::oversample]
     return pkern
 
 
@@ -112,7 +111,7 @@ def unpack_kernel(K, W, oversample=5):
     """
     upkern = np.empty(oversample * (W + 2), dtype=K.dtype)
     for t in range(oversample):
-        upkern[t::oversample] = K[t * (W + 2):(t + 1) * (W + 2)]
+        upkern[t::oversample] = K[t * (W + 2) : (t + 1) * (W + 2)]
     return upkern
 
 
@@ -123,14 +122,21 @@ def compute_detaper(npix, K, W, oversample=5):
     Assumes a 2D square kernel to be passed as argument K
     """
     pk = np.zeros((npix * oversample, npix * oversample))
-    pk[npix * oversample // 2 - K.shape[0] // 2:npix * oversample // 2 -
-       K.shape[0] // 2 + K.shape[0],
-       npix * oversample // 2 - K.shape[1] // 2:npix * oversample // 2 -
-       K.shape[1] // 2 + K.shape[1]] = K
+    pk[
+        npix * oversample // 2
+        - K.shape[0] // 2 : npix * oversample // 2
+        - K.shape[0] // 2
+        + K.shape[0],
+        npix * oversample // 2
+        - K.shape[1] // 2 : npix * oversample // 2
+        - K.shape[1] // 2
+        + K.shape[1],
+    ] = K
     fpk = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(pk)))
-    fk = fpk[npix * oversample // 2 - npix // 2:npix * oversample // 2 -
-             npix // 2 + npix, npix * oversample // 2 -
-             npix // 2:npix * oversample // 2 - npix // 2 + npix]
+    fk = fpk[
+        npix * oversample // 2 - npix // 2 : npix * oversample // 2 - npix // 2 + npix,
+        npix * oversample // 2 - npix // 2 : npix * oversample // 2 - npix // 2 + npix,
+    ]
     return np.abs(fk)
 
 
@@ -154,8 +160,7 @@ def compute_detaper_dft(npix, K, W, oversample=5):
         for x in range(K.size):
             xx = ksample[x % K.shape[1]]
             yy = ksample[x // K.shape[1]]
-            pk[mm, ll] += rK[x] * np.exp(-2.0j * np.pi *
-                                         (llN * xx + mmN * yy))
+            pk[mm, ll] += rK[x] * np.exp(-2.0j * np.pi * (llN * xx + mmN * yy))
     return np.abs(pk)
 
 
