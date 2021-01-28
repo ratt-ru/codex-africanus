@@ -317,7 +317,9 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
 
     coords = da.from_array(coords, (3, npix, time_c, ant_c, chan_c))
     coeffs = da.from_array(coeffs, (ant_c, chan_c, corr1, corr2, npoly))
-    noll_indices = da.from_array(noll_indices, (ant_c, chan_c, corr1, corr2, npoly))
+    noll_indices = da.from_array(
+        noll_indices, (ant_c, chan_c, corr1, corr2, npoly)
+    )
 
     parallactic_angles = da.from_array(parallactic_angles)
     frequency_scaling = da.from_array(frequency_scaling)
@@ -422,7 +424,9 @@ def coeff_yy():
 
 @pytest.fixture
 def noll_index_xx():
-    return np.array([10, 3, 21, 36, 0, 55, 16, 28, 37, 46, 23, 6, 15, 2, 5, 7, 57])
+    return np.array(
+        [10, 3, 21, 36, 0, 55, 16, 28, 37, 46, 23, 6, 15, 2, 5, 7, 57]
+    )
 
 
 @pytest.fixture
@@ -437,7 +441,9 @@ def noll_index_yx():
 
 @pytest.fixture
 def noll_index_yy():
-    return np.array([10, 3, 21, 36, 0, 55, 28, 16, 11, 23, 37, 46, 6, 2, 15, 5, 29])
+    return np.array(
+        [10, 3, 21, 36, 0, 55, 28, 16, 11, 23, 37, 46, 6, 2, 15, 5, 29]
+    )
 
 
 @pytest.fixture

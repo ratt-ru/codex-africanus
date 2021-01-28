@@ -8,11 +8,15 @@ else:
     opt_import_err = None
 
 from africanus.gridding.perleypolyhedron.gridder import gridder as np_gridder
-from africanus.gridding.perleypolyhedron.degridder import degridder as np_degridder
+from africanus.gridding.perleypolyhedron.degridder import (
+    degridder as np_degridder,
+)
 from africanus.gridding.perleypolyhedron.degridder import (
     degridder_serial as np_degridder_serial,
 )
-from africanus.gridding.perleypolyhedron.policies import stokes_conversion_policies
+from africanus.gridding.perleypolyhedron.policies import (
+    stokes_conversion_policies,
+)
 from africanus.util.requirements import requires_optional
 
 
@@ -51,7 +55,9 @@ def __degrid(
     lambdas = lambdas
     chanmap = chanmap
     if chanmap.size != lambdas.size:
-        raise ValueError("Chanmap and corresponding lambdas must match in shape")
+        raise ValueError(
+            "Chanmap and corresponding lambdas must match in shape"
+        )
     nchan = lambdas.size
     nrow = uvw.shape[0]
     ncorr = stokes_conversion_policies.ncorr_outpy(
@@ -295,14 +301,22 @@ def gridder(
     """
     if len(vis.chunks) != 3 or lambdas.chunks[0] != vis.chunks[1]:
         raise ValueError(
-            "Visibility frequency chunking does not match " "lambda frequency chunking"
+            "Visibility frequency chunking does not match "
+            "lambda frequency chunking"
         )
     if len(vis.chunks) != 3 or chanmap.chunks[0] != vis.chunks[1]:
         raise ValueError(
-            "Visibility frequency chunking does not match chanmap " "frequency chunking"
+            "Visibility frequency chunking does not match chanmap "
+            "frequency chunking"
         )
-    if len(vis.chunks) != 3 or len(uvw.chunks) != 2 or vis.chunks[0] != uvw.chunks[0]:
-        raise ValueError("Visibility row chunking does not match uvw row chunking")
+    if (
+        len(vis.chunks) != 3
+        or len(uvw.chunks) != 2
+        or vis.chunks[0] != uvw.chunks[0]
+    ):
+        raise ValueError(
+            "Visibility row chunking does not match uvw row chunking"
+        )
     grids = da.blockwise(
         __grid,
         ("row", "nfacet", "nstokes", "nband", "y", "x"),

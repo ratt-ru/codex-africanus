@@ -49,7 +49,9 @@ def test_corrupt_vis(data_factory, corr_shape, jones_shape):
     if jones_shape != corr_shape:
         # This only happens in DIAG mode and we need to broadcast jones_shape
         # to match corr_shape
-        tmp = np.zeros((n_time, n_ant, n_chan, n_dir) + corr_shape, dtype=np.complex128)
+        tmp = np.zeros(
+            (n_time, n_ant, n_chan, n_dir) + corr_shape, dtype=np.complex128
+        )
         tmp[:, :, :, :, 0, 0] = jones[:, :, :, :, 0]
         tmp[:, :, :, :, 1, 1] = jones[:, :, :, :, 1]
         jones = tmp
@@ -66,7 +68,12 @@ def test_corrupt_vis(data_factory, corr_shape, jones_shape):
     # get vis
     time_index = np.unique(time, return_inverse=True)[1]
     test_vis = predict_vis(
-        time_index, ant1, ant2, source_coh=model, dde1_jones=jones, dde2_jones=jones
+        time_index,
+        ant1,
+        ant2,
+        source_coh=model,
+        dde1_jones=jones,
+        dde2_jones=jones,
     )
 
     assert_array_almost_equal(test_vis, vis, decimal=10)
@@ -186,11 +193,15 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time // ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk
+    )
 
     # set up dask arrays
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk)
+    )
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_model = da.from_array(
@@ -203,7 +214,12 @@ def test_corrupt_vis_dask(data_factory, corr_shape, jones_shape):
     from africanus.calibration.utils.dask import corrupt_vis
 
     da_vis = corrupt_vis(
-        da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2, da_jones, da_model
+        da_time_bin_idx,
+        da_time_bin_counts,
+        da_ant1,
+        da_ant2,
+        da_jones,
+        da_model,
     )
     vis2 = da_vis.compute()
     assert_array_almost_equal(vis, vis2, decimal=10)
@@ -233,23 +249,35 @@ def test_correct_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time // ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk
+    )
 
     # set up dask arrays
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk)
+    )
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_vis = da.from_array(vis, chunks=(row_chunks, (n_chan,)) + (corr_shape))
     da_jones = da.from_array(
         jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir) + jones_shape
     )
-    da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + (corr_shape))
+    da_flag = da.from_array(
+        flag, chunks=(row_chunks, (n_chan,)) + (corr_shape)
+    )
 
     from africanus.calibration.utils.dask import correct_vis
 
     da_model = correct_vis(
-        da_time_bin_idx, da_time_bin_counts, da_ant1, da_ant2, da_jones, da_vis, da_flag
+        da_time_bin_idx,
+        da_time_bin_counts,
+        da_ant1,
+        da_ant2,
+        da_jones,
+        da_vis,
+        da_flag,
     )
     model2 = da_model.compute()
     assert_array_almost_equal(model.reshape(model2.shape), model2, decimal=10)
@@ -279,11 +307,15 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape):
     # get chunking scheme
     ncpu = 8
     utimes_per_chunk = n_time // ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk
+    )
 
     # set up dask arrays
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk)
+    )
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_vis = da.from_array(vis, chunks=(row_chunks, (n_chan,)) + (corr_shape))
@@ -293,7 +325,9 @@ def test_residual_vis_dask(data_factory, corr_shape, jones_shape):
     da_jones = da.from_array(
         jones, chunks=(utimes_per_chunk, n_ant, n_chan, n_dir) + jones_shape
     )
-    da_flag = da.from_array(flag, chunks=(row_chunks, (n_chan,)) + (corr_shape))
+    da_flag = da.from_array(
+        flag, chunks=(row_chunks, (n_chan,)) + (corr_shape)
+    )
 
     from africanus.calibration.utils import residual_vis as residual_vis_np
 

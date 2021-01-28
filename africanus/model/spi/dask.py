@@ -16,7 +16,9 @@ else:
     opt_import_error = None
 
 
-def _fit_spi_components_wrapper(data, weights, freqs, freq0, alphai, I0i, tol, maxiter):
+def _fit_spi_components_wrapper(
+    data, weights, freqs, freq0, alphai, I0i, tol, maxiter
+):
     return np_fit_spi_components(
         data[0],
         weights[0],

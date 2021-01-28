@@ -50,7 +50,9 @@ def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
     elif numba_ndarray_type.ndim == corr_2_dims:
         return JONES_2X2
     else:
-        raise ValueError("%s.ndim not in (%d, %d)" % (name, corr_1_dims, corr_2_dims))
+        raise ValueError(
+            "%s.ndim not in (%d, %d)" % (name, corr_1_dims, corr_2_dims)
+        )
 
 
 def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
@@ -223,7 +225,9 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                     a2 = ant2[r]
 
                     for f in range(a1j.shape[3]):
-                        jones_mul(a1j[s, ti, a1, f], a2j[s, ti, a2, f], out[r, f])
+                        jones_mul(
+                            a1j[s, ti, a1, f], a2j[s, ti, a2, f], out[r, f]
+                        )
 
     elif not have_ddes and have_coh:
         if jones_type == JONES_2X2:
@@ -321,7 +325,8 @@ def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
 
     else:
         raise ValueError(
-            "Insufficient inputs were supplied " "for determining the output shape"
+            "Insufficient inputs were supplied "
+            "for determining the output shape"
         )
 
     # TODO(sjperkins)
@@ -426,10 +431,14 @@ def predict_checks(
     assert antenna2.ndim == 1
 
     if have_ddes1 ^ have_ddes2:
-        raise ValueError("Both dde1_jones and dde2_jones " "must be present or absent")
+        raise ValueError(
+            "Both dde1_jones and dde2_jones " "must be present or absent"
+        )
 
     if have_dies1 ^ have_dies2:
-        raise ValueError("Both die1_jones and die2_jones " "must be present or absent")
+        raise ValueError(
+            "Both die1_jones and die2_jones " "must be present or absent"
+        )
 
     have_ddes = have_ddes1 and have_ddes2
     have_dies = have_dies1 and have_dies2
@@ -485,7 +494,14 @@ def predict_checks(
             "dde_jones{1,2}.ndim == die_jones{1,2}.ndim + 1"
         )
 
-    return (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2)
+    return (
+        have_ddes1,
+        have_coh,
+        have_ddes2,
+        have_dies1,
+        have_bvis,
+        have_dies2,
+    )
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -527,7 +543,11 @@ def predict_vis(
     )
 
     out_dtype = np.result_type(
-        *(np.dtype(a.dtype.name) for a in dtype_arrays if not is_numba_type_none(a))
+        *(
+            np.dtype(a.dtype.name)
+            for a in dtype_arrays
+            if not is_numba_type_none(a)
+        )
     )
 
     jones_types = [
@@ -553,7 +573,9 @@ def predict_vis(
     have_dies = have_dies1 and have_dies2
 
     # Create functions that we will use inside our predict function
-    out_fn = output_factory(have_ddes, have_coh, have_dies, have_bvis, out_dtype)
+    out_fn = output_factory(
+        have_ddes, have_coh, have_dies, have_bvis, out_dtype
+    )
     sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
@@ -600,7 +622,9 @@ def predict_vis(
         add_coh_fn(base_vis, out)
 
         # Apply direction independent effects, if any
-        apply_dies_fn(time_index, antenna1, antenna2, die1_jones, die2_jones, tmin, out)
+        apply_dies_fn(
+            time_index, antenna1, antenna2, die1_jones, die2_jones, tmin, out
+        )
 
         return out
 
@@ -608,8 +632,12 @@ def predict_vis(
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def apply_gains(time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones):
-    def impl(time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones):
+def apply_gains(
+    time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones
+):
+    def impl(
+        time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones
+    ):
         return predict_vis(
             time_index,
             antenna1,

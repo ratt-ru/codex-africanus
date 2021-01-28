@@ -15,7 +15,9 @@ def _l2error(a, b):
     )
 
 
-def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize, apply_w):
+def explicit_gridder(
+    uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize, apply_w
+):
     x, y = np.meshgrid(
         *[-ss / 2 + np.arange(ss) for ss in [nxdirty, nydirty]], indexing="ij"
     )
@@ -54,7 +56,9 @@ def explicit_gridder(uvw, freq, ms, wgt, nxdirty, nydirty, xpixsize, ypixsize, a
 @pmp("precision", ("single", "double"))
 @pmp("epsilon", (1e-3, 1e-4))
 @pmp("nthreads", (1, 6))
-def test_gridder(nx, ny, fov, nrow, nchan, nband, precision, epsilon, nthreads):
+def test_gridder(
+    nx, ny, fov, nrow, nchan, nband, precision, epsilon, nthreads
+):
     # run comparison against dft with a frequency mapping imposed
     if nband > nchan:
         return
@@ -73,7 +77,9 @@ def test_gridder(nx, ny, fov, nrow, nchan, nband, precision, epsilon, nthreads):
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
     step = nchan // nband
@@ -148,7 +154,9 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
     step = nchan // nband
@@ -185,7 +193,9 @@ def test_adjointness(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     )
 
     # should have relative tolerance close to machine precision
-    assert_allclose(np.vdot(vis, modelvis).real, np.vdot(image, model_im), rtol=tol)
+    assert_allclose(
+        np.vdot(vis, modelvis).real, np.vdot(image, model_im), rtol=tol
+    )
 
 
 @pmp("nx", (20,))
@@ -222,7 +232,9 @@ def test_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
     step = nchan // nband
@@ -236,7 +248,13 @@ def test_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     nband = freq_bin_idx.size
     model_im = np.random.randn(nband, nx, ny).astype(real_type)
     modelvis = model(
-        uvw, freq, model_im, freq_bin_idx, freq_bin_counts, cell, nthreads=nthreads
+        uvw,
+        freq,
+        model_im,
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        nthreads=nthreads,
     )
     residualvis = vis - modelvis
     residim1 = dirty(
@@ -267,7 +285,9 @@ def test_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     # These are essentially computing the same thing just in a different
     # order so should be close to machine precision
     rmax = np.maximum(np.abs(residim1).max(), np.abs(residim2).max())
-    assert_array_almost_equal(residim1 / rmax, residim2 / rmax, decimal=decimal)
+    assert_array_almost_equal(
+        residim1 / rmax, residim2 / rmax, decimal=decimal
+    )
 
 
 @pmp("nx", (30, 250))
@@ -279,7 +299,9 @@ def test_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
 @pmp("precision", ("single", "double"))
 @pmp("nthreads", (1, 4))
 @pmp("nchunks", (1, 3))
-def test_dask_dirty(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks):
+def test_dask_dirty(
+    nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks
+):
     da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import dirty as dirty_np
     from africanus.gridding.wgridder.dask import dirty
@@ -298,7 +320,9 @@ def test_dask_dirty(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunk
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
     step = np.maximum(1, nchan // nband)
@@ -361,7 +385,9 @@ def test_dask_dirty(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunk
 @pmp("precision", ("single", "double"))
 @pmp("nthreads", (1, 4))
 @pmp("nchunks", (1, 3))
-def test_dask_model(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks):
+def test_dask_model(
+    nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks
+):
     da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import model as model_np
     from africanus.gridding.wgridder.dask import model
@@ -380,7 +406,9 @@ def test_dask_model(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunk
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
 
@@ -442,7 +470,9 @@ def test_dask_model(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunk
 @pmp("precision", ("single", "double"))
 @pmp("nthreads", (1, 4))
 @pmp("nchunks", (1, 3))
-def test_dask_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks):
+def test_dask_residual(
+    nx, ny, fov, nrow, nchan, nband, precision, nthreads, nchunks
+):
     da = pytest.importorskip("dask.array")
     from africanus.gridding.wgridder import residual as residual_np
     from africanus.gridding.wgridder.dask import residual
@@ -461,7 +491,9 @@ def test_dask_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nch
     freq = f0 + np.arange(nchan) * (f0 / nchan)
     uvw = (np.random.rand(nrow, 3) - 0.5) / (cell * freq[-1] / lightspeed)
     vis = (
-        np.random.rand(nrow, nchan) - 0.5 + 1j * (np.random.rand(nrow, nchan) - 0.5)
+        np.random.rand(nrow, nchan)
+        - 0.5
+        + 1j * (np.random.rand(nrow, nchan) - 0.5)
     ).astype(complex_type)
     wgt = np.random.rand(nrow, nchan).astype(real_type)
     step = np.maximum(1, nchan // nband)
@@ -511,4 +543,6 @@ def test_dask_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads, nch
 
     # should agree to within epsilon
     rmax = np.maximum(np.abs(residim_np).max(), np.abs(residim_da).max())
-    assert_array_almost_equal(residim_np / rmax, residim_da / rmax, decimal=decimal)
+    assert_array_almost_equal(
+        residim_np / rmax, residim_da / rmax, decimal=decimal
+    )

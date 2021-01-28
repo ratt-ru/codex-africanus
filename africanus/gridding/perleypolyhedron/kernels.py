@@ -61,7 +61,11 @@ def kbsinc(W, b=None, oversample=5, order=15):
         b = np.poly1d(_KBSINC_AUTOCOEFFS)((W + 2))
 
     u = uspace(W, oversample)
-    wnd = jn(order, b * np.sqrt(1 - (2 * u / ((W + 2) + 1)) ** 2)) * 1 / ((W + 2) + 1)
+    wnd = (
+        jn(order, b * np.sqrt(1 - (2 * u / ((W + 2) + 1)) ** 2))
+        * 1
+        / ((W + 2) + 1)
+    )
     res = sinc(W, oversample=oversample) * wnd * np.sum(wnd)
     return res / np.sum(res)
 
@@ -134,8 +138,14 @@ def compute_detaper(npix, K, W, oversample=5):
     ] = K
     fpk = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(pk)))
     fk = fpk[
-        npix * oversample // 2 - npix // 2 : npix * oversample // 2 - npix // 2 + npix,
-        npix * oversample // 2 - npix // 2 : npix * oversample // 2 - npix // 2 + npix,
+        npix * oversample // 2
+        - npix // 2 : npix * oversample // 2
+        - npix // 2
+        + npix,
+        npix * oversample // 2
+        - npix // 2 : npix * oversample // 2
+        - npix // 2
+        + npix,
     ]
     return np.abs(fk)
 

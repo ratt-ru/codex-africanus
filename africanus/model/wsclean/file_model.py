@@ -8,11 +8,17 @@ import re
 import numpy as np
 
 hour_re = re.compile(
-    r"(?P<sign>[+-]*)" r"(?P<hours>\d+):" r"(?P<mins>\d+):" r"(?P<secs>\d+\.?\d*)"
+    r"(?P<sign>[+-]*)"
+    r"(?P<hours>\d+):"
+    r"(?P<mins>\d+):"
+    r"(?P<secs>\d+\.?\d*)"
 )
 
 deg_re = re.compile(
-    r"(?P<sign>[+-])*" r"(?P<degs>\d+)\." r"(?P<mins>\d+)\." r"(?P<secs>\d+\.?\d*)"
+    r"(?P<sign>[+-])*"
+    r"(?P<degs>\d+)\."
+    r"(?P<mins>\d+)\."
+    r"(?P<secs>\d+\.?\d*)"
 )
 
 
@@ -197,7 +203,9 @@ def load(filename):
             line_nr += 1
 
         if not header:
-            raise ValueError("'%s' does not contain a valid wsclean header" % filename)
+            raise ValueError(
+                "'%s' does not contain a valid wsclean header" % filename
+            )
 
         column_names, defaults = _parse_header(header)
 

@@ -55,7 +55,9 @@ def radec_to_lmn(radec, phase_centre=None):
             cos_dec = np.cos(radec[s, 1])
 
             lmn[s, 0] = l = cos_dec * sin_ra_delta  # noqa
-            lmn[s, 1] = m = sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
+            lmn[s, 1] = m = (
+                sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
+            )
             lmn[s, 2] = np.sqrt(1.0 - l ** 2 - m ** 2)
 
         return lmn
@@ -93,7 +95,9 @@ def radec_to_lm(radec, phase_centre=None):
             cos_dec = np.cos(radec[s, 1])
 
             lm[s, 0] = cos_dec * sin_ra_delta
-            lm[s, 1] = sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
+            lm[s, 1] = (
+                sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
+            )
 
         return lm
 
@@ -123,7 +127,9 @@ def lmn_to_radec(lmn, phase_centre=None):
             l, m, n = lmn[s]
 
             radec[s, 1] = np.arcsin(m * cos_pc_dec + n * sin_pc_dec)
-            radec[s, 0] = pc_ra + np.arctan(l / (n * cos_pc_dec - m * sin_pc_dec))
+            radec[s, 0] = pc_ra + np.arctan(
+                l / (n * cos_pc_dec - m * sin_pc_dec)
+            )
 
         return radec
 
@@ -154,7 +160,9 @@ def lm_to_radec(lm, phase_centre=None):
             n = np.sqrt(1.0 - l ** 2 - m ** 2)
 
             radec[s, 1] = np.arcsin(m * cos_pc_dec + n * sin_pc_dec)
-            radec[s, 0] = pc_ra + np.arctan(l / (n * cos_pc_dec - m * sin_pc_dec))
+            radec[s, 0] = pc_ra + np.arctan(
+                l / (n * cos_pc_dec - m * sin_pc_dec)
+            )
 
         return radec
 

@@ -28,12 +28,19 @@ def _corrupt_vis_wrapper(
     time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
 ):
     return np_corrupt_vis(
-        time_bin_indices, time_bin_counts, antenna1, antenna2, jones[0][0], model[0]
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones[0][0],
+        model[0],
     )
 
 
 @requires_optional("dask.array", dask_import_error)
-def corrupt_vis(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model):
+def corrupt_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
+):
 
     mode = check_type(jones, model, vis_type="model")
 
@@ -84,7 +91,15 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, mo
 
 
 def _compute_and_corrupt_vis_wrapper(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    model,
+    uvw,
+    freq,
+    lm,
 ):
     return np_compute_and_corrupt_vis(
         time_bin_indices,
@@ -101,7 +116,15 @@ def _compute_and_corrupt_vis_wrapper(
 
 @requires_optional("dask.array", dask_import_error)
 def compute_and_corrupt_vis(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    model,
+    uvw,
+    freq,
+    lm,
 ):
 
     if jones.chunks[1][0] != jones.shape[1]:
@@ -168,7 +191,13 @@ def _correct_vis_wrapper(
     time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag
 ):
     return np_correct_vis(
-        time_bin_indices, time_bin_counts, antenna1, antenna2, jones[0][0], vis, flag
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones[0][0],
+        vis,
+        flag,
     )
 
 
@@ -223,7 +252,14 @@ def correct_vis(
 
 
 def _residual_vis_wrapper(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    vis,
+    flag,
+    model,
 ):
     return np_residual_vis(
         time_bin_indices,
@@ -239,7 +275,14 @@ def _residual_vis_wrapper(
 
 @requires_optional("dask.array", dask_import_error)
 def residual_vis(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    vis,
+    flag,
+    model,
 ):
 
     if jones.chunks[1][0] != jones.shape[1]:

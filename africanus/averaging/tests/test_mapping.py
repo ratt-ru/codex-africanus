@@ -6,12 +6,17 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.averaging.time_and_channel_mapping import row_mapper, channel_mapper
+from africanus.averaging.time_and_channel_mapping import (
+    row_mapper,
+    channel_mapper,
+)
 
 
 @pytest.fixture
 def time():
-    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
+    return np.asarray(
+        [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0]
+    )  # noqa
 
 
 @pytest.fixture
@@ -51,7 +56,12 @@ def test_row_mapper(time, interval, ant1, ant2, flagged_rows, time_bin_secs):
     flag_row = flag_row_factory(time.size, flagged_rows)
 
     ret = row_mapper(
-        time, interval, ant1, ant2, flag_row=flag_row, time_bin_secs=time_bin_secs
+        time,
+        interval,
+        ant1,
+        ant2,
+        flag_row=flag_row,
+        time_bin_secs=time_bin_secs,
     )
 
     # For TIME AND INTERVAL, flagged inputs can

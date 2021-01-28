@@ -32,7 +32,8 @@ def create_parser():
     )
     p.add_argument(
         "--data_col",
-        help="Column where data lives. " "Only used to get shape of data at this stage",
+        help="Column where data lives. "
+        "Only used to get shape of data at this stage",
         default="DATA",
         type=str,
     )

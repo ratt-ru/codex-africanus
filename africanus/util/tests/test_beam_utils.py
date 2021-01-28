@@ -100,7 +100,8 @@ def test_fits_axes(fits_header):
 
     # GFREQS used for the frequency grid
     gfreqs = [
-        fits_header.get("GFREQ%d" % (i + 1)) for i in range(fits_header["NAXIS3"])
+        fits_header.get("GFREQ%d" % (i + 1))
+        for i in range(fits_header["NAXIS3"])
     ]
 
     assert_array_almost_equal(beam_axes.grid[2], np.asarray(gfreqs))
@@ -161,7 +162,8 @@ def test_beam_grids(fits_header, header_l, header_m, l_axis, m_axis):
 
     # GFREQS used for the frequency grid
     gfreqs = [
-        fits_header.get("GFREQ%d" % (i + 1)) for i in range(fits_header["NAXIS3"])
+        fits_header.get("GFREQ%d" % (i + 1))
+        for i in range(fits_header["NAXIS3"])
     ]
 
     assert_array_almost_equal(freq_grid, gfreqs)
@@ -216,12 +218,16 @@ def test_inverse_interp():
     grid = np.arange(values.size)
 
     initial = np.stack((values, grid))
-    interp = interp1d(values, grid, bounds_error=False, fill_value="extrapolate")
+    interp = interp1d(
+        values, grid, bounds_error=False, fill_value="extrapolate"
+    )
     assert np.all(initial == np.stack((values, interp(values))))
 
     # Monotonically increasing
     values = np.flipud(values)
     assert np.all(np.diff(values) > 0)
     initial = np.stack((values, grid))
-    interp = interp1d(values, grid, bounds_error=False, fill_value="extrapolate")
+    interp = interp1d(
+        values, grid, bounds_error=False, fill_value="extrapolate"
+    )
     assert np.all(initial == np.stack((values, interp(values))))

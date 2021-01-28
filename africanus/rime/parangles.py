@@ -3,7 +3,10 @@
 
 import warnings
 
-from .parangles_astropy import have_astropy_parangles, astropy_parallactic_angles
+from .parangles_astropy import (
+    have_astropy_parangles,
+    astropy_parallactic_angles,
+)
 from .parangles_casa import have_casa_parangles, casa_parallactic_angles
 
 _discovered_backends = []
@@ -55,11 +58,15 @@ def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
         )
 
     if not field_centre.shape == (2,):
-        raise ValueError("Invalid field_centre shape %s" % (field_centre.shape,))
+        raise ValueError(
+            "Invalid field_centre shape %s" % (field_centre.shape,)
+        )
 
     if backend == "astropy":
         warnings.warn("astropy backend currently returns the incorrect values")
-        return astropy_parallactic_angles(times, antenna_positions, field_centre)
+        return astropy_parallactic_angles(
+            times, antenna_positions, field_centre
+        )
     elif backend == "casa":
         return casa_parallactic_angles(times, antenna_positions, field_centre)
     elif backend == "test":

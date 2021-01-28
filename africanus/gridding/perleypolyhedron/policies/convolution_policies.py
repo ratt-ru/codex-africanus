@@ -45,7 +45,9 @@ def convolve_1d_axisymmetric_unpacked_scatter(
     frac_v = int((-offset_v + disc_v) * convolution_kernel_oversampling)
     cw = 0.0
     for tv in range(convolution_kernel_width):
-        conv_v = convolution_kernel[(tv + 1) * convolution_kernel_oversampling + frac_v]
+        conv_v = convolution_kernel[
+            (tv + 1) * convolution_kernel_oversampling + frac_v
+        ]
         grid_v_lookup = disc_v + tv - convolution_kernel_width // 2
         for tu in range(convolution_kernel_width):
             conv_u = convolution_kernel[
@@ -181,7 +183,9 @@ def convolve_nn_scatter(
     disc_u = int(np.round(offset_u))
     disc_v = int(np.round(offset_v))
     cw = 1.0
-    grid[disc_v, disc_u] += scp.corr2stokes(vis[r, c, :], stokes_conversion_policy)
+    grid[disc_v, disc_u] += scp.corr2stokes(
+        vis[r, c, :], stokes_conversion_policy
+    )
     return cw
 
 
@@ -309,7 +313,9 @@ def convolve_1d_axisymmetric_unpacked_gather(
     frac_v = int((-offset_v + disc_v) * convolution_kernel_oversampling)
     cw = 0
     for tv in range(convolution_kernel_width):
-        conv_v = convolution_kernel[(tv + 1) * convolution_kernel_oversampling + frac_v]
+        conv_v = convolution_kernel[
+            (tv + 1) * convolution_kernel_oversampling + frac_v
+        ]
         grid_v_lookup = disc_v + tv - convolution_kernel_width // 2
         for tu in range(convolution_kernel_width):
             conv_u = convolution_kernel[

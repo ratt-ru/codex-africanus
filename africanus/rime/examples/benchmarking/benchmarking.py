@@ -141,15 +141,21 @@ def create_zernike_beam(cores, npix):
 
     t0 = time.time()
     zernike_beam = (
-        zernike_dde(da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe)
+        zernike_dde(
+            da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe
+        )
         + 1j
-        * zernike_dde(da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe)
+        * zernike_dde(
+            da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe
+        )
     ).compute()
     t1 = time.time()
 
     t_np0 = time.time()
     zernike_beam_numpy = (
-        zernike_dde_numpy(da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe)
+        zernike_dde_numpy(
+            da_coords, da_coeffs_r, da_ni_r, da_pa, da_freq, da_as, da_pe
+        )
         + 1j
         * zernike_dde_numpy(
             da_coords, da_coeffs_i, da_ni_i, da_pa, da_freq, da_as, da_pe
@@ -415,9 +421,12 @@ if __name__ == "__main__":
         numpy_timings_pix = [None] * len(pixel_vals)
         for p in range(len(pixel_vals)):
             print("Testing for ", pixel_vals[p], " pixels")
-            _, numba_timings_pix[p], _, numpy_timings_pix[p] = create_zernike_beam(
-                cores, pixel_vals[p]
-            )
+            (
+                _,
+                numba_timings_pix[p],
+                _,
+                numpy_timings_pix[p],
+            ) = create_zernike_beam(cores, pixel_vals[p])
 
         numba_timings_cores = [None] * cores
         numpy_timings_cores = [None] * cores
@@ -428,14 +437,19 @@ if __name__ == "__main__":
         for c in range(cores):
             print("Testing for ", c + 1, " cores")
             cores_coords[c] = c + 1
-            _, numba_timings_cores[c], _, numpy_timings_cores[c] = create_zernike_beam(
-                c + 1, npix
-            )
+            (
+                _,
+                numba_timings_cores[c],
+                _,
+                numpy_timings_cores[c],
+            ) = create_zernike_beam(c + 1, npix)
         cores_coords = np.array(cores_coords)
         width = 100
         plt.figure()
         plt.bar(pixel_vals, numba_timings_pix, label="Numba", width=width)
-        plt.bar(pixel_vals + width, numpy_timings_pix, label="NumPy", width=width)
+        plt.bar(
+            pixel_vals + width, numpy_timings_pix, label="NumPy", width=width
+        )
         plt.xlabel("Number of pixels")
         plt.ylabel("Runtime (seconds)")
         plt.legend(loc="upper left")
@@ -446,7 +460,12 @@ if __name__ == "__main__":
         width = 0.25
         plt.figure()
         plt.bar(cores_coords, numba_timings_cores, label="Numba", width=width)
-        plt.bar(cores_coords + width, numpy_timings_cores, label="NumPy", width=width)
+        plt.bar(
+            cores_coords + width,
+            numpy_timings_cores,
+            label="NumPy",
+            width=width,
+        )
         plt.xlabel("Number of cores")
         plt.ylabel("Runtime (seconds)")
         plt.legend(loc="upper left")

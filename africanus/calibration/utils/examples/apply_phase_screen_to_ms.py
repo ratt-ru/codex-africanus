@@ -59,7 +59,11 @@ def make_screen(lm, freq, n_time, n_ant, n_corr):
     l_coord = lm[:, 0]
     m_coord = lm[:, 1]
     basis = np.hstack(
-        (np.ones((n_dir, 1), dtype=np.float64), l_coord[:, None], m_coord[:, None])
+        (
+            np.ones((n_dir, 1), dtype=np.float64),
+            l_coord[:, None],
+            m_coord[:, None],
+        )
     )
     # get coeffs
     alphas = 0.05 * np.random.randn(n_time, n_ant, n_coeff, n_corr)
@@ -81,7 +85,9 @@ def simulate(args):
     # get full time column and compute row chunks
     ms = table(args.ms)
     time = ms.getcol("TIME")
-    row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
+    row_chunks, tbin_idx, tbin_counts = chunkify_rows(
+        time, args.utimes_per_chunk
+    )
     # convert to dask arrays
     tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
     tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
@@ -109,7 +115,9 @@ def simulate(args):
 
     # get freqs
     freq = (
-        table(args.ms + "::SPECTRAL_WINDOW").getcol("CHAN_FREQ")[0].astype(np.float64)
+        table(args.ms + "::SPECTRAL_WINDOW")
+        .getcol("CHAN_FREQ")[0]
+        .astype(np.float64)
     )
     assert freq.size == n_freq
 
@@ -157,18 +165,22 @@ def simulate(args):
     jones, alphas = make_screen(lm, freq, n_time, n_ant, jones_corr[0])
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
-    jones_da = da.from_array(jones, chunks=(args.utimes_per_chunk,) + jones_shape[1::])
+    jones_da = da.from_array(
+        jones, chunks=(args.utimes_per_chunk,) + jones_shape[1::]
+    )
 
     freqs = da.from_array(freq, chunks=(n_freq))
     lm = da.from_array(
-        np.tile(lm[None], (n_time, 1, 1)), chunks=(args.utimes_per_chunk, n_dir, 2)
+        np.tile(lm[None], (n_time, 1, 1)),
+        chunks=(args.utimes_per_chunk, n_dir, 2),
     )
     # change model to dask array
     tmp_shape = (n_time,)
     for i in range(len(model.shape)):
         tmp_shape += (1,)
     model = da.from_array(
-        np.tile(model[None], tmp_shape), chunks=(args.utimes_per_chunk,) + model.shape
+        np.tile(model[None], tmp_shape),
+        chunks=(args.utimes_per_chunk,) + model.shape,
     )
 
     # load data in in chunks and apply gains to each chunk
@@ -184,7 +196,12 @@ def simulate(args):
 
     # Assign visibilities to args.out_col and write to ms
     xds = xds.assign(
-        **{args.out_col: (("row", "chan", "corr"), data.reshape(n_row, n_freq, n_corr))}
+        **{
+            args.out_col: (
+                ("row", "chan", "corr"),
+                data.reshape(n_row, n_freq, n_corr),
+            )
+        }
     )
     # Create a write to the table
     write = xds_to_table(xds, args.ms, [args.out_col])
@@ -217,11 +234,18 @@ def calibrate(args, jones, alphas):
     flag = flag[:, :, (0, 3)]
 
     # get phase dir
-    radec0 = table(args.ms + "::FIELD").getcol("PHASE_DIR").squeeze().astype(np.float64)
+    radec0 = (
+        table(args.ms + "::FIELD")
+        .getcol("PHASE_DIR")
+        .squeeze()
+        .astype(np.float64)
+    )
 
     # get freqs
     freq = (
-        table(args.ms + "::SPECTRAL_WINDOW").getcol("CHAN_FREQ")[0].astype(np.float64)
+        table(args.ms + "::SPECTRAL_WINDOW")
+        .getcol("CHAN_FREQ")[0]
+        .astype(np.float64)
     )
     assert freq.size == n_freq
 
@@ -260,7 +284,9 @@ def calibrate(args, jones, alphas):
     weight = np.ones_like(data, dtype=np.float64)
 
     # initialise gains
-    jones0 = np.ones((n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.complex128)
+    jones0 = np.ones(
+        (n_time, n_ant, n_freq, n_dir, n_corr), dtype=np.complex128
+    )
 
     # calibrate
     ti = timeit()

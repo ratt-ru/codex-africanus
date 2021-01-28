@@ -46,7 +46,15 @@ def test_wsclean_predict(chunks):
 
     # WSClean visibilities
     vis = wsclean_predict(
-        uvw, lm, source_type, flux, coeffs, log_poly, ref_freq, gauss_shape, freq
+        uvw,
+        lm,
+        source_type,
+        flux,
+        coeffs,
+        log_poly,
+        ref_freq,
+        gauss_shape,
+        freq,
     )
 
     # Compute it another way. Note the CASA coordinate convention
@@ -65,7 +73,9 @@ def test_wsclean_predict(chunks):
 def test_dask_wsclean_predict(chunks):
     da = pytest.importorskip("dask.array")
 
-    from africanus.rime.dask_predict import wsclean_predict as dask_wsclean_predict
+    from africanus.rime.dask_predict import (
+        wsclean_predict as dask_wsclean_predict,
+    )
 
     row = sum(chunks["rows"])
     src = sum(chunks["source"])
@@ -98,7 +108,15 @@ def test_dask_wsclean_predict(chunks):
     da_freq = da.from_array(freq)
 
     vis = wsclean_predict(
-        uvw, lm, source_type, flux, coeffs, log_poly, ref_freq, gauss_shape, freq
+        uvw,
+        lm,
+        source_type,
+        flux,
+        coeffs,
+        log_poly,
+        ref_freq,
+        gauss_shape,
+        freq,
     )
     da_vis = dask_wsclean_predict(
         da_uvw,

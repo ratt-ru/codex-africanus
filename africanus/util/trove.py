@@ -50,7 +50,9 @@ def download_trove(archive_file):
 
 def is_trove_installed(readme_filename):
     # Check if the README.md exists
-    if not os.path.exists(readme_filename) or not os.path.isfile(readme_filename):
+    if not os.path.exists(readme_filename) or not os.path.isfile(
+        readme_filename
+    ):
 
         reason = "trove readme '{}' does not exist".format(readme_filename)
         return (False, reason)
@@ -77,7 +79,12 @@ def _install_trove():
                 "Hash of file %s downloaded from %s "
                 "is %s and does not match the expected "
                 "hash of %s."
-            ) % (_trove_download_filename, _trove_url, sha_hash, _trove_sha_hash)
+            ) % (
+                _trove_download_filename,
+                _trove_url,
+                sha_hash,
+                _trove_sha_hash,
+            )
 
             raise InstallTroveException(msg)
 
@@ -87,7 +94,9 @@ def _install_trove():
         try:
             shutil.rmtree(_trove_dir, ignore_errors=True)
         except Exception as e:
-            raise InstallTroveException("Removing %s failed\n%s" % (_trove_dir, str(e)))
+            raise InstallTroveException(
+                "Removing %s failed\n%s" % (_trove_dir, str(e))
+            )
 
         try:
             # Unzip into temporary directory
@@ -99,7 +108,9 @@ def _install_trove():
             # Move
             shutil.move(unzip_path, _trove_dir)
         except Exception as e:
-            raise InstallTroveException("Extracting %s failed\n%s" % (archive, str(e)))
+            raise InstallTroveException(
+                "Extracting %s failed\n%s" % (archive, str(e))
+            )
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

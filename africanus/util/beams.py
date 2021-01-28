@@ -27,7 +27,9 @@ class FitsAxes(object):
         # Convert right pixel from FORTRAN to C indexing
         self._crpix = [header["CRPIX%d" % n] - 1 for n in axr]
         self._cdelt = [header.get("CDELT%d" % n, 1) for n in axr]
-        self._cunit = [header.get("CUNIT%d" % n, "").strip().upper() for n in axr]
+        self._cunit = [
+            header.get("CUNIT%d" % n, "").strip().upper() for n in axr
+        ]
 
 
 def axis_and_sign(ax_str, default=None):
@@ -81,7 +83,8 @@ class BeamAxes(FitsAxes):
 
         # Irregular grids are only valid if values exist for all grid points
         self._irreg = [
-            all(x is not None for x in irregular_grid[i]) for i in range(self._ndims)
+            all(x is not None for x in irregular_grid[i])
+            for i in range(self._ndims)
         ]
 
         def _regular_grid(i):
@@ -240,7 +243,10 @@ def _re_im_filenames(corr, template):
     for ri in REIM:
         try:
             filename = template.substitute(
-                corr=corr.lower(), CORR=corr.upper(), reim=ri.lower(), REIM=ri.upper()
+                corr=corr.lower(),
+                CORR=corr.upper(),
+                reim=ri.lower(),
+                REIM=ri.upper(),
             )
         except KeyError:
             raise ValueError(

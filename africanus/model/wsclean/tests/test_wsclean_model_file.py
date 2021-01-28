@@ -10,7 +10,19 @@ from africanus.model.wsclean.file_model import load, arcsec2rad
 def test_wsclean_model_file(wsclean_model_file):
     sources = dict(load(wsclean_model_file))
 
-    (name, stype, ra, dec, I, spi, log_si, ref_freq, major, minor, orientation) = (
+    (
+        name,
+        stype,
+        ra,
+        dec,
+        I,
+        spi,
+        log_si,
+        ref_freq,
+        major,
+        minor,
+        orientation,
+    ) = (
         sources[n]
         for n in (
             "Name",
@@ -38,7 +50,11 @@ def test_wsclean_model_file(wsclean_model_file):
     expected_ra0 = (
         -2.0
         * np.pi
-        * ((-hours / 24.0) + (mins / (24.0 * 60.0)) + (secs / (24.0 * 60.0 * 60.0)))
+        * (
+            (-hours / 24.0)
+            + (mins / (24.0 * 60.0))
+            + (secs / (24.0 * 60.0 * 60.0))
+        )
     )
 
     assert ra[0] == expected_ra0
@@ -48,7 +64,11 @@ def test_wsclean_model_file(wsclean_model_file):
     expected_dec0 = (
         2.0
         * np.pi
-        * ((degs / 360.0) + (mins / (360.0 * 60.0)) + (secs / (360.0 * 60.0 * 60.0)))
+        * (
+            (degs / 360.0)
+            + (mins / (360.0 * 60.0))
+            + (secs / (360.0 * 60.0 * 60.0))
+        )
     )
 
     assert dec[0] == expected_dec0
@@ -64,7 +84,11 @@ def test_wsclean_model_file(wsclean_model_file):
     expected_ra2 = (
         2.0
         * np.pi
-        * ((hours / 24.0) + (mins / (24.0 * 60.0)) + (secs / (24.0 * 60.0 * 60.0)))
+        * (
+            (hours / 24.0)
+            + (mins / (24.0 * 60.0))
+            + (secs / (24.0 * 60.0 * 60.0))
+        )
     )
 
     assert ra[2] == expected_ra2
@@ -74,7 +98,11 @@ def test_wsclean_model_file(wsclean_model_file):
     expected_dec2 = (
         2.0
         * np.pi
-        * ((degs / 360.0) + (mins / (360.0 * 60.0)) + (secs / (360.0 * 60.0 * 60.0)))
+        * (
+            (degs / 360.0)
+            + (mins / (360.0 * 60.0))
+            + (secs / (360.0 * 60.0 * 60.0))
+        )
     )
 
     assert dec[2] == expected_dec2
@@ -88,7 +116,11 @@ def test_wsclean_model_file(wsclean_model_file):
     expected_dec4 = (
         2.0
         * np.pi
-        * ((degs / 360.0) + (mins / (360.0 * 60.0)) + (secs / (360.0 * 60.0 * 60.0)))
+        * (
+            (degs / 360.0)
+            + (mins / (360.0 * 60.0))
+            + (secs / (360.0 * 60.0 * 60.0))
+        )
     )
 
     assert dec[4] == expected_dec4

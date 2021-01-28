@@ -13,9 +13,19 @@ stokes_corr_cases = [
     ("complex", [["XX"], ["YY"]], "real", ["I", "Q"]),
     ("complex", ["XX", "YY"], "real", ["I", "Q"]),
     ("complex", ["XX", "XY", "YX", "YY"], "real", ["I", "Q", "U", "V"]),
-    ("complex", [["XX", "XY"], ["YX", "YY"]], "real", [["I", "Q"], ["U", "V"]]),
+    (
+        "complex",
+        [["XX", "XY"], ["YX", "YY"]],
+        "real",
+        [["I", "Q"], ["U", "V"]],
+    ),
     ("real", ["I", "Q", "U", "V"], "complex", ["XX", "XY", "YX", "YY"]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY"], ["YX", "YY"]]),
+    (
+        "real",
+        [["I", "Q"], ["U", "V"]],
+        "complex",
+        [["XX", "XY"], ["YX", "YY"]],
+    ),
     ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY", "YX", "YY"]]),
     ("real", [["I", "Q"], ["U", "V"]], "complex", [["RR", "RL", "LR", "LL"]]),
     ("real", ["I", "V"], "complex", ["RR", "LL"]),
@@ -34,10 +44,14 @@ vis_chunks = [
 ]
 
 
-vis_shape = [tuple(sum(dim_chunks) for dim_chunks in case) for case in vis_chunks]
+vis_shape = [
+    tuple(sum(dim_chunks) for dim_chunks in case) for case in vis_chunks
+]
 
 
-def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwargs):
+def visibility_factory(
+    vis_shape, input_shape, in_type, backend="numpy", **kwargs
+):
     shape = vis_shape + input_shape
 
     if backend == "numpy":
@@ -66,7 +80,9 @@ def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwarg
     stokes_corr_cases + stokes_corr_int_cases,
 )
 @pytest.mark.parametrize("vis_shape", vis_shape)
-def test_conversion_schemas(in_type, input_schema, out_type, output_schema, vis_shape):
+def test_conversion_schemas(
+    in_type, input_schema, out_type, output_schema, vis_shape
+):
     input_shape = np.asarray(input_schema).shape
     output_shape = np.asarray(output_schema).shape
     vis = visibility_factory(vis_shape, input_shape, in_type)
@@ -79,7 +95,9 @@ def test_conversion():
 
     # Check conversion to linear (string)
     vis = np_convert(
-        np.asarray([[I, Q, U, V]]), ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"]
+        np.asarray([[I, Q, U, V]]),
+        ["I", "Q", "U", "V"],
+        ["XX", "XY", "YX", "YY"],
     )
 
     XX, XY, YX, YY = vis[0]
@@ -96,7 +114,9 @@ def test_conversion():
 
     # Check conversion to circular (string)
     vis = np_convert(
-        np.asarray([[I, Q, U, V]]), ["I", "Q", "U", "V"], ["RR", "RL", "LR", "LL"]
+        np.asarray([[I, Q, U, V]]),
+        ["I", "Q", "U", "V"],
+        ["RR", "RL", "LR", "LL"],
     )
 
     RR, RL, LR, LL = vis[0]
@@ -113,7 +133,9 @@ def test_conversion():
 
     # linear to stokes (string)
     stokes = np_convert(
-        np.asarray([[XX, XY, YX, YY]]), ["XX", "XY", "YX", "YY"], ["I", "Q", "U", "V"]
+        np.asarray([[XX, XY, YX, YY]]),
+        ["XX", "XY", "YX", "YY"],
+        ["I", "Q", "U", "V"],
     )
 
     assert np.all(stokes == [[I, Q, U, V]])
@@ -129,7 +151,9 @@ def test_conversion():
 
     # circular to stokes (string)
     stokes = np_convert(
-        np.asarray([[RR, RL, LR, LL]]), ["RR", "RL", "LR", "LL"], ["I", "Q", "U", "V"]
+        np.asarray([[RR, RL, LR, LL]]),
+        ["RR", "RL", "LR", "LL"],
+        ["I", "Q", "U", "V"],
     )
 
     assert np.all(stokes == [[I, Q, U, V]])
@@ -149,7 +173,9 @@ def test_conversion():
     stokes_corr_cases + stokes_corr_int_cases,
 )
 @pytest.mark.parametrize("vis_chunks", vis_chunks)
-def test_dask_conversion(in_type, input_schema, out_type, output_schema, vis_chunks):
+def test_dask_conversion(
+    in_type, input_schema, out_type, output_schema, vis_chunks
+):
     from africanus.model.coherency.dask import convert as da_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)

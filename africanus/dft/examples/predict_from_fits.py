@@ -18,15 +18,25 @@ def create_parser():
     p.add_argument("ms", help="Name of MS")
     p.add_argument("--fitsmodel", help="Fits file to predict from")
     p.add_argument(
-        "--row_chunks", default=30000, type=int, help="How to chunks up row dimension."
+        "--row_chunks",
+        default=30000,
+        type=int,
+        help="How to chunks up row dimension.",
     )
     p.add_argument(
-        "--ncpu", default=0, type=int, help="Number of threads to use for predict"
+        "--ncpu",
+        default=0,
+        type=int,
+        help="Number of threads to use for predict",
     )
     p.add_argument(
-        "--colname", default="MODEL_DATA", help="Name of column to write data to."
+        "--colname",
+        default="MODEL_DATA",
+        help="Name of column to write data to.",
     )
-    p.add_argument("--field", default=0, type=int, help="Field ID to predict to.")
+    p.add_argument(
+        "--field", default=0, type=int, help="Field ID to predict to."
+    )
     return p
 
 
@@ -46,7 +56,9 @@ print("Using %i threads" % ncpu)
 
 # Get MS frequencies
 spw_ds = list(
-    xds_from_table("::".join((args.ms, "SPECTRAL_WINDOW")), group_cols="__row__")
+    xds_from_table(
+        "::".join((args.ms, "SPECTRAL_WINDOW")), group_cols="__row__"
+    )
 )[0]
 
 # Get frequencies in the measurement set
@@ -109,13 +121,17 @@ if ncorr > 1:
 # if frequencies do not match we need to reprojects fits cube
 if np.any(ms_freqs != freqs):
     print(
-        "Warning - reprojecting fits cube to MS freqs. " "This uses a lot of memory. "
+        "Warning - reprojecting fits cube to MS freqs. "
+        "This uses a lot of memory. "
     )
     from scipy.interpolate import RegularGridInterpolator
 
     # interpolate fits cube
     fits_interp = RegularGridInterpolator(
-        (freqs, l_coord, m_coord), model.squeeze(), bounds_error=False, fill_value=None
+        (freqs, l_coord, m_coord),
+        model.squeeze(),
+        bounds_error=False,
+        fill_value=None,
     )
     # reevaluate at ms freqs
     vv, ll, mm = np.meshgrid(ms_freqs, l_coord, m_coord, indexing="ij")

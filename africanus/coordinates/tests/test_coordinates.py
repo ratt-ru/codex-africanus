@@ -52,7 +52,9 @@ def test_radec_to_lmn_astropy():
     lmn = np_radec_to_lmn(radec, phase_centre)
 
     ast_radec = SkyCoord(radec[:, 0], radec[:, 1], unit=units.rad)
-    ast_phase_centre = SkyCoord(phase_centre[0], phase_centre[1], unit=units.rad)
+    ast_phase_centre = SkyCoord(
+        phase_centre[0], phase_centre[1], unit=units.rad
+    )
     ast_lmn = astropy_radec_to_lmn(ast_radec, ast_phase_centre)
 
     assert_array_almost_equal(ast_lmn, lmn)
@@ -127,6 +129,12 @@ def test_dask_radec_to_lmn():
     assert_array_equal(
         da_radec_to_lmn(da_radec), da_radec_to_lmn(da_radec, zpc)
     )  # noqa
-    assert_array_equal(da_radec_to_lm(da_radec), da_radec_to_lm(da_radec, zpc))  # noqa
-    assert_array_equal(da_lmn_to_radec(da_lmn), da_lmn_to_radec(da_lmn, zpc))  # noqa
-    assert_array_equal(da_lm_to_radec(da_lm), da_lm_to_radec(da_lm, zpc))  # noqa
+    assert_array_equal(
+        da_radec_to_lm(da_radec), da_radec_to_lm(da_radec, zpc)
+    )  # noqa
+    assert_array_equal(
+        da_lmn_to_radec(da_lmn), da_lmn_to_radec(da_lmn, zpc)
+    )  # noqa
+    assert_array_equal(
+        da_lm_to_radec(da_lm), da_lm_to_radec(da_lm, zpc)
+    )  # noqa

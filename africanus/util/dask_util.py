@@ -73,7 +73,11 @@ class TaskData(object):
         )
 
     def __repr__(self):
-        return "TaskData(%s, %s, %s)" % (self.completed, self.total, self.time_sum)
+        return "TaskData(%s, %s, %s)" % (
+            self.completed,
+            self.total,
+            self.time_sum,
+        )
 
     __str__ = __repr__
 

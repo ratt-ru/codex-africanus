@@ -79,7 +79,8 @@ def correct_vis(
         n_dir = jones_shape[3]
         if n_dir > 1:
             raise ValueError(
-                "Jones has n_dir > 1. Cannot correct " "for direction dependent gains"
+                "Jones has n_dir > 1. Cannot correct "
+                "for direction dependent gains"
             )
         n_chan = jones_shape[2]
         corrected_vis = np.zeros_like(vis, dtype=vis.dtype)
@@ -94,7 +95,10 @@ def correct_vis(
                 for nu in range(n_chan):
                     if not np.any(flag[row, nu]):
                         jones_inverse_mul(
-                            gp[nu, 0], vis[row, nu], gq[nu, 0], corrected_vis[row, nu]
+                            gp[nu, 0],
+                            vis[row, nu],
+                            gq[nu, 0],
+                            corrected_vis[row, nu],
                         )
         return corrected_vis
 

@@ -211,7 +211,9 @@ def parse_sky_model(filename, chunks):
         U = source.flux.U
         V = source.flux.V
 
-        spectrum = getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
+        spectrum = (
+            getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
+        )
 
         try:
             # Extract reference frequency
@@ -259,7 +261,9 @@ def parse_sky_model(filename, chunks):
             raise ValueError("Unknown source morphology %s" % typecode)
 
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
-    Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"])
+    Gauss = namedtuple(
+        "Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"]
+    )
     Shapelet = namedtuple(
         "Shapelet", ["radec", "stokes", "spi", "ref_freq", "beta", "coeffs"]
     )
@@ -326,8 +330,12 @@ def support_tables(args):
         "DATA_DESCRIPTION": xds_from_table(n["DATA_DESCRIPTION"]),
         # Variably shaped, need a dataset per row
         "FIELD": xds_from_table(n["FIELD"], group_cols="__row__"),
-        "SPECTRAL_WINDOW": xds_from_table(n["SPECTRAL_WINDOW"], group_cols="__row__"),
-        "POLARIZATION": xds_from_table(n["POLARIZATION"], group_cols="__row__"),
+        "SPECTRAL_WINDOW": xds_from_table(
+            n["SPECTRAL_WINDOW"], group_cols="__row__"
+        ),
+        "POLARIZATION": xds_from_table(
+            n["POLARIZATION"], group_cols="__row__"
+        ),
     }
 
     lazy_tables.update(dask.compute(compute_tables)[0])
@@ -348,7 +356,9 @@ def _unity_ant_scales(parangles, frequency, dtype_):
     return np.ones((na, nchan, 2), dtype=dtype_)
 
 
-def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=None):
+def zernike_factory(
+    args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=None
+):
     """ Generate a primary beam DDE using Zernike polynomials """
     if not args.zernike:
         return None
@@ -380,10 +390,14 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
     pointing_errors = da.from_array(
         np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2)
     )
-    antenna_scaling = da.from_array(np.ones((na, nchan, 2)), chunks=(na, nchan, 2))
+    antenna_scaling = da.from_array(
+        np.ones((na, nchan, 2)), chunks=(na, nchan, 2)
+    )
     parangles = da.from_array(
         parallactic_angles(
-            np.array(utime)[:ntime], ant.POSITION.data, field.PHASE_DIR.data[0][0]
+            np.array(utime)[:ntime],
+            ant.POSITION.data,
+            field.PHASE_DIR.data[0][0],
         ).compute(),
         chunks=(time_chunks, na),
     )
@@ -398,7 +412,8 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
 
     # Load in Zernike coefficients for MeerKAT at L-Band
     packratt.get(
-        "/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz", "./"
+        "/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz",
+        "./",
     )
     c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
     ch = [abs(c_freqs - i).argmin() for i in (frequency / 1e06)]
@@ -414,7 +429,9 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
 
     # Call Zernike_dde
     dde_r = zernike_dde(
-        da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
+        da.from_array(
+            zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)
+        ),
         da.from_array(coeffs_r, chunks=coeffs_r.shape),
         da.from_array(noll_index_r, chunks=noll_index_r.shape),
         parangles,
@@ -423,7 +440,9 @@ def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=N
         pointing_errors,
     )
     dde_i = zernike_dde(
-        da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
+        da.from_array(
+            zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)
+        ),
         da.from_array(coeffs_i, chunks=coeffs_i.shape),
         da.from_array(noll_index_i, chunks=noll_index_i.shape),
         parangles,
@@ -451,7 +470,11 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
     stokes = spectral_model(
-        source.stokes, source.spi, source.ref_freq, frequency, base=[1, 0, 0, 0]
+        source.stokes,
+        source.spi,
+        source.ref_freq,
+        frequency,
+        base=[1, 0, 0, 0],
     )
 
     brightness = convert(stokes, ["I", "Q", "U", "V"], corr_schema(pol))
@@ -476,7 +499,9 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
 
     # Need unique times for parallactic angles
     nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
-    utime = utime_inv.map_blocks(getitem, 0, chunks=nan_chunks, dtype=ms.TIME.dtype)
+    utime = utime_inv.map_blocks(
+        getitem, 0, chunks=nan_chunks, dtype=ms.TIME.dtype
+    )
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
@@ -496,7 +521,15 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     )
 
     return predict_vis(
-        time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data, dde, jones, dde, None, None, None
+        time_idx,
+        ms.ANTENNA1.data,
+        ms.ANTENNA2.data,
+        dde,
+        jones,
+        dde,
+        None,
+        None,
+        None,
     )
 
 

@@ -64,7 +64,9 @@ def parse_python_assigns(assign_str):
 
             # Recursively pass keyword arguments through this same function
             if stmt_value.keywords is not None:
-                kwargs = {kw.arg: _eval_value(kw.value) for kw in stmt_value.keywords}
+                kwargs = {
+                    kw.arg: _eval_value(kw.value) for kw in stmt_value.keywords
+                }
             else:
                 kwargs = {}
 
@@ -118,7 +120,8 @@ def parse_python_assigns(assign_str):
                         "Unpacking '%s' into a tuple/list in "
                         "assignment %d of expression '%s' "
                         "failed. The number of tuple elements "
-                        "did not match the number of values." % (values, i, assign_str)
+                        "did not match the number of values."
+                        % (values, i, assign_str)
                     )
 
                 # Unpack

@@ -63,11 +63,15 @@ def set_flag_row_factory(have_flag_row):
     return njit(nogil=True, cache=True)(impl)
 
 
-RowMapOutput = namedtuple("RowMapOutput", ["map", "time", "interval", "flag_row"])
+RowMapOutput = namedtuple(
+    "RowMapOutput", ["map", "time", "interval", "flag_row"]
+)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_mapper(time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1):
+def row_mapper(
+    time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1
+):
     """
     Generates a mapping from a high resolution row index to
     a low resolution row index in support of time and channel
@@ -193,7 +197,9 @@ def row_mapper(time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=
     output_flag_row = output_factory(have_flag_row)
     set_flag_row = set_flag_row_factory(have_flag_row)
 
-    def impl(time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1):
+    def impl(
+        time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1
+    ):
         ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
         utime, _, time_inv, _ = unique_time(time)
 
@@ -331,7 +337,9 @@ def row_mapper(time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=
                 raise RowMapperError("out_row >= out_rows")
 
             # Handle output row flagging
-            set_flag_row(flag_row, in_row, out_flag_row, out_row, bin_flagged[bl, tbin])
+            set_flag_row(
+                flag_row, in_row, out_flag_row, out_row, bin_flagged[bl, tbin]
+            )
 
             row_map[in_row] = out_row
 

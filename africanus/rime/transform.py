@@ -45,7 +45,12 @@ def _nb_transform_sources(
 
 
 def transform_sources(
-    lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, dtype=None
+    lm,
+    parallactic_angles,
+    pointing_errors,
+    antenna_scaling,
+    frequency,
+    dtype=None,
 ):
     """
     Creates beam sampling coordinates suitable for use
@@ -95,5 +100,10 @@ def transform_sources(
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=dtype)
 
     return _nb_transform_sources(
-        lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, coords
+        lm,
+        parallactic_angles,
+        pointing_errors,
+        antenna_scaling,
+        frequency,
+        coords,
     )

@@ -37,20 +37,27 @@ class GridderConfigWrapper(object):
     Wraps a nifty GridderConfiguration for pickling purposes.
     """
 
-    def __init__(self, nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
+    def __init__(
+        self, nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0
+    ):
         self.nx = nx
         self.ny = ny
         self.csx = cell_size_x
         self.csy = cell_size_y
         self.eps = eps
-        self.grid_config = ng.GridderConfig(nx, ny, eps, cell_size_x, cell_size_y)
+        self.grid_config = ng.GridderConfig(
+            nx, ny, eps, cell_size_x, cell_size_y
+        )
 
     @property
     def object(self):
         return self.grid_config
 
     def __reduce__(self):
-        return (GridderConfigWrapper, (self.nx, self.ny, self.eps, self.csx, self.csy))
+        return (
+            GridderConfigWrapper,
+            (self.nx, self.ny, self.eps, self.csx, self.csy),
+        )
 
 
 if import_error is None:
@@ -95,7 +102,9 @@ def _nifty_baselines(uvw, chan_freq):
     return ng.Baselines(uvw[0], chan_freq[0])
 
 
-def _nifty_indices(baselines, grid_config, flag, chan_begin, chan_end, wmin, wmax):
+def _nifty_indices(
+    baselines, grid_config, flag, chan_begin, chan_end, wmin, wmax
+):
     """ Wrapper function for creating indices per row chunk """
     return ng.getIndices(
         baselines, grid_config, flag[0], chan_begin, chan_end, wmin, wmax
@@ -105,12 +114,14 @@ def _nifty_indices(baselines, grid_config, flag, chan_begin, chan_end, wmin, wma
 def _nifty_grid(baselines, grid_config, indices, vis, weights):
     """ Wrapper function for creating a grid of visibilities per row chunk """
     assert len(vis) == 1 and type(vis) is list
-    return ng.ms2grid_c(baselines, grid_config, indices, vis[0], None, weights[0])[
-        None, :, :
-    ]
+    return ng.ms2grid_c(
+        baselines, grid_config, indices, vis[0], None, weights[0]
+    )[None, :, :]
 
 
-def _nifty_grid_streams(baselines, grid_config, indices, vis, weights, grid_in=None):
+def _nifty_grid_streams(
+    baselines, grid_config, indices, vis, weights, grid_in=None
+):
     """ Wrapper function for creating a grid of visibilities per row chunk """
     return ng.ms2grid_c(baselines, grid_config, indices, vis, grid_in, weights)
 
@@ -127,7 +138,9 @@ class GridStreamReduction(Mapping):
     ``stream`` parallel streams.
     """
 
-    def __init__(self, baselines, indices, gc, corr_vis, corr_weights, corr, streams):
+    def __init__(
+        self, baselines, indices, gc, corr_vis, corr_weights, corr, streams
+    ):
         token = dask.base.tokenize(
             baselines, indices, gc, corr_vis, corr_weights, corr, streams
         )
@@ -401,7 +414,10 @@ def grid(
 
 def _nifty_dirty(grid, grid_config):
     """ Wrapper function for creating a dirty image """
-    grids = [grid_config.grid2dirty_c(grid[:, :, c]).real for c in range(grid.shape[2])]
+    grids = [
+        grid_config.grid2dirty_c(grid[:, :, c]).real
+        for c in range(grid.shape[2])
+    ]
 
     return np.stack(grids, axis=2)
 
@@ -444,7 +460,9 @@ def dirty(grid, grid_config):
 
 def _nifty_model(image, grid_config):
     """ Wrapper function for creating a dirty image """
-    images = [grid_config.dirty2grid_c(image[:, :, c]) for c in range(image.shape[2])]
+    images = [
+        grid_config.dirty2grid_c(image[:, :, c]) for c in range(image.shape[2])
+    ]
 
     return np.stack(images, axis=2)
 
@@ -492,7 +510,9 @@ def _nifty_degrid(grid, baselines, indices, grid_config):
 
 @requires_optional("dask.array", import_error)
 @requires_optional("nifty_gridder", nifty_import_err)
-def degrid(grid, uvw, flags, weights, frequencies, grid_config, wmin=-1e30, wmax=1e30):
+def degrid(
+    grid, uvw, flags, weights, frequencies, grid_config, wmin=-1e30, wmax=1e30
+):
     """
     Degrids the visibilities from the supplied grid in parallel.
 

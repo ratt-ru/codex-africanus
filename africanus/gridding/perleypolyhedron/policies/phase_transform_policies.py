@@ -2,11 +2,15 @@ from africanus.util.numba import overload
 from numpy import pi, cos, sin, sqrt
 
 
-def phase_norotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
+def phase_norotate(
+    vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0
+):
     pass
 
 
-def phase_rotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
+def phase_rotate(
+    vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0
+):
     """
     Convert ra,dec to l,m,n based on Synthesis Imaging II, Pg. 388
     The phase term (as documented in Perley & Cornwell (1992))
@@ -30,7 +34,13 @@ def phase_rotate(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1
     mm = s_d_dec * c_d_decp - c_d_dec * s_d_decp * c_d_ra
     nn = -(1 - sqrt(1 - ll * ll - mm * mm))
     for c in range(lambdas.size):
-        x = phasesign * 2 * pi * (uvw[0] * ll + uvw[1] * mm + uvw[2] * nn) / lambdas[c]
+        x = (
+            phasesign
+            * 2
+            * pi
+            * (uvw[0] * ll + uvw[1] * mm + uvw[2] * nn)
+            / lambdas[c]
+        )
         vis[c, :] *= cos(x) + 1.0j * sin(x)
 
 
@@ -39,8 +49,13 @@ def policy(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
 
 
 @overload(policy, inline="always")
-def policy_impl(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
-    if policy_type.literal_value == "None" or policy_type.literal_value is None:
+def policy_impl(
+    vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0
+):
+    if (
+        policy_type.literal_value == "None"
+        or policy_type.literal_value is None
+    ):
         return phase_norotate
     elif policy_type.literal_value == "phase_rotate":
         return phase_rotate

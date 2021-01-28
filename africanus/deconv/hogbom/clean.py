@@ -33,7 +33,11 @@ def twod_gaussian(coords, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
         2 * sigma_y ** 2
     )
     g = offset + amplitude * np.exp(
-        -(a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2))
+        -(
+            a * ((x - xo) ** 2)
+            + 2 * b * (x - xo) * (y - yo)
+            + c * ((y - yo) ** 2)
+        )
     )
     return g.flatten()
 
@@ -150,7 +154,10 @@ def hogbom_clean(dirty, psf, gamma=0.1, threshold="default", niter="default"):
     residuals = dirty.copy()
 
     # Check that psf is twice the size of residuals
-    if psf.shape[0] != 2 * residuals.shape[0] or psf.shape[1] != 2 * residuals.shape[1]:
+    if (
+        psf.shape[0] != 2 * residuals.shape[0]
+        or psf.shape[1] != 2 * residuals.shape[1]
+    ):
         raise ValueError("Warning psf not right size")
 
     # Initialise array to store cleaned image

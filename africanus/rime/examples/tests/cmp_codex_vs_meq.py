@@ -11,7 +11,10 @@ import tempfile
 
 import numpy as np
 
-from africanus.rime.examples.predict import predict, create_parser as predict_parser
+from africanus.rime.examples.predict import (
+    predict,
+    create_parser as predict_parser,
+)
 from africanus.util.requirements import requires_optional
 from africanus.testing.beam_factory import beam_factory
 
@@ -77,7 +80,9 @@ def meqtrees_command_factory(args, pol_type):
     elif pol_type == "circular":
         cfg_section = "-".join(("codex", "compare", "circular"))
     else:
-        raise ValueError("pol_type %s not in ('circular', 'linear')" % pol_type)
+        raise ValueError(
+            "pol_type %s not in ('circular', 'linear')" % pol_type
+        )
 
     # $ is a special pattern is most shells, escape it
     beam_pattern = args.beam.replace("$", r"\$")
@@ -204,13 +209,23 @@ def compare():
                 nrow = min(row_chunk, nrows - r)
 
                 exemplar = T.getcol("MODEL_DATA", startrow=r, nrow=nrow)
-                T.putcol("MODEL_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow)
                 T.putcol(
-                    "CORRECTED_DATA", np.zeros_like(exemplar), startrow=r, nrow=nrow
+                    "MODEL_DATA",
+                    np.zeros_like(exemplar),
+                    startrow=r,
+                    nrow=nrow,
+                )
+                T.putcol(
+                    "CORRECTED_DATA",
+                    np.zeros_like(exemplar),
+                    startrow=r,
+                    nrow=nrow,
                 )
 
         pol_type = inspect_polarisation_type(args)
-        beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits", pol_type)
+        beam_path, filenames = create_beams(
+            "beams_$(corr)_$(reim).fits", pol_type
+        )
         args.beam = str(beam_path)
         meq_cmd = " ".join(meqtrees_command_factory(args, pol_type))
         cmp_cmd = " ".join(cmp_script_factory(args, pol_type))
@@ -222,7 +237,10 @@ def compare():
             "\n\n%s\n\n\n" % meq_cmd
         )
 
-        print("\nTHEN RUN THIS IN THE CURRENT ENVIRONMENT" "\n\n%s\n\n\n" % cmp_cmd)
+        print(
+            "\nTHEN RUN THIS IN THE CURRENT ENVIRONMENT"
+            "\n\n%s\n\n\n" % cmp_cmd
+        )
 
         return True
 

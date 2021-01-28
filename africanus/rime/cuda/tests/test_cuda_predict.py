@@ -20,7 +20,17 @@ from africanus.rime.tests.test_predict import (
 @die_presence_parametrization
 @chunk_parametrization
 def test_cuda_predict_vis(
-    corr_shape, idm, einsum_sig1, einsum_sig2, a1j, blj, a2j, g1j, bvis, g2j, chunks
+    corr_shape,
+    idm,
+    einsum_sig1,
+    einsum_sig2,
+    a1j,
+    blj,
+    a2j,
+    g1j,
+    bvis,
+    g2j,
+    chunks,
 ):
     np.random.seed(40)
 
@@ -41,15 +51,24 @@ def test_cuda_predict_vis(
 
     # Add 10 to the index to test time index normalisation
     time_idx = np.concatenate(
-        [np.full(rows, i + 10, dtype=np.int32) for i, rows in enumerate(chunks["rows"])]
+        [
+            np.full(rows, i + 10, dtype=np.int32)
+            for i, rows in enumerate(chunks["rows"])
+        ]
     )
 
     ant1 = np.concatenate(
-        [np.random.randint(0, a, rows, dtype=np.int32) for rows in chunks["rows"]]
+        [
+            np.random.randint(0, a, rows, dtype=np.int32)
+            for rows in chunks["rows"]
+        ]
     )
 
     ant2 = np.concatenate(
-        [np.random.randint(0, a, rows, dtype=np.int32) for rows in chunks["rows"]]
+        [
+            np.random.randint(0, a, rows, dtype=np.int32)
+            for rows in chunks["rows"]
+        ]
     )
 
     assert ant1.size == r

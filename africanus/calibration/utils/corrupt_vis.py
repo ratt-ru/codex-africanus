@@ -38,27 +38,41 @@ def jones_mul_factory(mode):
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
                 out[0, 0] += (
-                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                    t1 * tmp[0, 0]
+                    + t2 * tmp[0, 0]
+                    + t3 * tmp[1, 0]
+                    + t4 * tmp[1, 0]
                 )
                 out[0, 1] += (
-                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                    t1 * tmp[0, 1]
+                    + t2 * tmp[0, 1]
+                    + t3 * tmp[1, 1]
+                    + t4 * tmp[1, 1]
                 )
                 t1 = a1j[s, 1, 0] * model[s, 0, 0]
                 t2 = a1j[s, 1, 1] * model[s, 1, 0]
                 t3 = a1j[s, 1, 0] * model[s, 0, 1]
                 t4 = a1j[s, 1, 1] * model[s, 1, 1]
                 out[1, 0] += (
-                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                    t1 * tmp[0, 0]
+                    + t2 * tmp[0, 0]
+                    + t3 * tmp[1, 0]
+                    + t4 * tmp[1, 0]
                 )
                 out[1, 1] += (
-                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                    t1 * tmp[0, 1]
+                    + t2 * tmp[0, 1]
+                    + t3 * tmp[1, 1]
+                    + t4 * tmp[1, 1]
                 )
 
     return njit(nogil=True, inline="always")(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def corrupt_vis(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model):
+def corrupt_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
+):
 
     mode = check_type(jones, model, vis_type="model")
     jones_mul = jones_mul_factory(mode)

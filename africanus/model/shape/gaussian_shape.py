@@ -97,6 +97,8 @@ gauss_shape : $(array_type)
 )
 
 try:
-    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except KeyError:
     pass

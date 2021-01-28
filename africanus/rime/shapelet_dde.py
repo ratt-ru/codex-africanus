@@ -19,7 +19,9 @@ def factorial(n):
 
 # @numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, x, beta):
-    basis_component = ((2 ** n) * ((np.pi) ** (0.5)) * factorial(n) * beta) ** (-0.5)
+    basis_component = (
+        (2 ** n) * ((np.pi) ** (0.5)) * factorial(n) * beta
+    ) ** (-0.5)
     exponential_component = hermite(n)(x / beta) * np.exp(
         (-0.5) * (x ** 2) * (beta ** (-2))
     )

@@ -67,7 +67,9 @@ def _log_polynomial(log_poly, s):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
-    arg_dtypes = tuple(np.dtype(a.dtype.name) for a in (I, coeffs, ref_freq, frequency))
+    arg_dtypes = tuple(
+        np.dtype(a.dtype.name) for a in (I, coeffs, ref_freq, frequency)
+    )
     dtype = np.result_type(*arg_dtypes)
 
     def impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
@@ -181,6 +183,8 @@ spectral_model : $(array_type)
 )
 
 try:
-    spectra.__doc__ = SPECTRA_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    spectra.__doc__ = SPECTRA_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

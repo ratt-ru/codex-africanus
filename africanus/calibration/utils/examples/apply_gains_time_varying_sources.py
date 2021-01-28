@@ -26,7 +26,8 @@ def create_parser():
     p.add_argument("--sky_model", type=str, help="Tigger lsm file")
     p.add_argument(
         "--data_col",
-        help="Column where data lives. " "Only used to get shape of data at this stage",
+        help="Column where data lives. "
+        "Only used to get shape of data at this stage",
         default="DATA",
         type=str,
     )
@@ -64,7 +65,9 @@ def main(args):
     # get full time column and compute row chunks
     ms = table(args.ms)
     time = ms.getcol("TIME")
-    row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
+    row_chunks, tbin_idx, tbin_counts = chunkify_rows(
+        time, args.utimes_per_chunk
+    )
     # convert to dask arrays
     tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
     tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
@@ -79,7 +82,9 @@ def main(args):
 
     # get freqs
     freqs = (
-        table(args.ms + "::SPECTRAL_WINDOW").getcol("CHAN_FREQ")[0].astype(np.float64)
+        table(args.ms + "::SPECTRAL_WINDOW")
+        .getcol("CHAN_FREQ")[0]
+        .astype(np.float64)
     )
     n_freq = freqs.size
     freqs = da.from_array(freqs, chunks=(n_freq))
@@ -125,10 +130,14 @@ def main(args):
     jones = np.load(args.gain_file)
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
-    jones = da.from_array(jones, chunks=(args.utimes_per_chunk,) + jones_shape[1::])
+    jones = da.from_array(
+        jones, chunks=(args.utimes_per_chunk,) + jones_shape[1::]
+    )
 
     # change model to dask array
-    model = da.from_array(model, chunks=(args.utimes_per_chunk,) + model.shape[1::])
+    model = da.from_array(
+        model, chunks=(args.utimes_per_chunk,) + model.shape[1::]
+    )
 
     # load data in in chunks and apply gains to each chunk
     xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]

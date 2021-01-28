@@ -65,7 +65,9 @@ numpy_to_cuda_type_map = {
 }
 
 # Also map the types
-numpy_to_cuda_type_map.update({k.type: v for k, v in numpy_to_cuda_type_map.items()})
+numpy_to_cuda_type_map.update(
+    {k.type: v for k, v in numpy_to_cuda_type_map.items()}
+)
 
 
 def grids(dims, blocks):

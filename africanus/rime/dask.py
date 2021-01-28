@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
 
-from africanus.rime.phase import phase_delay as np_phase_delay, PHASE_DELAY_DOCS
+from africanus.rime.phase import (
+    phase_delay as np_phase_delay,
+    PHASE_DELAY_DOCS,
+)
 from africanus.rime.parangles import parallactic_angles as np_parangles
 from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
@@ -108,7 +111,12 @@ def _xform_wrap(
 
 @requires_optional("dask.array", da_import_error)
 def transform_sources(
-    lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, dtype=None
+    lm,
+    parallactic_angles,
+    pointing_errors,
+    antenna_scaling,
+    frequency,
+    dtype=None,
 ):
 
     if dtype is None:
@@ -273,7 +281,8 @@ except AttributeError:
 
 try:
     parallactic_angles.__doc__ = mod_docs(
-        np_parangles.__doc__, [(":class:`numpy.ndarray`", ":class:`dask.array.Array`")]
+        np_parangles.__doc__,
+        [(":class:`numpy.ndarray`", ":class:`dask.array.Array`")],
     )
 except AttributeError:
     pass

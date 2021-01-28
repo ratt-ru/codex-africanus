@@ -5,7 +5,10 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.spectral.spec_model import spectral_model, numpy_spectral_model
+from africanus.model.spectral.spec_model import (
+    spectral_model,
+    numpy_spectral_model,
+)
 
 
 @pytest.fixture
@@ -81,7 +84,9 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
 @pytest.mark.parametrize("npol", [0, 1, 2, 4])
 def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
     da = pytest.importorskip("dask.array")
-    from africanus.model.spectral.spec_model import spectral_model as np_spectral_model
+    from africanus.model.spectral.spec_model import (
+        spectral_model as np_spectral_model,
+    )
     from africanus.model.spectral.dask import spectral_model
 
     sc = (5, 5)
@@ -118,7 +123,9 @@ def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
     da_ref_freq = da.from_array(ref_freq, chunks=sc)
     da_freq = da.from_array(freq, chunks=fc)
 
-    da_model = spectral_model(da_stokes, da_spi, da_ref_freq, da_freq, base=base)
+    da_model = spectral_model(
+        da_stokes, da_spi, da_ref_freq, da_freq, base=base
+    )
 
     np_model = np_spectral_model(stokes, spi, ref_freq, freq, base=base)
     assert_array_almost_equal(da_model, np_model)

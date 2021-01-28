@@ -23,7 +23,12 @@ try:
 
     def ifft(y, ax, ncpu, lastsize):
         return c2r(
-            y, axes=ax, forward=False, lastsize=lastsize, nthreads=args.ncpu, inorm=2
+            y,
+            axes=ax,
+            forward=False,
+            lastsize=lastsize,
+            nthreads=args.ncpu,
+            inorm=2,
         )
 
 
@@ -109,7 +114,9 @@ def convolve_model(model, gausskern, args):
 
     # get FT of convolution kernel
     gausskernhat = fft(
-        iFs(np.pad(gausskern[None], padding, mode="constant"), axes=ax), ax, args.ncpu
+        iFs(np.pad(gausskern[None], padding, mode="constant"), axes=ax),
+        ax,
+        args.ncpu,
     )
 
     # Convolve model with Gaussian kernel
@@ -117,7 +124,9 @@ def convolve_model(model, gausskern, args):
         iFs(np.pad(model, padding, mode="constant"), axes=ax), ax, args.ncpu
     )
     convmodel *= gausskernhat
-    return Fs(ifft(convmodel, ax, args.ncpu, lastsize), axes=ax)[:, unpad_l, unpad_m]
+    return Fs(ifft(convmodel, ax, args.ncpu, lastsize), axes=ax)[
+        :, unpad_l, unpad_m
+    ]
 
 
 def interpolate_beam(xx, yy, maskindices, freqs, args):
@@ -166,7 +175,9 @@ def interpolate_beam(xx, yy, maskindices, freqs, args):
                 else:
                     raise NotImplementedError("Only re/im patterns supported")
         # get Stokes I amplitude
-        beam_amp = (corr1_re ** 2 + corr1_im ** 2 + corr2_re ** 2 + corr2_im ** 2) / 2.0
+        beam_amp = (
+            corr1_re ** 2 + corr1_im ** 2 + corr2_re ** 2 + corr2_im ** 2
+        ) / 2.0
         # get cube in correct shape for interpolation code
         beam_amp = np.ascontiguousarray(
             np.transpose(beam_amp, (1, 2, 0))[:, :, :, None, None]
@@ -200,7 +211,9 @@ def interpolate_beam(xx, yy, maskindices, freqs, args):
 
         # get frequencies
         if beam_hdr["CTYPE3"] != "FREQ":
-            raise ValueError("Cubes are assumed to be in format [nchan, nx, ny]")
+            raise ValueError(
+                "Cubes are assumed to be in format [nchan, nx, ny]"
+            )
         nchan = beam_hdr["NAXIS3"]
         refpix = beam_hdr["CRPIX3"]
         delta = beam_hdr["CDELT3"]  # assumes units are Hz
@@ -273,7 +286,8 @@ def create_parser():
         "--ncpu",
         default=0,
         type=int,
-        help="Number of threads to use. \n" "Default of zero means use all threads",
+        help="Number of threads to use. \n"
+        "Default of zero means use all threads",
     )
     p.add_argument(
         "--beammodel",
@@ -302,7 +316,10 @@ def create_parser():
         "Default is to write all of them",
     )
     p.add_argument(
-        "--padding_frac", default=0.2, type=float, help="Padding factor for FFT's."
+        "--padding_frac",
+        default=0.2,
+        type=float,
+        help="Padding factor for FFT's.",
     )
     return p
 
@@ -364,7 +381,9 @@ def main(args):
     if ncorr > 1:
         raise ValueError("Only Stokes I cubes supported")
 
-    freqs = ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
+    freqs = (
+        ref_freq + np.arange(1 - refpix_nu, 1 + nband - refpix_nu) * delta_nu
+    )
 
     print("Cube frequencies:")
     with np.printoptions(precision=2):
@@ -382,7 +401,9 @@ def main(args):
     if args.fitsresidual is not None:
         resid = fits.getdata(args.fitsresidual).squeeze().astype(np.float64)
         rms = np.std(resid)
-        rms_cube = np.std(resid.reshape(nband, npix_l * npix_m), axis=1).ravel()
+        rms_cube = np.std(
+            resid.reshape(nband, npix_l * npix_m), axis=1
+        ).ravel()
         threshold = args.threshold * rms
         print(
             "Setting cutoff threshold as %i times the rms "

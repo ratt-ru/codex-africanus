@@ -72,7 +72,8 @@ def stokes_convert_setup(input, input_schema, output_schema):
             deps = stokes_conv[okey]
         except KeyError:
             raise ValueError(
-                "Unknown output '%s'. Known types '%s'" % (okey, stokes_conv.keys())
+                "Unknown output '%s'. Known types '%s'"
+                % (okey, stokes_conv.keys())
             )
 
         found_conv = False
@@ -120,7 +121,11 @@ def schema_to_tuple(schema):
 
 
 def _key_fn(inputs, input_schema, output_schema):
-    return (inputs.dtype, schema_to_tuple(input_schema), schema_to_tuple(output_schema))
+    return (
+        inputs.dtype,
+        schema_to_tuple(input_schema),
+        schema_to_tuple(output_schema),
+    )
 
 
 _TEMPLATE_PATH = pjoin("model", "coherency", "cuda", "conversion.cu.j2")
@@ -224,6 +229,8 @@ def convert(inputs, input_schema, output_schema):
 
 
 try:
-    convert.__doc__ = CONVERT_DOCS.substitute(array_type=":class:`cupy.ndarray`")
+    convert.__doc__ = CONVERT_DOCS.substitute(
+        array_type=":class:`cupy.ndarray`"
+    )
 except AttributeError:
     pass

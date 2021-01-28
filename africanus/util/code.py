@@ -38,7 +38,9 @@ def format_code(code):
         Code prefixed with line numbers
     """
     lines = [""]
-    lines.extend(["%-5d %s" % (i, l) for i, l in enumerate(code.split("\n"), 1)])
+    lines.extend(
+        ["%-5d %s" % (i, l) for i, l in enumerate(code.split("\n"), 1)]
+    )
     return "\n".join(lines)
 
 

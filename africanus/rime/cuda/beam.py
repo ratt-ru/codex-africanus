@@ -106,7 +106,9 @@ def _generate_main_kernel(
     beam_lw, beam_mh, beam_nud = beam.shape[:3]
 
     if beam_lw < 2 or beam_mh < 2 or beam_nud < 2:
-        raise ValueError("(beam_lw, beam_mh, beam_nud) < 2 " "to linearly interpolate")
+        raise ValueError(
+            "(beam_lw, beam_mh, beam_nud) < 2 " "to linearly interpolate"
+        )
 
     # Create template
     render = jinja_env.get_template(str(_MAIN_TEMPLATE_PATH)).render
@@ -128,7 +130,12 @@ def _generate_main_kernel(
         )
 
     coord_type = np.result_type(
-        beam_lm_ext, lm, parangles, pointing_errors, antenna_scaling, np.float32
+        beam_lm_ext,
+        lm,
+        parangles,
+        pointing_errors,
+        antenna_scaling,
+        np.float32,
     )
 
     assert coord_type in (np.float32, np.float64)

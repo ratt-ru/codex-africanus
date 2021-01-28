@@ -65,7 +65,9 @@ def chan_metadata(row_chan_arrays, chan_arrays, chan_bin_size):
     return chan_mapper
 
 
-def row_mapper(time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1.0):
+def row_mapper(
+    time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1.0
+):
     """ Create a dask row mapping structure for each row chunk """
     return da.blockwise(
         np_row_mapper,
@@ -304,7 +306,9 @@ def chan_average(
     if chan_meta is None:
         return ChannelAverageOutput(None, None)
 
-    adjust_chunks = {"chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size}
+    adjust_chunks = {
+        "chan": lambda c: (c + chan_bin_size - 1) // chan_bin_size
+    }
 
     cdim = ("chan",)
 
@@ -328,7 +332,9 @@ def chan_average(
 
     tuple_gets = (
         None if a is None else _getitem_chan(avg, i, a.dtype)
-        for i, a in enumerate([chan_freq, chan_width, effective_bw, resolution])
+        for i, a in enumerate(
+            [chan_freq, chan_width, effective_bw, resolution]
+        )
     )
 
     return ChannelAverageOutput(*tuple_gets)
@@ -349,7 +355,13 @@ def merge_flags(flag_row, flag):
         )
     elif flag_row is not None and flag is None:
         return da.blockwise(
-            np_merge_flags, "r", flag_row, "r", None, None, dtype=flag_row.dtype
+            np_merge_flags,
+            "r",
+            flag_row,
+            "r",
+            None,
+            None,
+            dtype=flag_row.dtype,
         )
     elif flag_row is not None and flag is not None:
         return da.blockwise(

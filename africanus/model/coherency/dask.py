@@ -17,7 +17,9 @@ else:
     da_import_error = None
 
 
-def _wrapper(np_input, mapping=None, in_shape=None, out_shape=None, dtype_=None):
+def _wrapper(
+    np_input, mapping=None, in_shape=None, out_shape=None, dtype_=None
+):
     result = convert_impl(np_input, mapping, in_shape, out_shape, dtype_)
 
     # Introduce extra singleton dimension at the end of our shape
@@ -61,6 +63,8 @@ def convert(input, input_schema, output_schema):
 
 
 try:
-    convert.__doc__ = CONVERT_DOCS.substitute(array_type=":class:`dask.array.Array`")
+    convert.__doc__ = CONVERT_DOCS.substitute(
+        array_type=":class:`dask.array.Array`"
+    )
 except AttributeError:
     pass

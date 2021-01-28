@@ -77,7 +77,9 @@ SUB_MS = "subtract from MS"
 simmode_opt = TDLCompileOption(
     "sim_mode", "Simulation mode", [SIM_ONLY, ADD_MS, SUB_MS]
 )
-simmode_opt.when_changed(lambda mode: mssel.enable_input_column(mode != SIM_ONLY))
+simmode_opt.when_changed(
+    lambda mode: mssel.enable_input_column(mode != SIM_ONLY)
+)
 model_opt = TDLCompileOption(
     "read_ms_model",
     "Read additional uv-model visibilities from MS",
@@ -159,7 +161,10 @@ TDLCompileOptions(*meqmaker.compile_options())
 
 # noise option
 _noise_option = TDLOption(
-    "noise_stddev", "Add noise, Jy per visibility", [None, 1e-6, 1e-3], more=float
+    "noise_stddev",
+    "Add noise, Jy per visibility",
+    [None, 1e-6, 1e-3],
+    more=float,
 )
 _sefd_options = [
     TDLOption("noise_sefd", "SEFD, Jy", 0, more=float),
@@ -182,7 +187,8 @@ TDLCompileMenu("Add noise", _noise_option, _sefd_menu)
 def _recompute_noise(dum):
     if noise_from_sefd:
         _noise_option.set_value(
-            noise_sefd / math.sqrt(noise_sefd_bw_khz * 1e3 * noise_sefd_integration)
+            noise_sefd
+            / math.sqrt(noise_sefd_bw_khz * 1e3 * noise_sefd_integration)
         )
 
 
@@ -218,12 +224,16 @@ def _define_forest(ns):
     array, observation = mssel.setup_observation_context(ns)
 
     # setup imaging options (now that we have an imaging size set up)
-    imsel = mssel.imaging_selector(npix=512, arcmin=meqmaker.estimate_image_size())
+    imsel = mssel.imaging_selector(
+        npix=512, arcmin=meqmaker.estimate_image_size()
+    )
     TDLRuntimeMenu("Imaging options", *imsel.option_list())
 
     # reading in model?
     if read_ms_model:
-        model_spigots = array.spigots(column="PREDICT", corr=mssel.get_corr_index())
+        model_spigots = array.spigots(
+            column="PREDICT", corr=mssel.get_corr_index()
+        )
         meqmaker.make_per_ifr_bookmarks(model_spigots, "UV-model visibilities")
     else:
         model_spigots = None
@@ -233,9 +243,13 @@ def _define_forest(ns):
 
     # throw in a bit of noise
     if noise_stddev:
-        noisedef = Meq.GaussNoise(stddev=noise_stddev, dims=[2, 2], complex=True)
+        noisedef = Meq.GaussNoise(
+            stddev=noise_stddev, dims=[2, 2], complex=True
+        )
         for p, q in array.ifrs():
-            ns.noisy_predict(p, q) << output(p, q) + (ns.noise(p, q) << noisedef)
+            ns.noisy_predict(p, q) << output(p, q) + (
+                ns.noise(p, q) << noisedef
+            )
         output = ns.noisy_predict
 
     # in add or subtract sim mode, make some spigots and add/subtract

@@ -62,7 +62,9 @@ def data_factory():
                     row += 1
         assert time.size == n_row
         # simulate visibilities
-        model_data = np.zeros((n_row, n_chan, n_dir) + corr_shape, dtype=np.complex128)
+        model_data = np.zeros(
+            (n_row, n_chan, n_dir) + corr_shape, dtype=np.complex128
+        )
         # make up some sources
         lm = lm_factory(n_dir, rs)
         alpha = -0.7
@@ -94,14 +96,19 @@ def data_factory():
         # get vis
         _, time_bin_indices, _, time_bin_counts = unique_time(time)
         vis = corrupt_vis(
-            time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model_data
+            time_bin_indices,
+            time_bin_counts,
+            antenna1,
+            antenna2,
+            jones,
+            model_data,
         )
         assert not np.isnan(vis).any()
         # add noise
         if sigma_n:
-            vis += rs.normal(loc=0.0, scale=sigma_n, size=vis.shape) + 1.0j * rs.normal(
+            vis += rs.normal(
                 loc=0.0, scale=sigma_n, size=vis.shape
-            )
+            ) + 1.0j * rs.normal(loc=0.0, scale=sigma_n, size=vis.shape)
         weights = np.ones(vis.shape, dtype=np.float64)
         if sigma_n:
             weights /= sigma_n ** 2

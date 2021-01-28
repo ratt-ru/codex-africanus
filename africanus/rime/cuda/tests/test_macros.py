@@ -30,9 +30,9 @@ def test_cuda_inplace_warp_transpose(ncorrs, dtype, nvis, debug):
         np.complex128: "double2",
     }
 
-    code = render(type=dtypes[dtype], warp_size=32, corrs=ncorrs, debug=debug).encode(
-        "utf-8"
-    )
+    code = render(
+        type=dtypes[dtype], warp_size=32, corrs=ncorrs, debug=debug
+    ).encode("utf-8")
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis * ncorrs, dtype=dtype).reshape(nvis, ncorrs)
@@ -47,4 +47,6 @@ def test_cuda_inplace_warp_transpose(ncorrs, dtype, nvis, debug):
         print(format_code(kernel.code))
         raise
 
-    np.testing.assert_array_almost_equal(cp.asnumpy(inputs), cp.asnumpy(outputs))
+    np.testing.assert_array_almost_equal(
+        cp.asnumpy(inputs), cp.asnumpy(outputs)
+    )

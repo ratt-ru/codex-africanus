@@ -66,7 +66,9 @@ def test_compute_jhj_dask(data_factory):
     time = data_dict["TIME"]
     ncpu = 8
     utimes_per_chunk = n_time // ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk
+    )
     ant1 = data_dict["ANTENNA1"]
     ant2 = data_dict["ANTENNA2"]
     model = data_dict["MODEL_DATA"]
@@ -74,10 +76,14 @@ def test_compute_jhj_dask(data_factory):
     flag = data_dict["FLAG"]
 
     # get the numpy result
-    jhj = np_compute_jhj(time_bin_idx, time_bin_counts, ant1, ant2, jones, model, flag)
+    jhj = np_compute_jhj(
+        time_bin_idx, time_bin_counts, ant1, ant2, jones, model, flag
+    )
 
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk)
+    )
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_model = da.from_array(
@@ -121,7 +127,9 @@ def test_compute_jhr_dask(data_factory):
     time = data_dict["TIME"]
     ncpu = 8
     utimes_per_chunk = n_time // ncpu
-    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(time, utimes_per_chunk)
+    row_chunks, time_bin_idx, time_bin_counts = chunkify_rows(
+        time, utimes_per_chunk
+    )
     ant1 = data_dict["ANTENNA1"]
     ant2 = data_dict["ANTENNA2"]
     model = data_dict["MODEL_DATA"]
@@ -135,7 +143,9 @@ def test_compute_jhr_dask(data_factory):
     )
 
     da_time_bin_idx = da.from_array(time_bin_idx, chunks=(utimes_per_chunk))
-    da_time_bin_counts = da.from_array(time_bin_counts, chunks=(utimes_per_chunk))
+    da_time_bin_counts = da.from_array(
+        time_bin_counts, chunks=(utimes_per_chunk)
+    )
     da_ant1 = da.from_array(ant1, chunks=row_chunks)
     da_ant2 = da.from_array(ant2, chunks=row_chunks)
     da_model = da.from_array(
@@ -202,7 +212,9 @@ def test_phase_only_diag_diag(data_factory):
     flag = data_dict["FLAG"]
     weight = data_dict["WEIGHT_SPECTRUM"]
     # calibrate the data
-    jones0 = np.ones((n_time, n_ant, n_chan, n_dir) + jones_shape, dtype=np.complex128)
+    jones0 = np.ones(
+        (n_time, n_ant, n_chan, n_dir) + jones_shape, dtype=np.complex128
+    )
     precision = 5
     gains, jhj, jhr, k = gauss_newton(
         time_bin_indices,

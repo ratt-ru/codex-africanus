@@ -7,7 +7,10 @@ import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.time_and_channel_avg import time_and_channel
-from africanus.averaging.time_and_channel_mapping import row_mapper, channel_mapper
+from africanus.averaging.time_and_channel_mapping import (
+    row_mapper,
+    channel_mapper,
+)
 
 nchan = 16
 ncorr = 4
@@ -15,7 +18,9 @@ ncorr = 4
 
 @pytest.fixture
 def time():
-    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
+    return np.asarray(
+        [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0]
+    )  # noqa
 
 
 @pytest.fixture
@@ -107,7 +112,9 @@ def flag():
     return _flag
 
 
-def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs, row_meta):
+def _gen_testing_lookup(
+    time, interval, ant1, ant2, flag_row, time_bin_secs, row_meta
+):
     """
     Generates the same lookup as row_mapper, but different.
 
@@ -120,7 +127,9 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs, row
     """
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
-    bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
+    bl_time_lookup = np.full(
+        (ubl.shape[0], utime.shape[0]), -1, dtype=np.int32
+    )
 
     # Create the row index
     row_idx = np.arange(time.size)
@@ -262,7 +271,9 @@ def test_averager(
     )
 
     # Effective and Nominal rows associated with each output row
-    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, nrows, erows in time_bl_row_map])
+    eff_idx, nom_idx = zip(
+        *[(nrows, erows) for _, _, nrows, erows in time_bl_row_map]
+    )
 
     eff_idx = [ei for ei in eff_idx if len(ei) > 0]
 
@@ -358,8 +369,12 @@ def test_averager(
                     exp_sigma = np.sqrt(exp_sigma / (exp_wts ** 2))
 
                 assert_array_almost_equal(exp_vis, avg.vis[orow, ch, corr])
-                assert_array_almost_equal(exp_sigma, avg.sigma_spectrum[orow, ch, corr])
-                assert_array_almost_equal(exp_wts, avg.weight_spectrum[orow, ch, corr])
+                assert_array_almost_equal(
+                    exp_sigma, avg.sigma_spectrum[orow, ch, corr]
+                )
+                assert_array_almost_equal(
+                    exp_wts, avg.weight_spectrum[orow, ch, corr]
+                )
 
 
 @pytest.mark.parametrize(
@@ -440,7 +455,9 @@ def test_dask_averager(
     da_ant2 = da.from_array(ant2, chunks=rows)
     da_chan_freq = da.from_array(frequency, chunks=chans)
     da_chan_width = da.from_array(chan_width, chunks=chans)
-    da_weight_spectrum = da.from_array(weight_spectrum, chunks=(rows, chans, corrs))
+    da_weight_spectrum = da.from_array(
+        weight_spectrum, chunks=(rows, chans, corrs)
+    )
     da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
     da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
 

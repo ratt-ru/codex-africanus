@@ -35,6 +35,8 @@ def test_dask_gauss_shape():
     uvw = da.random.random((row, 3), chunks=(row_chunks, 3))
     freq = da.linspace(0.856e9, 2 * 0.856e9, chan, chunks=chan_chunks)
     da_gauss_shape = da_gaussian(uvw, freq, shape_params).compute()
-    np_gauss_shape = np_gaussian(uvw.compute(), freq.compute(), shape_params.compute())
+    np_gauss_shape = np_gaussian(
+        uvw.compute(), freq.compute(), shape_params.compute()
+    )
 
     assert_array_almost_equal(da_gauss_shape, np_gauss_shape)

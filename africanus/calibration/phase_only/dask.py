@@ -55,7 +55,14 @@ def compute_jhj(
 
 @requires_optional("dask.array", dask_import_error)
 def compute_jhr(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    residual,
+    model,
+    flag,
 ):
 
     mode = check_type(jones, residual)

@@ -24,4 +24,6 @@ def test_progress_bar():
 
     assert " 5d 2h" == format_time(5 * 60 * 60 * 24 + 2 * 60 * 60 + 500)
 
-    assert " 5w 2d" == format_time(5 * 60 * 60 * 24 * 7 + 2 * 60 * 60 * 24 + 500)
+    assert " 5w 2d" == format_time(
+        5 * 60 * 60 * 24 * 7 + 2 * 60 * 60 * 24 + 500
+    )

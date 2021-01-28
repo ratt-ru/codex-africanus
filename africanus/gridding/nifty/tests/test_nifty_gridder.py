@@ -6,7 +6,13 @@ from numpy.testing import assert_array_almost_equal
 import pickle
 import pytest
 
-from africanus.gridding.nifty.dask import grid, degrid, dirty, model, grid_config
+from africanus.gridding.nifty.dask import (
+    grid,
+    degrid,
+    dirty,
+    model,
+    grid_config,
+)
 
 
 def rf(*a, **kw):

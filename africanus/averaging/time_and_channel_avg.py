@@ -6,7 +6,10 @@ from collections import namedtuple
 from numba import types
 import numpy as np
 
-from africanus.averaging.time_and_channel_mapping import row_mapper, channel_mapper
+from africanus.averaging.time_and_channel_mapping import (
+    row_mapper,
+    channel_mapper,
+)
 from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
@@ -84,14 +87,17 @@ def row_average(
             None
             if time_centroid is None
             else np.zeros(
-                (out_rows,) + time_centroid.shape[1:], dtype=time_centroid.dtype
+                (out_rows,) + time_centroid.shape[1:],
+                dtype=time_centroid.dtype,
             )
         )
 
         exposure_avg = (
             None
             if exposure is None
-            else np.zeros((out_rows,) + exposure.shape[1:], dtype=exposure.dtype)
+            else np.zeros(
+                (out_rows,) + exposure.shape[1:], dtype=exposure.dtype
+            )
         )
 
         weight_avg = (
@@ -531,7 +537,9 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
             chan = array_chan
         # Check consistency
         elif chan != array_chan:
-            raise ValueError("Inconsistent Channel Dimension " "in Input Arrays")
+            raise ValueError(
+                "Inconsistent Channel Dimension " "in Input Arrays"
+            )
 
     if corr_idx != -1:
         array_corr = shape[corr_idx]
@@ -544,7 +552,9 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
             corr = array_corr
         # Check consistency
         elif corr != array_corr:
-            raise ValueError("Inconsistent Correlation Dimension " "in Input Arrays")
+            raise ValueError(
+                "Inconsistent Correlation Dimension " "in Input Arrays"
+            )
 
     return chan, corr
 
@@ -626,7 +636,9 @@ def set_flagged_factory(present):
 
 
 _rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
-RowChanAverageOutput = namedtuple("RowChanAverageOutput", _rowchan_output_fields)
+RowChanAverageOutput = namedtuple(
+    "RowChanAverageOutput", _rowchan_output_fields
+)
 
 
 class RowChannelAverageException(Exception):
@@ -669,7 +681,9 @@ def row_chan_average(
 
     vis_normaliser = vis_normaliser_factory(have_vis)
     sigma_normaliser = sigma_spectrum_normaliser_factory(have_sigma_spectrum)
-    weight_normaliser = weight_spectrum_normaliser_factory(have_weight_spectrum)
+    weight_normaliser = weight_spectrum_normaliser_factory(
+        have_weight_spectrum
+    )
 
     set_flagged = set_flagged_factory(have_flag)
 
@@ -711,9 +725,13 @@ def row_chan_average(
 
         flagged_vis_avg = vis_factory(out_shape, vis)
         flagged_vis_weight_sum = weight_sum_factory(out_shape, vis)
-        flagged_weight_spectrum_avg = weight_factory(out_shape, weight_spectrum)
+        flagged_weight_spectrum_avg = weight_factory(
+            out_shape, weight_spectrum
+        )
         flagged_sigma_spectrum_avg = sigma_factory(out_shape, sigma_spectrum)
-        flagged_sigma_spectrum_weight_sum = sigma_factory(out_shape, sigma_spectrum)
+        flagged_sigma_spectrum_weight_sum = sigma_factory(
+            out_shape, sigma_spectrum
+        )
 
         flag_avg = flag_factory(out_shape, flag)
 
@@ -810,7 +828,9 @@ def row_chan_average(
                     if counts[r, f, c] > 0:
                         # We have some unflagged samples and
                         # only these are used as averaged output
-                        vis_normaliser(vis_avg, vis_avg, r, f, c, vis_weight_sum)
+                        vis_normaliser(
+                            vis_avg, vis_avg, r, f, c, vis_weight_sum
+                        )
                         sigma_normaliser(
                             sigma_spectrum_avg,
                             sigma_spectrum_avg,
@@ -823,7 +843,12 @@ def row_chan_average(
                         # We only have flagged samples and
                         # these are used as averaged output
                         vis_normaliser(
-                            vis_avg, flagged_vis_avg, r, f, c, flagged_vis_weight_sum
+                            vis_avg,
+                            flagged_vis_avg,
+                            r,
+                            f,
+                            c,
+                            flagged_vis_weight_sum,
                         )
                         sigma_normaliser(
                             sigma_spectrum_avg,
@@ -834,7 +859,11 @@ def row_chan_average(
                             flagged_sigma_spectrum_weight_sum,
                         )
                         weight_normaliser(
-                            weight_spectrum_avg, flagged_weight_spectrum_avg, r, f, c
+                            weight_spectrum_avg,
+                            flagged_weight_spectrum_avg,
+                            r,
+                            f,
+                            c,
                         )
 
                         # Flag the output bin
@@ -855,19 +884,31 @@ ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def chan_average(
-    chan_meta, chan_freq=None, chan_width=None, effective_bw=None, resolution=None
+    chan_meta,
+    chan_freq=None,
+    chan_width=None,
+    effective_bw=None,
+    resolution=None,
 ):
     def impl(
-        chan_meta, chan_freq=None, chan_width=None, effective_bw=None, resolution=None
+        chan_meta,
+        chan_freq=None,
+        chan_width=None,
+        effective_bw=None,
+        resolution=None,
     ):
         chan_map, out_chans = chan_meta
 
         chan_freq_avg = (
-            None if chan_freq is None else np.zeros(out_chans, dtype=chan_freq.dtype)
+            None
+            if chan_freq is None
+            else np.zeros(out_chans, dtype=chan_freq.dtype)
         )
 
         chan_width_avg = (
-            None if chan_width is None else np.zeros(out_chans, dtype=chan_width.dtype)
+            None
+            if chan_width is None
+            else np.zeros(out_chans, dtype=chan_width.dtype)
         )
 
         effective_bw_avg = (
@@ -877,7 +918,9 @@ def chan_average(
         )
 
         resolution_avg = (
-            None if resolution is None else np.zeros(out_chans, dtype=resolution.dtype)
+            None
+            if resolution is None
+            else np.zeros(out_chans, dtype=resolution.dtype)
         )
 
         counts = np.zeros(out_chans, dtype=np.uint32)
@@ -1006,7 +1049,11 @@ def time_and_channel(
     chan_bin_size=1,
 ):
 
-    valid_types = (types.misc.Omitted, types.scalars.Float, types.scalars.Integer)
+    valid_types = (
+        types.misc.Omitted,
+        types.scalars.Float,
+        types.scalars.Integer,
+    )
 
     if not isinstance(time_bin_secs, valid_types):
         raise TypeError("time_bin_secs must be a scalar float")

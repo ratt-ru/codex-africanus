@@ -78,11 +78,15 @@ def _observation_endpoints(year, month, day, hour_duration):
         "test",
         pytest.param(
             "casa",
-            marks=pytest.mark.skipif(no_casa, reason="python-casascore not installed"),
+            marks=pytest.mark.skipif(
+                no_casa, reason="python-casascore not installed"
+            ),
         ),
         pytest.param(
             "astropy",
-            marks=pytest.mark.skipif(no_astropy, reason="astropy not installed"),
+            marks=pytest.mark.skipif(
+                no_astropy, reason="astropy not installed"
+            ),
         ),
     ],
 )
@@ -102,12 +106,17 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.skipif(
-    no_casa or no_astropy, reason="Neither python-casacore or astropy installed"
+    no_casa or no_astropy,
+    reason="Neither python-casacore or astropy installed",
 )
 # Parametrize on observation length and error tolerance
 @pytest.mark.parametrize(
     "obs_and_tol",
-    [((2018, 1, 1, 4), "10s"), ((2018, 2, 20, 8), "10s"), ((2018, 11, 2, 4), "10s")],
+    [
+        ((2018, 1, 1, 4), "10s"),
+        ((2018, 2, 20, 8), "10s"),
+        ((2018, 11, 2, 4), "10s"),
+    ],
 )
 def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
@@ -133,7 +142,9 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
 
     # Convert to angle degrees
     astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180 * units.deg)
-    casa_pa = Angle(casa_pa * units.rad, unit=units.deg).wrap_at(180 * units.deg)
+    casa_pa = Angle(casa_pa * units.rad, unit=units.deg).wrap_at(
+        180 * units.deg
+    )
 
     # Difference in degrees, wrapped at 180
     diff = np.abs((astro_pa - casa_pa).wrap_at(180 * units.deg))
@@ -147,11 +158,15 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
         "test",
         pytest.param(
             "casa",
-            marks=pytest.mark.skipif(no_casa, reason="python-casascore not installed"),
+            marks=pytest.mark.skipif(
+                no_casa, reason="python-casascore not installed"
+            ),
         ),
         pytest.param(
             "astropy",
-            marks=pytest.mark.skipif(no_astropy, reason="astropy not installed"),
+            marks=pytest.mark.skipif(
+                no_astropy, reason="astropy not installed"
+            ),
         ),
     ],
 )

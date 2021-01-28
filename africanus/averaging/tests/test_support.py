@@ -10,7 +10,9 @@ from africanus.averaging.support import unique_baselines, unique_time
 
 @pytest.fixture
 def time():
-    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
+    return np.asarray(
+        [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0]
+    )  # noqa
 
 
 @pytest.fixture

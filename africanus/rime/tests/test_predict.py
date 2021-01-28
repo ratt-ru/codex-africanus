@@ -35,7 +35,12 @@ corr_shape_parametrization = pytest.mark.parametrize(
     [
         ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
         ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-        ((2, 2), ((1, 0), (0, 1)), "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil"),
+        (
+            (2, 2),
+            ((1, 0), (0, 1)),
+            "srcij,srcjk,srclk->rcil",
+            "rcij,rcjk,rclk->rcil",
+        ),
     ],
 )
 
@@ -64,7 +69,17 @@ die_presence_parametrization = pytest.mark.parametrize(
 @die_presence_parametrization
 @chunk_parametrization
 def test_predict_vis(
-    corr_shape, idm, einsum_sig1, einsum_sig2, a1j, blj, a2j, g1j, bvis, g2j, chunks
+    corr_shape,
+    idm,
+    einsum_sig1,
+    einsum_sig2,
+    a1j,
+    blj,
+    a2j,
+    g1j,
+    bvis,
+    g2j,
+    chunks,
 ):
     from africanus.rime.predict import predict_vis
 
@@ -131,7 +146,17 @@ def test_predict_vis(
 @die_presence_parametrization
 @chunk_parametrization
 def test_dask_predict_vis(
-    corr_shape, idm, einsum_sig1, einsum_sig2, a1j, blj, a2j, g1j, bvis, g2j, chunks
+    corr_shape,
+    idm,
+    einsum_sig1,
+    einsum_sig2,
+    a1j,
+    blj,
+    a2j,
+    g1j,
+    bvis,
+    g2j,
+    chunks,
 ):
 
     da = pytest.importorskip("dask.array")
@@ -207,7 +232,9 @@ def test_dask_predict_vis(
     stream_model_vis = predict_vis(*args, streams=True)
     fan_model_vis = predict_vis(*args, streams=False)
 
-    stream_model_vis, fan_model_vis = dask.compute(stream_model_vis, fan_model_vis)
+    stream_model_vis, fan_model_vis = dask.compute(
+        stream_model_vis, fan_model_vis
+    )
 
     assert_array_almost_equal(fan_model_vis, np_model_vis)
     assert_array_almost_equal(stream_model_vis, fan_model_vis)

@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
 
-from africanus.model.wsclean.spec_model import spectra as np_spectra, SPECTRA_DOCS
+from africanus.model.wsclean.spec_model import (
+    spectra as np_spectra,
+    SPECTRA_DOCS,
+)
 from africanus.util.requirements import requires_optional
 
 try:
@@ -39,6 +42,8 @@ def spectra(stokes, spi, log_si, ref_freq, frequency):
 
 
 try:
-    spectra.__doc__ = SPECTRA_DOCS.substitute(array_type=":class:`dask.array.Array`")
+    spectra.__doc__ = SPECTRA_DOCS.substitute(
+        array_type=":class:`dask.array.Array`"
+    )
 except AttributeError:
     pass

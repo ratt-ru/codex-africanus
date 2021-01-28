@@ -83,7 +83,9 @@ CHECK_TYPE_DOCS = DocstringTemplate(
 )
 
 try:
-    check_type.__doc__ = CHECK_TYPE_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    check_type.__doc__ = CHECK_TYPE_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass
 

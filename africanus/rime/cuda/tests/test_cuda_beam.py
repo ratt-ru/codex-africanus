@@ -39,7 +39,14 @@ def test_cuda_beam(corrs):
     ant_scales = rs.normal(size=(ant, chan, 2))
 
     np_ddes = np_beam_cube_dde(
-        beam, beam_lm_ext, beam_freq_map, lm, parangles, point_errors, ant_scales, freqs
+        beam,
+        beam_lm_ext,
+        beam_freq_map,
+        lm,
+        parangles,
+        point_errors,
+        ant_scales,
+        freqs,
     )
 
     cp_ddes = cp_beam_cude_dde(

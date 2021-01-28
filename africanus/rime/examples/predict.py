@@ -204,7 +204,8 @@ def load_beams(beam_file_schema, corr_types):
 
     if not header["NAXIS"] == 3:
         raise ValueError(
-            "FITS must have exactly three axes. " "L or X, M or Y and FREQ. NAXIS != 3"
+            "FITS must have exactly three axes. "
+            "L or X, M or Y and FREQ. NAXIS != 3"
         )
 
     (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
@@ -217,15 +218,20 @@ def load_beams(beam_file_schema, corr_types):
 
     def _load_correlation(re, im, ax):
         # Read real and imaginary for each correlation
-        return re.hdul[0].data.transpose(ax) + im.hdul[0].data.transpose(ax) * 1j
+        return (
+            re.hdul[0].data.transpose(ax) + im.hdul[0].data.transpose(ax) * 1j
+        )
 
     # Create delayed loads of the beam
     beam_loader = dask.delayed(_load_correlation)
 
     beam_corrs = [
-        beam_loader(re, im, ax) for c, (corr, (re, im)) in enumerate(beam_files)
+        beam_loader(re, im, ax)
+        for c, (corr, (re, im)) in enumerate(beam_files)
     ]
-    beam_corrs = [da.from_delayed(bc, shape=shape, dtype=dtype) for bc in beam_corrs]
+    beam_corrs = [
+        da.from_delayed(bc, shape=shape, dtype=dtype) for bc in beam_corrs
+    ]
 
     # Stack correlations and rechunk to one great big block
     beam = da.stack(beam_corrs, axis=3)
@@ -279,7 +285,9 @@ def parse_sky_model(filename, chunks):
         U = source.flux.U
         V = source.flux.V
 
-        spectrum = getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
+        spectrum = (
+            getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
+        )
 
         try:
             # Extract reference frequency
@@ -315,7 +323,9 @@ def parse_sky_model(filename, chunks):
             raise ValueError("Unknown source morphology %s" % typecode)
 
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
-    Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"])
+    Gauss = namedtuple(
+        "Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"]
+    )
 
     source_data = {}
 
@@ -370,8 +380,12 @@ def support_tables(args):
         "DATA_DESCRIPTION": xds_from_table(n["DATA_DESCRIPTION"]),
         # Variably shaped, need a dataset per row
         "FIELD": xds_from_table(n["FIELD"], group_cols="__row__"),
-        "SPECTRAL_WINDOW": xds_from_table(n["SPECTRAL_WINDOW"], group_cols="__row__"),
-        "POLARIZATION": xds_from_table(n["POLARIZATION"], group_cols="__row__"),
+        "SPECTRAL_WINDOW": xds_from_table(
+            n["SPECTRAL_WINDOW"], group_cols="__row__"
+        ),
+        "POLARIZATION": xds_from_table(
+            n["POLARIZATION"], group_cols="__row__"
+        ),
     }
 
     lazy_tables.update(dask.compute(compute_tables)[0])
@@ -402,7 +416,9 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     if not len(corr_type) == 4:
         raise ValueError("Need four correlations for DDEs")
 
-    parangles = parallactic_angles(utime, ant.POSITION.data, field.PHASE_DIR.data[0][0])
+    parangles = parallactic_angles(
+        utime, ant.POSITION.data, field.PHASE_DIR.data[0][0]
+    )
 
     corr_type_set = set(corr_type)
 
@@ -457,7 +473,9 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
     # Introduce the correlation axis
     beam = beam.reshape(beam.shape[:3] + (2, 2))
 
-    beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles, zpe, zas, frequency)
+    beam_dde = beam_cube_dde(
+        beam, lm_ext, freq_map, lm, parangles, zpe, zas, frequency
+    )
 
     # Multiply the beam by the feed rotation to form the DDE term
     return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
@@ -485,7 +503,11 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
     stokes = spectral_model(
-        source.stokes, source.spi, source.ref_freq, frequency, base=[1, 0, 0, 0]
+        source.stokes,
+        source.spi,
+        source.ref_freq,
+        frequency,
+        base=[1, 0, 0, 0],
     )
 
     brightness = convert(stokes, ["I", "Q", "U", "V"], corr_schema(pol))
@@ -507,7 +529,9 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     )
 
     # Need unique times for parallactic angles
-    utime = utime_inv.map_blocks(getitem, 0, chunks=(np.nan,), dtype=ms.TIME.dtype)
+    utime = utime_inv.map_blocks(
+        getitem, 0, chunks=(np.nan,), dtype=ms.TIME.dtype
+    )
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
@@ -516,7 +540,15 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
 
     return predict_vis(
-        time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data, dde, jones, dde, None, None, None
+        time_idx,
+        ms.ANTENNA1.data,
+        ms.ANTENNA2.data,
+        dde,
+        jones,
+        dde,
+        None,
+        None,
+        None,
     )
 
 

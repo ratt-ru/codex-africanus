@@ -31,7 +31,9 @@ class clock:
 
     def __str__(self):
         res = "{0:s}: Walltime {1:.0f}m{2:.2f}s elapsed".format(
-            self._id, self.elapsed // 60, self.elapsed - (self.elapsed // 60) * 60
+            self._id,
+            self.elapsed // 60,
+            self.elapsed - (self.elapsed // 60) * 60,
         )
         return res
 
@@ -71,12 +73,17 @@ def test_gridder_dask():
         uvw = da.from_array(uvw, chunks=(row_chunks, 3))
         pxacrossbeam = 5
         nchan = 128
-        frequency = da.from_array(np.linspace(1.0e9, 1.4e9, nchan), chunks=(nchan,))
+        frequency = da.from_array(
+            np.linspace(1.0e9, 1.4e9, nchan), chunks=(nchan,)
+        )
         wavelength = lightspeed / frequency
         cell = da.rad2deg(
             wavelength[0]
             / (
-                max(da.max(da.absolute(uvw[:, 0])), da.max(da.absolute(uvw[:, 1])))
+                max(
+                    da.max(da.absolute(uvw[:, 0])),
+                    da.max(da.absolute(uvw[:, 1])),
+                )
                 * pxacrossbeam
             )
         )
@@ -84,12 +91,16 @@ def test_gridder_dask():
         fftpad = 1.1
 
         image_centres = da.from_array(np.array([[0, d0]]), chunks=(1, 2))
-        chanmap = da.from_array(np.zeros(nchan, dtype=np.int64), chunks=(nchan,))
+        chanmap = da.from_array(
+            np.zeros(nchan, dtype=np.int64), chunks=(nchan,)
+        )
         detaper_facet = kernels.compute_detaper_dft_seperable(
             int(npixfacet * fftpad), kernels.unpack_kernel(kern, W, OS), W, OS
         )
         vis_dft = da.ones(
-            shape=(nrow, nchan, 2), chunks=(row_chunks, nchan, 2), dtype=np.complex64
+            shape=(nrow, nchan, 2),
+            chunks=(row_chunks, nchan, 2),
+            dtype=np.complex64,
         )
         vis_grid_facet = dwrap.gridder(
             uvw,
@@ -116,7 +127,9 @@ def test_gridder_dask():
             (
                 np.fft.fftshift(
                     np.fft.ifft2(np.fft.ifftshift(vis_grid_facet[0, :, :]))
-                ).reshape((1, int(npixfacet * fftpad), int(npixfacet * fftpad)))
+                ).reshape(
+                    (1, int(npixfacet * fftpad), int(npixfacet * fftpad))
+                )
             ).real
             / detaper_facet
             * int(npixfacet * fftpad) ** 2
@@ -170,7 +183,10 @@ def test_gridder_nondask():
         cell = np.rad2deg(
             wavelength[0]
             / (
-                max(np.max(np.absolute(uvw[:, 0])), np.max(np.absolute(uvw[:, 1])))
+                max(
+                    np.max(np.absolute(uvw[:, 0])),
+                    np.max(np.absolute(uvw[:, 1])),
+                )
                 * pxacrossbeam
             )
         )
@@ -205,7 +221,9 @@ def test_gridder_nondask():
             (
                 np.fft.fftshift(
                     np.fft.ifft2(np.fft.ifftshift(vis_grid_facet[0, :, :]))
-                ).reshape((1, int(npixfacet * fftpad), int(npixfacet * fftpad)))
+                ).reshape(
+                    (1, int(npixfacet * fftpad), int(npixfacet * fftpad))
+                )
             ).real
             / detaper_facet
             * int(npixfacet * fftpad) ** 2
@@ -229,7 +247,9 @@ def test_degrid_dft_packed_nondask():
     # construct kernel
     W = 5
     OS = 3
-    kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+    kern = kernels.pack_kernel(
+        kernels.kbsinc(W, oversample=OS), W, oversample=OS
+    )
     nrow = int(5e4)
     uvw = np.column_stack(
         (
@@ -246,15 +266,19 @@ def test_degrid_dft_packed_nondask():
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 512
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
 
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0, :, :]))).reshape(
-        (1, npix, npix)
-    )
+    ftmod = np.fft.ifftshift(
+        np.fft.fft2(np.fft.fftshift(mod[0, :, :]))
+    ).reshape((1, npix, npix))
     chanmap = np.zeros(nchan, dtype=np.int64)
 
     with clock("Non-DASK degridding") as tictoc:
@@ -284,7 +308,9 @@ def test_degrid_dft_packed_dask():
     # construct kernel
     W = 5
     OS = 3
-    kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+    kern = kernels.pack_kernel(
+        kernels.kbsinc(W, oversample=OS), W, oversample=OS
+    )
     nrow = int(5e4)
     nrow_chunk = nrow // 32
     uvw = np.column_stack(
@@ -302,15 +328,19 @@ def test_degrid_dft_packed_dask():
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 512
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
 
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0, :, :]))).reshape(
-        (1, 1, npix, npix)
-    )
+    ftmod = np.fft.ifftshift(
+        np.fft.fft2(np.fft.fftshift(mod[0, :, :]))
+    ).reshape((1, 1, npix, npix))
     chanmap = np.zeros(nchan, dtype=np.int64)
 
     with clock("DASK degridding") as tictoc:
@@ -342,7 +372,9 @@ def test_degrid_dft_packed_dask_dft_check():
     # construct kernel
     W = 5
     OS = 3
-    kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+    kern = kernels.pack_kernel(
+        kernels.kbsinc(W, oversample=OS), W, oversample=OS
+    )
     nrow = 100
     nrow_chunk = nrow // 8
     uvw = np.column_stack(
@@ -360,15 +392,19 @@ def test_degrid_dft_packed_dask_dft_check():
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 512
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
 
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0, :, :]))).reshape(
-        (1, 1, npix, npix)
-    )
+    ftmod = np.fft.ifftshift(
+        np.fft.fft2(np.fft.fftshift(mod[0, :, :]))
+    ).reshape((1, 1, npix, npix))
     chanmap = np.zeros(nchan, dtype=np.int64)
     dec, ra = np.meshgrid(
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell),
@@ -399,10 +435,14 @@ def test_degrid_dft_packed_dask_dft_check():
     vis_degrid = vis_degrid.compute()
 
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0
+        )
         < 0.05
     )
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0
+        )
         < 0.05
     )

@@ -211,7 +211,9 @@ def test_vis_to_im_flagged():
     im_of_vis = vis_to_im(vis, uvw, lm, frequency, flags)
 
     assert_array_almost_equal(
-        im_of_vis, np.ones((nsource, nchan, ncorr), dtype=np.float64), decimal=13
+        im_of_vis,
+        np.ones((nsource, nchan, ncorr), dtype=np.float64),
+        decimal=13,
     )
 
 
@@ -275,7 +277,9 @@ def test_vis_to_im_dask():
 
     flagged_frac = 0.45
     flags = np.random.choice(
-        a=[False, True], size=(nrow, nchan, ncorr), p=[flagged_frac, 1 - flagged_frac]
+        a=[False, True],
+        size=(nrow, nchan, ncorr),
+        p=[flagged_frac, 1 - flagged_frac],
     )
 
     image = np_vis_to_im(vis, uvw, lm, frequency, flags)

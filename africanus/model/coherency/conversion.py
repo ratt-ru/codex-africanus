@@ -95,7 +95,9 @@ def _element_indices_and_shape(data):
 
                 result[e] = current_idx + (i,)
             else:
-                raise TypeError("Invalid type '%s' for element '%s'" % (type(e), e))
+                raise TypeError(
+                    "Invalid type '%s' for element '%s'" % (type(e), e)
+                )
 
     return result, tuple(shape)
 
@@ -256,6 +258,8 @@ CONVERT_DOCS = DocstringTemplate(CONVERT_DOCS.format(stokes_type_map=_map_str))
 del _map_str
 
 try:
-    convert.__doc__ = CONVERT_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    convert.__doc__ = CONVERT_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

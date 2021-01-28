@@ -16,7 +16,9 @@ def test_cuda_phase_delay(dtype, decimal):
     uvw = np.random.random((100, 3)).astype(dtype)
     freq = np.linspace(0.856e9, 2 * 0.856e9, 70, dtype=dtype)
 
-    cp_cplx_phase = cp_phase_delay(cp.asarray(lm), cp.asarray(uvw), cp.asarray(freq))
+    cp_cplx_phase = cp_phase_delay(
+        cp.asarray(lm), cp.asarray(uvw), cp.asarray(freq)
+    )
     np_cplx_phase = np_phase_delay(lm, uvw, freq)
 
     np.testing.assert_array_almost_equal(

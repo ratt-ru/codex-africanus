@@ -13,7 +13,9 @@ from africanus.gridding.wgridder.im2vis import MODEL_DOCS
 from africanus.gridding.wgridder.im2residim import RESIDUAL_DOCS
 from africanus.gridding.wgridder.im2vis import _model_internal as model_np
 from africanus.gridding.wgridder.vis2im import _dirty_internal as dirty_np
-from africanus.gridding.wgridder.im2residim import _residual_internal as residual_np
+from africanus.gridding.wgridder.im2residim import (
+    _residual_internal as residual_np,
+)
 from africanus.util.requirements import requires_optional
 
 
@@ -347,4 +349,6 @@ def residual(
 
 model.__doc__ = MODEL_DOCS.substitute(array_type=":class:`dask.array.Array`")
 dirty.__doc__ = DIRTY_DOCS.substitute(array_type=":class:`dask.array.Array`")
-residual.__doc__ = RESIDUAL_DOCS.substitute(array_type=":class:`dask.array.Array`")
+residual.__doc__ = RESIDUAL_DOCS.substitute(
+    array_type=":class:`dask.array.Array`"
+)

@@ -42,20 +42,32 @@ def subtract_model_factory(mode):
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
                 out[0, 0] -= (
-                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                    t1 * tmp[0, 0]
+                    + t2 * tmp[0, 0]
+                    + t3 * tmp[1, 0]
+                    + t4 * tmp[1, 0]
                 )
                 out[0, 1] -= (
-                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                    t1 * tmp[0, 1]
+                    + t2 * tmp[0, 1]
+                    + t3 * tmp[1, 1]
+                    + t4 * tmp[1, 1]
                 )
                 t1 = a1j[s, 1, 0] * model[s, 0, 0]
                 t2 = a1j[s, 1, 1] * model[s, 1, 0]
                 t3 = a1j[s, 1, 0] * model[s, 0, 1]
                 t4 = a1j[s, 1, 1] * model[s, 1, 1]
                 out[1, 0] -= (
-                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                    t1 * tmp[0, 0]
+                    + t2 * tmp[0, 0]
+                    + t3 * tmp[1, 0]
+                    + t4 * tmp[1, 0]
                 )
                 out[1, 1] -= (
-                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                    t1 * tmp[0, 1]
+                    + t2 * tmp[0, 1]
+                    + t3 * tmp[1, 1]
+                    + t4 * tmp[1, 1]
                 )
 
     return njit(nogil=True, inline="always")(subtract_model)
@@ -63,7 +75,14 @@ def subtract_model_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def residual_vis(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    vis,
+    flag,
+    model,
 ):
 
     mode = check_type(jones, vis)
@@ -71,7 +90,14 @@ def residual_vis(
 
     @wraps(residual_vis)
     def _residual_vis_fn(
-        time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        vis,
+        flag,
+        model,
     ):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero

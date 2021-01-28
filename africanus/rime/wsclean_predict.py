@@ -14,7 +14,9 @@ gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def wsclean_predict_impl(uvw, lm, source_type, gauss_shape, frequency, spectrum, dtype):
+def wsclean_predict_impl(
+    uvw, lm, source_type, gauss_shape, frequency, spectrum, dtype
+):
     nrow = uvw.shape[0]
     nchan = frequency.shape[0]
     ncorr = 1
@@ -86,15 +88,32 @@ def wsclean_predict_impl(uvw, lm, source_type, gauss_shape, frequency, spectrum,
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def wsclean_predict(
-    uvw, lm, source_type, flux, coeffs, log_poly, ref_freq, gauss_shape, frequency
+    uvw,
+    lm,
+    source_type,
+    flux,
+    coeffs,
+    log_poly,
+    ref_freq,
+    gauss_shape,
+    frequency,
 ):
     arg_dtypes = tuple(
-        np.dtype(a.dtype.name) for a in (uvw, lm, flux, coeffs, ref_freq, frequency)
+        np.dtype(a.dtype.name)
+        for a in (uvw, lm, flux, coeffs, ref_freq, frequency)
     )
     dtype = np.result_type(np.complex64, *arg_dtypes)
 
     def impl(
-        uvw, lm, source_type, flux, coeffs, log_poly, ref_freq, gauss_shape, frequency
+        uvw,
+        lm,
+        source_type,
+        flux,
+        coeffs,
+        log_poly,
+        ref_freq,
+        gauss_shape,
+        frequency,
     ):
         spectrum = spectra(flux, coeffs, log_poly, ref_freq, frequency)
         return wsclean_predict_impl(

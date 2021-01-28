@@ -5,8 +5,12 @@ from africanus.util.numba import jit
 from africanus.gridding.perleypolyhedron.policies import (
     baseline_transform_policies as btp,
 )
-from africanus.gridding.perleypolyhedron.policies import phase_transform_policies as ptp
-from africanus.gridding.perleypolyhedron.policies import convolution_policies as cp
+from africanus.gridding.perleypolyhedron.policies import (
+    phase_transform_policies as ptp,
+)
+from africanus.gridding.perleypolyhedron.policies import (
+    convolution_policies as cp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
     stokes_conversion_policies as scp,
 )
@@ -121,7 +125,9 @@ def degridder(
     """
 
     if chanmap.size != wavelengths.size:
-        raise ValueError("Chanmap and corresponding wavelengths must match in shape")
+        raise ValueError(
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -138,7 +144,9 @@ def degridder(
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
-        raise ValueError("UVW array must have same number of rows as vis array")
+        raise ValueError(
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
@@ -222,7 +230,9 @@ def degridder_serial(
     """
 
     if chanmap.size != wavelengths.size:
-        raise ValueError("Chanmap and corresponding wavelengths must match in shape")
+        raise ValueError(
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -239,7 +249,9 @@ def degridder_serial(
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
-        raise ValueError("UVW array must have same number of rows as vis array")
+        raise ValueError(
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 

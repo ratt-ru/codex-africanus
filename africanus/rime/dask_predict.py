@@ -73,7 +73,8 @@ class LinearReduction(Mapping):
         self.func = func
         self.output_indices = tuple(output_indices)
         self.indices = tuple(
-            (name, tuple(ind) if ind is not None else ind) for name, ind in indices
+            (name, tuple(ind) if ind is not None else ind)
+            for name, ind in indices
         )
         self.numblocks = numblocks
 
@@ -115,7 +116,9 @@ class LinearReduction(Mapping):
             dim_map = {k: i for i, k in enumerate(out_dims)}
 
             dsk = {}
-            int_name = "-".join((self.func_name, "intermediate", tokenize(self.name)))
+            int_name = "-".join(
+                (self.func_name, "intermediate", tokenize(self.name))
+            )
 
             # Iterate over the output keys creating associated task
             for out_ind in product(*[range(dim_blocks[d]) for d in out_dims]):
@@ -144,7 +147,11 @@ class LinearReduction(Mapping):
                     else:
                         # Derive input key from output key indices
                         task.append(
-                            tuple(_ind_map(arg, ind, out_ind, dim_map, dim_blocks))
+                            tuple(
+                                _ind_map(
+                                    arg, ind, out_ind, dim_map, dim_blocks
+                                )
+                            )
                         )
 
                 # Final block

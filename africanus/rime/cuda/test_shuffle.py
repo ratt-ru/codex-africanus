@@ -136,7 +136,9 @@ def test_cuda_shuffle_transpose():
         print(format_code(kernel.code))
         raise
 
-    np.testing.assert_array_almost_equal(cp.asnumpy(inputs), cp.asnumpy(outputs))
+    np.testing.assert_array_almost_equal(
+        cp.asnumpy(inputs), cp.asnumpy(outputs)
+    )
     return
 
     # Dead code
@@ -366,7 +368,9 @@ def test_cuda_shuffle_transpose_2(ncorrs):
         print(format_code(kernel.code))
         raise
 
-    np.testing.assert_array_almost_equal(cp.asnumpy(inputs), cp.asnumpy(outputs))
+    np.testing.assert_array_almost_equal(
+        cp.asnumpy(inputs), cp.asnumpy(outputs)
+    )
     return
 
     # Dead code

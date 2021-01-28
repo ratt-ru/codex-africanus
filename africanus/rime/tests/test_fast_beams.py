@@ -136,7 +136,9 @@ def test_grid_interpolate(freqs, beam_freq_map):
 
     # Frequencies (first -- 0.8 and last -- 1.1)
     # outside the beam result in scaling,
-    assert_array_almost_equal(freq_scale, [0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.1])
+    assert_array_almost_equal(
+        freq_scale, [0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.1]
+    )
     # Frequencies outside the beam are snapped to 0 if below
     # and beam_nud - 2 if above.
     # Frequencies on the edges are similarly snapped
@@ -201,7 +203,9 @@ def test_dask_fast_beams(freqs, beam_freq_map):
     da_beam_freq_map = da.from_array(beam_freq_map, chunks=beam_freq_map.shape)
     da_lm = da.from_array(lm, chunks=(src_c, 2))
     da_parangles = da.from_array(parangles, chunks=(time_c, ants_c))
-    da_point_errors = da.from_array(point_errors, chunks=(time_c, ants_c, chan_c, 2))
+    da_point_errors = da.from_array(
+        point_errors, chunks=(time_c, ants_c, chan_c, 2)
+    )
     da_ant_scale = da.from_array(antenna_scaling, chunks=(ants_c, chan_c, 2))
     da_extents = da.from_array(beam_lm_extents, chunks=beam_lm_extents.shape)
     da_freqs = da.from_array(freqs, chunks=chan_c)

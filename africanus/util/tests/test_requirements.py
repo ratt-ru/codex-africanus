@@ -6,7 +6,10 @@ import sys
 
 import pytest
 
-from africanus.util.requirements import requires_optional, MissingPackageException
+from africanus.util.requirements import (
+    requires_optional,
+    MissingPackageException,
+)
 from africanus.util.testing import force_missing_pkg_exception as force_tag
 
 
@@ -18,8 +21,9 @@ def test_requires_optional_missing_import():
     with pytest.raises(MissingPackageException) as e:
         f(1, a=2)
 
-    assert "f requires installation of the following packages: ('bob',)." in str(
-        e.value
+    assert (
+        "f requires installation of the following packages: ('bob',)."
+        in str(e.value)
     )
 
 

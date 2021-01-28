@@ -5,8 +5,12 @@ from africanus.util.numba import jit
 from africanus.gridding.perleypolyhedron.policies import (
     baseline_transform_policies as btp,
 )
-from africanus.gridding.perleypolyhedron.policies import phase_transform_policies as ptp
-from africanus.gridding.perleypolyhedron.policies import convolution_policies as cp
+from africanus.gridding.perleypolyhedron.policies import (
+    phase_transform_policies as ptp,
+)
+from africanus.gridding.perleypolyhedron.policies import (
+    convolution_policies as cp,
+)
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
@@ -59,7 +63,9 @@ def gridder(
     @do_normalize: normalize grid by convolution weights
     """
     if chanmap.size != wavelengths.size:
-        raise ValueError("Chanmap and corresponding wavelengths must match in shape")
+        raise ValueError(
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -67,7 +73,9 @@ def gridder(
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
-        raise ValueError("UVW array must have same number of rows as vis array")
+        raise ValueError(
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
@@ -90,7 +98,9 @@ def gridder(
             policy_type=literally(phase_transform_policy),
             phasesign=1.0,
         )
-        btp.policy(uvw[r, :], ra0, dec0, ra, dec, literally(baseline_transform_policy))
+        btp.policy(
+            uvw[r, :], ra0, dec0, ra, dec, literally(baseline_transform_policy)
+        )
         for c in range(nvischan):
             scaled_u = uvw[r, 0] * scale_factor / wavelengths[c]
             scaled_v = uvw[r, 1] * scale_factor / wavelengths[c]

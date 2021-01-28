@@ -27,7 +27,9 @@ def zernike_rad(m_indices, n_indices, rho):
     for c in range(m_indices.shape[0]):
         n, m = n_indices[c], m_indices[c]
         for k in range(int((n - m) / 2 + 1)):
-            radial_component[:, c] += pre_fac(k, n, m) * rho[:, c] ** (n - 2.0 * k)
+            radial_component[:, c] += pre_fac(k, n, m) * rho[:, c] ** (
+                n - 2.0 * k
+            )
     return radial_component
 
 

@@ -45,8 +45,14 @@ def test_2d_shapelet(gf_shapelets):
     nsrc = 1
 
     # Define the range of uv values
-    u_range = [-2 * np.sqrt(2) * (beta[0] ** (-1)), 2 * np.sqrt(2) * (beta[0] ** (-1))]
-    v_range = [-2 * np.sqrt(2) * (beta[1] ** (-1)), 2 * np.sqrt(2) * (beta[1] ** (-1))]
+    u_range = [
+        -2 * np.sqrt(2) * (beta[0] ** (-1)),
+        2 * np.sqrt(2) * (beta[0] ** (-1)),
+    ]
+    v_range = [
+        -2 * np.sqrt(2) * (beta[1] ** (-1)),
+        2 * np.sqrt(2) * (beta[1] ** (-1)),
+    ]
 
     # Create an lm grid from the regular uv grid
     max_u = u_range[1]
@@ -177,16 +183,23 @@ def test_dask_shapelets():
     np_beta = np.empty((source, 2))
     np_beta[:, 0], np_beta[:, 1] = beta_vals[0], beta_vals[1]
     np_delta_lm = np.array(
-        [1 / (10 * np.max(np_coords[:, 0])), 1 / (10 * np.max(np_coords[:, 1]))]
+        [
+            1 / (10 * np.max(np_coords[:, 0])),
+            1 / (10 * np.max(np_coords[:, 1])),
+        ]
     )
 
     da_coords = da.from_array(np_coords, chunks=(row_chunks, 3))
-    da_coeffs = da.from_array(np_coeffs, chunks=(source_chunks, nmax[0], nmax[1]))
+    da_coeffs = da.from_array(
+        np_coeffs, chunks=(source_chunks, nmax[0], nmax[1])
+    )
     da_frequency = da.from_array(np_frequency, chunks=(nchan,))
     da_beta = da.from_array(np_beta, chunks=(source_chunks, 2))
     delta_lm = da.from_array(np_delta_lm, chunks=(2))
 
-    np_shapelets = nb_shapelet(np_coords, np_frequency, np_coeffs, np_beta, np_delta_lm)
+    np_shapelets = nb_shapelet(
+        np_coords, np_frequency, np_coeffs, np_beta, np_delta_lm
+    )
     da_shapelets = da_shapelet(
         da_coords, da_frequency, da_coeffs, da_beta, delta_lm
     ).compute()

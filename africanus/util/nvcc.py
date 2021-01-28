@@ -293,7 +293,8 @@ def _get_cuda_info():
 
         if proc.returncode != 0:
             raise RuntimeError(
-                "Cannot determine " "compute architecture {0}".format(stderrdata)
+                "Cannot determine "
+                "compute architecture {0}".format(stderrdata)
             )
 
         try:
@@ -359,7 +360,10 @@ class _UnixCCompiler(unixccompiler.UnixCCompiler):
             self.set_executable("compiler_so", nvcc_path)
 
             cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
-            postargs = get_gencode_options() + ["-O2", '--compiler-options="-fPIC"']
+            postargs = get_gencode_options() + [
+                "-O2",
+                '--compiler-options="-fPIC"',
+            ]
             postargs += extra_postargs
             # print('NVCC options:', postargs)
 
@@ -424,7 +428,9 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
                 other_sources.append(source)
 
         # Compile source files other than CUDA C ones.
-        other_objects = msvccompiler.MSVCCompiler.compile(self, other_sources, **kwargs)
+        other_objects = msvccompiler.MSVCCompiler.compile(
+            self, other_sources, **kwargs
+        )
 
         # Compile CUDA C sources.
         cu_objects = self._compile_cu(cu_sources, **kwargs)
@@ -479,7 +485,9 @@ def compile_using_nvcc(source, options=None, arch=None, filename="kern.cu"):
 
     if arch is None:
         cuda_info = get_cuda_info()
-        arch = min([dev["major"] * 10 + dev["minor"] for dev in cuda_info["devices"]])
+        arch = min(
+            [dev["major"] * 10 + dev["minor"] for dev in cuda_info["devices"]]
+        )
 
     cc = get_compiler()
     settings = get_compiler_setting()

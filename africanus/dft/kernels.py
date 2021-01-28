@@ -16,7 +16,8 @@ def im_to_vis(image, uvw, lm, frequency, convention="fourier", dtype=None):
     # Infer complex output dtype if none provided
     if is_numba_type_none(dtype):
         out_dtype = np.result_type(
-            np.complex64, *(np.dtype(a.dtype.name) for a in (image, uvw, lm, frequency))
+            np.complex64,
+            *(np.dtype(a.dtype.name) for a in (image, uvw, lm, frequency))
         )
     else:
         out_dtype = dtype.dtype
@@ -61,7 +62,9 @@ def im_to_vis(image, uvw, lm, frequency, convention="fourier", dtype=None):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def vis_to_im(vis, uvw, lm, frequency, flags, convention="fourier", dtype=None):
+def vis_to_im(
+    vis, uvw, lm, frequency, flags, convention="fourier", dtype=None
+):
     # Infer output dtype if none provided
     if is_numba_type_none(dtype):
         # Support both real and complex visibilities...
@@ -71,7 +74,8 @@ def vis_to_im(vis, uvw, lm, frequency, flags, convention="fourier", dtype=None):
             vis_comp_dtype = np.dtype(vis.dtype.name)
 
         out_dtype = np.result_type(
-            vis_comp_dtype, *(np.dtype(a.dtype.name) for a in (uvw, lm, frequency))
+            vis_comp_dtype,
+            *(np.dtype(a.dtype.name) for a in (uvw, lm, frequency))
         )
     else:
         if isinstance(dtype, numba.types.scalars.Complex):
@@ -128,7 +132,9 @@ def vis_to_im(vis, uvw, lm, frequency, flags, convention="fourier", dtype=None):
     return impl
 
 
-_DFT_DOCSTRING = namedtuple("_DFTDOCSTRING", ["preamble", "parameters", "returns"])
+_DFT_DOCSTRING = namedtuple(
+    "_DFTDOCSTRING", ["preamble", "parameters", "returns"]
+)
 
 im_to_vis_docs = _DFT_DOCSTRING(
     preamble="""

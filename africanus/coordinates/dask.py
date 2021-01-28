@@ -108,7 +108,9 @@ try:
         lm_components="2", array_type=":class:`dask.array.Array`"
     )
     lmn_to_radec.__doc__ = LMN_TO_RADEC_DOCS.substitute(
-        lm_name="lmn", lm_components="3", array_type=":class:`dask.array.Array`"
+        lm_name="lmn",
+        lm_components="3",
+        array_type=":class:`dask.array.Array`",
     )
     lm_to_radec.__doc__ = LMN_TO_RADEC_DOCS.substitute(
         lm_name="lm", lm_components="2", array_type=":class:`dask.array.Array`"

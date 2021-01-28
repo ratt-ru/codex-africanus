@@ -29,6 +29,8 @@ def phase_delay(lm, uvw, frequency):
 
     n = np.sqrt(one - l ** 2 - m ** 2) - one
 
-    real_phase = neg_two_pi_over_c * (l * u + m * v + n * w) * frequency[None, None, :]
+    real_phase = (
+        neg_two_pi_over_c * (l * u + m * v + n * w) * frequency[None, None, :]
+    )
 
     return np.exp(complex_one * real_phase)

@@ -10,7 +10,9 @@ from africanus.util.numba import generated_jit, njit
 @njit(nogil=True, cache=True)
 def _unique_internal(data):
     if len(data.shape) != 1:
-        raise ValueError("_unique_internal currently " "only supports 1D arrays")
+        raise ValueError(
+            "_unique_internal currently " "only supports 1D arrays"
+        )
 
     # Handle the empty array case
     if data.shape[0] == 0:

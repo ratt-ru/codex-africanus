@@ -30,7 +30,14 @@ def jacobian_factory(mode):
 
 @generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
 def compute_jhj_and_jhr(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    residual,
+    model,
+    flag,
 ):
 
     mode = check_type(jones, residual)
@@ -97,7 +104,13 @@ def compute_jhj(
     jacobian = jacobian_factory(mode)
 
     def _compute_jhj_fn(
-        time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        model,
+        flag,
     ):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
@@ -133,7 +146,14 @@ def compute_jhj(
 
 @generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
 def compute_jhr(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    residual,
+    model,
+    flag,
 ):
 
     mode = check_type(jones, model, vis_type="model")
@@ -210,7 +230,13 @@ def gauss_newton(
     # can avoid recomputing JHJ in DIAG_DIAG mode
     if mode == DIAG_DIAG:
         jhj = compute_jhj(
-            time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+            time_bin_indices,
+            time_bin_counts,
+            antenna1,
+            antenna2,
+            jones,
+            model,
+            flag,
         )
     else:
         raise NotImplementedError("Only DIAG_DIAG mode implemented")

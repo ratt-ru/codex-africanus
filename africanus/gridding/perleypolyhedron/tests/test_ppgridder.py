@@ -29,7 +29,11 @@ def test_construct_kernels(tmp_path_factory):
         * np.log10(
             np.abs(
                 np.fft.fftshift(
-                    np.fft.fft(kernels.kbsinc(WIDTH, oversample=OVERSAMP, order=0)[sel])
+                    np.fft.fft(
+                        kernels.kbsinc(WIDTH, oversample=OVERSAMP, order=0)[
+                            sel
+                        ]
+                    )
                 )
             )
         ),
@@ -42,7 +46,9 @@ def test_construct_kernels(tmp_path_factory):
             np.abs(
                 np.fft.fftshift(
                     np.fft.fft(
-                        kernels.kbsinc(WIDTH, oversample=OVERSAMP, order=15)[sel]
+                        kernels.kbsinc(WIDTH, oversample=OVERSAMP, order=15)[
+                            sel
+                        ]
                     )
                 )
             )
@@ -55,7 +61,9 @@ def test_construct_kernels(tmp_path_factory):
         * np.log10(
             np.abs(
                 np.fft.fftshift(
-                    np.fft.fft(kernels.hanningsinc(WIDTH, oversample=OVERSAMP)[sel])
+                    np.fft.fft(
+                        kernels.hanningsinc(WIDTH, oversample=OVERSAMP)[sel]
+                    )
                 )
             )
         ),
@@ -153,7 +161,9 @@ def test_facetcodepath():
     # construct kernel
     W = 5
     OS = 3
-    kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+    kern = kernels.pack_kernel(
+        kernels.kbsinc(W, oversample=OS), W, oversample=OS
+    )
 
     # offset 0
     uvw = np.array([[0, 0, 0]])
@@ -196,15 +206,19 @@ def test_degrid_dft(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 512
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
 
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0, :, :]))).reshape(
-        (1, npix, npix)
-    )
+    ftmod = np.fft.ifftshift(
+        np.fft.fft2(np.fft.fftshift(mod[0, :, :]))
+    ).reshape((1, npix, npix))
     chanmap = np.array([0])
     vis_degrid = degridder.degridder(
         uvw,
@@ -245,31 +259,41 @@ def test_degrid_dft(tmp_path_factory):
         plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), label="Error"
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
         plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"), "degrid_vs_dft_re.png")
+            os.path.join(
+                os.environ.get("TMPDIR", "/tmp"), "degrid_vs_dft_re.png"
+            )
         )
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), label="Error"
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Imag of predicted")
-        plt.savefig(tmp_path_factory.mktemp("degrid_dft") / "degrid_vs_dft_im.png")
+        plt.savefig(
+            tmp_path_factory.mktemp("degrid_dft") / "degrid_vs_dft_im.png"
+        )
 
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0
+        )
         < 0.05
     )
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0
+        )
         < 0.05
     )
 
@@ -278,7 +302,9 @@ def test_degrid_dft_packed(tmp_path_factory):
     # construct kernel
     W = 5
     OS = 3
-    kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, oversample=OS)
+    kern = kernels.pack_kernel(
+        kernels.kbsinc(W, oversample=OS), W, oversample=OS
+    )
     uvw = np.column_stack(
         (
             5000.0 * np.cos(np.linspace(0, 2 * np.pi, 1000)),
@@ -293,15 +319,19 @@ def test_degrid_dft_packed(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 512
     mod = np.zeros((1, npix, npix), dtype=np.complex64)
     mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
 
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(mod[0, :, :]))).reshape(
-        (1, npix, npix)
-    )
+    ftmod = np.fft.ifftshift(
+        np.fft.fft2(np.fft.fftshift(mod[0, :, :]))
+    ).reshape((1, npix, npix))
     chanmap = np.array([0])
     vis_degrid = degridder.degridder(
         uvw,
@@ -342,7 +372,8 @@ def test_degrid_dft_packed(tmp_path_factory):
         plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), label="Error"
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
@@ -356,21 +387,27 @@ def test_degrid_dft_packed(tmp_path_factory):
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), label="Error"
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Imag of predicted")
         plt.savefig(
-            tmp_path_factory.mktemp("degrid_dft_packed") / "degrid_vs_dft_im_packed.png"
+            tmp_path_factory.mktemp("degrid_dft_packed")
+            / "degrid_vs_dft_im_packed.png"
         )
 
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0
+        )
         < 0.05
     )
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0
+        )
         < 0.05
     )
 
@@ -427,7 +464,11 @@ def test_grid_dft(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 256
     fftpad = 1.25
@@ -450,14 +491,19 @@ def test_grid_dft(tmp_path_factory):
 
     vis_dft = (
         im_to_vis(
-            mod[0, :, :].reshape(1, 1, npix * npix).T.copy(), uvw, radec, frequency
+            mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
+            uvw,
+            radec,
+            frequency,
         )
         .repeat(2)
         .reshape(nrow, 1, 2)
     )
     chanmap = np.array([0])
 
-    detaper = kernels.compute_detaper(int(npix * fftpad), np.outer(kern, kern), W, OS)
+    detaper = kernels.compute_detaper(
+        int(npix * fftpad), np.outer(kern, kern), W, OS
+    )
     vis_grid = gridder.gridder(
         uvw,
         vis_dft,
@@ -479,9 +525,9 @@ def test_grid_dft(tmp_path_factory):
 
     ftvis = (
         (
-            np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(vis_grid[0, :, :]))).reshape(
-                (1, int(npix * fftpad), int(npix * fftpad))
-            )
+            np.fft.fftshift(
+                np.fft.ifft2(np.fft.ifftshift(vis_grid[0, :, :]))
+            ).reshape((1, int(npix * fftpad), int(npix * fftpad)))
         ).real
         / detaper
         * int(npix * fftpad) ** 2
@@ -499,7 +545,11 @@ def test_grid_dft(tmp_path_factory):
     ]
     dftvis = (
         vis_to_im(
-            vis_dft, uvw, radec, frequency, np.zeros(vis_dft.shape, dtype=np.bool)
+            vis_dft,
+            uvw,
+            radec,
+            frequency,
+            np.zeros(vis_dft.shape, dtype=np.bool),
         )
         .T.copy()
         .reshape(2, 1, npix, npix)
@@ -529,7 +579,9 @@ def test_grid_dft(tmp_path_factory):
         plt.colorbar()
         plt.savefig(tmp_path_factory.mktemp("grid_dft") / "grid_diff_dft.png")
 
-    assert np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]), 95.0) < 0.15
+    assert (
+        np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]), 95.0) < 0.15
+    )
 
 
 def test_grid_dft_packed(tmp_path_factory):
@@ -548,7 +600,11 @@ def test_grid_dft_packed(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            2
+            * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 256
     fftpad = 1.25
@@ -571,7 +627,10 @@ def test_grid_dft_packed(tmp_path_factory):
 
     vis_dft = (
         im_to_vis(
-            mod[0, :, :].reshape(1, 1, npix * npix).T.copy(), uvw, radec, frequency
+            mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
+            uvw,
+            radec,
+            frequency,
         )
         .repeat(2)
         .reshape(nrow, 1, 2)
@@ -601,9 +660,9 @@ def test_grid_dft_packed(tmp_path_factory):
 
     ftvis = (
         (
-            np.fft.fftshift(np.fft.ifft2(np.fft.ifftshift(vis_grid[0, :, :]))).reshape(
-                (1, int(npix * fftpad), int(npix * fftpad))
-            )
+            np.fft.fftshift(
+                np.fft.ifft2(np.fft.ifftshift(vis_grid[0, :, :]))
+            ).reshape((1, int(npix * fftpad), int(npix * fftpad)))
         ).real
         / detaper
         * int(npix * fftpad) ** 2
@@ -621,7 +680,11 @@ def test_grid_dft_packed(tmp_path_factory):
     ]
     dftvis = (
         vis_to_im(
-            vis_dft, uvw, radec, frequency, np.zeros(vis_dft.shape, dtype=np.bool)
+            vis_dft,
+            uvw,
+            radec,
+            frequency,
+            np.zeros(vis_dft.shape, dtype=np.bool),
         )
         .T.copy()
         .reshape(2, 1, npix, npix)
@@ -650,10 +713,13 @@ def test_grid_dft_packed(tmp_path_factory):
         plt.imshow(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]))
         plt.colorbar()
         plt.savefig(
-            tmp_path_factory.mktemp("grid_dft_packed") / "grid_diff_dft_packed.png"
+            tmp_path_factory.mktemp("grid_dft_packed")
+            / "grid_diff_dft_packed.png"
         )
 
-    assert np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]), 95.0) < 0.15
+    assert (
+        np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]), 95.0) < 0.15
+    )
 
 
 def test_wcorrection_faceting_backward(tmp_path_factory):
@@ -669,7 +735,9 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
     ntime = int(nrow / 25.0)
     d0 = np.pi / 4.0
     for n in range(25):
-        for ih0, h0 in enumerate(np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)):
+        for ih0, h0 in enumerate(
+            np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)
+        ):
             s = np.sin
             c = np.cos
             R = np.array(
@@ -687,16 +755,25 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npix = 2048
     npixfacet = 100
     fftpad = 1.1
     mod = np.ones((1, 1, 1), dtype=np.complex64)
     deltaradec = np.array([[600 * np.deg2rad(cell), 600 * np.deg2rad(cell)]])
-    lm = radec_to_lmn(deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0]))
+    lm = radec_to_lmn(
+        deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0])
+    )
 
-    vis_dft = im_to_vis(mod, uvw, lm[:, 0:2], frequency).repeat(2).reshape(nrow, 1, 2)
+    vis_dft = (
+        im_to_vis(mod, uvw, lm[:, 0:2], frequency)
+        .repeat(2)
+        .reshape(nrow, 1, 2)
+    )
     chanmap = np.array([0])
 
     detaper = kernels.compute_detaper_dft_seperable(
@@ -820,7 +897,9 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
     ntime = int(nrow / 25.0)
     d0 = np.pi / 4.0
     for n in range(25):
-        for ih0, h0 in enumerate(np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)):
+        for ih0, h0 in enumerate(
+            np.linspace(np.deg2rad(-20), np.deg2rad(20), ntime)
+        ):
             s = np.sin
             c = np.cos
             R = np.array(
@@ -838,14 +917,23 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
 
     cell = np.rad2deg(
         wavelength[0]
-        / (max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) * pxacrossbeam)
+        / (
+            max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1])))
+            * pxacrossbeam
+        )
     )
     npixfacet = 100
     mod = np.ones((1, 1, 1), dtype=np.complex64)
     deltaradec = np.array([[20 * np.deg2rad(cell), 20 * np.deg2rad(cell)]])
-    lm = radec_to_lmn(deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0]))
+    lm = radec_to_lmn(
+        deltaradec + np.array([[0, d0]]), phase_centre=np.array([0, d0])
+    )
 
-    vis_dft = im_to_vis(mod, uvw, lm[:, 0:2], frequency).repeat(2).reshape(nrow, 1, 2)
+    vis_dft = (
+        im_to_vis(mod, uvw, lm[:, 0:2], frequency)
+        .repeat(2)
+        .reshape(nrow, 1, 2)
+    )
     chanmap = np.array([0])
     ftmod = np.ones(
         (1, npixfacet, npixfacet), dtype=np.complex64
@@ -878,20 +966,26 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
         plot_dir = tmp_path_factory.mktemp("wcorrection_forward")
 
         plt.figure()
-        plt.plot(vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid facet})$")
+        plt.plot(
+            vis_degrid[:, 0, 0].real, label=r"$\Re(\mathtt{degrid facet})$"
+        )
         plt.plot(vis_dft[:, 0, 0].real, label=r"$\Re(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), label="Error"
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
         plt.savefig(plot_dir / "facet_degrid_vs_dft_re_packed.png")
         plt.figure()
-        plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid facet})$")
+        plt.plot(
+            vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid facet})$"
+        )
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
         plt.plot(
-            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), label="Error"
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag),
+            label="Error",
         )
         plt.legend()
         plt.xlabel("sample")
@@ -899,10 +993,14 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
         plt.savefig(plot_dir / "facet_degrid_vs_dft_im_packed.png")
 
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].real - vis_degrid[:, 0, 0].real), 99.0
+        )
         < 0.05
     )
     assert (
-        np.percentile(np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0)
+        np.percentile(
+            np.abs(vis_dft[:, 0, 0].imag - vis_degrid[:, 0, 0].imag), 99.0
+        )
         < 0.05
     )

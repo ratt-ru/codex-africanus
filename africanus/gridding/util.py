@@ -89,12 +89,14 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
 
     if ny is not None and u_cell_size * ny < (1.0 / umin):
         raise ValueError(
-            "v_cell_size*ny [%f] < (1.0 / umin) [%f]" % (u_cell_size * ny, 1.0 / umin)
+            "v_cell_size*ny [%f] < (1.0 / umin) [%f]"
+            % (u_cell_size * ny, 1.0 / umin)
         )
 
     if nx is not None and v_cell_size * nx < (1.0 / vmin):
         raise ValueError(
-            "v_cell_size*nx [%f] < (1.0 / vmin) [%f]" % (v_cell_size * nx, 1.0 / vmin)
+            "v_cell_size*nx [%f] < (1.0 / vmin) [%f]"
+            % (v_cell_size * nx, 1.0 / vmin)
         )
 
     # Convert radians to arcseconds

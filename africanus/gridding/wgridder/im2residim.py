@@ -209,6 +209,8 @@ RESIDUAL_DOCS = DocstringTemplate(
 )
 
 try:
-    residual.__doc__ = RESIDUAL_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    residual.__doc__ = RESIDUAL_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass
