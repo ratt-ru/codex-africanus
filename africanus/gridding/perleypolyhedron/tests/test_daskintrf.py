@@ -137,11 +137,11 @@ def test_gridder_dask():
         ftvisfacet = ftvisfacet[
             :,
             int(npixfacet * fftpad) // 2
-            - npixfacet // 2 : int(npixfacet * fftpad) // 2
+            - npixfacet // 2: int(npixfacet * fftpad) // 2
             - npixfacet // 2
             + npixfacet,
             int(npixfacet * fftpad) // 2
-            - npixfacet // 2 : int(npixfacet * fftpad) // 2
+            - npixfacet // 2: int(npixfacet * fftpad) // 2
             - npixfacet // 2
             + npixfacet,
         ]
@@ -231,11 +231,11 @@ def test_gridder_nondask():
         ftvisfacet = ftvisfacet[
             :,
             int(npixfacet * fftpad) // 2
-            - npixfacet // 2 : int(npixfacet * fftpad) // 2
+            - npixfacet // 2: int(npixfacet * fftpad) // 2
             - npixfacet // 2
             + npixfacet,
             int(npixfacet * fftpad) // 2
-            - npixfacet // 2 : int(npixfacet * fftpad) // 2
+            - npixfacet // 2: int(npixfacet * fftpad) // 2
             - npixfacet // 2
             + npixfacet,
         ]

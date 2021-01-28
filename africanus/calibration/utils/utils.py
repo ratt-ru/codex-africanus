@@ -46,7 +46,7 @@ def chunkify_rows(time, utimes_per_chunk):
     utimes, time_bin_counts = np.unique(time, return_counts=True)
     n_time = len(utimes)
     row_chunks = [
-        np.sum(time_bin_counts[i : i + utimes_per_chunk])
+        np.sum(time_bin_counts[i: i + utimes_per_chunk])
         for i in range(0, n_time, utimes_per_chunk)
     ]
     time_bin_indices = np.zeros(n_time, dtype=np.int32)

@@ -1,6 +1,5 @@
 import numba
 import numpy as np
-from numpy import sqrt, exp
 from africanus.constants import c as lightspeed
 from africanus.constants import minus_two_pi_over_c
 
@@ -71,7 +70,8 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
     Inputs:
         coords: coordinates in (u,v) space with shape (nrow, 3)
         frequency: frequency values with shape (nchan,)
-        coeffs: shapelet coefficients with shape, where coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
+        coeffs: shapelet coefficients with shape, where
+                coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
         beta: characteristic shapelet size with shape (nsrc, 2)
         delta_l: pixel size in l dim
         delta_m: pixel size in m dim
@@ -122,7 +122,8 @@ def shapelet_with_w_term(
     Inputs:
         coords: coordinates in (u,v) space with shape (nrow, 3)
         frequency: frequency values with shape (nchan,)
-        coeffs: shapelet coefficients with shape, where coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
+        coeffs: shapelet coefficients with shape, where
+                coeffs[3, 4] = coeffs_l[3] * coeffs_m[4] (nsrc, nmax1, nmax2)
         beta: characteristic shapelet size with shape (nsrc, 2)
         delta_l: pixel size in l dim
         delta_m: pixel size in m dim
@@ -215,7 +216,8 @@ def shapelet_2d(u, v, coeffs_l, fourier, delta_x=None, delta_y=None, beta=1.0):
     if fourier:
         if delta_x is None or delta_y is None:
             raise ValueError(
-                "You have to pass in a value for delta_x and delta_y in Fourier mode"
+                "You have to pass in a value for delta_x and delta_y\
+                in Fourier mode"
             )
         out = np.zeros((nrow_u, nrow_v), dtype=np.complex128)
     else:

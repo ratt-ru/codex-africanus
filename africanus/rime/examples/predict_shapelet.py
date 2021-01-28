@@ -4,15 +4,11 @@
 
 import argparse
 from collections import namedtuple
-from functools import lru_cache
 from operator import getitem
-import weakref
-import time
 
 import numpy as np
 
 try:
-    from astropy.io import fits
     import dask
     import dask.array as da
     from dask.diagnostics import ProgressBar
@@ -25,11 +21,8 @@ else:
 
 from africanus.coordinates.dask import radec_to_lm
 from africanus.rime.dask import (
-    phase_delay,
     predict_vis,
     parallactic_angles,
-    beam_cube_dde,
-    feed_rotation,
     zernike_dde,
 )
 from africanus.model.coherency.dask import convert
@@ -46,7 +39,7 @@ _einsum_corr_indices = "ijkl"
 
 def _brightness_schema(corrs, index):
     if corrs == 4:
-        return "sf" + _einsum_corr_indices[index : index + 2], index + 1
+        return "sf" + _einsum_corr_indices[index: index + 2], index + 1
     else:
         return "sfi", index
 
@@ -214,7 +207,6 @@ def parse_sky_model(filename, chunks):
         spectrum = (
             getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
         )
-
         try:
             # Extract reference frequency
             ref_freq = spectrum.freq0
@@ -415,8 +407,6 @@ def zernike_factory(
         "/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz",
         "./",
     )
-    c_freqs = np.load("./meerkat/freqs.npy", allow_pickle=True)
-    ch = [abs(c_freqs - i).argmin() for i in (frequency / 1e06)]
     params = np.load("./meerkat/params.npy", allow_pickle=True)
 
     # Assign coefficients
@@ -478,7 +468,7 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     )
 
     brightness = convert(stokes, ["I", "Q", "U", "V"], corr_schema(pol))
-
+    bl_jones_args = []
     # Add any visibility amplitude terms
     if source_type == "gauss":
         bl_jones_args.append("gauss_shape")

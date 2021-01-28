@@ -535,11 +535,11 @@ def test_grid_dft(tmp_path_factory):
     ftvis = ftvis[
         :,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
     ]
@@ -670,11 +670,11 @@ def test_grid_dft_packed(tmp_path_factory):
     ftvis = ftvis[
         :,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
     ]
@@ -809,11 +809,11 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
     ftvis = ftvis[
         :,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
         int(npix * fftpad) // 2
-        - npix // 2 : int(npix * fftpad) // 2
+        - npix // 2: int(npix * fftpad) // 2
         - npix // 2
         + npix,
     ]
@@ -851,11 +851,11 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
     ftvisfacet = ftvisfacet[
         :,
         int(npixfacet * fftpad) // 2
-        - npixfacet // 2 : int(npixfacet * fftpad) // 2
+        - npixfacet // 2: int(npixfacet * fftpad) // 2
         - npixfacet // 2
         + npixfacet,
         int(npixfacet * fftpad) // 2
-        - npixfacet // 2 : int(npixfacet * fftpad) // 2
+        - npixfacet // 2: int(npixfacet * fftpad) // 2
         - npixfacet // 2
         + npixfacet,
     ]
@@ -872,7 +872,7 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
 
         plt.figure()
         plt.subplot(121)
-        plt.imshow(ftvis[0, 1624 - 50 : 1624 + 50, 1447 - 50 : 1447 + 50])
+        plt.imshow(ftvis[0, 1624 - 50: 1624 + 50, 1447 - 50: 1447 + 50])
         plt.colorbar()
         plt.title("Offset FFT (peak={0:.1f})".format(np.max(ftvis)))
         plt.subplot(122)

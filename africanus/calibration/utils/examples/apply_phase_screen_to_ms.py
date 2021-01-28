@@ -276,7 +276,7 @@ def calibrate(args, jones, alphas):
     for d in range(n_dir):
         Stokes_I = stokes[d] * (freq / ref_freqs[d]) ** spi[d]
         model[:, :, d, 0:1] = im_to_vis(
-            Stokes_I[None, :, None], uvw, lm[d : d + 1], freq
+            Stokes_I[None, :, None], uvw, lm[d: d + 1], freq
         )
         model[:, :, d, 1] = model[:, :, d, 0]
 

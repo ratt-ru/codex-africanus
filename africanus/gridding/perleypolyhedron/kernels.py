@@ -99,7 +99,7 @@ def pack_kernel(K, W, oversample=5):
     """
     pkern = np.empty(oversample * (W + 2), dtype=K.dtype)
     for t in range(oversample):
-        pkern[t * (W + 2) : (t + 1) * (W + 2)] = K[t::oversample]
+        pkern[t * (W + 2): (t + 1) * (W + 2)] = K[t::oversample]
     return pkern
 
 
@@ -115,7 +115,7 @@ def unpack_kernel(K, W, oversample=5):
     """
     upkern = np.empty(oversample * (W + 2), dtype=K.dtype)
     for t in range(oversample):
-        upkern[t::oversample] = K[t * (W + 2) : (t + 1) * (W + 2)]
+        upkern[t::oversample] = K[t * (W + 2): (t + 1) * (W + 2)]
     return upkern
 
 
@@ -128,22 +128,22 @@ def compute_detaper(npix, K, W, oversample=5):
     pk = np.zeros((npix * oversample, npix * oversample))
     pk[
         npix * oversample // 2
-        - K.shape[0] // 2 : npix * oversample // 2
+        - K.shape[0] // 2: npix * oversample // 2
         - K.shape[0] // 2
         + K.shape[0],
         npix * oversample // 2
-        - K.shape[1] // 2 : npix * oversample // 2
+        - K.shape[1] // 2: npix * oversample // 2
         - K.shape[1] // 2
         + K.shape[1],
     ] = K
     fpk = np.fft.fftshift(np.fft.fft2(np.fft.ifftshift(pk)))
     fk = fpk[
         npix * oversample // 2
-        - npix // 2 : npix * oversample // 2
+        - npix // 2: npix * oversample // 2
         - npix // 2
         + npix,
         npix * oversample // 2
-        - npix // 2 : npix * oversample // 2
+        - npix // 2: npix * oversample // 2
         - npix // 2
         + npix,
     ]

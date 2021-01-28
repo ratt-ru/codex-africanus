@@ -211,8 +211,8 @@ def row_mapper(
 
         scratch = np.full(3 * nbl * ntime, -1, dtype=np.int32)
         row_lookup = scratch[: nbl * ntime].reshape(nbl, ntime)
-        bin_lookup = scratch[nbl * ntime : 2 * nbl * ntime].reshape(nbl, ntime)
-        inv_argsort = scratch[2 * nbl * ntime :]
+        bin_lookup = scratch[nbl * ntime: 2 * nbl * ntime].reshape(nbl, ntime)
+        inv_argsort = scratch[2 * nbl * ntime:]
         time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
         interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
 

@@ -60,7 +60,7 @@ def stokes_convert_setup(input, input_schema, output_schema):
     input_indices, input_shape = _element_indices_and_shape(input_schema)
     output_indices, output_shape = _element_indices_and_shape(output_schema)
 
-    if input.shape[-len(input_shape) :] != input_shape:
+    if input.shape[-len(input_shape):] != input_shape:
         raise ValueError("Last dimension of input doesn't match input schema")
 
     mapping = []

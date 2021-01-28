@@ -121,7 +121,7 @@ def update_residual(residual, intensity, gamma, p, q, npix, psf):
     residual -= (
         gamma
         * intensity
-        * psf[npix - 1 - p : 2 * npix - 1 - p, npix - 1 - q : 2 * npix - 1 - q]
+        * psf[npix - 1 - p: 2 * npix - 1 - p, npix - 1 - q: 2 * npix - 1 - q]
     )
 
 

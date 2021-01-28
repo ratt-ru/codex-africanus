@@ -150,8 +150,6 @@ def beam_cube_dde(
                     vl *= antenna_scaling[a, f, 0]
                     vm *= antenna_scaling[a, f, 1]
 
-                    # print("(", l, m, ") (freq ",freq_scale[f],") ===> (", vl, vm, ")")
-
                     # Shift into the cube coordinate system
                     vl = lscale * (vl - lower_l)
                     vm = mscale * (vm - lower_m)
@@ -178,8 +176,6 @@ def beam_cube_dde(
 
                     # Accumulate lower cube correlations
                     beam_scratch[:] = fbeam[gl0, gm0, gc0, :]
-                    # for k in range(4):
-                    #     if fbeam[gl0, gm0, gc0, k] != 0j : print(fbeam[gl0, gm0, gc0, k])
                     weight = (one - ld) * (one - md) * nud
 
                     for c in range(ncorrs):
@@ -221,7 +217,6 @@ def beam_cube_dde(
                     for c in range(ncorrs):
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
-                    # if not (fbeam[gl0, gm0, gc0, 0] == 0j and fbeam[gl0, gm0, gc0, 1] == 0j and fbeam[gl0, gm0, gc0, 2] == 0j and fbeam[gl0, gm0, gc0, 3] == 0j): print("fbeam is ",fbeam[gl1, gm1, gc1, :])
 
                     beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
                     weight = (one - ld) * md * inv_nud
@@ -230,20 +225,16 @@ def beam_cube_dde(
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
 
-                    # if not (fbeam[gl1, gm1, gc1, 0] == 0j or fbeam[gl1, gm1, gc1, 1] == 0j or fbeam[gl1, gm1, gc1, 2] == 0j or fbeam[gl1, gm1, gc1, 3] == 0j): print("fbeam is ",fbeam[gl1, gm1, gc1, :])
                     beam_scratch[:] = fbeam[gl1, gm1, gc1, :]
                     weight = ld * md * inv_nud
 
                     for c in range(ncorrs):
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
-                        # print("beam_scratch is ", beam_scratch[c])
 
                     for c in range(ncorrs):
                         # Added all correlations, normalise
                         div = np.abs(corr_sum[c])
-                        # print("div is ",div)
-                        # quit()
 
                         if div == 0.0:
                             # This case probably works out to a zero assign
