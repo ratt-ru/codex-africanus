@@ -23,13 +23,8 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
         while eps > tol and k < maxiter:
             alphap = alphak
             i0p = i0k
-<<<<<<< HEAD
-            jac[1, :] = w ** alphak
-            model = i0k * jac[1, :]
-=======
             jac[1, :] = b*w**alphak
             model = i0k*jac[1, :]
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
             jac[0, :] = model * np.log(w)
             residual = data[comp] - model
             lik = 0.0
@@ -45,31 +40,14 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                 hess00 += jac[0, v] * weights[v] * jac[0, v]
                 hess01 += jac[0, v] * weights[v] * jac[1, v]
                 hess11 += jac[1, v] * weights[v] * jac[1, v]
-<<<<<<< HEAD
-            det = hess00 * hess11 - hess01 ** 2
-            alphak = alphap + (hess11 * jr0 - hess01 * jr1) / det
-            i0k = i0p + (-hess01 * jr0 + hess00 * jr1) / det
-=======
             det = np.maximum(hess00 * hess11 - hess01**2, mindet)
             alphak = alphap + (hess11 * jr0 - hess01 * jr1)/det
             i0k = i0p + (-hess01 * jr0 + hess00 * jr1)/det
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
             eps = np.maximum(np.abs(alphak - alphap), np.abs(i0k - i0p))
             k += 1
         if k == maxiter:
             print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
-<<<<<<< HEAD
-        out[1, comp] = hess11 / det
-        out[2, comp] = i0k
-        out[3, comp] = hess00 / det
-    return out
-
-
-def fit_spi_components(
-    data, weights, freqs, freq0, alphai=None, I0i=None, tol=1e-4, maxiter=100
-):
-=======
         out[1, comp] = hess11/det * lik/dof
         out[2, comp] = i0k
         out[3, comp] = hess00/det * lik/dof
@@ -79,7 +57,6 @@ def fit_spi_components(
 def fit_spi_components(data, weights, freqs, freq0,
                        alphai=None, I0i=None, beam=None,
                        tol=1e-4, maxiter=100):
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     ncomps, nfreqs = data.shape
     if beam is None:
         beam = np.ones(data.shape, data.dtype)
@@ -94,12 +71,6 @@ def fit_spi_components(data, weights, freqs, freq0,
     else:
         tmp = np.abs(freqs - freq0)
         ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
-<<<<<<< HEAD
-        out[2, :] = data[:, ref_freq_idx]
-    return _fit_spi_components_impl(
-        data, weights, freqs, freq0, out, jac, ncomps, nfreqs, tol, maxiter
-    )
-=======
         if np.size(ref_freq_idx) > 1:
             ref_freq_idx = ref_freq_idx.min()
         out[2, :] = data[:, ref_freq_idx]/beam[:, ref_freq_idx]
@@ -113,7 +84,6 @@ def fit_spi_components(data, weights, freqs, freq0,
     return _fit_spi_components_impl(data, weights, freqs, freq0, out,
                                     jac, beam, ncomps, nfreqs,
                                     tol, maxiter, mindet)
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
 
 
 SPI_DOCSTRING = DocstringTemplate(

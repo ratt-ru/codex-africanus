@@ -610,10 +610,6 @@ def test_dask_residual(
     # should agree to within epsilon
     rmax = np.maximum(np.abs(residim_np).max(), np.abs(residim_da).max())
     assert_array_almost_equal(
-<<<<<<< HEAD
-        residim_np / rmax, residim_da / rmax, decimal=decimal
-    )
-=======
         residim_np/rmax, residim_da/rmax, decimal=decimal)
 
 
@@ -676,4 +672,3 @@ def test_dask_hessian(nx, ny, fov, nrow, nchan, nband,
     rmax = np.maximum(np.abs(convim_np).max(), np.abs(convim_da).max())
     assert_array_almost_equal(
         convim_np/rmax, convim_da/rmax, decimal=decimal)
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
