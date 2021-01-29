@@ -46,10 +46,12 @@ Numpy
     dirty
     model
     residual
+    hessian
 
 .. autofunction:: dirty
 .. autofunction:: model
 .. autofunction:: residual
+.. autofunction:: hessian
 
 Dask
 ++++
@@ -60,10 +62,12 @@ Dask
     dirty
     model
     residual
+    hessian
 
 .. autofunction:: dirty
 .. autofunction:: model
 .. autofunction:: residual
+.. autofunction:: hessian
 
 Utilities
 ~~~~~~~~~

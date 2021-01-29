@@ -290,6 +290,72 @@ def test_residual(nx, ny, fov, nrow, nchan, nband, precision, nthreads):
     )
 
 
+@pmp("nx", (128, ))
+@pmp("ny", (256,))
+@pmp("fov", (0.5,))
+@pmp("nrow", (10000000,))
+@pmp("nchan", (2,))
+@pmp("nband", (2,))
+@pmp("precision", ('single',))
+@pmp("nthreads", (4,))
+def test_hessian(nx, ny, fov, nrow, nchan, nband,
+                 precision, nthreads):
+    # Compare the result of dirty computed with Hessian
+    #   ID = hessian(x)
+    # to that computed using dirty.
+    from africanus.gridding.wgridder import dirty, hessian
+    np.random.seed(420)
+    if precision == 'single':
+        real_type = np.float32
+        complex_type = np.complex64
+        atol = 1e-5
+    else:
+        real_type = np.float64
+        complex_type = np.complex128
+        atol = 1e-5
+
+    uvw = 1000*np.random.randn(nrow, 3)
+    uvw[:, 2] = 0
+    u_max = np.abs(uvw[:, 0]).max()
+    v_max = np.abs(uvw[:, 1]).max()
+    uv_max = np.maximum(u_max, v_max)
+
+    f0 = 1e9
+    freq = (f0 + np.arange(nchan)*(f0/nchan))
+
+    cell_N = 0.1/(2*uv_max*freq.max()/lightspeed)
+    cell = cell_N/2.0  # super_resolution_factor of 2
+
+    vis = np.ones((nrow, nchan), dtype=complex_type)
+
+    step = nchan//nband
+    if step:
+        freq_bin_idx = np.arange(0, nchan, step)
+        freq_mapping = np.append(freq_bin_idx, nchan)
+        freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    else:
+        freq_bin_idx = np.array([0], dtype=np.int8)
+        freq_bin_counts = np.array([1], dtype=np.int8)
+    nband = freq_bin_idx.size
+    model_im = np.zeros((nband, nx, ny), dtype=real_type)
+    model_im[:, nx//2, ny//2] = 1.0
+
+    dirty_im1 = dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
+                      nx, ny, cell, nthreads=nthreads, do_wstacking=False,
+                      double_accum=True)
+
+    # test accumulation
+    assert_allclose(dirty_im1.max()/nrow, 1.0, rtol=atol)
+
+    dirty_im2 = hessian(uvw, freq, model_im, freq_bin_idx,
+                        freq_bin_counts, cell, nthreads=nthreads,
+                        do_wstacking=False, double_accum=True)
+
+    # rtol not reliable since there will be values close to zero in the
+    # dirty images
+    assert_allclose(dirty_im1/nrow, dirty_im2/nrow, atol=atol, rtol=1e-2)
+
+
 @pmp("nx", (30, 250))
 @pmp("ny", (128,))
 @pmp("fov", (5.0,))
@@ -544,5 +610,70 @@ def test_dask_residual(
     # should agree to within epsilon
     rmax = np.maximum(np.abs(residim_np).max(), np.abs(residim_da).max())
     assert_array_almost_equal(
+<<<<<<< HEAD
         residim_np / rmax, residim_da / rmax, decimal=decimal
     )
+=======
+        residim_np/rmax, residim_da/rmax, decimal=decimal)
+
+
+@pmp("nx", (64,))
+@pmp("ny", (128,))
+@pmp("fov", (5.0,))
+@pmp("nrow", (3333, 10000))
+@pmp("nchan", (4,))
+@pmp("nband", (2,))
+@pmp("precision", ('single', 'double'))
+@pmp("nthreads", (1,))
+@pmp("nchunks", (1, 3))
+def test_dask_hessian(nx, ny, fov, nrow, nchan, nband,
+                      precision, nthreads, nchunks):
+    da = pytest.importorskip("dask.array")
+    from africanus.gridding.wgridder import hessian as hessian_np
+    from africanus.gridding.wgridder.dask import hessian
+    np.random.seed(420)
+    if precision == 'single':
+        real_type = np.float32
+        decimal = 4  # sometimes fails at 5
+    else:
+        real_type = np.float64
+        decimal = 5
+    cell = fov*np.pi/180/nx
+    f0 = 1e9
+    freq = (f0 + np.arange(nchan)*(f0/nchan))
+    uvw = ((np.random.rand(nrow, 3)-0.5) /
+           (cell*freq[-1]/lightspeed))
+    wgt = np.random.rand(nrow, nchan).astype(real_type)
+    step = np.maximum(1, nchan//nband)
+    if step:
+        freq_bin_idx = np.arange(0, nchan, step)
+        freq_mapping = np.append(freq_bin_idx, nchan)
+        freq_bin_counts = freq_mapping[1::] - freq_mapping[0:-1]
+    else:
+        freq_bin_idx = np.array([0], dtype=np.int8)
+        freq_bin_counts = np.array([1], dtype=np.int8)
+    nband = freq_bin_idx.size
+    image = np.random.randn(nband, nx, ny).astype(real_type)
+    convim_np = hessian_np(uvw, freq, image, freq_bin_idx,
+                           freq_bin_counts, cell, weights=wgt,
+                           nthreads=nthreads)
+
+    rows_per_task = int(np.ceil(nrow/nchunks))
+    row_chunks = (nchunks-1) * (rows_per_task,)
+    row_chunks += (nrow - np.sum(row_chunks),)
+    freq_da = da.from_array(freq, chunks=step)
+    uvw_da = da.from_array(uvw, chunks=(row_chunks, -1))
+    image_da = da.from_array(image, chunks=(1, nx, ny))
+    wgt_da = da.from_array(wgt, chunks=(row_chunks, step))
+    freq_bin_idx_da = da.from_array(freq_bin_idx, chunks=1)
+    freq_bin_counts_da = da.from_array(freq_bin_counts, chunks=1)
+
+    convim_da = hessian(uvw_da, freq_da, image_da,
+                        freq_bin_idx_da, freq_bin_counts_da,
+                        cell, weights=wgt_da, nthreads=nthreads).compute()
+
+    # should agree to within epsilon
+    rmax = np.maximum(np.abs(convim_np).max(), np.abs(convim_da).max())
+    assert_array_almost_equal(
+        convim_np/rmax, convim_da/rmax, decimal=decimal)
+>>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0

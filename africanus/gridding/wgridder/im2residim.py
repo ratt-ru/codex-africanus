@@ -12,6 +12,7 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.requirements import requires_optional
 
 
+<<<<<<< HEAD
 @requires_optional("ducc0.wgridder", ducc_import_error)
 def _residual_internal(
     uvw,
@@ -28,6 +29,12 @@ def _residual_internal(
     nthreads,
     do_wstacking,
 ):
+=======
+@requires_optional('ducc0.wgridder', ducc_import_error)
+def _residual_internal(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts,
+                       cell, weights, flag, celly, epsilon, nthreads,
+                       do_wstacking, double_accum):
+>>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
 
     # adjust for chunking
     # need a copy here if using multiple row chunks
@@ -46,6 +53,7 @@ def _residual_internal(
             mask = flag[:, ind]
         else:
             mask = None
+<<<<<<< HEAD
         residvis = vis[:, ind] - dirty2ms(
             uvw=uvw,
             freq=freq[ind],
@@ -76,11 +84,29 @@ def _residual_internal(
             mask=mask,
             do_wstacking=do_wstacking,
         )
+=======
+        tvis = vis[:, ind]
+        residvis = tvis - dirty2ms(
+                                uvw=uvw, freq=freq[ind],
+                                dirty=image[i], wgt=None,
+                                pixsize_x=cell, pixsize_y=celly,
+                                nu=0, nv=0, epsilon=epsilon,
+                                nthreads=nthreads, mask=mask,
+                                do_wstacking=do_wstacking)
+        residim[0, i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=residvis,
+                                 wgt=wgt, npix_x=nx, npix_y=ny,
+                                 pixsize_x=cell, pixsize_y=celly,
+                                 nu=0, nv=0, epsilon=epsilon,
+                                 nthreads=nthreads, mask=mask,
+                                 do_wstacking=do_wstacking,
+                                 double_precision_accumulation=double_accum)
+>>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     return residim
 
 
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
+<<<<<<< HEAD
 @requires_optional("ducc0.wgridder", ducc_import_error)
 def residual(
     uvw,
@@ -97,6 +123,12 @@ def residual(
     nthreads=1,
     do_wstacking=True,
 ):
+=======
+@requires_optional('ducc0.wgridder', ducc_import_error)
+def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
+             weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
+             do_wstacking=True, double_accum=False):
+>>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
 
     if celly is None:
         celly = cell
@@ -106,6 +138,7 @@ def residual(
 
         nthreads = multiprocessing.cpu_count()
 
+<<<<<<< HEAD
     residim = _residual_internal(
         uvw,
         freq,
@@ -121,6 +154,12 @@ def residual(
         nthreads,
         do_wstacking,
     )
+=======
+    residim = _residual_internal(uvw, freq, image, vis, freq_bin_idx,
+                                 freq_bin_counts, cell, weights, flag,
+                                 celly, epsilon, nthreads, do_wstacking,
+                                 double_accum)
+>>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     return residim[0]
 
 
@@ -199,6 +238,9 @@ RESIDUAL_DOCS = DocstringTemplate(
         The number of threads to use. Defaults to one.
     do_wstacking : bool, optional
         Whether to correct for the w-term or not. Defaults to True
+    double_accum : bool, optional
+        If true ducc will accumulate in double precision regardless of
+        the input type.
 
     Returns
     -------
