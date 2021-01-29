@@ -12,30 +12,10 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.requirements import requires_optional
 
 
-<<<<<<< HEAD
-@requires_optional("ducc0.wgridder", ducc_import_error)
-def _dirty_internal(
-    uvw,
-    freq,
-    vis,
-    freq_bin_idx,
-    freq_bin_counts,
-    nx,
-    ny,
-    cell,
-    weights,
-    flag,
-    celly,
-    epsilon,
-    nthreads,
-    do_wstacking,
-):
-=======
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                     cell, weights, flag, celly, epsilon, nthreads,
                     do_wstacking, double_accum):
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     # adjust for chunking
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
@@ -58,24 +38,6 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
             mask = flag[:, ind]
         else:
             mask = None
-<<<<<<< HEAD
-        dirty[0, i] = ms2dirty(
-            uvw=uvw,
-            freq=freq[ind],
-            ms=vis[:, ind],
-            wgt=wgt,
-            npix_x=nx,
-            npix_y=ny,
-            pixsize_x=cell,
-            pixsize_y=celly,
-            nu=0,
-            nv=0,
-            epsilon=epsilon,
-            nthreads=nthreads,
-            mask=mask,
-            do_wstacking=do_wstacking,
-        )
-=======
         dirty[0, i] = ms2dirty(uvw=uvw, freq=freq[ind], ms=vis[:, ind],
                                wgt=wgt, npix_x=nx, npix_y=ny,
                                pixsize_x=cell, pixsize_y=celly,
@@ -83,36 +45,15 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                                nthreads=nthreads, mask=mask,
                                do_wstacking=do_wstacking,
                                double_precision_accumulation=double_accum)
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     return dirty
 
 
 # This additional wrapper is required to allow the dask wrappers
 # to chunk over row
-<<<<<<< HEAD
-@requires_optional("ducc0.wgridder", ducc_import_error)
-def dirty(
-    uvw,
-    freq,
-    vis,
-    freq_bin_idx,
-    freq_bin_counts,
-    nx,
-    ny,
-    cell,
-    weights=None,
-    flag=None,
-    celly=None,
-    epsilon=1e-5,
-    nthreads=1,
-    do_wstacking=True,
-):
-=======
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
           weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
           do_wstacking=True, double_accum=False):
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
 
     if celly is None:
         celly = cell
@@ -122,28 +63,9 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
         nthreads = multiprocessing.cpu_count()
 
-<<<<<<< HEAD
-    dirty = _dirty_internal(
-        uvw,
-        freq,
-        vis,
-        freq_bin_idx,
-        freq_bin_counts,
-        nx,
-        ny,
-        cell,
-        weights,
-        flag,
-        celly,
-        epsilon,
-        nthreads,
-        do_wstacking,
-    )
-=======
     dirty = _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
                             nx, ny, cell, weights, flag, celly,
                             epsilon, nthreads, do_wstacking, double_accum)
->>>>>>> 3716474f34fdc9050fc41978d8202d8ec885fad0
     return dirty[0]
 
 
