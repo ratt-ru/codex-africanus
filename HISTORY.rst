@@ -2,9 +2,18 @@
 History
 =======
 
-0.2.9 (????-??-??)
+0.2.10 (YYYY-MM-DD)
+-------------------
+* Add beam model during SPI fitting (:pr:`238`)
+* Add double accumulation option and Hessian function to wgridder (:pr:`237`)
+* Upgrade ducc0 to version 0.8.0 (:pr:`236`)
+* Add mindet to avoid div0 errors in spi fitter and fix alpha and I0 variance
+  estimates (:pr:`234`)
+
+0.2.9 (2020-12-15)
 ------------------
-* Fix manually specifying wgridder precision (:pr:`230`) 
+* Upgrade ducc0 to version 0.7.0 (:pr:`233`)
+* Fix manually specifying wgridder precision (:pr:`230`)
 
 0.2.8 (2020-10-08)
 ------------------
