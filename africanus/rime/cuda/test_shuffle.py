@@ -251,9 +251,11 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             // Horizontal (inter-thread) Rotation
             int addr = case_id;
             {%- for case in range(var_length) %}
-            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}],
+                                     addr, {{var_length}});
             {%- if not loop.last %}
-            addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}}, {{var_length}});
+            addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}},
+                    {{var_length}});
             {%- endif %}
             {%- endfor %}
 
@@ -265,8 +267,10 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             {%- set cstart = cycle[0][0] %}
             {{tmp_name}} = {{var_name}}[{{cstart}}];
             {%- for dest, src in cycle %}
-            {%- set src_var = tmp_name if cstart == src else var_name + "[" + src|string + "]" %}
-            {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} : {{var_name}}[{{dest}}];
+            {%- set src_var = tmp_name if cstart == src else var_name +
+                                                "[" + src|string + "]" %}
+            {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} :
+                                                {{var_name}}[{{dest}}];
             {%- endfor %}
             {%- endfor %}
             {%- endfor %}
@@ -274,9 +278,11 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             // Horizontal (inter-thread) Rotation
             addr = ({{var_length}} - case_id) & {{var_length - 1}};
             {%- for case in range(var_length) %}
-            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}],
+                                     addr, {{var_length}});
             {%- if not loop.last %}
-            addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) & {{var_length - 1}}, {{var_length}});
+            addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) &
+                   {{var_length - 1}}, {{var_length}});
             {%- endif %}
             {%- endfor %}
         }
