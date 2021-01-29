@@ -139,10 +139,12 @@ SPI_DOCSTRING = DocstringTemplate(
         array of shape :code:`(4, comps)`
         The fitted components arranged
         as [alphas, alphavars, I0s, I0vars]
-    """)
+    """
+)
 
 try:
     fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
-                            array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

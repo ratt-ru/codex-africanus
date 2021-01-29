@@ -11,7 +11,8 @@ def test_cuda_shuffle_transpose():
     cp = pytest.importorskip("cupy")
     jinja2 = pytest.importorskip("jinja2")
 
-    _TEMPLATE = jinja2.Template("""
+    _TEMPLATE = jinja2.Template(
+        """
     #include <cupy/carray.cuh>
 
     #define debug {{debug}}
@@ -105,23 +106,25 @@ def test_cuda_shuffle_transpose():
         output[v + {{corr}}*nvis] = values[{{corr}}];
         {%- endfor %}
     }
-    """)
+    """
+    )
 
     nvis = 32
     ncorrs = 4
     dtype = np.int32
 
     dtypes = {
-        np.float32: 'float',
-        np.float64: 'double',
-        np.int32: 'int',
+        np.float32: "float",
+        np.float64: "double",
+        np.int32: "int",
     }
 
-    code = _TEMPLATE.render(type=dtypes[dtype], warp_size=32,
-                            corrs=ncorrs, debug="false").encode("utf-8")
+    code = _TEMPLATE.render(
+        type=dtypes[dtype], warp_size=32, corrs=ncorrs, debug="false"
+    ).encode("utf-8")
     kernel = cp.RawKernel(code, "kernel")
 
-    inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
+    inputs = cp.arange(nvis * ncorrs, dtype=dtype).reshape(nvis, ncorrs)
     outputs = cp.empty_like(inputs)
     args = (inputs, outputs)
     block = (256, 1, 1)
@@ -133,8 +136,9 @@ def test_cuda_shuffle_transpose():
         print(format_code(kernel.code))
         raise
 
-    np.testing.assert_array_almost_equal(cp.asnumpy(inputs),
-                                         cp.asnumpy(outputs))
+    np.testing.assert_array_almost_equal(
+        cp.asnumpy(inputs), cp.asnumpy(outputs)
+    )
     return
 
     # Dead code
@@ -229,7 +233,8 @@ def test_cuda_shuffle_transpose_2(ncorrs):
     # https://homes.cs.washington.edu/~cdel/papers/sc13-shuffle-abstract.pdf
     # http://sc13.supercomputing.org/sites/default/files/PostersArchive/spost142.html
 
-    _TEMPLATE = jinja2.Template("""
+    _TEMPLATE = jinja2.Template(
+        """
     #include <cupy/carray.cuh>
 
     {%- if (corrs < 1 or (corrs.__and__(corrs - 1) != 0)) %}
@@ -246,9 +251,11 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             // Horizontal (inter-thread) Rotation
             int addr = case_id;
             {%- for case in range(var_length) %}
-            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}],
+                                     addr, {{var_length}});
             {%- if not loop.last %}
-            addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}}, {{var_length}});
+            addr = __shfl_sync(mask, addr, (case_id + 1) & {{var_length - 1}},
+                    {{var_length}});
             {%- endif %}
             {%- endfor %}
 
@@ -260,8 +267,10 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             {%- set cstart = cycle[0][0] %}
             {{tmp_name}} = {{var_name}}[{{cstart}}];
             {%- for dest, src in cycle %}
-            {%- set src_var = tmp_name if cstart == src else var_name + "[" + src|string + "]" %}
-            {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} : {{var_name}}[{{dest}}];
+            {%- set src_var = tmp_name if cstart == src else var_name +
+                                                "[" + src|string + "]" %}
+            {{var_name}}[{{dest}}] = case_id == {{case}} ? {{src_var}} :
+                                                {{var_name}}[{{dest}}];
             {%- endfor %}
             {%- endfor %}
             {%- endfor %}
@@ -269,9 +278,11 @@ def test_cuda_shuffle_transpose_2(ncorrs):
             // Horizontal (inter-thread) Rotation
             addr = ({{var_length}} - case_id) & {{var_length - 1}};
             {%- for case in range(var_length) %}
-            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}], addr, {{var_length}});
+            {{var_name}}[{{case}}] = __shfl_sync(mask, {{var_name}}[{{case}}],
+                                     addr, {{var_length}});
             {%- if not loop.last %}
-            addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) & {{var_length - 1}}, {{var_length}});
+            addr = __shfl_sync(mask, addr, (case_id + {{var_length - 1}}) &
+                   {{var_length - 1}}, {{var_length}});
             {%- endif %}
             {%- endfor %}
         }
@@ -329,26 +340,29 @@ def test_cuda_shuffle_transpose_2(ncorrs):
         output[v + {{corr}}*nvis] = values[{{corr}}];
         {%- endfor %}
     }
-    """)  # noqa
+    """
+    )  # noqa
 
     nvis = 32
     dtype = np.int32
 
     dtypes = {
-        np.float32: 'float',
-        np.float64: 'double',
-        np.int32: 'int',
+        np.float32: "float",
+        np.float64: "double",
+        np.int32: "int",
     }
 
-    code = _TEMPLATE.render(type=dtypes[dtype],
-                            throw=throw_helper,
-                            register_assign_cycles=register_assign_cycles,
-                            warp_size=32,
-                            corrs=ncorrs,
-                            debug="false").encode("utf-8")
+    code = _TEMPLATE.render(
+        type=dtypes[dtype],
+        throw=throw_helper,
+        register_assign_cycles=register_assign_cycles,
+        warp_size=32,
+        corrs=ncorrs,
+        debug="false",
+    ).encode("utf-8")
     kernel = cp.RawKernel(code, "kernel")
 
-    inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
+    inputs = cp.arange(nvis * ncorrs, dtype=dtype).reshape(nvis, ncorrs)
     outputs = cp.empty_like(inputs)
     args = (inputs, outputs)
     block = (256, 1, 1)
@@ -360,8 +374,9 @@ def test_cuda_shuffle_transpose_2(ncorrs):
         print(format_code(kernel.code))
         raise
 
-    np.testing.assert_array_almost_equal(cp.asnumpy(inputs),
-                                         cp.asnumpy(outputs))
+    np.testing.assert_array_almost_equal(
+        cp.asnumpy(inputs), cp.asnumpy(outputs)
+    )
     return
 
     # Dead code

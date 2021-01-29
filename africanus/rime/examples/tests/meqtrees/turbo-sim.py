@@ -57,7 +57,8 @@ import Meow.StdTrees
 
 # MS options first
 mssel = Meow.Context.mssel = Meow.MSUtils.MSSelector(
-    has_input=False, has_model=False, tile_sizes=[8, 16, 32], flags=False)
+    has_input=False, has_model=False, tile_sizes=[8, 16, 32], flags=False
+)
 # MS compile-time options
 TDLCompileOptions(*mssel.compile_options())
 TDLCompileOption("run_purr", "Start Purr on this MS", False)
@@ -73,14 +74,21 @@ TDLCompileOptions(*Meow.IfrArray.compile_options())
 SIM_ONLY = "sim only"
 ADD_MS = "add to MS"
 SUB_MS = "subtract from MS"
-simmode_opt = TDLCompileOption("sim_mode", "Simulation mode", [
-                               SIM_ONLY, ADD_MS, SUB_MS])
+simmode_opt = TDLCompileOption(
+    "sim_mode", "Simulation mode", [SIM_ONLY, ADD_MS, SUB_MS]
+)
 simmode_opt.when_changed(
-    lambda mode: mssel.enable_input_column(mode != SIM_ONLY))
-model_opt = TDLCompileOption("read_ms_model", "Read additional uv-model visibilities from MS", False, doc="""
+    lambda mode: mssel.enable_input_column(mode != SIM_ONLY)
+)
+model_opt = TDLCompileOption(
+    "read_ms_model",
+    "Read additional uv-model visibilities from MS",
+    False,
+    doc="""
   <P>If enabled, then an extra set of model visibilities will be read from a column
   of the MS, and added to whatever is predicted by the sky model <i>in the uv-plane</i> (i.e. subject to uv-Jones but not sky-Jones corruptions).</P>
-  """)
+  """,
+)
 model_opt.when_changed(mssel.enable_model_column)
 
 # now load optional modules for the ME maker
@@ -90,17 +98,18 @@ meqmaker = TensorMeqMaker.TensorMeqMaker()
 # these will show up in the menu automatically
 
 # OMS: time to retire this one
-#import Meow.LSM
-#lsm = Meow.LSM.MeowLSM(include_options=False);
+# import Meow.LSM
+# lsm = Meow.LSM.MeowLSM(include_options=False);
 
 models = [gridded_sky, azel_sky, transient_sky, fitsimage_sky]  # ,lsm ]
 
 try:
     from Siamese.OMS.tigger_lsm import TiggerSkyModel
+
     models.insert(0, TiggerSkyModel())
 except BaseException:
-    print 'Failure to import TiggerSkyModel module'
-    print 'Is the location of Tigger defined in your PYTHONPATH environment variable?'
+    print "Failure to import TiggerSkyModel module"
+    print "Is the location of Tigger defined in your PYTHONPATH environment variable?"
     pass
 
 meqmaker.add_sky_models(models)
@@ -109,64 +118,92 @@ meqmaker.add_sky_models(models)
 # these will show up in the menu automatically
 
 # Ncorr - correct for N
-meqmaker.add_sky_jones('Ncorr', 'n-term correction', oms_n_inverse)
+meqmaker.add_sky_jones("Ncorr", "n-term correction", oms_n_inverse)
 
 # Z - ionosphere
-meqmaker.add_sky_jones('Z', 'ionosphere', [
-                       oms_ionosphere, oms_ionosphere2, ZJones.ZJones()])
+meqmaker.add_sky_jones(
+    "Z", "ionosphere", [oms_ionosphere, oms_ionosphere2, ZJones.ZJones()]
+)
 
 # P - Parallactic angle or dipole projection
-meqmaker.add_sky_jones('L', 'parallactic angle or dipole rotation', [
-                       Rotation('L', feed_angle=False), oms_dipole_projection])
+meqmaker.add_sky_jones(
+    "L",
+    "parallactic angle or dipole rotation",
+    [Rotation("L", feed_angle=False), oms_dipole_projection],
+)
 
 
 # E - beam
 # OMS: retiting this one: from Siamese.OMS import wsrt_beams
-meqmaker.add_sky_jones('E', 'beam', [analytic_beams, pybeams_fits, emss_polar_beams, paf_beams, fits_beams0, vla_beams, lofar_beams],
-                       pointing=oms_pointing_errors)
+meqmaker.add_sky_jones(
+    "E",
+    "beam",
+    [
+        analytic_beams,
+        pybeams_fits,
+        emss_polar_beams,
+        paf_beams,
+        fits_beams0,
+        vla_beams,
+        lofar_beams,
+    ],
+    pointing=oms_pointing_errors,
+)
 
 # P - Parallactic angle
-meqmaker.add_uv_jones('P', 'feed angle', Rotation('P'))
+meqmaker.add_uv_jones("P", "feed angle", Rotation("P"))
 
 # G - gains
-meqmaker.add_uv_jones('G', 'gains/phases', oms_gain_models)
+meqmaker.add_uv_jones("G", "gains/phases", oms_gain_models)
 
 # very important -- insert meqmaker's options properly
 TDLCompileOptions(*meqmaker.compile_options())
 
 # noise option
-_noise_option = TDLOption("noise_stddev", "Add noise, Jy per visibility", [
-                          None, 1e-6, 1e-3], more=float)
+_noise_option = TDLOption(
+    "noise_stddev",
+    "Add noise, Jy per visibility",
+    [None, 1e-6, 1e-3],
+    more=float,
+)
 _sefd_options = [
     TDLOption("noise_sefd", "SEFD, Jy", 0, more=float),
     TDLOption("noise_sefd_bw_khz", "Channel width, kHz", 4, more=float),
     TDLOption("noise_sefd_integration", "Integration, s", 60, more=float),
 ]
-_sefd_menu = TDLMenu("Compute from SEFD", toggle="noise_from_sefd",
-                     doc="""To compute per-visibility noise from the system equivalent flux density, enable this option,
+_sefd_menu = TDLMenu(
+    "Compute from SEFD",
+    toggle="noise_from_sefd",
+    doc="""To compute per-visibility noise from the system equivalent flux density, enable this option,
 and enter correct values for SEFD (per antenna), channel width and integration time in the fields below.
 The formula actually used is sigma = SEFD/sqrt(2*bandwidth*integration).
 """,
-                     *_sefd_options)
+    *_sefd_options
+)
 
-TDLCompileMenu("Add noise",
-               _noise_option,
-               _sefd_menu)
+TDLCompileMenu("Add noise", _noise_option, _sefd_menu)
 
 
 def _recompute_noise(dum):
     if noise_from_sefd:
         _noise_option.set_value(
-            noise_sefd/math.sqrt(noise_sefd_bw_khz*1e+3*noise_sefd_integration))
+            noise_sefd
+            / math.sqrt(noise_sefd_bw_khz * 1e3 * noise_sefd_integration)
+        )
 
 
 for opt in _sefd_options + [_sefd_menu]:
     opt.when_changed(_recompute_noise)
 
-TDLCompileOption("random_seed", "Random generator seed", ["time", 0], more=int,
-                 doc="""<P>To get a reproducible distribution for noise (and other "random" errors), supply a fixed seed value
+TDLCompileOption(
+    "random_seed",
+    "Random generator seed",
+    ["time", 0],
+    more=int,
+    doc="""<P>To get a reproducible distribution for noise (and other "random" errors), supply a fixed seed value
   here. The default setting of "time" uses the current time to seed the generator, so the distribution
-  is different upon every run.</P>""")
+  is different upon every run.</P>""",
+)
 
 # MPI options
 # from Meow import Parallelization
@@ -180,20 +217,23 @@ def _define_forest(ns):
     if run_purr:
         print mssel.msname
         import os.path
-        purrlog = os.path.normpath(mssel.msname)+".purrlog"
-        Timba.TDL.GUI.purr(purrlog, [mssel.msname, '.'])
+
+        purrlog = os.path.normpath(mssel.msname) + ".purrlog"
+        Timba.TDL.GUI.purr(purrlog, [mssel.msname, "."])
     # setup contexts properly
     array, observation = mssel.setup_observation_context(ns)
 
     # setup imaging options (now that we have an imaging size set up)
     imsel = mssel.imaging_selector(
-        npix=512, arcmin=meqmaker.estimate_image_size())
+        npix=512, arcmin=meqmaker.estimate_image_size()
+    )
     TDLRuntimeMenu("Imaging options", *imsel.option_list())
 
     # reading in model?
     if read_ms_model:
         model_spigots = array.spigots(
-            column="PREDICT", corr=mssel.get_corr_index())
+            column="PREDICT", corr=mssel.get_corr_index()
+        )
         meqmaker.make_per_ifr_bookmarks(model_spigots, "UV-model visibilities")
     else:
         model_spigots = None
@@ -204,10 +244,12 @@ def _define_forest(ns):
     # throw in a bit of noise
     if noise_stddev:
         noisedef = Meq.GaussNoise(
-            stddev=noise_stddev, dims=[2, 2], complex=True)
+            stddev=noise_stddev, dims=[2, 2], complex=True
+        )
         for p, q in array.ifrs():
-            ns.noisy_predict(p, q) << output(p, q) + \
-                             (ns.noise(p, q) << noisedef)
+            ns.noisy_predict(p, q) << output(p, q) + (
+                ns.noise(p, q) << noisedef
+            )
         output = ns.noisy_predict
 
     # in add or subtract sim mode, make some spigots and add/subtract
@@ -229,8 +271,13 @@ def _define_forest(ns):
 
     # make sinks and vdm.
     # The list of inspectors comes in handy here
-    Meow.StdTrees.make_sinks(ns, output, spigots=spigots, post=meqmaker.get_inspectors(
-    ), corr_index=mssel.get_corr_index())
+    Meow.StdTrees.make_sinks(
+        ns,
+        output,
+        spigots=spigots,
+        post=meqmaker.get_inspectors(),
+        corr_index=mssel.get_corr_index(),
+    )
 
     # very important -- insert meqmaker's options properly
     TDLRuntimeOptions(*meqmaker.runtime_options())
@@ -242,17 +289,18 @@ def _define_forest(ns):
 
 
 def _tdl_job_1_simulate_MS(mqs, parent, wait=False):
-    mqs.clearcache('VisDataMux')
-    mqs.execute('VisDataMux', mssel.create_io_request(), wait=wait)
+    mqs.clearcache("VisDataMux")
+    mqs.execute("VisDataMux", mssel.create_io_request(), wait=wait)
+
 
 # this is a useful thing to have at the bottom of the script, it allows us to check the tree for consistency
 # simply by running 'python script.tdl'
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ns = NodeScope()
     _define_forest(ns)
     # resolves nodes
     ns.Resolve()
 
-    print len(ns.AllNodes()), 'nodes defined'
+    print len(ns.AllNodes()), "nodes defined"

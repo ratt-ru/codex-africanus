@@ -3,7 +3,8 @@
 
 from africanus.model.spi.component_spi import SPI_DOCSTRING
 from africanus.model.spi.component_spi import (
-                                fit_spi_components as np_fit_spi_components)
+    fit_spi_components as np_fit_spi_components,
+)
 
 from africanus.util.requirements import requires_optional
 
@@ -48,4 +49,5 @@ def fit_spi_components(data, weights, freqs, freq0,
 
 
 fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
-                        array_type=":class:`dask.array.Array`")
+    array_type=":class:`dask.array.Array`"
+)

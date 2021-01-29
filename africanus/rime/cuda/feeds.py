@@ -48,13 +48,15 @@ def _generate_kernel(parallactic_angles, feed_type):
     render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "feed_rotation"
 
-    code = render(kernel_name=name,
-                  feed_type=feed_type,
-                  sincos_fn=cuda_function('sincos', dtype),
-                  pa_type=_get_typename(dtype),
-                  out_type=_get_typename(dtype))
+    code = render(
+        kernel_name=name,
+        feed_type=feed_type,
+        sincos_fn=cuda_function("sincos", dtype),
+        pa_type=_get_typename(dtype),
+        out_type=_get_typename(dtype),
+    )
 
-    code = code.encode('utf-8')
+    code = code.encode("utf-8")
 
     # Complex output type
     out_dtype = np.result_type(dtype, np.complex64)
@@ -62,7 +64,7 @@ def _generate_kernel(parallactic_angles, feed_type):
 
 
 @requires_optional("cupy", opt_import_error)
-def feed_rotation(parallactic_angles, feed_type='linear'):
+def feed_rotation(parallactic_angles, feed_type="linear"):
     """ Cupy implementation of the feed_rotation kernel. """
     kernel, block, out_dtype = _generate_kernel(parallactic_angles, feed_type)
     in_shape = parallactic_angles.shape
@@ -81,6 +83,7 @@ def feed_rotation(parallactic_angles, feed_type='linear'):
 
 try:
     feed_rotation.__doc__ = FEED_ROTATION_DOCS.substitute(
-                                array_type=":class:`cupy.ndarray`")
+        array_type=":class:`cupy.ndarray`"
+    )
 except AttributeError:
     pass

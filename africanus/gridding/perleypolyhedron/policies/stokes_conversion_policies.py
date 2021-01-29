@@ -164,21 +164,25 @@ def corr2stokesimpl(vis_in, policy_type):
     elif policy_type.literal_value == "U_FROM_XXXYYXYY":
         return lambda vis_in, policy_type: (vis_in[1] + vis_in[2]) * 0.5
     elif policy_type.literal_value == "U_FROM_RLLR":
-        return lambda vis_in, policy_type: -1.0j * (vis_in[0] - vis_in[1]
-                                                    ) * 0.5
+        return (
+            lambda vis_in, policy_type: -1.0j * (vis_in[0] - vis_in[1]) * 0.5
+        )
     elif policy_type.literal_value == "U_FROM_RRRLLRLL":
-        return lambda vis_in, policy_type: -1.0j * (vis_in[1] - vis_in[2]
-                                                    ) * 0.5
+        return (
+            lambda vis_in, policy_type: -1.0j * (vis_in[1] - vis_in[2]) * 0.5
+        )
     elif policy_type.literal_value == "V_FROM_RRLL":
         return lambda vis_in, policy_type: (vis_in[0] - vis_in[1]) * 0.5
     elif policy_type.literal_value == "V_FROM_RRRLLRLL":
         return lambda vis_in, policy_type: (vis_in[0] - vis_in[3]) * 0.5
     elif policy_type.literal_value == "V_FROM_XYYX":
-        return lambda vis_in, policy_type: -1.0j * (vis_in[0] - vis_in[1]
-                                                    ) * 0.5
+        return (
+            lambda vis_in, policy_type: -1.0j * (vis_in[0] - vis_in[1]) * 0.5
+        )
     elif policy_type.literal_value == "V_FROM_XXXYYXYY":
-        return lambda vis_in, policy_type: -1.0j * (vis_in[1] - vis_in[2]
-                                                    ) * 0.5
+        return (
+            lambda vis_in, policy_type: -1.0j * (vis_in[1] - vis_in[2]) * 0.5
+        )
     else:
         raise ValueError("Invalid stokes conversion")
 

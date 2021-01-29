@@ -21,18 +21,52 @@ from africanus.gridding.wgridder.hessian import (_hessian_internal
 from africanus.util.requirements import requires_optional
 
 
-def _model_wrapper(uvw, freq, model, freq_bin_idx, freq_bin_counts, cell,
-                   weights, flag, celly, epsilon, nthreads, do_wstacking):
+def _model_wrapper(
+    uvw,
+    freq,
+    model,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights,
+    flag,
+    celly,
+    epsilon,
+    nthreads,
+    do_wstacking,
+):
 
-    return model_np(uvw[0], freq, model[0][0], freq_bin_idx, freq_bin_counts,
-                    cell, weights, flag, celly, epsilon, nthreads,
-                    do_wstacking)
+    return model_np(
+        uvw[0],
+        freq,
+        model[0][0],
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+    )
 
 
-@requires_optional('dask.array', dask_import_error)
-def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
-          weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
-          do_wstacking=True):
+@requires_optional("dask.array", dask_import_error)
+def model(
+    uvw,
+    freq,
+    image,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+):
     # determine output type
     complex_type = da.result_type(image, np.complex64)
 
@@ -41,34 +75,50 @@ def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
     if weights is None:
         weight_out = None
     else:
-        weight_out = ('row', 'chan')
+        weight_out = ("row", "chan")
 
     if flag is None:
         flag_out = None
     else:
-        flag_out = ('row', 'chan')
+        flag_out = ("row", "chan")
 
-    vis = da.blockwise(_model_wrapper, ('row', 'chan'),
-                       uvw, ('row', 'three'),
-                       freq, ('chan',),
-                       image, ('chan', 'nx', 'ny'),
-                       freq_bin_idx, ('chan',),
-                       freq_bin_counts, ('chan',),
-                       cell, None,
-                       weights, weight_out,
-                       flag, flag_out,
-                       celly, None,
-                       epsilon, None,
-                       nthreads, None,
-                       do_wstacking, None,
-                       adjust_chunks={'chan': freq.chunks[0]},
-                       dtype=complex_type,
-                       align_arrays=False)
+    vis = da.blockwise(
+        _model_wrapper,
+        ("row", "chan"),
+        uvw,
+        ("row", "three"),
+        freq,
+        ("chan",),
+        image,
+        ("chan", "nx", "ny"),
+        freq_bin_idx,
+        ("chan",),
+        freq_bin_counts,
+        ("chan",),
+        cell,
+        None,
+        weights,
+        weight_out,
+        flag,
+        flag_out,
+        celly,
+        None,
+        epsilon,
+        None,
+        nthreads,
+        None,
+        do_wstacking,
+        None,
+        adjust_chunks={"chan": freq.chunks[0]},
+        dtype=complex_type,
+        align_arrays=False,
+    )
     return vis
 
 
@@ -97,12 +147,13 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
     if weights is None:
         weight_out = None
     else:
-        weight_out = ('row', 'chan')
+        weight_out = ("row", "chan")
 
     if flag is None:
         flag_out = None
@@ -153,12 +204,13 @@ def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
     if weights is None:
         weight_out = None
     else:
-        weight_out = ('row', 'chan')
+        weight_out = ("row", "chan")
 
     if flag is None:
         flag_out = None

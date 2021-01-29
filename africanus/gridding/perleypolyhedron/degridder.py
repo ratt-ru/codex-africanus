@@ -3,88 +3,99 @@ from numba import literally, prange
 from africanus.util.numba import jit
 
 from africanus.gridding.perleypolyhedron.policies import (
-    baseline_transform_policies as btp)
+    baseline_transform_policies as btp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    phase_transform_policies as ptp)
+    phase_transform_policies as ptp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    convolution_policies as cp)
+    convolution_policies as cp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    stokes_conversion_policies as scp)
+    stokes_conversion_policies as scp,
+)
 
 
 @jit(nopython=True, nogil=True, fastmath=True, inline="always")
-def degridder_row_kernel(uvw,
-                         gridstack,
-                         wavelengths,
-                         chanmap,
-                         cell,
-                         image_centre,
-                         phase_centre,
-                         convolution_kernel,
-                         convolution_kernel_width,
-                         convolution_kernel_oversampling,
-                         baseline_transform_policy,
-                         phase_transform_policy,
-                         stokes_conversion_policy,
-                         convolution_policy,
-                         vis_dtype=np.complex128,
-                         nband=0,
-                         nrow=0,
-                         npix=0,
-                         nvischan=0,
-                         ncorr=0,
-                         vis=None,
-                         scale_factor=0,
-                         r=0):
+def degridder_row_kernel(
+    uvw,
+    gridstack,
+    wavelengths,
+    chanmap,
+    cell,
+    image_centre,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    vis_dtype=np.complex128,
+    nband=0,
+    nrow=0,
+    npix=0,
+    nvischan=0,
+    ncorr=0,
+    vis=None,
+    scale_factor=0,
+    r=0,
+):
     ra0, dec0 = phase_centre
     ra, dec = image_centre
-    btp.policy(uvw[r, :], ra, dec, ra0, dec0,
-               baseline_transform_policy)
+    btp.policy(uvw[r, :], ra, dec, ra0, dec0, baseline_transform_policy)
     for c in range(nvischan):
         scaled_u = uvw[r, 0] * scale_factor / wavelengths[c]
         scaled_v = uvw[r, 1] * scale_factor / wavelengths[c]
         scaled_w = uvw[r, 2] * scale_factor / wavelengths[c]
         grid = gridstack[chanmap[c], :, :]
-        cp.policy(scaled_u,
-                  scaled_v,
-                  scaled_w,
-                  npix,
-                  grid,
-                  vis,
-                  r,
-                  c,
-                  convolution_kernel,
-                  convolution_kernel_width,
-                  convolution_kernel_oversampling,
-                  stokes_conversion_policy,
-                  policy_type=convolution_policy)
-    ptp.policy(vis[r, :, :],
-               uvw[r, :],
-               wavelengths,
-               ra0,
-               dec0,
-               ra,
-               dec,
-               policy_type=phase_transform_policy,
-               phasesign=-1.0)
+        cp.policy(
+            scaled_u,
+            scaled_v,
+            scaled_w,
+            npix,
+            grid,
+            vis,
+            r,
+            c,
+            convolution_kernel,
+            convolution_kernel_width,
+            convolution_kernel_oversampling,
+            stokes_conversion_policy,
+            policy_type=convolution_policy,
+        )
+    ptp.policy(
+        vis[r, :, :],
+        uvw[r, :],
+        wavelengths,
+        ra0,
+        dec0,
+        ra,
+        dec,
+        policy_type=phase_transform_policy,
+        phasesign=-1.0,
+    )
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True)
-def degridder(uvw,
-              gridstack,
-              wavelengths,
-              chanmap,
-              cell,
-              image_centre,
-              phase_centre,
-              convolution_kernel,
-              convolution_kernel_width,
-              convolution_kernel_oversampling,
-              baseline_transform_policy,
-              phase_transform_policy,
-              stokes_conversion_policy,
-              convolution_policy,
-              vis_dtype=np.complex128):
+def degridder(
+    uvw,
+    gridstack,
+    wavelengths,
+    chanmap,
+    cell,
+    image_centre,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    vis_dtype=np.complex128,
+):
     """
     2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
@@ -115,7 +126,8 @@ def degridder(uvw,
 
     if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding wavelengths must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -127,12 +139,14 @@ def degridder(uvw,
     ncorr = scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
     if gridstack.shape[0] < nband:
         raise ValueError(
-            "Not enough channel bands in grid stack to match mfs band mapping")
+            "Not enough channel bands in grid stack to match mfs band mapping"
+        )
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
         raise ValueError(
-            "UVW array must have same number of rows as vis array")
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
@@ -141,48 +155,52 @@ def degridder(uvw,
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in prange(nrow):
-        degridder_row_kernel(uvw,
-                             gridstack,
-                             wavelengths,
-                             chanmap,
-                             cell,
-                             image_centre,
-                             phase_centre,
-                             convolution_kernel,
-                             convolution_kernel_width,
-                             convolution_kernel_oversampling,
-                             literally(baseline_transform_policy),
-                             literally(phase_transform_policy),
-                             literally(stokes_conversion_policy),
-                             literally(convolution_policy),
-                             vis_dtype=vis_dtype,
-                             nband=nband,
-                             nrow=nrow,
-                             npix=npix,
-                             nvischan=nvischan,
-                             ncorr=ncorr,
-                             vis=vis,
-                             scale_factor=scale_factor,
-                             r=r)
+        degridder_row_kernel(
+            uvw,
+            gridstack,
+            wavelengths,
+            chanmap,
+            cell,
+            image_centre,
+            phase_centre,
+            convolution_kernel,
+            convolution_kernel_width,
+            convolution_kernel_oversampling,
+            literally(baseline_transform_policy),
+            literally(phase_transform_policy),
+            literally(stokes_conversion_policy),
+            literally(convolution_policy),
+            vis_dtype=vis_dtype,
+            nband=nband,
+            nrow=nrow,
+            npix=npix,
+            nvischan=nvischan,
+            ncorr=ncorr,
+            vis=vis,
+            scale_factor=scale_factor,
+            r=r,
+        )
     return vis
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
-def degridder_serial(uvw,
-                     gridstack,
-                     wavelengths,
-                     chanmap,
-                     cell,
-                     image_centre,
-                     phase_centre,
-                     convolution_kernel,
-                     convolution_kernel_width,
-                     convolution_kernel_oversampling,
-                     baseline_transform_policy,
-                     phase_transform_policy,
-                     stokes_conversion_policy,
-                     convolution_policy,
-                     vis_dtype=np.complex128):
+def degridder_serial(
+    uvw,
+    gridstack,
+    wavelengths,
+    chanmap,
+    cell,
+    image_centre,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    vis_dtype=np.complex128,
+):
     """
     2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
@@ -213,7 +231,8 @@ def degridder_serial(uvw,
 
     if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding wavelengths must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -225,12 +244,14 @@ def degridder_serial(uvw,
     ncorr = scp.ncorr_out(policy_type=literally(stokes_conversion_policy))
     if gridstack.shape[0] < nband:
         raise ValueError(
-            "Not enough channel bands in grid stack to match mfs band mapping")
+            "Not enough channel bands in grid stack to match mfs band mapping"
+        )
     if uvw.shape[1] != 3:
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
         raise ValueError(
-            "UVW array must have same number of rows as vis array")
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
@@ -239,27 +260,29 @@ def degridder_serial(uvw,
     # scale the FOV using the simularity theorem
     scale_factor = npix * cell / 3600.0 * np.pi / 180.0
     for r in range(nrow):
-        degridder_row_kernel(uvw,
-                             gridstack,
-                             wavelengths,
-                             chanmap,
-                             cell,
-                             image_centre,
-                             phase_centre,
-                             convolution_kernel,
-                             convolution_kernel_width,
-                             convolution_kernel_oversampling,
-                             literally(baseline_transform_policy),
-                             literally(phase_transform_policy),
-                             literally(stokes_conversion_policy),
-                             literally(convolution_policy),
-                             vis_dtype=vis_dtype,
-                             nband=nband,
-                             nrow=nrow,
-                             npix=npix,
-                             nvischan=nvischan,
-                             ncorr=ncorr,
-                             vis=vis,
-                             scale_factor=scale_factor,
-                             r=r)
+        degridder_row_kernel(
+            uvw,
+            gridstack,
+            wavelengths,
+            chanmap,
+            cell,
+            image_centre,
+            phase_centre,
+            convolution_kernel,
+            convolution_kernel_width,
+            convolution_kernel_oversampling,
+            literally(baseline_transform_policy),
+            literally(phase_transform_policy),
+            literally(stokes_conversion_policy),
+            literally(convolution_policy),
+            vis_dtype=vis_dtype,
+            nband=nband,
+            nrow=nrow,
+            npix=npix,
+            nvischan=nvischan,
+            ncorr=ncorr,
+            vis=vis,
+            scale_factor=scale_factor,
+            r=r,
+        )
     return vis

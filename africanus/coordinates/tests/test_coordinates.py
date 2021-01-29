@@ -1,12 +1,13 @@
-
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
-from africanus.coordinates import (radec_to_lmn as np_radec_to_lmn,
-                                   radec_to_lm as np_radec_to_lm,
-                                   lmn_to_radec as np_lmn_to_radec,
-                                   lm_to_radec as np_lm_to_radec)
+from africanus.coordinates import (
+    radec_to_lmn as np_radec_to_lmn,
+    radec_to_lm as np_radec_to_lm,
+    lmn_to_radec as np_lmn_to_radec,
+    lm_to_radec as np_lm_to_radec,
+)
 
 from africanus.coordinates.coordinates import astropy_radec_to_lmn
 
@@ -41,7 +42,7 @@ def test_radec_to_lmn_astropy():
 
     np.random.seed(42)
 
-    astropy = pytest.importorskip('astropy')
+    astropy = pytest.importorskip("astropy")
     SkyCoord = astropy.coordinates.SkyCoord
     units = astropy.units
 
@@ -51,8 +52,9 @@ def test_radec_to_lmn_astropy():
     lmn = np_radec_to_lmn(radec, phase_centre)
 
     ast_radec = SkyCoord(radec[:, 0], radec[:, 1], unit=units.rad)
-    ast_phase_centre = SkyCoord(phase_centre[0], phase_centre[1],
-                                unit=units.rad)
+    ast_phase_centre = SkyCoord(
+        phase_centre[0], phase_centre[1], unit=units.rad
+    )
     ast_lmn = astropy_radec_to_lmn(ast_radec, ast_phase_centre)
 
     assert_array_almost_equal(ast_lmn, lmn)
@@ -77,10 +79,12 @@ def test_dask_radec_to_lmn():
     """ Test that dask version matches numpy version """
     da = pytest.importorskip("dask.array")
 
-    from africanus.coordinates.dask import (radec_to_lmn as da_radec_to_lmn,
-                                            radec_to_lm as da_radec_to_lm,
-                                            lmn_to_radec as da_lmn_to_radec,
-                                            lm_to_radec as da_lm_to_radec)
+    from africanus.coordinates.dask import (
+        radec_to_lmn as da_radec_to_lmn,
+        radec_to_lm as da_radec_to_lm,
+        lmn_to_radec as da_lmn_to_radec,
+        lm_to_radec as da_lm_to_radec,
+    )
 
     np.random.seed(42)
 
@@ -90,7 +94,7 @@ def test_dask_radec_to_lmn():
     source = sum(source_chunks)
     coords = sum(coord_chunks)
 
-    radec = np.random.random((source, coords))*10
+    radec = np.random.random((source, coords)) * 10
     da_radec = da.from_array(radec, chunks=(source_chunks, coord_chunks))
 
     phase_centre = np.random.random(coord_chunks)
@@ -122,7 +126,15 @@ def test_dask_radec_to_lmn():
     # Test missing phase centre cases
     zpc = da.zeros((2,), dtype=radec.dtype, chunks=(2,))
 
-    assert_array_equal(da_radec_to_lmn(da_radec), da_radec_to_lmn(da_radec, zpc))  # noqa
-    assert_array_equal(da_radec_to_lm(da_radec), da_radec_to_lm(da_radec, zpc))    # noqa
-    assert_array_equal(da_lmn_to_radec(da_lmn), da_lmn_to_radec(da_lmn, zpc))      # noqa
-    assert_array_equal(da_lm_to_radec(da_lm), da_lm_to_radec(da_lm, zpc))          # noqa
+    assert_array_equal(
+        da_radec_to_lmn(da_radec), da_radec_to_lmn(da_radec, zpc)
+    )  # noqa
+    assert_array_equal(
+        da_radec_to_lm(da_radec), da_radec_to_lm(da_radec, zpc)
+    )  # noqa
+    assert_array_equal(
+        da_lmn_to_radec(da_lmn), da_lmn_to_radec(da_lmn, zpc)
+    )  # noqa
+    assert_array_equal(
+        da_lm_to_radec(da_lm), da_lm_to_radec(da_lm, zpc)
+    )  # noqa

@@ -60,6 +60,7 @@ def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
     dirty = _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
@@ -136,10 +137,10 @@ DIRTY_DOCS = DocstringTemplate(
     model : $(array_type)
         Dirty image corresponding to visibilities
         of shape :code:`(nband, nx, ny)`.
-    """)
+    """
+)
 
 try:
-    dirty.__doc__ = DIRTY_DOCS.substitute(
-                        array_type=":class:`numpy.ndarray`")
+    dirty.__doc__ = DIRTY_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

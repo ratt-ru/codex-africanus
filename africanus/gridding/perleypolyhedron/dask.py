@@ -7,33 +7,37 @@ except ImportError as e:
 else:
     opt_import_err = None
 
-from africanus.gridding.perleypolyhedron.gridder import (
-    gridder as np_gridder)
+from africanus.gridding.perleypolyhedron.gridder import gridder as np_gridder
 from africanus.gridding.perleypolyhedron.degridder import (
-    degridder as np_degridder)
+    degridder as np_degridder,
+)
 from africanus.gridding.perleypolyhedron.degridder import (
-    degridder_serial as np_degridder_serial)
+    degridder_serial as np_degridder_serial,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    stokes_conversion_policies)
+    stokes_conversion_policies,
+)
 from africanus.util.requirements import requires_optional
 
 
-def __degrid(uvw,
-             gridstack,
-             lambdas,
-             chanmap,
-             image_centres,
-             phase_centre,
-             cell=None,
-             convolution_kernel=None,
-             convolution_kernel_width=None,
-             convolution_kernel_oversampling=None,
-             baseline_transform_policy=None,
-             phase_transform_policy=None,
-             stokes_conversion_policy=None,
-             convolution_policy=None,
-             vis_dtype=np.complex128,
-             rowparallel=False):
+def __degrid(
+    uvw,
+    gridstack,
+    lambdas,
+    chanmap,
+    image_centres,
+    phase_centre,
+    cell=None,
+    convolution_kernel=None,
+    convolution_kernel_width=None,
+    convolution_kernel_oversampling=None,
+    baseline_transform_policy=None,
+    phase_transform_policy=None,
+    stokes_conversion_policy=None,
+    convolution_policy=None,
+    vis_dtype=np.complex128,
+    rowparallel=False,
+):
     image_centres = image_centres[0][0]
     if image_centres.ndim != 2:
         raise ValueError(
@@ -52,51 +56,56 @@ def __degrid(uvw,
     chanmap = chanmap
     if chanmap.size != lambdas.size:
         raise ValueError(
-            "Chanmap and corresponding lambdas must match in shape")
+            "Chanmap and corresponding lambdas must match in shape"
+        )
     nchan = lambdas.size
     nrow = uvw.shape[0]
     ncorr = stokes_conversion_policies.ncorr_outpy(
-        policy_type=stokes_conversion_policy)()
+        policy_type=stokes_conversion_policy
+    )()
     vis = np.zeros((nrow, nchan, ncorr), dtype=vis_dtype)
     degridcall = np_degridder_serial if not rowparallel else np_degridder
     for fi, f in enumerate(image_centres):
         # add contributions from all facets
-        vis[:, :, :] += \
-            degridcall(uvw,
-                       gridstack[fi, :, :, :],
-                       lambdas,
-                       chanmap,
-                       cell,
-                       image_centres,
-                       phase_centre,
-                       convolution_kernel,
-                       convolution_kernel_width,
-                       convolution_kernel_oversampling,
-                       baseline_transform_policy,
-                       phase_transform_policy,
-                       stokes_conversion_policy,
-                       convolution_policy,
-                       vis_dtype=vis_dtype)
+        vis[:, :, :] += degridcall(
+            uvw,
+            gridstack[fi, :, :, :],
+            lambdas,
+            chanmap,
+            cell,
+            image_centres,
+            phase_centre,
+            convolution_kernel,
+            convolution_kernel_width,
+            convolution_kernel_oversampling,
+            baseline_transform_policy,
+            phase_transform_policy,
+            stokes_conversion_policy,
+            convolution_policy,
+            vis_dtype=vis_dtype,
+        )
     return vis
 
 
 @requires_optional("dask", opt_import_err)
-def degridder(uvw,
-              gridstack,
-              lambdas,
-              chanmap,
-              cell,
-              image_centres,
-              phase_centre,
-              convolution_kernel,
-              convolution_kernel_width,
-              convolution_kernel_oversampling,
-              baseline_transform_policy,
-              phase_transform_policy,
-              stokes_conversion_policy,
-              convolution_policy,
-              vis_dtype=np.complex128,
-              rowparallel=False):
+def degridder(
+    uvw,
+    gridstack,
+    lambdas,
+    chanmap,
+    cell,
+    image_centres,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    vis_dtype=np.complex128,
+    rowparallel=False,
+):
     """
     2D Convolutional degridder, discrete to contiguous
     @uvw: value coordinates, (nrow, 3)
@@ -147,12 +156,18 @@ def degridder(uvw,
             "of image centres"
         )
     vis = da.blockwise(
-        __degrid, ("row", "chan", "corr"),
-        uvw, ("row", "uvw"),
-        gridstack, ("nfacet", "nband", "y", "x"),
-        lambdas, ("chan", ),
-        chanmap, ("chan", ),
-        image_centres, ("nfacet", "coord"),
+        __degrid,
+        ("row", "chan", "corr"),
+        uvw,
+        ("row", "uvw"),
+        gridstack,
+        ("nfacet", "nband", "y", "x"),
+        lambdas,
+        ("chan",),
+        chanmap,
+        ("chan",),
+        image_centres,
+        ("nfacet", "coord"),
         convolution_kernel=convolution_kernel,
         convolution_kernel_width=convolution_kernel_width,
         convolution_kernel_oversampling=convolution_kernel_oversampling,
@@ -164,35 +179,37 @@ def degridder(uvw,
         phase_centre=phase_centre,
         vis_dtype=vis_dtype,
         new_axes={
-            "corr":
-            stokes_conversion_policies.ncorr_outpy(
-                policy_type=stokes_conversion_policy)()
+            "corr": stokes_conversion_policies.ncorr_outpy(
+                policy_type=stokes_conversion_policy
+            )()
         },
         dtype=vis_dtype,
         meta=np.empty(
-            (0, 0, 0),
-            dtype=vis_dtype)  # row, chan, correlation product as per MSv2 spec
+            (0, 0, 0), dtype=vis_dtype
+        ),  # row, chan, correlation product as per MSv2 spec
     )
     return vis
 
 
-def __grid(uvw,
-           vis,
-           image_centres,
-           lambdas=None,
-           chanmap=None,
-           convolution_kernel=None,
-           convolution_kernel_width=None,
-           convolution_kernel_oversampling=None,
-           baseline_transform_policy=None,
-           phase_transform_policy=None,
-           stokes_conversion_policy=None,
-           convolution_policy=None,
-           npix=None,
-           cell=None,
-           phase_centre=None,
-           grid_dtype=np.complex128,
-           do_normalize=False):
+def __grid(
+    uvw,
+    vis,
+    image_centres,
+    lambdas=None,
+    chanmap=None,
+    convolution_kernel=None,
+    convolution_kernel_width=None,
+    convolution_kernel_oversampling=None,
+    baseline_transform_policy=None,
+    phase_transform_policy=None,
+    stokes_conversion_policy=None,
+    convolution_policy=None,
+    npix=None,
+    cell=None,
+    phase_centre=None,
+    grid_dtype=np.complex128,
+    do_normalize=False,
+):
     image_centres = image_centres[0]
     if image_centres.ndim != 2:
         raise ValueError(
@@ -208,26 +225,17 @@ def __grid(uvw,
     chanmap = chanmap[0]
     grid_stack = np.zeros(
         (1, image_centres.shape[0], 1, np.max(chanmap) + 1, npix, npix),
-        dtype=grid_dtype)
+        dtype=grid_dtype,
+    )
     for fi, f in enumerate(image_centres):
-        grid_stack[0, fi, 0, :, :, :] = \
-            np_gridder(uvw, vis, lambdas, chanmap, npix, cell, f, phase_centre,
-                       convolution_kernel, convolution_kernel_width,
-                       convolution_kernel_oversampling,
-                       baseline_transform_policy, phase_transform_policy,
-                       stokes_conversion_policy,
-                       convolution_policy, grid_dtype, do_normalize)
-    return grid_stack
-
-
-@requires_optional("dask", opt_import_err)
-def gridder(uvw,
+        grid_stack[0, fi, 0, :, :, :] = np_gridder(
+            uvw,
             vis,
             lambdas,
             chanmap,
             npix,
             cell,
-            image_centres,
+            f,
             phase_centre,
             convolution_kernel,
             convolution_kernel_width,
@@ -236,8 +244,32 @@ def gridder(uvw,
             phase_transform_policy,
             stokes_conversion_policy,
             convolution_policy,
-            grid_dtype=np.complex128,
-            do_normalize=False):
+            grid_dtype,
+            do_normalize,
+        )
+    return grid_stack
+
+
+@requires_optional("dask", opt_import_err)
+def gridder(
+    uvw,
+    vis,
+    lambdas,
+    chanmap,
+    npix,
+    cell,
+    image_centres,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    grid_dtype=np.complex128,
+    do_normalize=False,
+):
     """
     2D Convolutional gridder, contiguous to discrete
     @uvw: value coordinates, (nrow, 3)
@@ -277,17 +309,27 @@ def gridder(uvw,
             "Visibility frequency chunking does not match chanmap "
             "frequency chunking"
         )
-    if len(vis.chunks) != 3 or len(
-            uvw.chunks) != 2 or vis.chunks[0] != uvw.chunks[0]:
+    if (
+        len(vis.chunks) != 3
+        or len(uvw.chunks) != 2
+        or vis.chunks[0] != uvw.chunks[0]
+    ):
         raise ValueError(
-            "Visibility row chunking does not match uvw row chunking")
+            "Visibility row chunking does not match uvw row chunking"
+        )
     grids = da.blockwise(
-        __grid, ("row", "nfacet", "nstokes", "nband", "y", "x"),
-        uvw, ("row", "uvw"),
-        vis, ("row", "chan", "corr"),
-        image_centres, ("nfacet", "coord"),
-        lambdas, ("chan", ),
-        chanmap, ("chan", ),
+        __grid,
+        ("row", "nfacet", "nstokes", "nband", "y", "x"),
+        uvw,
+        ("row", "uvw"),
+        vis,
+        ("row", "chan", "corr"),
+        image_centres,
+        ("nfacet", "coord"),
+        lambdas,
+        ("chan",),
+        chanmap,
+        ("chan",),
         convolution_kernel=convolution_kernel,
         convolution_kernel_width=convolution_kernel_width,
         convolution_kernel_oversampling=convolution_kernel_oversampling,
@@ -308,10 +350,11 @@ def gridder(uvw,
             # multi-stokes cubes are supported
             "nstokes": 1,
             "y": npix,
-            "x": npix
+            "x": npix,
         },
         dtype=grid_dtype,
-        meta=np.empty((0, 0, 0, 0, 0, 0), dtype=grid_dtype))
+        meta=np.empty((0, 0, 0, 0, 0, 0), dtype=grid_dtype),
+    )
 
     # Parallel reduction over row dimension
     return grids.mean(axis=0, split_every=2)

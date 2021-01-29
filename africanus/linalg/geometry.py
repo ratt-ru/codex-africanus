@@ -32,8 +32,13 @@ def timeit(method):
 
 class BoundingConvexHull(object):
     @requires_optional("scipy.stats", opt_import_err)
-    def __init__(self, list_hulls, name="unnamed",
-                 mask=None, check_mask_outofbounds=True):
+    def __init__(
+        self,
+        list_hulls,
+        name="unnamed",
+        mask=None,
+        check_mask_outofbounds=True,
+    ):
         """
         Initializes a bounding convex hull around a list of bounding
         convex hulls or series of points.
@@ -167,11 +172,11 @@ class BoundingConvexHull(object):
 
     @classmethod
     def regional_data(cls, sel_region, data_cube, axes=(2, 3), oob_value=0):
-        """ 2D array containing all values within convex hull
-            sliced out along axes provided as argument. Portions of sel_region
-            that are outside of the data_cube is set to oob_value
+        """2D array containing all values within convex hull
+        sliced out along axes provided as argument. Portions of sel_region
+        that are outside of the data_cube is set to oob_value
 
-            assumes the last value of axes is the fastest varying axis
+        assumes the last value of axes is the fastest varying axis
         """
         if not isinstance(sel_region, BoundingConvexHull):
             raise TypeError(
@@ -203,8 +208,10 @@ class BoundingConvexHull(object):
             or maxy < 0
             or maxx < 0
         ):
-            raise ValueError("Expected a bounding hull that is "
-                             "at least partially within the image")
+            raise ValueError(
+                "Expected a bounding hull that is "
+                "at least partially within the image"
+            )
 
         # extract data, pad if necessary
         slc_data = [slice(None)] * len(data_cube.shape)
@@ -555,7 +562,8 @@ class BoundingBox(BoundingConvexHull):
             self._mask = []
         else:
             lines = np.hstack(
-                [self.corners, np.roll(self.corners, -1, axis=0)])
+                [self.corners, np.roll(self.corners, -1, axis=0)]
+            )
             minx = np.min(lines[:, 0:4:2])
             maxx = np.max(lines[:, 0:4:2])
             miny = np.min(lines[:, 1:4:2])
@@ -587,8 +595,10 @@ class BoundingBox(BoundingConvexHull):
             and hasattr(regions_list, "__len__")
             and len(regions_list) == len(regional_data_list)
         ):
-            raise TypeError("Region data list and regions lists "
-                            "must be lists of equal length")
+            raise TypeError(
+                "Region data list and regions lists "
+                "must be lists of equal length"
+            )
         if not all([isinstance(x, np.ndarray) for x in regional_data_list]):
             raise TypeError("Region data list must be a list of ndarrays")
         if not all([isinstance(x, BoundingBox) for x in regions_list]):
@@ -630,9 +640,11 @@ class BoundingBox(BoundingConvexHull):
             fnx = xu - xl + 1  # inclusive
             fny = yu - yl + 1  # inclusive
             if f.shape[axes[0]] != fny - 1 or f.shape[axes[1]] != fnx - 1:
-                raise ValueError("One or more bounding box descriptors "
-                                 "does not match shape of corresponding "
-                                 "data cubes")
+                raise ValueError(
+                    "One or more bounding box descriptors "
+                    "does not match shape of corresponding "
+                    "data cubes"
+                )
             slc_data = [slice(None)] * len(stitched_img.shape)
             for (start, end), axis in zip([(yl, yu), (xl, xu)], axes):
                 slc_data[axis] = slice(start, end)
@@ -658,8 +670,10 @@ class BoundingBoxFactory(object):
     ):
         """ Constructs an axis aligned bounding box around convex hull """
         if not isinstance(convex_hull_object, BoundingConvexHull):
-            raise TypeError("Convex hull object passed in constructor "
-                            "is not of type BoundingConvexHull")
+            raise TypeError(
+                "Convex hull object passed in constructor "
+                "is not of type BoundingConvexHull"
+            )
         if square:
             nx = (
                 np.max(convex_hull_object.corners[:, 0])
@@ -704,7 +718,8 @@ class BoundingBoxFactory(object):
             raise TypeError("Expected bounding box object")
         if not (isinstance(nsubboxes, int) and nsubboxes >= 1):
             raise ValueError(
-                "nsubboxes must be integral type and be 1 or more")
+                "nsubboxes must be integral type and be 1 or more"
+            )
         xl = np.min(bounding_box_object.corners[:, 0])
         xu = np.max(bounding_box_object.corners[:, 0])
         yl = np.min(bounding_box_object.corners[:, 1])

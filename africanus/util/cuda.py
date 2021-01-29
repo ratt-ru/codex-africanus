@@ -23,51 +23,51 @@ _array_types = tuple(_array_types)
 
 cuda_fns = {
     np.dtype(np.float32): {
-        'abs': 'fabsf',
-        'cos': 'cosf',
-        'floor': 'floorf',
-        'make2': 'make_float2',
-        'max': 'fmaxf',
-        'min': 'fminf',
-        'rsqrt': 'rsqrtf',
-        'sqrt': 'sqrtf',
-        'sin': 'sinf',
-        'sincos': 'sincosf',
-        'sincospi': 'sincospif',
+        "abs": "fabsf",
+        "cos": "cosf",
+        "floor": "floorf",
+        "make2": "make_float2",
+        "max": "fmaxf",
+        "min": "fminf",
+        "rsqrt": "rsqrtf",
+        "sqrt": "sqrtf",
+        "sin": "sinf",
+        "sincos": "sincosf",
+        "sincospi": "sincospif",
     },
     np.dtype(np.float64): {
-        'abs': 'fabs',
-        'cos': 'cos',
-        'floor': 'floor',
-        'make2': 'make_double2',
-        'max': 'fmax',
-        'min': 'fmin',
-        'rsqrt': 'rsqrt',
-        'sin': 'sin',
-        'sincos': 'sincos',
-        'sincospi': 'sincospi',
-        'sqrt': 'sqrt',
+        "abs": "fabs",
+        "cos": "cos",
+        "floor": "floor",
+        "make2": "make_double2",
+        "max": "fmax",
+        "min": "fmin",
+        "rsqrt": "rsqrt",
+        "sin": "sin",
+        "sincos": "sincos",
+        "sincospi": "sincospi",
+        "sqrt": "sqrt",
     },
 }
 
 
 numpy_to_cuda_type_map = {
-    np.dtype('int8'): "char",
-    np.dtype('uint8'): "unsigned char",
-    np.dtype('int16'): "short",
-    np.dtype('uint16'): "unsigned short",
-    np.dtype('int32'): "int",
-    np.dtype('uint32'): "unsigned int",
-    np.dtype('float32'): "float",
-    np.dtype('float64'): "double",
-    np.dtype('complex64'): "float2",
-    np.dtype('complex128'): "double2"
+    np.dtype("int8"): "char",
+    np.dtype("uint8"): "unsigned char",
+    np.dtype("int16"): "short",
+    np.dtype("uint16"): "unsigned short",
+    np.dtype("int32"): "int",
+    np.dtype("uint32"): "unsigned int",
+    np.dtype("float32"): "float",
+    np.dtype("float64"): "double",
+    np.dtype("complex64"): "float2",
+    np.dtype("complex128"): "double2",
 }
 
 # Also map the types
-numpy_to_cuda_type_map.update({k.type: v
-                               for k, v
-                               in numpy_to_cuda_type_map.items()})
+numpy_to_cuda_type_map.update(
+    {k.type: v for k, v in numpy_to_cuda_type_map.items()}
+)
 
 
 def grids(dims, blocks):
@@ -85,14 +85,18 @@ def grids(dims, blocks):
         `(x, y, z)` grid size tuple
     """
     if not len(dims) == 3:
-        raise ValueError("dims must be an (x, y, z) tuple. "
-                         "CUDA dimension ordering is inverted compared "
-                         "to NumPy")
+        raise ValueError(
+            "dims must be an (x, y, z) tuple. "
+            "CUDA dimension ordering is inverted compared "
+            "to NumPy"
+        )
 
     if not len(blocks) == 3:
-        raise ValueError("blocks must be an (x, y, z) tuple. "
-                         "CUDA dimension ordering is inverted compared "
-                         "to NumPy")
+        raise ValueError(
+            "blocks must be an (x, y, z) tuple. "
+            "CUDA dimension ordering is inverted compared "
+            "to NumPy"
+        )
 
     return tuple((d + b - 1) // b for d, b in zip(dims, blocks))
 

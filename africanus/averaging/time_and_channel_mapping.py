@@ -16,9 +16,12 @@ class RowMapperError(Exception):
 
 def is_flagged_factory(have_flag_row):
     if have_flag_row:
+
         def impl(flag_row, r):
             return flag_row[r] != 0
+
     else:
+
         def impl(flag_row, r):
             return False
 
@@ -27,9 +30,12 @@ def is_flagged_factory(have_flag_row):
 
 def output_factory(have_flag_row):
     if have_flag_row:
+
         def impl(rows, flag_row):
             return np.zeros(rows, dtype=flag_row.dtype)
+
     else:
+
         def impl(rows, flag_row):
             return None
 
@@ -38,27 +44,34 @@ def output_factory(have_flag_row):
 
 def set_flag_row_factory(have_flag_row):
     if have_flag_row:
+
         def impl(flag_row, in_row, out_flag_row, out_row, flagged):
             if flag_row[in_row] == 0 and flagged:
-                raise RowMapperError("Unflagged input row contributing "
-                                     "to flagged output row. "
-                                     "This should never happen!")
+                raise RowMapperError(
+                    "Unflagged input row contributing "
+                    "to flagged output row. "
+                    "This should never happen!"
+                )
 
-            out_flag_row[out_row] = (1 if flagged else 0)
+            out_flag_row[out_row] = 1 if flagged else 0
+
     else:
+
         def impl(flag_row, in_row, out_flag_row, out_row, flagged):
             pass
 
     return njit(nogil=True, cache=True)(impl)
 
 
-RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "time", "interval", "flag_row"])
+RowMapOutput = namedtuple(
+    "RowMapOutput", ["map", "time", "interval", "flag_row"]
+)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def row_mapper(time, interval, antenna1, antenna2,
-               flag_row=None, time_bin_secs=1):
+def row_mapper(
+    time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1
+):
     """
     Generates a mapping from a high resolution row index to
     a low resolution row index in support of time and channel
@@ -184,8 +197,9 @@ def row_mapper(time, interval, antenna1, antenna2,
     output_flag_row = output_factory(have_flag_row)
     set_flag_row = set_flag_row_factory(have_flag_row)
 
-    def impl(time, interval, antenna1, antenna2,
-             flag_row=None, time_bin_secs=1):
+    def impl(
+        time, interval, antenna1, antenna2, flag_row=None, time_bin_secs=1
+    ):
         ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
         utime, _, time_inv, _ = unique_time(time)
 
@@ -195,10 +209,10 @@ def row_mapper(time, interval, antenna1, antenna2,
         sentinel = np.finfo(time.dtype).max
         out_rows = numba.uint32(0)
 
-        scratch = np.full(3*nbl*ntime, -1, dtype=np.int32)
-        row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
-        bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
-        inv_argsort = scratch[2*nbl*ntime:]
+        scratch = np.full(3 * nbl * ntime, -1, dtype=np.int32)
+        row_lookup = scratch[: nbl * ntime].reshape(nbl, ntime)
+        bin_lookup = scratch[nbl * ntime: 2 * nbl * ntime].reshape(nbl, ntime)
+        inv_argsort = scratch[2 * nbl * ntime:]
         time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
         interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
 
@@ -214,12 +228,14 @@ def row_mapper(time, interval, antenna1, antenna2,
             if row_lookup[bl, t] == -1:
                 row_lookup[bl, t] = r
             else:
-                raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2) "
-                                 "combinations were discovered in the input "
-                                 "data. This is usually caused by not "
-                                 "partitioning your data sufficiently "
-                                 "by indexing columns, DATA_DESC_ID "
-                                 "and SCAN_NUMBER in particular.")
+                raise ValueError(
+                    "Duplicate (TIME, ANTENNA1, ANTENNA2) "
+                    "combinations were discovered in the input "
+                    "data. This is usually caused by not "
+                    "partitioning your data sufficiently "
+                    "by indexing columns, DATA_DESC_ID "
+                    "and SCAN_NUMBER in particular."
+                )
 
         # Average times over each baseline and construct the
         # bin_lookup and time_lookup arrays
@@ -294,7 +310,7 @@ def row_mapper(time, interval, antenna1, antenna2,
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
         flat_int = interval_lookup.ravel()
-        argsort = np.argsort(flat_time, kind='mergesort')
+        argsort = np.argsort(flat_time, kind="mergesort")
 
         # Generate lookup from flattened (bl, time) to output row
         for i, a in enumerate(argsort):
@@ -315,15 +331,15 @@ def row_mapper(time, interval, antenna1, antenna2,
             # lookup time bin and output row
             tbin = bin_lookup[bl, t]
             # lookup output row in inv_argsort
-            out_row = inv_argsort[bl*ntime + tbin]
+            out_row = inv_argsort[bl * ntime + tbin]
 
             if out_row >= out_rows:
                 raise RowMapperError("out_row >= out_rows")
 
             # Handle output row flagging
-            set_flag_row(flag_row, in_row,
-                         out_flag_row, out_row,
-                         bin_flagged[bl, tbin])
+            set_flag_row(
+                flag_row, in_row, out_flag_row, out_row, bin_flagged[bl, tbin]
+            )
 
             row_map[in_row] = out_row
 

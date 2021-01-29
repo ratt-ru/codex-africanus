@@ -7,32 +7,34 @@ from textwrap import fill
 
 import numpy as np
 
-from africanus.util.casa_types import (STOKES_TYPES,
-                                       STOKES_ID_MAP)
+from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
 stokes_conv = {
-    'RR': {('I', 'V'): lambda i, v: i + v + 0j},
-    'RL': {('Q', 'U'): lambda q, u: q + u*1j},
-    'LR': {('Q', 'U'): lambda q, u: q - u*1j},
-    'LL': {('I', 'V'): lambda i, v: i - v + 0j},
-
-    'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
-    'XY': {('U', 'V'): lambda u, v: u + v*1j},
-    'YX': {('U', 'V'): lambda u, v: u - v*1j},
-    'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
-
-    'I': {('XX', 'YY'): lambda xx, yy: (xx + yy).real / 2,
-          ('RR', 'LL'): lambda rr, ll: (rr + ll).real / 2},
-
-    'Q': {('XX', 'YY'): lambda xx, yy: (xx - yy).real / 2,
-          ('RL', 'LR'): lambda rl, lr: (rl + lr).real / 2},
-
-    'U': {('XY', 'YX'): lambda xy, yx: (xy + yx).real / 2,
-          ('RL', 'LR'): lambda rl, lr: (rl - lr).imag / 2},
-
-    'V': {('XY', 'YX'): lambda xy, yx: (xy - yx).imag / 2,
-          ('RR', 'LL'): lambda rr, ll: (rr - ll).real / 2},
+    "RR": {("I", "V"): lambda i, v: i + v + 0j},
+    "RL": {("Q", "U"): lambda q, u: q + u * 1j},
+    "LR": {("Q", "U"): lambda q, u: q - u * 1j},
+    "LL": {("I", "V"): lambda i, v: i - v + 0j},
+    "XX": {("I", "Q"): lambda i, q: i + q + 0j},
+    "XY": {("U", "V"): lambda u, v: u + v * 1j},
+    "YX": {("U", "V"): lambda u, v: u - v * 1j},
+    "YY": {("I", "Q"): lambda i, q: i - q + 0j},
+    "I": {
+        ("XX", "YY"): lambda xx, yy: (xx + yy).real / 2,
+        ("RR", "LL"): lambda rr, ll: (rr + ll).real / 2,
+    },
+    "Q": {
+        ("XX", "YY"): lambda xx, yy: (xx - yy).real / 2,
+        ("RL", "LR"): lambda rl, lr: (rl + lr).real / 2,
+    },
+    "U": {
+        ("XY", "YX"): lambda xy, yx: (xy + yx).real / 2,
+        ("RL", "LR"): lambda rl, lr: (rl - lr).imag / 2,
+    },
+    "V": {
+        ("XY", "YX"): lambda xy, yx: (xy - yx).imag / 2,
+        ("RR", "LL"): lambda rr, ll: (rr - ll).real / 2,
+    },
 }
 
 
@@ -62,36 +64,40 @@ def _element_indices_and_shape(data):
         if len(shape) <= depth:
             shape.append(len(current))
         elif shape[depth] != len(current):
-            raise DimensionMismatch("Dimension mismatch %d != %d at depth %d"
-                                    % (shape[depth], len(current), depth))
+            raise DimensionMismatch(
+                "Dimension mismatch %d != %d at depth %d"
+                % (shape[depth], len(current), depth)
+            )
 
         # Handle each sequence element
         for i, e in enumerate(current):
             # Found a list, recurse
             if isinstance(e, (tuple, list)):
-                queue.append((e, current_idx + (i, ), depth + 1))
+                queue.append((e, current_idx + (i,), depth + 1))
             # String
             elif isinstance(e, str):
                 if e in result:
                     raise ValueError("'%s' defined multiple times" % e)
 
-                result[e] = current_idx + (i, )
+                result[e] = current_idx + (i,)
             # We have a CASA integer Stokes ID, convert to string
             elif np.issubdtype(type(e), np.integer):
                 try:
                     e = STOKES_ID_MAP[e]
                 except KeyError:
-                    raise ValueError("Invalid id '%d'. "
-                                     "Valid id's '%s'"
-                                     % (e, pformat(STOKES_ID_MAP)))
+                    raise ValueError(
+                        "Invalid id '%d'. "
+                        "Valid id's '%s'" % (e, pformat(STOKES_ID_MAP))
+                    )
 
                 if e in result:
                     raise ValueError("'%s' defined multiple times" % e)
 
-                result[e] = current_idx + (i, )
+                result[e] = current_idx + (i,)
             else:
-                raise TypeError("Invalid type '%s' for element '%s'"
-                                % (type(e), e))
+                raise TypeError(
+                    "Invalid type '%s' for element '%s'" % (type(e), e)
+                )
 
     return result, tuple(shape)
 
@@ -111,8 +117,9 @@ def convert_setup(input, input_schema, output_schema):
         try:
             deps = stokes_conv[okey]
         except KeyError:
-            raise ValueError("Unknown output '%s'. Known types '%s'"
-                             % (deps, STOKES_TYPES))
+            raise ValueError(
+                "Unknown output '%s'. Known types '%s'" % (deps, STOKES_TYPES)
+            )
 
         found_conv = False
 
@@ -138,12 +145,12 @@ def convert_setup(input, input_schema, output_schema):
 
         # We must find a conversion
         if not found_conv:
-            raise MissingConversionInputs("None of the supplied inputs '%s' "
-                                          "can produce output '%s'. It can be "
-                                          "produced by the following "
-                                          "combinations '%s'." % (
-                                                input_schema,
-                                                okey, deps.keys()))
+            raise MissingConversionInputs(
+                "None of the supplied inputs '%s' "
+                "can produce output '%s'. It can be "
+                "produced by the following "
+                "combinations '%s'." % (input_schema, okey, deps.keys())
+            )
 
     out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
 
@@ -152,7 +159,7 @@ def convert_setup(input, input_schema, output_schema):
 
 def convert_impl(input, mapping, in_shape, out_shape, dtype):
     # Make the output array
-    out_shape = input.shape[:-len(in_shape)] + out_shape
+    out_shape = input.shape[: -len(in_shape)] + out_shape
     output = np.empty(out_shape, dtype=dtype)
 
     for c1_idx, c2_idx, out_idx, fn, _ in mapping:
@@ -165,9 +172,9 @@ def convert(input, input_schema, output_schema):
     """ See STOKES_DOCS below """
 
     # Do the conversion
-    mapping, in_shape, out_shape, dtype = convert_setup(input,
-                                                        input_schema,
-                                                        output_schema)
+    mapping, in_shape, out_shape, dtype = convert_setup(
+        input, input_schema, output_schema
+    )
 
     return convert_impl(input, mapping, in_shape, out_shape, dtype)
 
@@ -246,12 +253,13 @@ Returns
 _map_str = ", ".join(["%s: %d" % (t, i) for i, t in enumerate(STOKES_TYPES)])
 _map_str = "{{ " + _map_str + " }}"
 # Indent must match docstrings
-_map_str = fill(_map_str, initial_indent='', subsequent_indent=' '*8)
+_map_str = fill(_map_str, initial_indent="", subsequent_indent=" " * 8)
 CONVERT_DOCS = DocstringTemplate(CONVERT_DOCS.format(stokes_type_map=_map_str))
 del _map_str
 
 try:
     convert.__doc__ = CONVERT_DOCS.substitute(
-                                  array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

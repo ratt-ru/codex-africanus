@@ -64,6 +64,7 @@ def residual(uvw, freq, image, vis, freq_bin_idx, freq_bin_counts, cell,
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
     residim = _residual_internal(uvw, freq, image, vis, freq_bin_idx,
@@ -157,10 +158,12 @@ RESIDUAL_DOCS = DocstringTemplate(
     residual : $(array_type)
         Residual image corresponding to :code:`model` of shape
         :code:`(band, nx, ny)`.
-    """)
+    """
+)
 
 try:
     residual.__doc__ = RESIDUAL_DOCS.substitute(
-                        array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

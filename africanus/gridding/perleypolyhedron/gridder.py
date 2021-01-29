@@ -3,31 +3,36 @@ from numba import literally
 
 from africanus.util.numba import jit
 from africanus.gridding.perleypolyhedron.policies import (
-    baseline_transform_policies as btp)
+    baseline_transform_policies as btp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    phase_transform_policies as ptp)
+    phase_transform_policies as ptp,
+)
 from africanus.gridding.perleypolyhedron.policies import (
-    convolution_policies as cp)
+    convolution_policies as cp,
+)
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
-def gridder(uvw,
-            vis,
-            wavelengths,
-            chanmap,
-            npix,
-            cell,
-            image_centre,
-            phase_centre,
-            convolution_kernel,
-            convolution_kernel_width,
-            convolution_kernel_oversampling,
-            baseline_transform_policy,
-            phase_transform_policy,
-            stokes_conversion_policy,
-            convolution_policy,
-            grid_dtype=np.complex128,
-            do_normalize=False):
+def gridder(
+    uvw,
+    vis,
+    wavelengths,
+    chanmap,
+    npix,
+    cell,
+    image_centre,
+    phase_centre,
+    convolution_kernel,
+    convolution_kernel_width,
+    convolution_kernel_oversampling,
+    baseline_transform_policy,
+    phase_transform_policy,
+    stokes_conversion_policy,
+    convolution_policy,
+    grid_dtype=np.complex128,
+    do_normalize=False,
+):
     """
     2D Convolutional gridder, contiguous to discrete
     @uvw: value coordinates, (nrow, 3)
@@ -59,7 +64,8 @@ def gridder(uvw,
     """
     if chanmap.size != wavelengths.size:
         raise ValueError(
-            "Chanmap and corresponding wavelengths must match in shape")
+            "Chanmap and corresponding wavelengths must match in shape"
+        )
     chanmap = chanmap.ravel()
     wavelengths = wavelengths.ravel()
     nband = np.max(chanmap) + 1
@@ -68,7 +74,8 @@ def gridder(uvw,
         raise ValueError("UVW array must be array of tripples")
     if uvw.shape[0] != nrow:
         raise ValueError(
-            "UVW array must have same number of rows as vis array")
+            "UVW array must have same number of rows as vis array"
+        )
     if nvischan != wavelengths.size:
         raise ValueError("Chanmap must correspond to visibility channels")
 
@@ -80,17 +87,20 @@ def gridder(uvw,
     for r in range(nrow):
         ra0, dec0 = phase_centre
         ra, dec = image_centre
-        ptp.policy(vis[r, :, :],
-                   uvw[r, :],
-                   wavelengths,
-                   ra0,
-                   dec0,
-                   ra,
-                   dec,
-                   policy_type=literally(phase_transform_policy),
-                   phasesign=1.0)
-        btp.policy(uvw[r, :], ra0, dec0, ra, dec,
-                   literally(baseline_transform_policy))
+        ptp.policy(
+            vis[r, :, :],
+            uvw[r, :],
+            wavelengths,
+            ra0,
+            dec0,
+            ra,
+            dec,
+            policy_type=literally(phase_transform_policy),
+            phasesign=1.0,
+        )
+        btp.policy(
+            uvw[r, :], ra0, dec0, ra, dec, literally(baseline_transform_policy)
+        )
         for c in range(nvischan):
             scaled_u = uvw[r, 0] * scale_factor / wavelengths[c]
             scaled_v = uvw[r, 1] * scale_factor / wavelengths[c]
@@ -109,7 +119,8 @@ def gridder(uvw,
                 convolution_kernel_width,
                 convolution_kernel_oversampling,
                 literally(stokes_conversion_policy),
-                policy_type=literally(convolution_policy))
+                policy_type=literally(convolution_policy),
+            )
     if do_normalize:
         for c in range(nband):
             gridstack[c, :, :] /= wt_ch[c] + 1.0e-8

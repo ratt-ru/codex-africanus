@@ -23,17 +23,26 @@ def twod_gaussian(coords, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     y = coords[1]
     xo = float(xo)
     yo = float(yo)
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = (offset + amplitude *
-         np.exp(- (a*((x-xo)**2) +
-                   2*b*(x-xo)*(y-yo) +
-                   c*((y-yo)**2))))
+    a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (
+        2 * sigma_y ** 2
+    )
+    b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (
+        4 * sigma_y ** 2
+    )
+    c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (
+        2 * sigma_y ** 2
+    )
+    g = offset + amplitude * np.exp(
+        -(
+            a * ((x - xo) ** 2)
+            + 2 * b * (x - xo) * (y - yo)
+            + c * ((y - yo) ** 2)
+        )
+    )
     return g.flatten()
 
 
-@requires_optional('scipy', opt_import_err)
+@requires_optional("scipy", opt_import_err)
 def fit_2d_gaussian(psf):
     """
     Fit an elliptical Gaussian to the primary lobe of the psf
@@ -45,17 +54,17 @@ def fit_2d_gaussian(psf):
     # implementation
     # I = np.stack((psf>=0.5*psf.max()).nonzero()).transpose()
 
-    loc = np.argwhere(psf >= 0.5*psf.max())
+    loc = np.argwhere(psf >= 0.5 * psf.max())
     # Create an array with these values at the same indices and zeros otherwise
     lk, mk = psf.shape
     psf_fit = np.zeros_like(psf)
     psf_fit[loc[:, 0], loc[:, 1]] = psf[loc[:, 0], loc[:, 1]]
     # Create x and y indices
-    x = np.linspace(0, psf.shape[0]-1, psf.shape[0])
-    y = np.linspace(0, psf.shape[1]-1, psf.shape[1])
+    x = np.linspace(0, psf.shape[0] - 1, psf.shape[0])
+    y = np.linspace(0, psf.shape[1] - 1, psf.shape[1])
     x, y = np.meshgrid(x, y)
     # Set starting point of optimiser
-    initial_guess = (0.5, lk/2, mk/2, 1.75, 1.4, -4.0, 0)
+    initial_guess = (0.5, lk / 2, mk / 2, 1.75, 1.4, -4.0, 0)
     # Flatten the data
     data = psf_fit.ravel()
     # Fit the function (Gaussian for now)
@@ -63,7 +72,7 @@ def fit_2d_gaussian(psf):
     # Get function with fitted params
     data_fitted = twod_gaussian((x, y), *popt)
     # Normalise the psf to have a max value of one
-    data_fitted = data_fitted/data_fitted.max()
+    data_fitted = data_fitted / data_fitted.max()
     return data_fitted.reshape(lk, mk)
 
 
@@ -103,20 +112,20 @@ def find_peak(residuals):
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def build_cleanmap(clean, intensity, gamma, p, q):
-    clean[p, q] += intensity*gamma
+    clean[p, q] += intensity * gamma
 
 
 @numba.jit(nopython=True, nogil=True, cache=True)
 def update_residual(residual, intensity, gamma, p, q, npix, psf):
     npix = residual.shape[0]  # Assuming square image
-    residual -= gamma*intensity*psf[npix - 1 - p:2*npix - 1 - p,
-                                    npix - 1 - q:2*npix - 1 - q]
+    residual -= (
+        gamma
+        * intensity
+        * psf[npix - 1 - p: 2 * npix - 1 - p, npix - 1 - q: 2 * npix - 1 - q]
+    )
 
 
-def hogbom_clean(dirty, psf,
-                 gamma=0.1,
-                 threshold="default",
-                 niter="default"):
+def hogbom_clean(dirty, psf, gamma=0.1, threshold="default", niter="default"):
     """
     Performs Hogbom Clean on the  ``dirty`` image given the ``psf``.
 
@@ -145,8 +154,10 @@ def hogbom_clean(dirty, psf,
     residuals = dirty.copy()
 
     # Check that psf is twice the size of residuals
-    if (psf.shape[0] != 2*residuals.shape[0] or
-            psf.shape[1] != 2*residuals.shape[1]):
+    if (
+        psf.shape[0] != 2 * residuals.shape[0]
+        or psf.shape[1] != 2 * residuals.shape[1]
+    ):
         raise ValueError("Warning psf not right size")
 
     # Initialise array to store cleaned image
@@ -156,25 +167,27 @@ def hogbom_clean(dirty, psf,
     npix = clean.shape[0]
 
     if niter == "default":
-        niter = 3*npix
+        niter = 3 * npix
 
     p, q, pmin, qmin, intensity = find_peak(residuals)
 
     if threshold == "default":
         # Imin + 0.001*(intensity - Imin)
-        threshold = 0.2*np.abs(intensity)
+        threshold = 0.2 * np.abs(intensity)
         logging.info("Threshold set at %s", threshold)
     else:
         # Imin + 0.001*(intensity - Imin)
-        threshold = threshold*np.abs(intensity)
+        threshold = threshold * np.abs(intensity)
         logging.info("Assuming user set threshold at %s", threshold)
 
     # CLEAN the image
     i = 0
 
     while np.abs(intensity) > threshold and i <= niter:
-        logging.info("min %f max %f peak %f threshold %f" %
-                     (residuals.min(), residuals.max(), intensity, threshold))
+        logging.info(
+            "min %f max %f peak %f threshold %f"
+            % (residuals.min(), residuals.max(), intensity, threshold)
+        )
 
         # First we set the
         build_cleanmap(clean, intensity, gamma, p, q)
@@ -222,7 +235,7 @@ def restore(clean, psf, residuals):
     logging.info("Convolving")
 
     # cval=0.0) #Fast using fft
-    iconv_model = scipy.signal.fftconvolve(clean, clean_beam, mode='same')
+    iconv_model = scipy.signal.fftconvolve(clean, clean_beam, mode="same")
 
     logging.info("Convolving done")
 
