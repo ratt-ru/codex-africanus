@@ -43,19 +43,8 @@ def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
     return coords
 
 
-<<<<<<< HEAD
-def transform_sources(
-    lm,
-    parallactic_angles,
-    pointing_errors,
-    antenna_scaling,
-    frequency,
-    dtype=None,
-):
-=======
 def transform_sources(lm, parallactic_angles, pointing_errors,
                       antenna_scaling, frequency, dtype=None):
->>>>>>> parent of d728390... Formatting for Flake8
     """
     Creates beam sampling coordinates suitable for use
     in :func:`~africanus.rime.beam_cube_dde` by:
@@ -103,16 +92,5 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
     dtype = np.float64 if dtype is None else dtype
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=dtype)
 
-<<<<<<< HEAD
-    return _nb_transform_sources(
-        lm,
-        parallactic_angles,
-        pointing_errors,
-        antenna_scaling,
-        frequency,
-        coords,
-    )
-=======
     return _nb_transform_sources(lm, parallactic_angles, pointing_errors,
                                  antenna_scaling, frequency, coords)
->>>>>>> parent of d728390... Formatting for Flake8

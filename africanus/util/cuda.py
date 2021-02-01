@@ -65,15 +65,9 @@ numpy_to_cuda_type_map = {
 }
 
 # Also map the types
-<<<<<<< HEAD
-numpy_to_cuda_type_map.update(
-    {k.type: v for k, v in numpy_to_cuda_type_map.items()}
-)
-=======
 numpy_to_cuda_type_map.update({k.type: v
                                for k, v
                                in numpy_to_cuda_type_map.items()})
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 def grids(dims, blocks):

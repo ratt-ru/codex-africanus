@@ -289,16 +289,9 @@ def _get_cuda_info():
         stdoutdata, stderrdata = proc.communicate()
 
         if proc.returncode != 0:
-<<<<<<< HEAD
-            raise RuntimeError(
-                "Cannot determine "
-                "compute architecture {0}".format(stderrdata)
-            )
-=======
             raise RuntimeError("Cannot determine "
                                "compute architecture {0}"
                                .format(stderrdata))
->>>>>>> parent of d728390... Formatting for Flake8
 
         try:
             out = subprocess.check_output(test_out_path)
@@ -358,13 +351,7 @@ class _UnixCCompiler(unixccompiler.UnixCCompiler):
 
             cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
             postargs = get_gencode_options() + [
-<<<<<<< HEAD
-                "-O2",
-                '--compiler-options="-fPIC"',
-            ]
-=======
                 '-O2', '--compiler-options="-fPIC"']
->>>>>>> parent of d728390... Formatting for Flake8
             postargs += extra_postargs
             # print('NVCC options:', postargs)
 
@@ -421,12 +408,7 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
 
         # Compile source files other than CUDA C ones.
         other_objects = msvccompiler.MSVCCompiler.compile(
-<<<<<<< HEAD
-            self, other_sources, **kwargs
-        )
-=======
             self, other_sources, **kwargs)
->>>>>>> parent of d728390... Formatting for Flake8
 
         # Compile CUDA C sources.
         cu_objects = self._compile_cu(cu_sources, **kwargs)
@@ -481,14 +463,8 @@ def compile_using_nvcc(source, options=None, arch=None, filename='kern.cu'):
 
     if arch is None:
         cuda_info = get_cuda_info()
-<<<<<<< HEAD
-        arch = min(
-            [dev["major"] * 10 + dev["minor"] for dev in cuda_info["devices"]]
-        )
-=======
         arch = min([dev['major']*10 + dev['minor']
                     for dev in cuda_info['devices']])
->>>>>>> parent of d728390... Formatting for Flake8
 
     cc = get_compiler()
     settings = get_compiler_setting()

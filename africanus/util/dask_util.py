@@ -71,17 +71,9 @@ class TaskData(object):
                         self.time_sum + other.time_sum)
 
     def __repr__(self):
-<<<<<<< HEAD
-        return "TaskData(%s, %s, %s)" % (
-            self.completed,
-            self.total,
-            self.time_sum,
-        )
-=======
         return "TaskData(%s, %s, %s)" % (self.completed,
                                          self.total,
                                          self.time_sum)
->>>>>>> parent of d728390... Formatting for Flake8
 
     __str__ = __repr__
 

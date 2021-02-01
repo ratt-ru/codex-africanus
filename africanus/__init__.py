@@ -11,8 +11,4 @@ import africanus.util.jax_init  # noqa
 
 __author__ = """Simon Perkins"""
 __email__ = 'sperkins@ska.ac.za'
-<<<<<<< HEAD
-__version__ = '0.2.9'
-=======
 __version__ = '0.2.8'
->>>>>>> parent of d728390... Formatting for Flake8

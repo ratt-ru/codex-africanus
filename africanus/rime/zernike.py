@@ -39,23 +39,12 @@ def zernike(j, rho, phi):
         return 0.0
     j += 1
     n = 0
-<<<<<<< HEAD
     j1 = j - 1
     while j1 > n:
         n += 1
         j1 -= n
     m = (-1) ** j * ((n % 2) + 2 * int((j1 + ((n + 1) % 2)) / 2.0))
     if m > 0:
-=======
-    j1 = j-1
-    # print(j1, n)
-    while (j1 > n):
-        n += 1
-        j1 -= n
-    m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1) % 2)) / 2.0))
-    # print(m)
-    if (m > 0):
->>>>>>> parent of d728390... Formatting for Flake8
         return zernike_rad(m, n, rho) * np.cos(m * phi)
     if (m < 0):
         return zernike_rad(-m, n, rho) * np.sin(-m * phi)
@@ -63,14 +52,9 @@ def zernike(j, rho, phi):
 
 
 @jit(nogil=True, nopython=True, cache=True)
-<<<<<<< HEAD
 def _convert_coords(l_coords, m_coords):
     rho, phi = ((l_coords ** 2 + m_coords ** 2) ** 0.5), np.arctan2(l_coords,
                                                                     m_coords)
-=======
-def _convert_coords(l, m):
-    rho, phi = ((l**2 + m ** 2) ** 0.5), np.arctan2(l, m)
->>>>>>> parent of d728390... Formatting for Flake8
     return rho, phi
 
 
@@ -88,13 +72,8 @@ def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequenc
                 for c in range(chans):
                     l, m, freq = coords[:, s, t, a, c]
 
-<<<<<<< HEAD
                     l_coords = l * frequency_scaling[c]
                     m_coords = m * frequency_scaling[c]
-=======
-                    l = l * frequency_scaling[c] 
-                    m = m * frequency_scaling[c]
->>>>>>> parent of d728390... Formatting for Flake8
 
                     l_coords += pointing_errors[t, a, c, 0]
                     m_coords += pointing_errors[t, a, c, 1]

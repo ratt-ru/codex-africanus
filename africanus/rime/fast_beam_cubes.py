@@ -170,13 +170,9 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
 
                     # Accumulate lower cube correlations
                     beam_scratch[:] = fbeam[gl0, gm0, gc0, :]
-<<<<<<< HEAD
-                    weight = (one - ld) * (one - md) * nud
-=======
                     # for k in range(4):
                     #     if fbeam[gl0, gm0, gc0, k] != 0j : print(fbeam[gl0, gm0, gc0, k])
                     weight = (one - ld)*(one - md)*nud
->>>>>>> parent of d728390... Formatting for Flake8
 
                     for c in range(ncorrs):
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
@@ -217,12 +213,8 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     for c in range(ncorrs):
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
-<<<<<<< HEAD
-
-=======
                     # if not (fbeam[gl0, gm0, gc0, 0] == 0j and fbeam[gl0, gm0, gc0, 1] == 0j and fbeam[gl0, gm0, gc0, 2] == 0j and fbeam[gl0, gm0, gc0, 3] == 0j): print("fbeam is ",fbeam[gl1, gm1, gc1, :])
                     
->>>>>>> parent of d728390... Formatting for Flake8
                     beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
                     weight = (one - ld)*md*inv_nud
 

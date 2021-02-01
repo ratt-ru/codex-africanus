@@ -50,14 +50,8 @@ def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
     elif numba_ndarray_type.ndim == corr_2_dims:
         return JONES_2X2
     else:
-<<<<<<< HEAD
-        raise ValueError(
-            "%s.ndim not in (%d, %d)" % (name, corr_1_dims, corr_2_dims)
-        )
-=======
         raise ValueError("%s.ndim not in (%d, %d)" %
                          (name, corr_1_dims, corr_2_dims))
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
@@ -218,15 +212,9 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                     a2 = ant2[r]
 
                     for f in range(a1j.shape[3]):
-<<<<<<< HEAD
-                        jones_mul(
-                            a1j[s, ti, a1, f], a2j[s, ti, a2, f], out[r, f]
-                        )
-=======
                         jones_mul(a1j[s, ti, a1, f],
                                   a2j[s, ti, a2, f],
                                   out[r, f])
->>>>>>> parent of d728390... Formatting for Flake8
 
     elif not have_ddes and have_coh:
         if jones_type == JONES_2X2:
@@ -284,15 +272,8 @@ def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
             return np.zeros((row, chan) + corrs, dtype=out_dtype)
 
     else:
-<<<<<<< HEAD
-        raise ValueError(
-            "Insufficient inputs were supplied "
-            "for determining the output shape"
-        )
-=======
         raise ValueError("Insufficient inputs were supplied "
                          "for determining the output shape")
->>>>>>> parent of d728390... Formatting for Flake8
 
     # TODO(sjperkins)
     # perhaps inline='always' on resolution of
@@ -382,23 +363,12 @@ def predict_checks(time_index, antenna1, antenna2,
     assert antenna2.ndim == 1
 
     if have_ddes1 ^ have_ddes2:
-<<<<<<< HEAD
-        raise ValueError(
-            "Both dde1_jones and dde2_jones " "must be present or absent"
-        )
-
-    if have_dies1 ^ have_dies2:
-        raise ValueError(
-            "Both die1_jones and die2_jones " "must be present or absent"
-        )
-=======
         raise ValueError("Both dde1_jones and dde2_jones "
                          "must be present or absent")
 
     if have_dies1 ^ have_dies2:
         raise ValueError("Both die1_jones and die2_jones "
                          "must be present or absent")
->>>>>>> parent of d728390... Formatting for Flake8
 
     have_ddes = have_ddes1 and have_ddes2
     have_dies = have_dies1 and have_dies2
@@ -452,19 +422,8 @@ def predict_checks(time_index, antenna1, antenna2,
                          "dde_jones{1,2}.ndim == base_vis.ndim + 2\n"
                          "dde_jones{1,2}.ndim == die_jones{1,2}.ndim + 1")
 
-<<<<<<< HEAD
-    return (
-        have_ddes1,
-        have_coh,
-        have_ddes2,
-        have_dies1,
-        have_bvis,
-        have_dies2,
-    )
-=======
     return (have_ddes1, have_coh, have_ddes2,
             have_dies1, have_bvis, have_dies2)
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -480,31 +439,12 @@ def predict_vis(time_index, antenna1, antenna2,
     (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
 
     # Infer the output dtype
-<<<<<<< HEAD
-    dtype_arrays = (
-        dde1_jones,
-        source_coh,
-        dde2_jones,
-        die1_jones,
-        base_vis,
-        die2_jones,
-    )
-
-    out_dtype = np.result_type(
-        *(
-            np.dtype(a.dtype.name)
-            for a in dtype_arrays
-            if not is_numba_type_none(a)
-        )
-    )
-=======
     dtype_arrays = (dde1_jones, source_coh, dde2_jones,
                     die1_jones, base_vis, die2_jones)
 
     out_dtype = np.result_type(*(np.dtype(a.dtype.name)
                                  for a in dtype_arrays
                                  if not is_numba_type_none(a)))
->>>>>>> parent of d728390... Formatting for Flake8
 
     jones_types = [
         _get_jones_types("dde1_jones", dde1_jones, 5, 6),
@@ -528,14 +468,8 @@ def predict_vis(time_index, antenna1, antenna2,
     have_dies = have_dies1 and have_dies2
 
     # Create functions that we will use inside our predict function
-<<<<<<< HEAD
-    out_fn = output_factory(
-        have_ddes, have_coh, have_dies, have_bvis, out_dtype
-    )
-=======
     out_fn = output_factory(have_ddes, have_coh,
                             have_dies, have_bvis, out_dtype)
->>>>>>> parent of d728390... Formatting for Flake8
     sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
     apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
@@ -560,16 +494,10 @@ def predict_vis(time_index, antenna1, antenna2,
         add_coh_fn(base_vis, out)
 
         # Apply direction independent effects, if any
-<<<<<<< HEAD
-        apply_dies_fn(
-            time_index, antenna1, antenna2, die1_jones, die2_jones, tmin, out
-        )
-=======
         apply_dies_fn(time_index, antenna1, antenna2,
                       die1_jones, die2_jones,
                       tmin, out)
         
->>>>>>> parent of d728390... Formatting for Flake8
 
         return out
 
@@ -577,22 +505,6 @@ def predict_vis(time_index, antenna1, antenna2,
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-<<<<<<< HEAD
-def apply_gains(
-    time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones
-):
-    def impl(
-        time_index, antenna1, antenna2, die1_jones, corrupted_vis, die2_jones
-    ):
-        return predict_vis(
-            time_index,
-            antenna1,
-            antenna2,
-            die1_jones=die1_jones,
-            base_vis=corrupted_vis,
-            die2_jones=die2_jones,
-        )
-=======
 def apply_gains(time_index, antenna1, antenna2,
                 die1_jones, corrupted_vis, die2_jones):
 
@@ -602,7 +514,6 @@ def apply_gains(time_index, antenna1, antenna2,
                            die1_jones=die1_jones,
                            base_vis=corrupted_vis,
                            die2_jones=die2_jones)
->>>>>>> parent of d728390... Formatting for Flake8
 
     return impl
 

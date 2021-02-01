@@ -41,22 +41,8 @@ def test_wsclean_predict(chunks):
     ref_freq = np.full(src, freq[freq.shape[0] // 2])
 
     # WSClean visibilities
-<<<<<<< HEAD
-    vis = wsclean_predict(
-        uvw,
-        lm,
-        source_type,
-        flux,
-        coeffs,
-        log_poly,
-        ref_freq,
-        gauss_shape,
-        freq,
-    )
-=======
     vis = wsclean_predict(uvw, lm, source_type, flux, coeffs,
                           log_poly, ref_freq, gauss_shape, freq)
->>>>>>> parent of d728390... Formatting for Flake8
 
     # Compute it another way. Note the CASA coordinate convention
     # used by wsclean
@@ -75,12 +61,7 @@ def test_dask_wsclean_predict(chunks):
     da = pytest.importorskip("dask.array")
 
     from africanus.rime.dask_predict import (
-<<<<<<< HEAD
-        wsclean_predict as dask_wsclean_predict,
-    )
-=======
             wsclean_predict as dask_wsclean_predict)
->>>>>>> parent of d728390... Formatting for Flake8
 
     row = sum(chunks['rows'])
     src = sum(chunks['source'])
@@ -112,30 +93,6 @@ def test_dask_wsclean_predict(chunks):
     da_ref_freq = da.from_array(ref_freq, chunks=chunks['source'])
     da_freq = da.from_array(freq)
 
-<<<<<<< HEAD
-    vis = wsclean_predict(
-        uvw,
-        lm,
-        source_type,
-        flux,
-        coeffs,
-        log_poly,
-        ref_freq,
-        gauss_shape,
-        freq,
-    )
-    da_vis = dask_wsclean_predict(
-        da_uvw,
-        da_lm,
-        da_source_type,
-        da_flux,
-        da_coeffs,
-        da_log_poly,
-        da_ref_freq,
-        da_gauss_shape,
-        da_freq,
-    )
-=======
     vis = wsclean_predict(uvw, lm, source_type, flux,
                           coeffs, log_poly, ref_freq,
                           gauss_shape, freq)
@@ -143,6 +100,5 @@ def test_dask_wsclean_predict(chunks):
                                   da_flux, da_coeffs,
                                   da_log_poly, da_ref_freq,
                                   da_gauss_shape, da_freq)
->>>>>>> parent of d728390... Formatting for Flake8
 
     assert_almost_equal(vis, da_vis)

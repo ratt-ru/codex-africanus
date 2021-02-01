@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
 
 
-<<<<<<< HEAD
-from africanus.rime.phase import (
-    phase_delay as np_phase_delay,
-    PHASE_DELAY_DOCS,
-)
-=======
 from africanus.rime.phase import (phase_delay as np_phase_delay,
                                   PHASE_DELAY_DOCS)
->>>>>>> parent of d728390... Formatting for Flake8
 from africanus.rime.parangles import parallactic_angles as np_parangles
 from africanus.rime.feeds import feed_rotation as np_feed_rotation
 from africanus.rime.feeds import FEED_ROTATION_DOCS
@@ -74,43 +67,6 @@ def feed_rotation(parallactic_angles, feed_type):
     elif parallactic_angles.dtype == np.float64:
         dtype = np.complex128
     else:
-<<<<<<< HEAD
-        raise ValueError("parallactic_angles have " "non-floating point dtype")
-
-    return da.core.blockwise(
-        np_feed_rotation,
-        pa_dims + corr_dims,
-        parallactic_angles,
-        pa_dims,
-        feed_type=feed_type,
-        new_axes={"corr-1": 2, "corr-2": 2},
-        dtype=dtype,
-    )
-
-
-def _xform_wrap(
-    lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, dtype_
-):
-    return np_transform_sources(
-        lm[0],
-        parallactic_angles,
-        pointing_errors[0],
-        antenna_scaling,
-        frequency,
-        dtype=dtype_,
-    )
-
-
-@requires_optional("dask.array", da_import_error)
-def transform_sources(
-    lm,
-    parallactic_angles,
-    pointing_errors,
-    antenna_scaling,
-    frequency,
-    dtype=None,
-):
-=======
         raise ValueError("parallactic_angles have "
                          "non-floating point dtype")
 
@@ -131,7 +87,6 @@ def _xform_wrap(lm, parallactic_angles, pointing_errors,
 @requires_optional('dask.array', da_import_error)
 def transform_sources(lm, parallactic_angles, pointing_errors,
                       antenna_scaling, frequency, dtype=None):
->>>>>>> parent of d728390... Formatting for Flake8
 
     if dtype is None:
         dtype = np.float64
@@ -230,16 +185,9 @@ except AttributeError:
     pass
 
 try:
-<<<<<<< HEAD
-    parallactic_angles.__doc__ = mod_docs(
-        np_parangles.__doc__,
-        [(":class:`numpy.ndarray`", ":class:`dask.array.Array`")],
-    )
-=======
     parallactic_angles.__doc__ = mod_docs(np_parangles.__doc__,
                                           [(":class:`numpy.ndarray`",
                                             ":class:`dask.array.Array`")])
->>>>>>> parent of d728390... Formatting for Flake8
 except AttributeError:
     pass
 

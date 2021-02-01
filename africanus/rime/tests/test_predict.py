@@ -30,35 +30,6 @@ corr_shape_parametrization = pytest.mark.parametrize(
     'corr_shape, idm, einsum_sig1, einsum_sig2', [
         ((1,), (1,), "srci,srci,srci->rci", "rci,rci,rci->rci"),
         ((2,), (1, 1), "srci,srci,srci->rci", "rci,rci,rci->rci"),
-<<<<<<< HEAD
-        (
-            (2, 2),
-            ((1, 0), (0, 1)),
-            "srcij,srcjk,srclk->rcil",
-            "rcij,rcjk,rclk->rcil",
-        ),
-    ],
-)
-
-
-dde_presence_parametrization = pytest.mark.parametrize(
-    "a1j,blj,a2j",
-    [
-        [True, True, True],
-        [True, False, True],
-        [False, True, False],
-    ],
-)
-
-die_presence_parametrization = pytest.mark.parametrize(
-    "g1j,bvis,g2j",
-    [
-        [True, True, True],
-        [True, False, True],
-        [False, True, False],
-    ],
-)
-=======
         ((2, 2), ((1, 0), (0, 1)),
             "srcij,srcjk,srclk->rcil", "rcij,rcjk,rclk->rcil")
     ])
@@ -75,32 +46,15 @@ die_presence_parametrization = pytest.mark.parametrize('g1j,bvis,g2j', [
     [True, False, True],
     [False, True, False],
 ])
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 @corr_shape_parametrization
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
-<<<<<<< HEAD
-def test_predict_vis(
-    corr_shape,
-    idm,
-    einsum_sig1,
-    einsum_sig2,
-    a1j,
-    blj,
-    a2j,
-    g1j,
-    bvis,
-    g2j,
-    chunks,
-):
-=======
 def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                      a1j, blj, a2j, g1j, bvis, g2j,
                      chunks):
->>>>>>> parent of d728390... Formatting for Flake8
     from africanus.rime.predict import predict_vis
 
     s = sum(chunks['source'])
@@ -161,25 +115,9 @@ def test_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
 @dde_presence_parametrization
 @die_presence_parametrization
 @chunk_parametrization
-<<<<<<< HEAD
-def test_dask_predict_vis(
-    corr_shape,
-    idm,
-    einsum_sig1,
-    einsum_sig2,
-    a1j,
-    blj,
-    a2j,
-    g1j,
-    bvis,
-    g2j,
-    chunks,
-):
-=======
 def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
                           a1j, blj, a2j, g1j, bvis, g2j,
                           chunks):
->>>>>>> parent of d728390... Formatting for Flake8
 
     da = pytest.importorskip('dask.array')
     import numpy as np
@@ -246,14 +184,8 @@ def test_dask_predict_vis(corr_shape, idm, einsum_sig1, einsum_sig2,
     stream_model_vis = predict_vis(*args, streams=True)
     fan_model_vis = predict_vis(*args, streams=False)
 
-<<<<<<< HEAD
-    stream_model_vis, fan_model_vis = dask.compute(
-        stream_model_vis, fan_model_vis
-    )
-=======
     stream_model_vis, fan_model_vis = dask.compute(stream_model_vis,
                                                    fan_model_vis)
->>>>>>> parent of d728390... Formatting for Flake8
 
     assert_array_almost_equal(fan_model_vis, np_model_vis)
     assert_array_almost_equal(stream_model_vis, fan_model_vis)

@@ -37,18 +37,10 @@ def format_code(code):
     str
         Code prefixed with line numbers
     """
-<<<<<<< HEAD
-    lines = [""]
-    lines.extend(
-        ["%-5d %s" % (i, l) for i, l in enumerate(code.split("\n"), 1)]
-    )
-    return "\n".join(lines)
-=======
     lines = ['']
     lines.extend(["%-5d %s" % (i, l) for i, l
                   in enumerate(code.split('\n'), 1)])
     return '\n'.join(lines)
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 class memoize_on_key(object):

@@ -63,14 +63,8 @@ def parse_python_assigns(assign_str):
 
             # Recursively pass keyword arguments through this same function
             if stmt_value.keywords is not None:
-<<<<<<< HEAD
-                kwargs = {
-                    kw.arg: _eval_value(kw.value) for kw in stmt_value.keywords
-                }
-=======
                 kwargs = {kw.arg: _eval_value(kw.value) for kw
                           in stmt_value.keywords}
->>>>>>> parent of d728390... Formatting for Flake8
             else:
                 kwargs = {}
 
@@ -116,21 +110,11 @@ def parse_python_assigns(assign_str):
                     elements = values
 
                 if not len(target.elts) == len(elements):
-<<<<<<< HEAD
-                    raise ValueError(
-                        "Unpacking '%s' into a tuple/list in "
-                        "assignment %d of expression '%s' "
-                        "failed. The number of tuple elements "
-                        "did not match the number of values."
-                        % (values, i, assign_str)
-                    )
-=======
                     raise ValueError("Unpacking '%s' into a tuple/list in "
                                      "assignment %d of expression '%s' "
                                      "failed. The number of tuple elements "
                                      "did not match the number of values."
                                      % (values, i, assign_str))
->>>>>>> parent of d728390... Formatting for Flake8
 
                 # Unpack
                 for variable, value in zip(target.elts, elements):

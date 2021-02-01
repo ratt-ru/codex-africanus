@@ -25,18 +25,10 @@ class FitsAxes(object):
         self._ctype = [header.get('CTYPE%d' % n, n).strip() for n in axr]
         self._crval = [header.get('CRVAL%d' % n, 0) for n in axr]
         # Convert right pixel from FORTRAN to C indexing
-<<<<<<< HEAD
-        self._crpix = [header["CRPIX%d" % n] - 1 for n in axr]
-        self._cdelt = [header.get("CDELT%d" % n, 1) for n in axr]
-        self._cunit = [
-            header.get("CUNIT%d" % n, "").strip().upper() for n in axr
-        ]
-=======
         self._crpix = [header['CRPIX%d' % n]-1 for n in axr]
         self._cdelt = [header.get('CDELT%d' % n, 1) for n in axr]
         self._cunit = [header.get('CUNIT%d' % n, '').strip().upper()
                        for n in axr]
->>>>>>> parent of d728390... Formatting for Flake8
 
 
 def axis_and_sign(ax_str, default=None):
@@ -84,15 +76,8 @@ class BeamAxes(FitsAxes):
                 for i in range(self._ndims)]
 
         # Irregular grids are only valid if values exist for all grid points
-<<<<<<< HEAD
-        self._irreg = [
-            all(x is not None for x in irregular_grid[i])
-            for i in range(self._ndims)
-        ]
-=======
         self._irreg = [all(x is not None for x in irregular_grid[i])
                        for i in range(self._ndims)]
->>>>>>> parent of d728390... Formatting for Flake8
 
         def _regular_grid(i):
             """ Construct a regular grid from a FitsAxes object and index """
@@ -245,19 +230,10 @@ def _re_im_filenames(corr, template):
 
     for ri in REIM:
         try:
-<<<<<<< HEAD
-            filename = template.substitute(
-                corr=corr.lower(),
-                CORR=corr.upper(),
-                reim=ri.lower(),
-                REIM=ri.upper(),
-            )
-=======
             filename = template.substitute(corr=corr.lower(),
                                            CORR=corr.upper(),
                                            reim=ri.lower(),
                                            REIM=ri.upper())
->>>>>>> parent of d728390... Formatting for Flake8
         except KeyError:
             raise ValueError("Invalid filename schema '%s'. "
                              "FITS Beam filename schemas "

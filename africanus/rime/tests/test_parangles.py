@@ -67,27 +67,6 @@ def _observation_endpoints(year, month, day, hour_duration):
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-<<<<<<< HEAD
-@pytest.mark.parametrize(
-    "backend",
-    [
-        "test",
-        pytest.param(
-            "casa",
-            marks=pytest.mark.skipif(
-                no_casa, reason="python-casascore not installed"
-            ),
-        ),
-        pytest.param(
-            "astropy",
-            marks=pytest.mark.skipif(
-                no_astropy, reason="astropy not installed"
-            ),
-        ),
-    ],
-)
-@pytest.mark.parametrize("observation", [(2018, 1, 1, 4)])
-=======
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(
@@ -97,7 +76,6 @@ def _observation_endpoints(year, month, day, hour_duration):
                     no_astropy,
                     reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
->>>>>>> parent of d728390... Formatting for Flake8
 def test_parallactic_angles(observation, wsrt_ants, backend):
     import numpy as np
     from africanus.rime import parallactic_angles
@@ -112,21 +90,6 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-<<<<<<< HEAD
-@pytest.mark.skipif(
-    no_casa or no_astropy,
-    reason="Neither python-casacore or astropy installed",
-)
-# Parametrize on observation length and error tolerance
-@pytest.mark.parametrize(
-    "obs_and_tol",
-    [
-        ((2018, 1, 1, 4), "10s"),
-        ((2018, 2, 20, 8), "10s"),
-        ((2018, 11, 2, 4), "10s"),
-    ],
-)
-=======
 @pytest.mark.skipif(no_casa or no_astropy,
                     reason="Neither python-casacore or astropy installed")
 # Parametrize on observation length and error tolerance
@@ -134,7 +97,6 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
     ((2018, 1, 1, 4), "10s"),
     ((2018, 2, 20, 8), "10s"),
     ((2018, 11, 2, 4), "10s")])
->>>>>>> parent of d728390... Formatting for Flake8
 def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     Compare astropy and python-casacore parallactic angle implementations.
@@ -158,15 +120,8 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     casa_pa = casa_parallactic_angles(time, ant, fc, zenith_frame='AZELGEO')
 
     # Convert to angle degrees
-<<<<<<< HEAD
-    astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180 * units.deg)
-    casa_pa = Angle(casa_pa * units.rad, unit=units.deg).wrap_at(
-        180 * units.deg
-    )
-=======
     astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180*units.deg)
     casa_pa = Angle(casa_pa*units.rad, unit=units.deg).wrap_at(180*units.deg)
->>>>>>> parent of d728390... Formatting for Flake8
 
     # Difference in degrees, wrapped at 180
     diff = np.abs((astro_pa - casa_pa).wrap_at(180*units.deg))
@@ -174,27 +129,6 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
 
 
 @pytest.mark.flaky(min_passes=1, max_runs=3)
-<<<<<<< HEAD
-@pytest.mark.parametrize(
-    "backend",
-    [
-        "test",
-        pytest.param(
-            "casa",
-            marks=pytest.mark.skipif(
-                no_casa, reason="python-casascore not installed"
-            ),
-        ),
-        pytest.param(
-            "astropy",
-            marks=pytest.mark.skipif(
-                no_astropy, reason="astropy not installed"
-            ),
-        ),
-    ],
-)
-@pytest.mark.parametrize("observation", [(2018, 1, 1, 4)])
-=======
 @pytest.mark.parametrize('backend', [
     'test',
     pytest.param('casa', marks=pytest.mark.skipif(
@@ -204,7 +138,6 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
                                 no_astropy,
                                 reason="astropy not installed"))])
 @pytest.mark.parametrize('observation', [(2018, 1, 1, 4)])
->>>>>>> parent of d728390... Formatting for Flake8
 def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     da = pytest.importorskip('dask.array')
     from africanus.rime import parallactic_angles as np_parangle
