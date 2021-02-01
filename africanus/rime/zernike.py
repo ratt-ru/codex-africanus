@@ -113,7 +113,8 @@ def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scalin
     coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))
     noll_index = noll_index.reshape((ants, chans, fcorrs, npoly))
 
-    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
+    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles,
+                            frequency_scaling, antenna_scaling, pointing_errors)
 
     # Reshape to full correlation size
     return result.reshape((sources, times, ants, chans) + corr_shape)

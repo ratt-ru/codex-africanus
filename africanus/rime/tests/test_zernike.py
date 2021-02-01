@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
     """ Tests reconstruction of xx correlation against eidos """
     from africanus.rime import zernike_dde
@@ -40,8 +41,8 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices,
-                    parallactic_angles, frequency_scaling, antenna_scaling,
-                    pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
+                                parallactic_angles, frequency_scaling, antenna_scaling,
+                                pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
     assert np.allclose(eidos_data_xx, zernike_vals)
 
 
@@ -84,8 +85,8 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices,
-                    parallactic_angles, frequency_scaling, antenna_scaling,
-                    pointing_errors)[:, 0, 0, 0]
+                                parallactic_angles, frequency_scaling, antenna_scaling,
+                                pointing_errors)[:, 0, 0, 0]
                     .reshape((npix, npix)))
     assert np.allclose(eidos_data_xy, zernike_vals)
 
@@ -129,8 +130,8 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices,
-                    parallactic_angles, frequency_scaling, antenna_scaling,
-                    pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
+                                parallactic_angles, frequency_scaling, antenna_scaling,
+                                pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
     assert np.allclose(eidos_data_yx, zernike_vals)
 
 
@@ -173,8 +174,8 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
     # Call the function, reshape accordingly, and normalise
     zernike_vals = (zernike_dde(coords, coeffs, noll_indices,
-                    parallactic_angles, frequency_scaling, antenna_scaling,
-                    pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
+                                parallactic_angles, frequency_scaling, antenna_scaling,
+                                pointing_errors)[:, 0, 0, 0].reshape((npix, npix)))
     assert np.allclose(eidos_data_yy, zernike_vals)
 
 

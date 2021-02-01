@@ -55,6 +55,7 @@ def _spi_schema(corrs, index):
 def _gauss_shape_schema(corrs, index):
     return "srf", index
 
+
 def _shapelet_schema(corrs, index):
     return "rfs", index
 
@@ -146,6 +147,7 @@ def create_parser():
     p.add_argument("-dc", "--data-column", type=str, default="MODEL_DATA")
     return p
 
+
 def parse_sky_model(filename, chunks):
     """
     Parses a Tigger sky model
@@ -234,8 +236,8 @@ def parse_sky_model(filename, chunks):
             beta_m = source.shape.sbetam
             coeffs = source.shape.shapelet_coeffs
 
-            shapelet_radec.append([ra,dec])
-            shapelet_stokes.append([I,Q,U,V])
+            shapelet_radec.append([ra, dec])
+            shapelet_stokes.append([I, Q, U, V])
             shapelet_spi.append(spi)
             shapelet_ref_freq.append(ref_freq)
             shapelet_beta.append([beta_l, beta_m])
@@ -338,10 +340,10 @@ def zernike_factory(
 
     # Extract coefficient lengths for beam
     nsrc = lm.shape[0]
-    utime=utime.compute()
+    utime = utime.compute()
     ntime = len(utime)
     utime = utime[:ntime]
-    na = ant.coords.get('ROWID').data.shape[0]#np.max(ant['row'].data) +1
+    na = ant.coords.get('ROWID').data.shape[0]  # np.max(ant['row'].data) +1
     nbl = na * (na - 1) / 2
     ntime = int(nrow // nbl)
     nchan = len(frequency)
@@ -350,15 +352,15 @@ def zernike_factory(
     # Make sure row_chunks and time_chunks are compatible
     n_row_chunks = len(jon)
     time_chunk_size = ntime // n_row_chunks
-    time_chunks = ((time_chunk_size,) * (n_row_chunks-1) )
+    time_chunks = ((time_chunk_size,) * (n_row_chunks-1))
     time_chunks = time_chunks + (ntime - sum(time_chunks),)
 
     # Create inputs to Zernike call
-    zernike_coords = np.empty((3,nsrc, ntime, na, nchan))
-    coeffs_r = np.empty((na, nchan, 2,2,npoly))
-    coeffs_i = np.empty((na, nchan, 2,2,npoly))
-    noll_index_r = np.empty((na, nchan, 2,2,npoly))
-    noll_index_i = np.empty((na, nchan, 2,2,npoly))
+    zernike_coords = np.empty((3, nsrc, ntime, na, nchan))
+    coeffs_r = np.empty((na, nchan, 2, 2, npoly))
+    coeffs_i = np.empty((na, nchan, 2, 2, npoly))
+    noll_index_r = np.empty((na, nchan, 2, 2, npoly))
+    noll_index_i = np.empty((na, nchan, 2, 2, npoly))
     frequency_scaling = da.from_array(np.ones((nchan,)), chunks=(nchan,))
     pointing_errors = da.from_array(
         np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2)
@@ -377,8 +379,9 @@ def zernike_factory(
 
     # Convert coordinates to match a beam with a diameter of 10 degrees
     for src in range(nsrc):
-        zernike_coords[0,src,:,:,:], zernike_coords[1, src,:,:,:], zernike_coords[2,src,:,:,:] = lm[src,1]*180/np.pi/5, lm[src,0]*180/np.pi/5,0
-    
+        zernike_coords[0, src, :, :, :], zernike_coords[1, src, :, :, :], zernike_coords[2,
+                                                                                         src, :, :, :] = lm[src, 1]*180/np.pi/5, lm[src, 0]*180/np.pi/5, 0
+
     # Load in Zernike coefficients for MeerKAT at L-Band
     packratt.get(
         "/beams/meerkat/meerkat_zernike_coeffs/meerkat/zernike_coeffs.tar.gz",
@@ -389,10 +392,10 @@ def zernike_factory(
     # Assign coefficients
     for ant in range(na):
         for chan in range(nchan):
-            coeffs_r[ant, chan, :,:,:] = params[chan,0][0,:,:,:]
-            coeffs_i[ant, chan, :,:,:] = params[chan,0][1,:,:,:]
-            noll_index_r[ant, chan, :,:,:] = params[chan,1][0,:,:,:]
-            noll_index_i[ant, chan, :,:,:] = params[chan,1][1,:,:,:]
+            coeffs_r[ant, chan, :, :, :] = params[chan, 0][0, :, :, :]
+            coeffs_i[ant, chan, :, :, :] = params[chan, 0][1, :, :, :]
+            noll_index_r[ant, chan, :, :, :] = params[chan, 1][0, :, :, :]
+            noll_index_i[ant, chan, :, :, :] = params[chan, 1][1, :, :, :]
 
     # Call Zernike_dde
     dde_r = zernike_dde(
@@ -431,10 +434,8 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     frequency = spw.CHAN_FREQ.data[0]
     phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
 
-
     lm = radec_to_lm(source.radec, phase_dir)
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
-
 
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
@@ -457,7 +458,6 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
         s_fn = shapelet_fn(uvw, frequency, source.coeffs, source.beta)
         bl_jones_args.append(s_fn)
 
-
     bl_jones_args.extend(["brightness", brightness])
 
     # Unique times and time index for each row chunk
@@ -465,7 +465,6 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     meta = np.empty((0,), dtype=tuple)
     utime_inv = ms.TIME.data.map_blocks(np.unique, return_inverse=True,
                                         meta=meta, dtype=tuple)
-
 
     # Need unique times for parallactic angles
     nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
@@ -476,8 +475,9 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
-    
-    dde = zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jones.chunks[1], nrow=time_idx.shape[0]) 
+
+    dde = zernike_factory(args, ms, ant, field, pol, lm, utime,
+                          frequency, jones.chunks[1], nrow=time_idx.shape[0])
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
                        dde, jones, dde, None, None, None)
@@ -554,14 +554,14 @@ def predict(args):
             vis = vis.reshape(vis.shape[:2] + (4,))
 
         # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis)) if args.data_column == "MODEL_DATA" else xds.assign(CORRECTED_DATA=(("row", "chan", "corr"), vis))
+        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis)) if args.data_column == "MODEL_DATA" else xds.assign(
+            CORRECTED_DATA=(("row", "chan", "corr"), vis))
 
         # Create a write to the table
         write = xds_to_table(xds, args.ms, [args.data_column])
 
         # Add to the list of writes
         writes.append(write)
-
 
     # Submit all graph computations in parallel
     with ProgressBar():
