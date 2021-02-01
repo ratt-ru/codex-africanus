@@ -4,6 +4,7 @@ History
 
 0.2.10 (YYYY-MM-DD)
 -------------------
+* Add support for Shapelets and Zernike Polynomials (:pr:`231`)
 * Add beam model during SPI fitting (:pr:`238`)
 * Add double accumulation option and Hessian function to wgridder (:pr:`237`)
 * Upgrade ducc0 to version 0.8.0 (:pr:`236`)
