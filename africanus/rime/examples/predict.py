@@ -449,7 +449,8 @@ def vis_factory(args, source_type, sky_model,
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
     # (source, row, frequency)
-    phase = phase_delay(lm*np.array([[0,0]]) + np.array([[0,0.000]]), uvw, frequency)
+    phase = phase_delay(lm*np.array([[0, 0]]) + np.array([[0, 0.000]]),
+                        uvw, frequency)
 
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters

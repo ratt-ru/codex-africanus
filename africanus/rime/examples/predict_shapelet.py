@@ -39,7 +39,7 @@ _einsum_corr_indices = "ijkl"
 
 def _brightness_schema(corrs, index):
     if corrs == 4:
-        return "sf" + _einsum_corr_indices[index : index + 2], index + 1
+        return "sf" + _einsum_corr_indices[index: index + 2], index + 1
     else:
         return "sfi", index
 
