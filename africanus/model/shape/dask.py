@@ -93,7 +93,6 @@ def shapelet_with_w_term(coords, frequency, coeffs, beta, delta_lm, lm):
 
 
 try:
-    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
-        array_type=":class:`dask.array.Array`")
+    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass
