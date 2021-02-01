@@ -16,9 +16,7 @@ ncorr = 4
 
 @pytest.fixture
 def time():
-    return np.asarray(
-        [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0]
-    )  # noqa
+    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
 
 
 @pytest.fixture

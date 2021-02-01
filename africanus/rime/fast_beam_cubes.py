@@ -204,6 +204,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                     for c in range(ncorrs):
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
+
                     beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
                     weight = (one - ld)*md*inv_nud
 
