@@ -82,7 +82,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
     mmaxf = ex_dtype.type(beam_mh - 1)
     lmaxi = beam_lw - 1
     mmaxi = beam_mh - 1
-    
+
     lscale = lmaxf / (upper_l - lower_l)
     mscale = mmaxf / (upper_m - lower_m)
     # print("First")
@@ -214,7 +214,7 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
                         absc_sum[c] += weight * np.abs(beam_scratch[c])
                         corr_sum[c] += weight * beam_scratch[c]
                     # if not (fbeam[gl0, gm0, gc0, 0] == 0j and fbeam[gl0, gm0, gc0, 1] == 0j and fbeam[gl0, gm0, gc0, 2] == 0j and fbeam[gl0, gm0, gc0, 3] == 0j): print("fbeam is ",fbeam[gl1, gm1, gc1, :])
-                    
+
                     beam_scratch[:] = fbeam[gl0, gm1, gc1, :]
                     weight = (one - ld)*md*inv_nud
 

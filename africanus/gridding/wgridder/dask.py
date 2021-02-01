@@ -11,7 +11,6 @@ import numpy as np
 from africanus.gridding.wgridder.vis2im import DIRTY_DOCS
 from africanus.gridding.wgridder.im2vis import MODEL_DOCS
 from africanus.gridding.wgridder.im2residim import RESIDUAL_DOCS
-from africanus.gridding.wgridder.hessian import HESSIAN_DOCS
 from africanus.gridding.wgridder.im2vis import _model_internal as model_np
 from africanus.gridding.wgridder.vis2im import _dirty_internal as dirty_np
 from africanus.gridding.wgridder.im2residim import (_residual_internal

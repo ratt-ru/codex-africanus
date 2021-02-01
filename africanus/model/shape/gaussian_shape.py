@@ -49,7 +49,7 @@ def gaussian(uvw, frequency, shape_params):
                     fv1 = v1*scaled_freq[f]
 
                     shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
-                    
+
         return shape
 
     return impl
