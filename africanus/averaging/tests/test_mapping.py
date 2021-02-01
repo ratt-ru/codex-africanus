@@ -12,9 +12,7 @@ from africanus.averaging.time_and_channel_mapping import (row_mapper,
 
 @pytest.fixture
 def time():
-    return np.asarray(
-        [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0]
-    )  # noqa
+    return np.asarray([1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0])  # noqa
 
 
 @pytest.fixture

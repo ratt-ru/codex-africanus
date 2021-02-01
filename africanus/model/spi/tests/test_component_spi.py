@@ -43,9 +43,12 @@ def test_fit_spi_components_vs_scipy():
     alphavar2 = np.zeros(ncomps)
 
     for i in range(ncomps):
-        popt, pcov = curve_fit(spi_func, (freqs / freq0).squeeze(), data[i, :],
-                               sigma=np.diag(sigma**2),
-                               p0=np.array([1.0, -0.7]))
+        def fit_func(nu, I0, alpha): return spi_func(nu, I0, alpha,
+                                                     beam=beams[i])
+        popt, pcov = curve_fit(fit_func, (freqs / freq0).squeeze(),
+                               data[i, :], sigma=np.diag(sigma**2),
+                               p0=np.array([1.0, -0.7]),
+                               absolute_sigma=False)
         I02[i] = popt[0]
         I0var2[i] = pcov[0, 0]
         alpha2[i] = popt[1]

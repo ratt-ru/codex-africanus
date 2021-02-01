@@ -74,6 +74,7 @@ def corr_schema(pol):
     Parameters
     ----------
     pol : Dataset
+
     Returns
     -------
     corr_schema : list of list
@@ -113,7 +114,6 @@ def baseline_jones_multiply(corrs, *args):
             # Extract it and the next corr index
             einsum_schema, corr_index = schema_fn(corrs, corr_index)
             input_einsum_schemas.append(einsum_schema)
-            print(name, einsum_schema)
 
             if not len(einsum_schema) == array.ndim:
                 raise ValueError("%s len(%s) == %d != %s.ndim"
@@ -133,6 +133,8 @@ def create_parser():
     p.add_argument("-rc", "--row-chunks", type=int, default=10000)
     p.add_argument("-mc", "--model-chunks", type=int, default=10)
     p.add_argument("-b", "--beam", default=None)
+    p.add_argument("-l", "--l-axis", default="L")
+    p.add_argument("-m", "--m-axis", default="M")
     p.add_argument("-iuvw", "--invert-uvw", action="store_true",
                    help="Invert UVW coordinates. Useful if we want "
                         "compare our visibilities against MeqTrees")
@@ -140,7 +142,7 @@ def create_parser():
 
 
 @lru_cache(maxsize=16)
-def load_beams(beam_file_schema, corr_types):
+def load_beams(beam_file_schema, corr_types, l_axis, m_axis):
 
     class FITSFile(object):
         """ Exists so that fits file is closed when last ref is gc'd """
@@ -164,8 +166,10 @@ def load_beams(beam_file_schema, corr_types):
     flat_headers = []
 
     for corr, (re_header, im_header) in headers:
-        del re_header["DATE"]
-        del im_header["DATE"]
+        if "DATE" in re_header:
+            del re_header["DATE"]
+        if "DATE" in im_header:
+            del im_header["DATE"]
         flat_headers.append(re_header)
         flat_headers.append(im_header)
 
@@ -191,7 +195,9 @@ def load_beams(beam_file_schema, corr_types):
         raise ValueError("FITS must have exactly three axes. "
                          "L or X, M or Y and FREQ. NAXIS != 3")
 
-    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
+    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header,
+                                                                  l_axis,
+                                                                  m_axis)
 
     # Shape of each correlation
     shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
@@ -227,12 +233,14 @@ def load_beams(beam_file_schema, corr_types):
 def parse_sky_model(filename, chunks):
     """
     Parses a Tigger sky model
+
     Parameters
     ----------
     filename : str
         Sky Model filename
     chunks : tuple of ints or int
         Source chunking strategy
+
     Returns
     -------
     source_data : dict
@@ -276,10 +284,10 @@ def parse_sky_model(filename, chunks):
         try:
             # Extract SPI for I.
             # Zero Q, U and V to get 1 on the exponential
-            spi = [[spectrum.spi, 0, 0, 0]]
+            spi = [[spectrum.spi]*4]
         except AttributeError:
             # Default I SPI to -0.7
-            spi = [[-0.7, 0, 0, 0]]
+            spi = [[0, 0, 0, 0]]
 
         if typecode == "gau":
             emaj = source.shape.ex
@@ -330,6 +338,7 @@ def support_tables(args):
     ----------
     args : object
         Script argument objects
+
     Returns
     -------
     table_map : dict of Dataset
@@ -420,7 +429,8 @@ def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
                        dtype=dtype)
 
     # Load the beam information
-    beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
+    beam, lm_ext, freq_map = load_beams(args.beam, corr_type,
+                                        args.l_axis, args.m_axis)
 
     # Introduce the correlation axis
     beam = beam.reshape(beam.shape[:3] + (2, 2))
@@ -449,8 +459,7 @@ def vis_factory(args, source_type, sky_model,
     uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
 
     # (source, row, frequency)
-    phase = phase_delay(lm*np.array([[0, 0]]) + np.array([[0, 0.000]]),
-                        uvw, frequency)
+    phase = phase_delay(lm, uvw, frequency)
 
     # (source, spi, corrs)
     # Apply spectral mode to stokes parameters
@@ -458,7 +467,7 @@ def vis_factory(args, source_type, sky_model,
                             source.spi,
                             source.ref_freq,
                             frequency,
-                            base=[1, 0, 0, 0])
+                            base=0)
 
     brightness = convert(stokes, ["I", "Q", "U", "V"],
                          corr_schema(pol))
@@ -479,14 +488,14 @@ def vis_factory(args, source_type, sky_model,
                                         meta=meta, dtype=tuple)
 
     # Need unique times for parallactic angles
+    nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
     utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
+                                 chunks=nan_chunks,
                                  dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
     jones = baseline_jones_multiply(corrs, *bl_jones_args)
-
     dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
 
     return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
@@ -545,6 +554,7 @@ def predict(args):
         write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
         # Add to the list of writes
         writes.append(write)
+
     # Submit all graph computations in parallel
     with ProgressBar():
         dask.compute(writes)

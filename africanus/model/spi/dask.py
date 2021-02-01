@@ -16,20 +16,21 @@ else:
 
 
 def _fit_spi_components_wrapper(data, weights, freqs, freq0,
-                                alphai, I0i, tol, maxiter):
+                                alphai, I0i, beam, tol, maxiter):
     return np_fit_spi_components(data[0],
                                  weights[0],
                                  freqs[0],
                                  freq0,
-                                 alphai[0] if alphai is not None else alphai,
-                                 I0i[0] if I0i is not None else I0i,
+                                 alphai,
+                                 I0i,
+                                 beam[0] if beam is not None else beam,
                                  tol=tol,
                                  maxiter=maxiter)
 
 
 @requires_optional('dask.array', opt_import_error)
 def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None,
+                       alphai=None, I0i=None, beam=None,
                        tol=1e-5, maxiter=100):
     """ Dask wrapper fit_spi_components function """
     return blockwise(_fit_spi_components_wrapper, ("vars", "comps"),
@@ -39,6 +40,7 @@ def fit_spi_components(data, weights, freqs, freq0,
                      freq0, None,
                      alphai, ("comps",) if alphai is not None else None,
                      I0i, ("comps",) if I0i is not None else None,
+                     beam, ("comps", "chan") if beam is not None else None,
                      tol, None,
                      maxiter, None,
                      new_axes={"vars": 4},
