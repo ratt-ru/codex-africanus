@@ -10,6 +10,7 @@ from africanus.model.wsclean.file_model import load, arcsec2rad
 def test_wsclean_model_file(wsclean_model_file):
     sources = dict(load(wsclean_model_file))
 
+<<<<<<< HEAD
     (
         name,
         stype,
@@ -38,14 +39,24 @@ def test_wsclean_model_file(wsclean_model_file):
             "Orientation",
         )
     )
+=======
+    (name, stype, ra, dec, I,
+     spi, log_si, ref_freq,
+     major, minor, orientation) = (sources[n] for n in (
+                                   "Name", "Type", "Ra", "Dec", "I",
+                                   "SpectralIndex", "LogarithmicSI",
+                                   "ReferenceFrequency",
+                                   "MajorAxis", "MinorAxis", "Orientation"))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     # Seven sources
-    assert len(I) == len(spi) == len(log_si) == len(ref_freq) == 7
+    assert (len(I) == len(spi) == len(log_si) == len(ref_freq) == 7)
 
     # Name and type read correctly
     assert name[0] == "s0c0" and stype[0] == "POINT"
 
     # Check ra conversion for line 0 file entry (-float, float, float)
+<<<<<<< HEAD
     hours, mins, secs = (-8.0, 28.0, 5.152)
     expected_ra0 = (
         -2.0
@@ -56,10 +67,18 @@ def test_wsclean_model_file(wsclean_model_file):
             + (secs / (24.0 * 60.0 * 60.0))
         )
     )
+=======
+    hours, mins, secs = (-8., 28., 5.152)
+    expected_ra0 = -2.0 * np.pi * (
+                    (-hours / 24.0) +
+                    (mins / (24.0*60.0)) +
+                    (secs / (24.0*60.0*60.0)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     assert ra[0] == expected_ra0
 
     # Check dec conversion for line 0 file entry
+<<<<<<< HEAD
     degs, mins, secs = (39.0, 35.0, 8.511)
     expected_dec0 = (
         2.0
@@ -70,6 +89,13 @@ def test_wsclean_model_file(wsclean_model_file):
             + (secs / (360.0 * 60.0 * 60.0))
         )
     )
+=======
+    degs, mins, secs = (39., 35., 8.511)
+    expected_dec0 = 2.0 * np.pi * (
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
+                     (secs / (360.0*60.0*60.0)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     assert dec[0] == expected_dec0
 
@@ -81,6 +107,7 @@ def test_wsclean_model_file(wsclean_model_file):
 
     # Check ra conversion for line 2 file entry (int, not float, seconds)
     hours, mins, secs = (8, 18, 44)
+<<<<<<< HEAD
     expected_ra2 = (
         2.0
         * np.pi
@@ -90,11 +117,18 @@ def test_wsclean_model_file(wsclean_model_file):
             + (secs / (24.0 * 60.0 * 60.0))
         )
     )
+=======
+    expected_ra2 = 2.0 * np.pi * (
+                    (hours / 24.0) +
+                    (mins / (24.0*60.0)) +
+                    (secs / (24.0*60.0*60.0)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     assert ra[2] == expected_ra2
 
     # Check dec conversion for line 2 file entry (int, not float, seconds)
     degs, mins, secs = (39, 38, 37)
+<<<<<<< HEAD
     expected_dec2 = (
         2.0
         * np.pi
@@ -104,6 +138,12 @@ def test_wsclean_model_file(wsclean_model_file):
             + (secs / (360.0 * 60.0 * 60.0))
         )
     )
+=======
+    expected_dec2 = 2.0 * np.pi * (
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
+                     (secs / (360.0*60.0*60.0)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     assert dec[2] == expected_dec2
 
@@ -113,6 +153,7 @@ def test_wsclean_model_file(wsclean_model_file):
 
     # Check dec conversion for line 4 file entry (+int, not float, seconds)
     degs, mins, secs = (+41, 47, 17.131)
+<<<<<<< HEAD
     expected_dec4 = (
         2.0
         * np.pi
@@ -122,6 +163,12 @@ def test_wsclean_model_file(wsclean_model_file):
             + (secs / (360.0 * 60.0 * 60.0))
         )
     )
+=======
+    expected_dec4 = 2.0 * np.pi * (
+                     (degs / 360.0) +
+                     (mins / (360.0*60.0)) +
+                     (secs / (360.0*60.0*60.0)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
     assert dec[4] == expected_dec4
 

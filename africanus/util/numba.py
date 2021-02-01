@@ -45,6 +45,5 @@ def is_numba_type_none(arg):
     boolean
         True if the type represents None
     """
-    return isinstance(arg, types.misc.NoneType) or (
-        isinstance(arg, types.misc.Omitted) and arg.value is None
-    )
+    return (isinstance(arg, types.misc.NoneType) or
+            (isinstance(arg, types.misc.Omitted) and arg.value is None))

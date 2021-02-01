@@ -8,11 +8,9 @@ from os.path import join as pjoin
 
 import numpy as np
 
-from africanus.model.coherency.conversion import (
-    _element_indices_and_shape,
-    CONVERT_DOCS,
-    MissingConversionInputs,
-)
+from africanus.model.coherency.conversion import (_element_indices_and_shape,
+                                                  CONVERT_DOCS,
+                                                  MissingConversionInputs)
 from africanus.util.code import memoize_on_key, format_code
 from africanus.util.cuda import cuda_type, grids
 from africanus.util.jinja2 import jinja_env
@@ -29,30 +27,27 @@ else:
 log = logging.getLogger(__name__)
 
 stokes_conv = {
-    "RR": {("I", "V"): ("complex", "make_{{out_type}}({{I}} + {{V}}, 0)")},
-    "RL": {("Q", "U"): ("complex", "make_{{out_type}}({{Q}}, {{U}})")},
-    "LR": {("Q", "U"): ("complex", "make_{{out_type}}({{Q}}, -{{U}})")},
-    "LL": {("I", "V"): ("complex", "make_{{out_type}}({{I}} - {{V}}, 0)")},
-    "XX": {("I", "Q"): ("complex", "make_{{out_type}}({{I}} + {{Q}}, 0)")},
-    "XY": {("U", "V"): ("complex", "make_{{out_type}}({{U}}, {{V}})")},
-    "YX": {("U", "V"): ("complex", "make_{{out_type}}({{U}}, -{{V}})")},
-    "YY": {("I", "Q"): ("complex", "make_{{out_type}}({{I}} - {{Q}}, 0)")},
-    "I": {
-        ("XX", "YY"): ("real", "(({{XX}}.x + {{YY}}.x) / 2)"),
-        ("RR", "LL"): ("real", "(({{RR}}.x + {{LL}}.x) / 2)"),
-    },
-    "Q": {
-        ("XX", "YY"): ("real", "(({{XX}}.x - {{YY}}.x) / 2)"),
-        ("RL", "LR"): ("real", "(({{RL}}.x + {{LR}}.x) / 2)"),
-    },
-    "U": {
-        ("XY", "YX"): ("real", "(({{XY}}.x + {{YX}}.x) / 2)"),
-        ("RL", "LR"): ("real", "(({{RL}}.y - {{LR}}.y) / 2)"),
-    },
-    "V": {
-        ("XY", "YX"): ("real", "(({{XY}}.y - {{YX}}.y) / 2)"),
-        ("RR", "LL"): ("real", "(({{RR}}.x - {{LL}}.x) / 2)"),
-    },
+    'RR': {('I', 'V'): ("complex", "make_{{out_type}}({{I}} + {{V}}, 0)")},
+    'RL': {('Q', 'U'): ("complex", "make_{{out_type}}({{Q}}, {{U}})")},
+    'LR': {('Q', 'U'): ("complex", "make_{{out_type}}({{Q}}, -{{U}})")},
+    'LL': {('I', 'V'): ("complex", "make_{{out_type}}({{I}} - {{V}}, 0)")},
+
+    'XX': {('I', 'Q'): ("complex", "make_{{out_type}}({{I}} + {{Q}}, 0)")},
+    'XY': {('U', 'V'): ("complex", "make_{{out_type}}({{U}}, {{V}})")},
+    'YX': {('U', 'V'): ("complex", "make_{{out_type}}({{U}}, -{{V}})")},
+    'YY': {('I', 'Q'): ("complex", "make_{{out_type}}({{I}} - {{Q}}, 0)")},
+
+    'I': {('XX', 'YY'): ("real", "(({{XX}}.x + {{YY}}.x) / 2)"),
+          ('RR', 'LL'): ("real", "(({{RR}}.x + {{LL}}.x) / 2)")},
+
+    'Q': {('XX', 'YY'): ("real", "(({{XX}}.x - {{YY}}.x) / 2)"),
+          ('RL', 'LR'): ("real", "(({{RL}}.x + {{LR}}.x) / 2)")},
+
+    'U': {('XY', 'YX'): ("real", "(({{XY}}.x + {{YX}}.x) / 2)"),
+          ('RL', 'LR'): ("real", "(({{RL}}.y - {{LR}}.y) / 2)")},
+
+    'V': {('XY', 'YX'): ("real", "(({{XY}}.y - {{YX}}.y) / 2)"),
+          ('RR', 'LL'): ("real", "(({{RR}}.x - {{LL}}.x) / 2)")},
 }
 
 
@@ -71,10 +66,8 @@ def stokes_convert_setup(input, input_schema, output_schema):
         try:
             deps = stokes_conv[okey]
         except KeyError:
-            raise ValueError(
-                "Unknown output '%s'. Known types '%s'"
-                % (okey, stokes_conv.keys())
-            )
+            raise ValueError("Unknown output '%s'. Known types '%s'"
+                             % (okey, stokes_conv.keys()))
 
         found_conv = False
 
@@ -99,12 +92,12 @@ def stokes_convert_setup(input, input_schema, output_schema):
 
         # We must find a conversion
         if not found_conv:
-            raise MissingConversionInputs(
-                "None of the supplied inputs '%s' "
-                "can produce output '%s'. It can be "
-                "produced by the following "
-                "combinations '%s'." % (input_schema, okey, deps.keys())
-            )
+            raise MissingConversionInputs("None of the supplied inputs '%s' "
+                                          "can produce output '%s'. It can be "
+                                          "produced by the following "
+                                          "combinations '%s'." % (
+                                                input_schema,
+                                                okey, deps.keys()))
 
     # Output types must be all "real" or all "complex"
     if not all(dtypes[0] == dt for dt in dtypes[1:]):
@@ -121,11 +114,9 @@ def schema_to_tuple(schema):
 
 
 def _key_fn(inputs, input_schema, output_schema):
-    return (
-        inputs.dtype,
-        schema_to_tuple(input_schema),
-        schema_to_tuple(output_schema),
-    )
+    return (inputs.dtype,
+            schema_to_tuple(input_schema),
+            schema_to_tuple(output_schema))
 
 
 _TEMPLATE_PATH = pjoin("model", "coherency", "cuda", "conversion.cu.j2")
@@ -134,8 +125,9 @@ _TEMPLATE_PATH = pjoin("model", "coherency", "cuda", "conversion.cu.j2")
 @memoize_on_key(_key_fn)
 def _generate_kernel(inputs, input_schema, output_schema):
     mapping, in_shape, out_shape, out_dtype = stokes_convert_setup(
-        inputs, input_schema, output_schema
-    )
+                                                inputs,
+                                                input_schema,
+                                                output_schema)
 
     # Flatten input and output shapes
     # Check that number elements are the same
@@ -143,11 +135,10 @@ def _generate_kernel(inputs, input_schema, output_schema):
     out_elems = reduce(mul, out_shape, 1)
 
     if in_elems != out_elems:
-        raise ValueError(
-            "Number of input_schema elements %s "
-            "and output schema elements %s "
-            "must match for CUDA kernel." % (in_shape, out_shape)
-        )
+        raise ValueError("Number of input_schema elements %s "
+                         "and output schema elements %s "
+                         "must match for CUDA kernel." %
+                         (in_shape, out_shape))
 
     # Infer the output data type
     if out_dtype == "real":
@@ -171,11 +162,9 @@ def _generate_kernel(inputs, input_schema, output_schema):
         # Flattened indices
         flat_outi = np.ravel_multi_index(outi, out_shape)
         render = jinja_env.from_string(template_fn).render
-        kwargs = {
-            c1: "in[%d]" % np.ravel_multi_index(c1i, in_shape),
-            c2: "in[%d]" % np.ravel_multi_index(c2i, in_shape),
-            "out_type": cuda_out_dtype,
-        }
+        kwargs = {c1: "in[%d]" % np.ravel_multi_index(c1i, in_shape),
+                  c2: "in[%d]" % np.ravel_multi_index(c2i, in_shape),
+                  "out_type": cuda_out_dtype}
 
         expr_str = render(**kwargs)
         assign_exprs.append("out[%d] = %s;" % (flat_outi, expr_str))
@@ -183,13 +172,11 @@ def _generate_kernel(inputs, input_schema, output_schema):
     # Now render the main template
     render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "stokes_convert"
-    code = render(
-        kernel_name=name,
-        input_type=cuda_type(inputs.dtype),
-        output_type=cuda_type(out_dtype),
-        assign_exprs=assign_exprs,
-        elements=in_elems,
-    ).encode("utf-8")
+    code = render(kernel_name=name,
+                  input_type=cuda_type(inputs.dtype),
+                  output_type=cuda_type(out_dtype),
+                  assign_exprs=assign_exprs,
+                  elements=in_elems).encode("utf-8")
 
     # cuda block, flatten non-schema dims into a single source dim
     blockdimx = 512
@@ -198,16 +185,17 @@ def _generate_kernel(inputs, input_schema, output_schema):
     return (cp.RawKernel(code, name), block, in_shape, out_shape, out_dtype)
 
 
-@requires_optional("cupy", opt_import_error)
+@requires_optional('cupy', opt_import_error)
 def convert(inputs, input_schema, output_schema):
-    (kernel, block, in_shape, out_shape, dtype) = _generate_kernel(
-        inputs, input_schema, output_schema
-    )
+    (kernel, block,
+     in_shape, out_shape, dtype) = _generate_kernel(inputs,
+                                                    input_schema,
+                                                    output_schema)
 
     # Flatten non-schema input dimensions,
     # from inspection of the cupy reshape code,
     # this incurs a copy when inputs is non-contiguous
-    nsrc = reduce(mul, inputs.shape[: -len(in_shape)], 1)
+    nsrc = reduce(mul, inputs.shape[:-len(in_shape)], 1)
     nelems = reduce(mul, in_shape, 1)
 
     rinputs = inputs.reshape(nsrc, nelems)
@@ -222,7 +210,7 @@ def convert(inputs, input_schema, output_schema):
         log.exception(format_code(kernel.code))
         raise
 
-    shape = inputs.shape[: -len(in_shape)] + out_shape
+    shape = inputs.shape[:-len(in_shape)] + out_shape
     outputs = outputs.reshape(shape)
     assert outputs.flags.c_contiguous
     return outputs
@@ -230,7 +218,6 @@ def convert(inputs, input_schema, output_schema):
 
 try:
     convert.__doc__ = CONVERT_DOCS.substitute(
-        array_type=":class:`cupy.ndarray`"
-    )
+                                array_type=":class:`cupy.ndarray`")
 except AttributeError:
     pass

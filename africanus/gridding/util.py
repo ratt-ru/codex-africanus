@@ -1,3 +1,4 @@
+
 import numpy as np
 
 
@@ -87,17 +88,13 @@ def estimate_cell_size(u, v, wavelength, factor=3.0, ny=None, nx=None):
     u_cell_size = 1.0 / (2.0 * factor * umax)
     v_cell_size = 1.0 / (2.0 * factor * vmax)
 
-    if ny is not None and u_cell_size * ny < (1.0 / umin):
-        raise ValueError(
-            "v_cell_size*ny [%f] < (1.0 / umin) [%f]"
-            % (u_cell_size * ny, 1.0 / umin)
-        )
+    if ny is not None and u_cell_size*ny < (1.0 / umin):
+        raise ValueError("v_cell_size*ny [%f] < (1.0 / umin) [%f]" %
+                         (u_cell_size*ny, 1.0 / umin))
 
-    if nx is not None and v_cell_size * nx < (1.0 / vmin):
-        raise ValueError(
-            "v_cell_size*nx [%f] < (1.0 / vmin) [%f]"
-            % (v_cell_size * nx, 1.0 / vmin)
-        )
+    if nx is not None and v_cell_size*nx < (1.0 / vmin):
+        raise ValueError("v_cell_size*nx [%f] < (1.0 / vmin) [%f]" %
+                         (v_cell_size*nx, 1.0 / vmin))
 
     # Convert radians to arcseconds
-    return np.rad2deg([u_cell_size, v_cell_size]) * (60 * 60)
+    return np.rad2deg([u_cell_size, v_cell_size])*(60*60)

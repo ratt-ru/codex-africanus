@@ -6,13 +6,8 @@ from numpy.testing import assert_array_almost_equal
 import pickle
 import pytest
 
-from africanus.gridding.nifty.dask import (
-    grid,
-    degrid,
-    dirty,
-    model,
-    grid_config,
-)
+from africanus.gridding.nifty.dask import (grid, degrid, dirty, model,
+                                           grid_config)
 
 
 def rf(*a, **kw):
@@ -20,16 +15,16 @@ def rf(*a, **kw):
 
 
 def rc(*a, **kw):
-    return rf(*a, **kw) + 1j * rf(*a, **kw)
+    return rf(*a, **kw) + 1j*rf(*a, **kw)
 
 
 def test_dask_nifty_gridder():
     """ Only tests that we can call it and create a dirty image """
-    dask = pytest.importorskip("dask")
-    da = pytest.importorskip("dask.array")
-    _ = pytest.importorskip("nifty_gridder")
+    dask = pytest.importorskip('dask')
+    da = pytest.importorskip('dask.array')
+    _ = pytest.importorskip('nifty_gridder')
 
-    row = (16,) * 8
+    row = (16,)*8
     chan = (32,)
     corr = (4,)
     nx = 1026
@@ -40,9 +35,9 @@ def test_dask_nifty_gridder():
     ncorr = sum(corr)
 
     # Random UV data
-    uvw = rf(size=(nrow, 3)).astype(np.float64) * 128
+    uvw = rf(size=(nrow, 3)).astype(np.float64)*128
     vis = rf(size=(nrow, nchan, ncorr)).astype(np.complex128)
-    freq = np.linspace(0.856e9, 2 * 0.856e9, nchan)
+    freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros(vis.shape, dtype=np.uint8)
     flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8).astype(np.bool)
     weight = rf(vis.shape).astype(np.float64)
@@ -87,8 +82,8 @@ def test_dask_nifty_gridder():
 
 def test_dask_nifty_degridder():
     """ Only tests that we can call it and create some visibilities """
-    da = pytest.importorskip("dask.array")
-    _ = pytest.importorskip("nifty_gridder")
+    da = pytest.importorskip('dask.array')
+    _ = pytest.importorskip('nifty_gridder')
 
     row = (16, 16, 16, 16)
     chan = (32,)
@@ -103,8 +98,8 @@ def test_dask_nifty_degridder():
     gc = grid_config(nx, ny, 2e-13, 2.0, 2.0)
 
     # Random UV data
-    uvw = rf(size=(nrow, 3)).astype(np.float64) * 128
-    freq = np.linspace(0.856e9, 2 * 0.856e9, nchan)
+    uvw = rf(size=(nrow, 3)).astype(np.float64)*128
+    freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros((nrow, nchan, ncorr), dtype=np.bool)
     weight = np.ones((nrow, nchan, ncorr), dtype=np.float64)
     image = rc(size=(nx, ny, ncorr)).astype(np.complex128)

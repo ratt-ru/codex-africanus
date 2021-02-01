@@ -30,7 +30,7 @@ def doc_tuple_to_str(doc_tuple, replacements=None):
     if replacements is not None:
         fields = (mod_docs(f, replacements) for f in fields)
 
-    return "".join(fields)
+    return ''.join(fields)
 
 
 class DefaultOut(object):
@@ -48,7 +48,6 @@ class DocstringTemplate(Template):
     Overrides the ${identifer} braced pattern in the string Template
     with a $(identifier) braced pattern
     """
-
     pattern = r"""
     %(delim)s(?:
       (?P<escaped>%(delim)s)   |   # Escape sequence of two delimiters
@@ -56,7 +55,5 @@ class DocstringTemplate(Template):
       \((?P<braced>%(id)s)\)   |   # delimiter and a braced identifier
       (?P<invalid>)                # Other ill-formed delimiter exprs
     )
-    """ % {
-        "delim": re.escape(Template.delimiter),
-        "id": Template.idpattern,
-    }
+    """ % {'delim': re.escape(Template.delimiter),
+           'id': Template.idpattern}

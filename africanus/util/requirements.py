@@ -12,16 +12,12 @@ from africanus.util.testing import in_pytest, force_missing_pkg_exception
 def _missing_packages(fn, packages, import_errors):
     if len(import_errors) > 0:
         import_err_str = "\n".join((str(e) for e in import_errors))
-        return (
-            "%s requires installation of "
-            "the following packages: %s.\n"
-            "%s" % (fn, packages, import_err_str)
-        )
+        return ("%s requires installation of "
+                "the following packages: %s.\n"
+                "%s" % (fn, packages, import_err_str))
     else:
-        return "%s requires installation of the following packages: %s. " % (
-            fn,
-            tuple(packages),
-        )
+        return ("%s requires installation of the following packages: %s. "
+                % (fn, tuple(packages)))
 
 
 class MissingPackageException(Exception):
@@ -74,7 +70,6 @@ def requires_optional(*requirements):
     """
     # Return a bare wrapper if we're on readthedocs
     if on_rtd():
-
         def _function_decorator(fn):
             def _wrapper(*args, **kwargs):
                 pass
@@ -111,21 +106,18 @@ def requires_optional(*requirements):
             honour_pytest_marker = False
         # Just wrong
         else:
-            raise TypeError(
-                "requirements must be "
-                "None, strings or ImportErrors. "
-                "Received %s" % requirement
-            )
+            raise TypeError("requirements must be "
+                            "None, strings or ImportErrors. "
+                            "Received %s" % requirement)
 
     # Requested requirement import succeeded, but there were user
     # import errors that we now re-raise
     if have_requirements and len(import_errors) > 0:
-        raise ImportError(
-            "Successfully imported %s "
-            "but the following user-supplied "
-            "ImportErrors ocurred: \n%s"
-            % (actual_imports, "\n".join((str(e) for e in import_errors)))
-        )
+        raise ImportError("Successfully imported %s "
+                          "but the following user-supplied "
+                          "ImportErrors ocurred: \n%s" %
+                          (actual_imports,
+                           '\n'.join((str(e) for e in import_errors))))
 
     def _function_decorator(fn):
         # We have requirements, return the original function
@@ -141,21 +133,17 @@ def requires_optional(*requirements):
                 try:
                     import pytest
                 except ImportError as e:
-                    raise ImportError(
-                        "Marked as in a pytest "
-                        "test case, but pytest cannot "
-                        "be imported! %s" % str(e)
-                    )
+                    raise ImportError("Marked as in a pytest "
+                                      "test case, but pytest cannot "
+                                      "be imported! %s" % str(e))
                 else:
                     msg = _missing_packages(
-                        fn.__name__, missing_requirements, import_errors
-                    )
+                        fn.__name__, missing_requirements, import_errors)
                     pytest.skip(msg)
             # Raise the exception
             else:
                 msg = _missing_packages(
-                    fn.__name__, missing_requirements, import_errors
-                )
+                    fn.__name__, missing_requirements, import_errors)
                 raise MissingPackageException(msg)
 
         return decorate(fn, _wrapper)

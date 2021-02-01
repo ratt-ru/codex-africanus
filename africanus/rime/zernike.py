@@ -18,17 +18,17 @@ def fac(x):
 
 @jit(nogil=True, nopython=True, cache=True)
 def pre_fac(k, n, m):
-    numerator = (-1.0) ** k * fac(n - k)
-    denominator = fac(k) * fac((n + m) / 2.0 - k) * fac((n - m) / 2.0 - k)
+    numerator = (-1.0)**k * fac(n-k)
+    denominator = (fac(k) * fac((n+m)/2.0 - k) * fac((n-m)/2.0 - k))
     return numerator / denominator
 
 
 @jit(nogil=True, nopython=True, cache=True)
 def zernike_rad(m, n, rho):
-    if n < 0 or m < 0 or abs(m) > n:
+    if (n < 0 or m < 0 or abs(m) > n):
         raise ValueError("m and n values are incorrect.")
     radial_component = 0
-    for k in range((n - m) / 2 + 1):
+    for k in range((n-m)/2+1):
         radial_component += pre_fac(k, n, m) * rho ** (n - 2.0 * k)
     return radial_component
 
@@ -39,36 +39,43 @@ def zernike(j, rho, phi):
         return 0.0
     j += 1
     n = 0
+<<<<<<< HEAD
     j1 = j - 1
     while j1 > n:
         n += 1
         j1 -= n
     m = (-1) ** j * ((n % 2) + 2 * int((j1 + ((n + 1) % 2)) / 2.0))
     if m > 0:
+=======
+    j1 = j-1
+    # print(j1, n)
+    while (j1 > n):
+        n += 1
+        j1 -= n
+    m = (-1)**j * ((n % 2) + 2 * int((j1+((n+1) % 2)) / 2.0))
+    # print(m)
+    if (m > 0):
+>>>>>>> parent of d728390... Formatting for Flake8
         return zernike_rad(m, n, rho) * np.cos(m * phi)
-    if m < 0:
+    if (m < 0):
         return zernike_rad(-m, n, rho) * np.sin(-m * phi)
     return zernike_rad(0, n, rho)
 
 
 @jit(nogil=True, nopython=True, cache=True)
+<<<<<<< HEAD
 def _convert_coords(l_coords, m_coords):
     rho, phi = ((l_coords ** 2 + m_coords ** 2) ** 0.5), np.arctan2(l_coords,
                                                                     m_coords)
+=======
+def _convert_coords(l, m):
+    rho, phi = ((l**2 + m ** 2) ** 0.5), np.arctan2(l, m)
+>>>>>>> parent of d728390... Formatting for Flake8
     return rho, phi
 
 
 @jit(nogil=True, nopython=True, cache=True)
-def nb_zernike_dde(
-    coords,
-    coeffs,
-    noll_index,
-    out,
-    parallactic_angles,
-    frequency_scaling,
-    antenna_scaling,
-    pointing_errors,
-):
+def nb_zernike_dde(coords, coeffs, noll_index, out, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
     sources, times, ants, chans, corrs = out.shape
     npoly = coeffs.shape[-1]
 
@@ -81,8 +88,13 @@ def nb_zernike_dde(
                 for c in range(chans):
                     l, m, freq = coords[:, s, t, a, c]
 
+<<<<<<< HEAD
                     l_coords = l * frequency_scaling[c]
                     m_coords = m * frequency_scaling[c]
+=======
+                    l = l * frequency_scaling[c] 
+                    m = m * frequency_scaling[c]
+>>>>>>> parent of d728390... Formatting for Flake8
 
                     l_coords += pointing_errors[t, a, c, 0]
                     m_coords += pointing_errors[t, a, c, 1]
@@ -108,15 +120,7 @@ def nb_zernike_dde(
     return out
 
 
-def zernike_dde(
-    coords,
-    coeffs,
-    noll_index,
-    parallactic_angles,
-    frequency_scaling,
-    antenna_scaling,
-    pointing_errors,
-):
+def zernike_dde(coords, coeffs, noll_index, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors):
     """ Wrapper for :func:`nb_zernike_dde` """
     _, sources, times, ants, chans = coords.shape
     # ant, chan, corr_1, ..., corr_n, poly
@@ -130,22 +134,14 @@ def zernike_dde(
     coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))
     noll_index = noll_index.reshape((ants, chans, fcorrs, npoly))
 
-    result = nb_zernike_dde(
-        coords,
-        coeffs,
-        noll_index,
-        ddes,
-        parallactic_angles,
-        frequency_scaling,
-        antenna_scaling,
-        pointing_errors,
-    )
+    result = nb_zernike_dde(coords, coeffs, noll_index, ddes, parallactic_angles, frequency_scaling, antenna_scaling, pointing_errors)
 
     # Reshape to full correlation size
     return result.reshape((sources, times, ants, chans) + corr_shape)
 
 
-_ZERNICKE_DOCSTRING = """
+_ZERNICKE_DOCSTRING = (
+    """
 Computes Direction Dependent Effects by evaluating
 `Zernicke Polynomials <zernike_wiki_>`_
 defined by coefficients ``coeffs``
@@ -194,6 +190,6 @@ Returns
 dde : :class:`numpy.ndarray`
    complex values with shape
    :code:`(source, time, ant, chan, corr_1, ..., corr_n)`
-"""
+""")
 
 zernike_dde.__doc__ = _ZERNICKE_DOCSTRING

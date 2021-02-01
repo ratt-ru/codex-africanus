@@ -34,11 +34,11 @@ log = logging.getLogger(__name__)
 
 
 def get_path(key):
-    return os.environ.get(key, "").split(os.pathsep)
+    return os.environ.get(key, '').split(os.pathsep)
 
 
 def search_on_path(filenames):
-    for p in get_path("PATH"):
+    for p in get_path('PATH'):
         for filename in filenames:
             full = os.path.join(p, filename)
             if os.path.exists(full):
@@ -46,15 +46,15 @@ def search_on_path(filenames):
     return None
 
 
-PLATFORM_DARWIN = sys.platform.startswith("darwin")
-PLATFORM_LINUX = sys.platform.startswith("linux")
-PLATFORM_WIN32 = sys.platform.startswith("win32")
+PLATFORM_DARWIN = sys.platform.startswith('darwin')
+PLATFORM_LINUX = sys.platform.startswith('linux')
+PLATFORM_WIN32 = sys.platform.startswith('win32')
 
 minimum_cuda_version = 8000
 minimum_cudnn_version = 5000
 maximum_cudnn_version = 7999
 
-_cuda_path = "NOT_INITIALIZED"
+_cuda_path = 'NOT_INITIALIZED'
 _compiler_base_options = None
 _cuda_info = None
 
@@ -73,30 +73,29 @@ def get_cuda_path():
 
     # Use a magic word to represent the cache not filled because None is a
     # valid return value.
-    if _cuda_path != "NOT_INITIALIZED":
+    if _cuda_path != 'NOT_INITIALIZED':
         return _cuda_path
 
-    nvcc_path = search_on_path(("nvcc", "nvcc.exe"))
+    nvcc_path = search_on_path(('nvcc', 'nvcc.exe'))
     cuda_path_default = None
     if nvcc_path is None:
-        log.warn("nvcc not in path. Please set path to nvcc.")
+        log.warn('nvcc not in path. Please set path to nvcc.')
     else:
         cuda_path_default = os.path.normpath(
-            os.path.join(os.path.dirname(nvcc_path), "..")
-        )
+            os.path.join(os.path.dirname(nvcc_path), '..'))
 
-    cuda_path = os.environ.get("CUDA_PATH", "")  # Nvidia default on Windows
+    cuda_path = os.environ.get('CUDA_PATH', '')  # Nvidia default on Windows
     if len(cuda_path) > 0 and cuda_path != cuda_path_default:
-        log.warn("nvcc path != CUDA_PATH")
-        log.warn("nvcc path: %s" % cuda_path_default)
-        log.warn("CUDA_PATH: %s" % cuda_path)
+        log.warn('nvcc path != CUDA_PATH')
+        log.warn('nvcc path: %s' % cuda_path_default)
+        log.warn('CUDA_PATH: %s' % cuda_path)
 
     if os.path.exists(cuda_path):
         _cuda_path = cuda_path
     elif cuda_path_default is not None:
         _cuda_path = cuda_path_default
-    elif os.path.exists("/usr/local/cuda"):
-        _cuda_path = "/usr/local/cuda"
+    elif os.path.exists('/usr/local/cuda'):
+        _cuda_path = '/usr/local/cuda'
     else:
         _cuda_path = None
 
@@ -104,7 +103,7 @@ def get_cuda_path():
 
 
 def get_nvcc_path():
-    nvcc = os.environ.get("NVCC", None)
+    nvcc = os.environ.get('NVCC', None)
     if nvcc:
         return distutils.split_quoted(nvcc)
 
@@ -113,9 +112,9 @@ def get_nvcc_path():
         return None
 
     if PLATFORM_WIN32:
-        nvcc_bin = "bin/nvcc.exe"
+        nvcc_bin = 'bin/nvcc.exe'
     else:
-        nvcc_bin = "bin/nvcc"
+        nvcc_bin = 'bin/nvcc'
 
     nvcc_path = os.path.join(cuda_path, nvcc_bin)
     if os.path.exists(nvcc_path):
@@ -132,29 +131,29 @@ def get_compiler_setting():
     define_macros = []
 
     if cuda_path:
-        include_dirs.append(os.path.join(cuda_path, "include"))
+        include_dirs.append(os.path.join(cuda_path, 'include'))
         if PLATFORM_WIN32:
-            library_dirs.append(os.path.join(cuda_path, "bin"))
-            library_dirs.append(os.path.join(cuda_path, "lib", "x64"))
+            library_dirs.append(os.path.join(cuda_path, 'bin'))
+            library_dirs.append(os.path.join(cuda_path, 'lib', 'x64'))
         else:
-            library_dirs.append(os.path.join(cuda_path, "lib64"))
-            library_dirs.append(os.path.join(cuda_path, "lib"))
+            library_dirs.append(os.path.join(cuda_path, 'lib64'))
+            library_dirs.append(os.path.join(cuda_path, 'lib'))
     if PLATFORM_DARWIN:
-        library_dirs.append("/usr/local/cuda/lib")
+        library_dirs.append('/usr/local/cuda/lib')
 
     if PLATFORM_WIN32:
-        nvtoolsext_path = os.environ.get("NVTOOLSEXT_PATH", "")
+        nvtoolsext_path = os.environ.get('NVTOOLSEXT_PATH', '')
         if os.path.exists(nvtoolsext_path):
-            include_dirs.append(os.path.join(nvtoolsext_path, "include"))
-            library_dirs.append(os.path.join(nvtoolsext_path, "lib", "x64"))
+            include_dirs.append(os.path.join(nvtoolsext_path, 'include'))
+            library_dirs.append(os.path.join(nvtoolsext_path, 'lib', 'x64'))
         else:
-            define_macros.append(("CUPY_NO_NVTX", "1"))
+            define_macros.append(('CUPY_NO_NVTX', '1'))
 
     return {
-        "include_dirs": include_dirs,
-        "library_dirs": library_dirs,
-        "define_macros": define_macros,
-        "language": "c++",
+        'include_dirs': include_dirs,
+        'library_dirs': library_dirs,
+        'define_macros': define_macros,
+        'language': 'c++',
     }
 
 
@@ -181,7 +180,9 @@ def _match_output_lines(output_lines, regexs):
 
 
 def get_compiler_base_options():
-    """Returns base options for nvcc compiler."""
+    """Returns base options for nvcc compiler.
+
+    """
     global _compiler_base_options
     if _compiler_base_options is None:
         _compiler_base_options = _get_compiler_base_options()
@@ -194,38 +195,35 @@ def _get_compiler_base_options():
     # and try to compose base options according to it.
     nvcc_path = get_nvcc_path()
     with _tempdir() as temp_dir:
-        test_cu_path = os.path.join(temp_dir, "test.cu")
-        test_out_path = os.path.join(temp_dir, "test.out")
-        with open(test_cu_path, "w") as f:
-            f.write("int main() { return 0; }")
+        test_cu_path = os.path.join(temp_dir, 'test.cu')
+        test_out_path = os.path.join(temp_dir, 'test.out')
+        with open(test_cu_path, 'w') as f:
+            f.write('int main() { return 0; }')
         proc = subprocess.Popen(
-            nvcc_path + ["-o", test_out_path, test_cu_path],
+            nvcc_path + ['-o', test_out_path, test_cu_path],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+            stderr=subprocess.PIPE)
         stdoutdata, stderrdata = proc.communicate()
-        stderrlines = stderrdata.split(b"\n")
+        stderrlines = stderrdata.split(b'\n')
         if proc.returncode != 0:
 
             # No supported host compiler
             matches = _match_output_lines(
                 stderrlines,
                 [
-                    b"^ERROR: No supported gcc/g\\+\\+ host compiler found, "
-                    b"but .* is available.$",
-                    b"^ *Use 'nvcc (.*)' to use that instead.$",
-                ],
-            )
+                    b'^ERROR: No supported gcc/g\\+\\+ host compiler found, '
+                    b'but .* is available.$',
+                    b'^ *Use \'nvcc (.*)\' to use that instead.$',
+                ])
             if matches is not None:
                 base_opts = matches[1].group(1)
-                base_opts = base_opts.decode("utf8").split(" ")
+                base_opts = base_opts.decode('utf8').split(' ')
                 return base_opts
 
             # Unknown error
             raise RuntimeError(
-                "Encountered unknown error while testing nvcc:\n"
-                + stderrdata.decode("utf8")
-            )
+                'Encountered unknown error while testing nvcc:\n' +
+                stderrdata.decode('utf8'))
 
     return []
 
@@ -233,7 +231,7 @@ def _get_compiler_base_options():
 def _get_cuda_info():
     nvcc_path = get_nvcc_path()
 
-    code = """
+    code = '''
     #include <cuda.h>
     #include <stdio.h>
     int main(int argc, char* argv[]) {
@@ -274,33 +272,38 @@ def _get_cuda_info():
 
         return 0;
     }
-    """  # noqa
+    '''  # noqa
 
     with _tempdir() as temp_dir:
-        test_cu_path = os.path.join(temp_dir, "test.cu")
-        test_out_path = os.path.join(temp_dir, "test.out")
+        test_cu_path = os.path.join(temp_dir, 'test.cu')
+        test_out_path = os.path.join(temp_dir, 'test.out')
 
-        with open(test_cu_path, "w") as f:
+        with open(test_cu_path, 'w') as f:
             f.write(code)
 
         proc = subprocess.Popen(
-            nvcc_path + ["-o", test_out_path, test_cu_path],
+            nvcc_path + ['-o', test_out_path, test_cu_path],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+            stderr=subprocess.PIPE)
 
         stdoutdata, stderrdata = proc.communicate()
 
         if proc.returncode != 0:
+<<<<<<< HEAD
             raise RuntimeError(
                 "Cannot determine "
                 "compute architecture {0}".format(stderrdata)
             )
+=======
+            raise RuntimeError("Cannot determine "
+                               "compute architecture {0}"
+                               .format(stderrdata))
+>>>>>>> parent of d728390... Formatting for Flake8
 
         try:
             out = subprocess.check_output(test_out_path)
         except Exception as e:
-            msg = "Cannot execute a stub file.\nOriginal error: {0}".format(e)
+            msg = 'Cannot execute a stub file.\nOriginal error: {0}'.format(e)
             raise Exception(msg)
 
         return ast.literal_eval(out)
@@ -321,87 +324,76 @@ def _format_cuda_version(version):
 
 def get_cuda_version(formatted=False):
     """Return CUDA Toolkit version cached in check_cuda_version()."""
-    _cuda_version = get_cuda_info()["cuda_version"]
+    _cuda_version = get_cuda_info()['cuda_version']
 
     if _cuda_version < minimum_cuda_version:
-        raise ValueError(
-            "CUDA version is too old: %d"
-            "CUDA v7.0 or newer is required" % _cuda_version
-        )
+        raise ValueError('CUDA version is too old: %d'
+                         'CUDA v7.0 or newer is required' % _cuda_version)
 
     return str(_cuda_version) if formatted else _cuda_version
 
 
 def get_gencode_options():
-    return [
-        "--generate-code=arch=compute_{a},code=sm_{a}".format(
-            a=dev["major"] * 10 + dev["minor"]
-        )
-        for dev in get_cuda_info()["devices"]
-    ]
+    return ["--generate-code=arch=compute_{a},code=sm_{a}".format(
+            a=dev['major']*10 + dev['minor'])
+            for dev in get_cuda_info()['devices']]
 
 
 class _UnixCCompiler(unixccompiler.UnixCCompiler):
     src_extensions = list(unixccompiler.UnixCCompiler.src_extensions)
-    src_extensions.append(".cu")
+    src_extensions.append('.cu')
 
     def _compile(self, obj, src, ext, cc_args, extra_postargs, pp_opts):
         # For sources other than CUDA C ones, just call the super class method.
-        if os.path.splitext(src)[1] != ".cu":
+        if os.path.splitext(src)[1] != '.cu':
             return unixccompiler.UnixCCompiler._compile(
-                self, obj, src, ext, cc_args, extra_postargs, pp_opts
-            )
+                self, obj, src, ext, cc_args, extra_postargs, pp_opts)
 
         # For CUDA C source files, compile them with NVCC.
         _compiler_so = self.compiler_so
         try:
             nvcc_path = get_nvcc_path()
             base_opts = get_compiler_base_options()
-            self.set_executable("compiler_so", nvcc_path)
+            self.set_executable('compiler_so', nvcc_path)
 
             cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
             postargs = get_gencode_options() + [
+<<<<<<< HEAD
                 "-O2",
                 '--compiler-options="-fPIC"',
             ]
+=======
+                '-O2', '--compiler-options="-fPIC"']
+>>>>>>> parent of d728390... Formatting for Flake8
             postargs += extra_postargs
             # print('NVCC options:', postargs)
 
             return unixccompiler.UnixCCompiler._compile(
-                self, obj, src, ext, base_opts + cc_args, postargs, pp_opts
-            )
+                self, obj, src, ext, base_opts + cc_args, postargs, pp_opts)
         finally:
             self.compiler_so = _compiler_so
 
 
 class _MSVCCompiler(msvccompiler.MSVCCompiler):
-    _cu_extensions = [".cu"]
+    _cu_extensions = ['.cu']
 
     src_extensions = list(unixccompiler.UnixCCompiler.src_extensions)
     src_extensions.extend(_cu_extensions)
 
-    def _compile_cu(
-        self,
-        sources,
-        output_dir=None,
-        macros=None,
-        include_dirs=None,
-        debug=0,
-        extra_preargs=None,
-        extra_postargs=None,
-        depends=None,
-    ):
+    def _compile_cu(self, sources, output_dir=None, macros=None,
+                    include_dirs=None, debug=0, extra_preargs=None,
+                    extra_postargs=None, depends=None):
         # Compile CUDA C files, mainly derived from UnixCCompiler._compile().
 
-        macros, objects, extra_postargs, pp_opts, _build = self._setup_compile(
-            output_dir, macros, include_dirs, sources, depends, extra_postargs
-        )
+        macros, objects, extra_postargs, pp_opts, _build = \
+            self._setup_compile(output_dir, macros, include_dirs, sources,
+                                depends, extra_postargs)
 
         compiler_so = get_nvcc_path()
         cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
         cuda_version = get_cuda_version()  # noqa: triggers cuda inspection
-        postargs = get_gencode_options() + ["-O2"]
-        postargs += ["-Xcompiler", "/MD"]
+        postargs = get_gencode_options() + ['-O2']
+        postargs += ['-Xcompiler', '/MD']
         postargs += extra_postargs
         # print('NVCC options:', postargs)
 
@@ -411,7 +403,7 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
             except KeyError:
                 continue
             try:
-                self.spawn(compiler_so + cc_args + [src, "-o", obj] + postargs)
+                self.spawn(compiler_so + cc_args + [src, '-o', obj] + postargs)
             except errors.DistutilsExecError as e:
                 raise errors.CompileError(str(e))
 
@@ -422,15 +414,19 @@ class _MSVCCompiler(msvccompiler.MSVCCompiler):
         cu_sources = []
         other_sources = []
         for source in sources:
-            if os.path.splitext(source)[1] == ".cu":
+            if os.path.splitext(source)[1] == '.cu':
                 cu_sources.append(source)
             else:
                 other_sources.append(source)
 
         # Compile source files other than CUDA C ones.
         other_objects = msvccompiler.MSVCCompiler.compile(
+<<<<<<< HEAD
             self, other_sources, **kwargs
         )
+=======
+            self, other_sources, **kwargs)
+>>>>>>> parent of d728390... Formatting for Flake8
 
         # Compile CUDA C sources.
         cu_objects = self._compile_cu(cu_sources, **kwargs)
@@ -468,7 +464,7 @@ def stdchannel_redirected(stdchannel, dest_filename):
 
     try:
         oldstdchannel = os.dup(stdchannel.fileno())
-        dest_file = open(dest_filename, "w")
+        dest_file = open(dest_filename, 'w')
         os.dup2(dest_file.fileno(), stdchannel.fileno())
 
         yield
@@ -480,23 +476,28 @@ def stdchannel_redirected(stdchannel, dest_filename):
 
 
 @requires_optional("cupy", cupy_import_error)
-def compile_using_nvcc(source, options=None, arch=None, filename="kern.cu"):
+def compile_using_nvcc(source, options=None, arch=None, filename='kern.cu'):
     options = options or []
 
     if arch is None:
         cuda_info = get_cuda_info()
+<<<<<<< HEAD
         arch = min(
             [dev["major"] * 10 + dev["minor"] for dev in cuda_info["devices"]]
         )
+=======
+        arch = min([dev['major']*10 + dev['minor']
+                    for dev in cuda_info['devices']])
+>>>>>>> parent of d728390... Formatting for Flake8
 
     cc = get_compiler()
     settings = get_compiler_setting()
     arch = "--generate-code=arch=compute_{a},code=sm_{a}".format(a=arch)
 
-    options += ["-cubin"]
+    options += ['-cubin']
 
     cupy_path = resource_filename("cupy", pjoin("core", "include"))
-    settings["include_dirs"].append(cupy_path)
+    settings['include_dirs'].append(cupy_path)
 
     with _tempdir() as tmpdir:
         tmpfile = pjoin(tmpdir, filename)
@@ -508,25 +509,21 @@ def compile_using_nvcc(source, options=None, arch=None, filename="kern.cu"):
             stderr_file = pjoin(tmpdir, "stderr.txt")
 
             with stdchannel_redirected(sys.stderr, stderr_file):
-                objects = cc.compile(
-                    [tmpfile],
-                    include_dirs=settings["include_dirs"],
-                    macros=settings["define_macros"],
-                    extra_postargs=options,
-                )
+                objects = cc.compile([tmpfile],
+                                     include_dirs=settings['include_dirs'],
+                                     macros=settings['define_macros'],
+                                     extra_postargs=options)
         except errors.CompileError as e:
             with open(stderr_file, "r") as f:
                 errs = f.read()
 
-            lines = [
-                "The following source code",
-                format_code(source),
-                "",
-                "created the following compilation errors",
-                "",
-                errs.strip(),
-                str(e).strip(),
-            ]
+            lines = ["The following source code",
+                     format_code(source),
+                     "",
+                     "created the following compilation errors",
+                     "",
+                     errs.strip(),
+                     str(e).strip()]
 
             ex = errors.CompileError("\n".join(lines))
             raise (ex, None, sys.exc_info()[2])

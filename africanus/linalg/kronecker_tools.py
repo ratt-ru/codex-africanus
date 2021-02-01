@@ -52,7 +52,7 @@ def kron_matvec(A, b):
     x = b
     for d in range(D):
         Gd = A[d].shape[0]
-        X = np.reshape(x, (Gd, N // Gd))
+        X = np.reshape(x, (Gd, N//Gd))
         Z = np.einsum("ab,bc->ac", A[d], X)
         Z = np.einsum("ab -> ba", Z)
         x = Z.flatten()
@@ -181,5 +181,5 @@ def kron_cholesky(A):
         try:
             L[i] = np.linalg.cholesky(A[i])
         except Exception:  # add jitter
-            L[i] = np.linalg.cholesky(A[i] + 1e-13 * np.eye(A[i].shape[0]))
+            L[i] = np.linalg.cholesky(A[i] + 1e-13*np.eye(A[i].shape[0]))
     return L

@@ -24,50 +24,29 @@ def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", help="Name of measurement set", type=str)
     p.add_argument("--sky_model", type=str, help="Tigger lsm file")
-    p.add_argument(
-        "--data_col",
-        help="Column where data lives. "
-        "Only used to get shape of data at this stage",
-        default="DATA",
-        type=str,
-    )
-    p.add_argument(
-        "--out_col",
-        help="Where to write the corrupted data to. "
-        "Must exist in MS before writing to it.",
-        default="DATA",
-        type=str,
-    )
-    p.add_argument(
-        "--gain_file",
-        help=".npy file containing gains in format "
-        "(time, antenna, freq, source, corr). "
-        "See corrupt_vis docs.",
-        type=str,
-    )
-    p.add_argument(
-        "--utimes_per_chunk",
-        default=32,
-        type=int,
-        help="Number of unique times in each chunk.",
-    )
-    p.add_argument(
-        "--ncpu",
-        help="The number of threads to use. " "Default of zero means all",
-        default=10,
-        type=int,
-    )
-    p.add_argument("--field", default=0, type=int)
+    p.add_argument("--data_col", help="Column where data lives. "
+                   "Only used to get shape of data at this stage",
+                   default='DATA', type=str)
+    p.add_argument("--out_col", help="Where to write the corrupted data to. "
+                   "Must exist in MS before writing to it.",
+                   default='DATA', type=str)
+    p.add_argument("--gain_file", help=".npy file containing gains in format "
+                   "(time, antenna, freq, source, corr). "
+                   "See corrupt_vis docs.", type=str)
+    p.add_argument("--utimes_per_chunk",  default=32, type=int,
+                   help="Number of unique times in each chunk.")
+    p.add_argument("--ncpu", help="The number of threads to use. "
+                   "Default of zero means all", default=10, type=int)
+    p.add_argument('--field', default=0, type=int)
     return p
 
 
 def main(args):
     # get full time column and compute row chunks
     ms = table(args.ms)
-    time = ms.getcol("TIME")
+    time = ms.getcol('TIME')
     row_chunks, tbin_idx, tbin_counts = chunkify_rows(
-        time, args.utimes_per_chunk
-    )
+        time, args.utimes_per_chunk)
     # convert to dask arrays
     tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
     tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
@@ -75,17 +54,14 @@ def main(args):
     ms.close()
 
     # get phase dir
-    fld = table(args.ms + "::FIELD")
-    radec0 = fld.getcol("PHASE_DIR").squeeze().reshape(1, 2)
+    fld = table(args.ms+'::FIELD')
+    radec0 = fld.getcol('PHASE_DIR').squeeze().reshape(1, 2)
     radec0 = np.tile(radec0, (n_time, 1))
     fld.close()
 
     # get freqs
-    freqs = (
-        table(args.ms + "::SPECTRAL_WINDOW")
-        .getcol("CHAN_FREQ")[0]
-        .astype(np.float64)
-    )
+    freqs = table(
+        args.ms+'::SPECTRAL_WINDOW').getcol('CHAN_FREQ')[0].astype(np.float64)
     n_freq = freqs.size
     freqs = da.from_array(freqs, chunks=(n_freq))
 
@@ -118,26 +94,24 @@ def main(args):
     spi = np.asarray(spi)
     for t in range(n_time):
         for d in range(n_dir):
-            model[t, :, d, 0] = stokes[d] * (freqs / ref_freqs[d]) ** spi[d]
+            model[t, :, d, 0] = stokes[d] * (freqs/ref_freqs[d])**spi[d]
 
     # append antenna columns
     cols = []
-    cols.append("ANTENNA1")
-    cols.append("ANTENNA2")
-    cols.append("UVW")
+    cols.append('ANTENNA1')
+    cols.append('ANTENNA2')
+    cols.append('UVW')
 
     # load in gains
     jones = np.load(args.gain_file)
     jones = jones.astype(np.complex128)
     jones_shape = jones.shape
-    jones = da.from_array(
-        jones, chunks=(args.utimes_per_chunk,) + jones_shape[1::]
-    )
+    jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
+                          + jones_shape[1::])
 
     # change model to dask array
-    model = da.from_array(
-        model, chunks=(args.utimes_per_chunk,) + model.shape[1::]
-    )
+    model = da.from_array(model, chunks=(args.utimes_per_chunk,)
+                          + model.shape[1::])
 
     # load data in in chunks and apply gains to each chunk
     xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
@@ -146,9 +120,8 @@ def main(args):
     uvw = xds.UVW.data
 
     # apply gains
-    data = compute_and_corrupt_vis(
-        tbin_idx, tbin_counts, ant1, ant2, jones, model, uvw, freqs, lm
-    )
+    data = compute_and_corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
+                                   jones, model, uvw, freqs, lm)
 
     # Assign visibilities to args.out_col and write to ms
     xds = xds.assign(**{args.out_col: (("row", "chan", "corr"), data)})
@@ -166,11 +139,9 @@ if __name__ == "__main__":
     if args.ncpu:
         from multiprocessing.pool import ThreadPool
         import dask
-
         dask.config.set(pool=ThreadPool(args.ncpu))
     else:
         import multiprocessing
-
         args.ncpu = multiprocessing.cpu_count()
 
     print("Using %i threads" % args.ncpu)

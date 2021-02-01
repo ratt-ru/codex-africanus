@@ -18,14 +18,14 @@ from africanus.util.appdirs import downloads_dir, include_dir
 from africanus.util.files import sha_hash_file
 
 _trove_dir = pjoin(include_dir, "trove")
-_trove_url = "https://github.com/bryancatanzaro/trove/archive/master.zip"
-_trove_sha_hash = "183c9ce229b3c0b2afeb808a9f4b07c9d9b9035d"
-_trove_version_str = "Current release: v1.8.0 (02/16/2018)"
+_trove_url = 'https://github.com/bryancatanzaro/trove/archive/master.zip'
+_trove_sha_hash = '183c9ce229b3c0b2afeb808a9f4b07c9d9b9035d'
+_trove_version_str = 'Current release: v1.8.0 (02/16/2018)'
 _trove_version = "master"
-_trove_zip_dir = "trove-" + _trove_version
+_trove_zip_dir = 'trove-' + _trove_version
 _trove_download_filename = "trove-" + _trove_version + ".zip"
-_trove_header = pjoin(_trove_dir, "trove", "trove.cuh")
-_trove_readme = pjoin(_trove_dir, "README.md")
+_trove_header = pjoin(_trove_dir, 'trove', 'trove.cuh')
+_trove_readme = pjoin(_trove_dir, 'README.md')
 _trove_new_unzipped_path = _trove_dir
 
 
@@ -50,9 +50,14 @@ def download_trove(archive_file):
 
 def is_trove_installed(readme_filename):
     # Check if the README.md exists
+<<<<<<< HEAD
     if not os.path.exists(readme_filename) or not os.path.isfile(
         readme_filename
     ):
+=======
+    if (not os.path.exists(readme_filename) or
+            not os.path.isfile(readme_filename)):
+>>>>>>> parent of d728390... Formatting for Flake8
 
         reason = "trove readme '{}' does not exist".format(readme_filename)
         return (False, reason)
@@ -75,6 +80,7 @@ def _install_trove():
         sha_hash = download_trove(archive)
         # Compare against our supplied hash
         if _trove_sha_hash != sha_hash:
+<<<<<<< HEAD
             msg = (
                 "Hash of file %s downloaded from %s "
                 "is %s and does not match the expected "
@@ -85,18 +91,30 @@ def _install_trove():
                 sha_hash,
                 _trove_sha_hash,
             )
+=======
+            msg = ('Hash of file %s downloaded from %s '
+                   'is %s and does not match the expected '
+                   'hash of %s.') % (
+                        _trove_download_filename, _trove_url,
+                        sha_hash, _trove_sha_hash)
+>>>>>>> parent of d728390... Formatting for Flake8
 
             raise InstallTroveException(msg)
 
     # Unzip into include/trove
-    with ZipFile(archive, "r") as zip_file:
+    with ZipFile(archive, 'r') as zip_file:
         # Remove any existing install
         try:
             shutil.rmtree(_trove_dir, ignore_errors=True)
         except Exception as e:
+<<<<<<< HEAD
             raise InstallTroveException(
                 "Removing %s failed\n%s" % (_trove_dir, str(e))
             )
+=======
+            raise InstallTroveException("Removing %s failed\n%s" % (
+                                      _trove_dir, str(e)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
         try:
             # Unzip into temporary directory
@@ -108,9 +126,14 @@ def _install_trove():
             # Move
             shutil.move(unzip_path, _trove_dir)
         except Exception as e:
+<<<<<<< HEAD
             raise InstallTroveException(
                 "Extracting %s failed\n%s" % (archive, str(e))
             )
+=======
+            raise InstallTroveException("Extracting %s failed\n%s" % (
+                                      archive, str(e)))
+>>>>>>> parent of d728390... Formatting for Flake8
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

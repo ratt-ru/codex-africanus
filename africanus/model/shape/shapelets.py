@@ -5,15 +5,14 @@ from africanus.constants import minus_two_pi_over_c
 
 square_root_of_pi = 1.77245385091
 
-
 @numba.jit(nogil=True, nopython=True, cache=True)
 def hermite(n, x):
-    if n == 0:
+    if n==0:
         return 1
-    elif n == 1:
-        return 2 * x
+    elif n==1:
+        return 2*x
     else:
-        return 2 * x * hermite(n - 1, x) - 2 * (n - 1) * hermite(n - 2, x)
+        return 2*x*hermite(n-1,x)-2*(n-1)*hermite(n-2,x)
 
 
 @numba.jit(numba.uint64(numba.int32), nogil=True, nopython=True, cache=True)
@@ -25,12 +24,11 @@ def factorial(n):
         ans = ans * i
     return ans * n
 
-
 @numba.jit(nogil=True, nopython=True, cache=True)
 def basis_function(n, xx, beta, fourier=False, delta_x=-1):
     if fourier:
-        x = 2 * np.pi * xx
-        scale = 1.0 / beta
+        x = 2*np.pi*xx
+        scale = 1.0/beta
     else:
         x = xx
         scale = beta
@@ -41,21 +39,14 @@ def basis_function(n, xx, beta, fourier=False, delta_x=-1):
         -(x ** 2) / (2.0 * scale ** 2)
     )
     if fourier:
-        return (
-            1.0j ** n
-            * basis_component
-            * exponential_component
-            * np.sqrt(2 * np.pi)
-            / delta_x
-        )
+        return 1.0j**n * basis_component * exponential_component * np.sqrt(2*np.pi)/delta_x
     else:
         return basis_component * exponential_component
-
 
 @numba.jit(nogil=True, nopython=True, cache=True)
 def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     l0, m0 = lm_source_center
-    n0 = np.sqrt(1.0 - l0 ** 2 - m0 ** 2)
+    n0 = np.sqrt(1.0-l0**2-m0**2)
     u, v, w = uvw
     real_phase = (
         minus_two_pi_over_c * frequency * (u * l0 + v * m0 + w * (n0 - 1))
@@ -90,12 +81,12 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
             for src in range(nsrc):
-                nmax1, nmax2 = coeffs[src, :, :].shape
+                nmax1, nmax2 = coeffs[src,:,:].shape
                 beta_u, beta_v = beta[src, :]
-                if beta_u == 0 or beta_v == 0:
+                if beta_u == 0 or beta_v==0:
                     out_shapelets[row, chan, src] = 1
                     continue
-                tmp_shapelet = 0 + 0j
+                tmp_shapelet = 0+0j
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
                         tmp_shapelet += (
@@ -112,11 +103,8 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
                 out_shapelets[row, chan, src] = tmp_shapelet
     return out_shapelets
 
-
 @numba.jit(nogil=True, nopython=True, cache=True)
-def shapelet_with_w_term(
-    coords, frequency, coeffs, beta, delta_lm, lm, dtype=np.complex128
-):
+def shapelet_with_w_term(coords, frequency, coeffs, beta, delta_lm, lm, dtype=np.complex128):
     """
     shapelet: outputs visibilities corresponding to that of a shapelet
     Inputs:
@@ -142,13 +130,13 @@ def shapelet_with_w_term(
             fu = u * 2 * np.pi * frequency[chan] / lightspeed
             fv = v * 2 * np.pi * frequency[chan] / lightspeed
             for src in range(nsrc):
-                nmax1, nmax2 = coeffs[src, :, :].shape
+                nmax1, nmax2 = coeffs[src,:,:].shape
                 beta_u, beta_v = beta[src, :]
-                l, m = lm[src, :]
-                if beta_u == 0 or beta_v == 0:
+                l, m = lm[src,:]
+                if beta_u == 0 or beta_v==0:
                     out_shapelets[row, chan, src] = 1
                     continue
-                tmp_shapelet = 0 + 0j
+                tmp_shapelet = 0+0j
                 for n1 in range(nmax1):
                     for n2 in range(nmax2):
                         tmp_shapelet += (
@@ -168,12 +156,11 @@ def shapelet_with_w_term(
                 out_shapelets[row, chan, src] = tmp_shapelet * w_term
     return out_shapelets
 
-
-# @numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet_1d(u, coeffs, fourier, delta_x=1, beta=1.0):
     """
     The one dimensional shapelet. Default is to return the
-    dimensionless version.
+    dimensionless version. 
     Parameters
     ----------
     u : :class:`numpy.ndarray`
@@ -203,13 +190,10 @@ def shapelet_1d(u, coeffs, fourier, delta_x=1, beta=1.0):
         out = np.zeros(nrow, dtype=np.float64)
     for row, ui in enumerate(u):
         for n, c in enumerate(coeffs):
-            out[row] += c * basis_function(
-                n, ui, beta, fourier=fourier, delta_x=delta_x
-            )
-    return out
+            out[row] += c * basis_function(n, ui, beta, fourier=fourier, delta_x=delta_x)
+    return out 
 
-
-# @numba.jit(nogil=True, nopython=True, cache=True)
+#@numba.jit(nogil=True, nopython=True, cache=True)
 def shapelet_2d(u, v, coeffs_l, fourier, delta_x=None, delta_y=None, beta=1.0):
     nrow_u = u.size
     nrow_v = v.size

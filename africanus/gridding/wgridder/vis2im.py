@@ -15,7 +15,7 @@ from africanus.util.requirements import requires_optional
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                     cell, weights, flag, celly, epsilon, nthreads,
-                    do_wstacking, double_accum):
+                    do_wstacking):
     # adjust for chunking
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
@@ -43,8 +43,7 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
                                pixsize_x=cell, pixsize_y=celly,
                                nu=0, nv=0, epsilon=epsilon,
                                nthreads=nthreads, mask=mask,
-                               do_wstacking=do_wstacking,
-                               double_precision_accumulation=double_accum)
+                               do_wstacking=do_wstacking)
     return dirty
 
 
@@ -53,19 +52,18 @@ def _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny,
 @requires_optional('ducc0.wgridder', ducc_import_error)
 def dirty(uvw, freq, vis, freq_bin_idx, freq_bin_counts, nx, ny, cell,
           weights=None, flag=None, celly=None, epsilon=1e-5, nthreads=1,
-          do_wstacking=True, double_accum=False):
+          do_wstacking=True):
 
     if celly is None:
         celly = cell
 
     if not nthreads:
         import multiprocessing
-
         nthreads = multiprocessing.cpu_count()
 
     dirty = _dirty_internal(uvw, freq, vis, freq_bin_idx, freq_bin_counts,
                             nx, ny, cell, weights, flag, celly,
-                            epsilon, nthreads, do_wstacking, double_accum)
+                            epsilon, nthreads, do_wstacking)
     return dirty[0]
 
 
@@ -137,10 +135,10 @@ DIRTY_DOCS = DocstringTemplate(
     model : $(array_type)
         Dirty image corresponding to visibilities
         of shape :code:`(nband, nx, ny)`.
-    """
-)
+    """)
 
 try:
-    dirty.__doc__ = DIRTY_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    dirty.__doc__ = DIRTY_DOCS.substitute(
+                        array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

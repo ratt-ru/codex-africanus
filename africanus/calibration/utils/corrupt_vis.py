@@ -9,77 +9,62 @@ from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
-
         def jones_mul(a1j, model, a2j, out):
             n_dir = np.shape(model)[0]
             for s in range(n_dir):
-                out += a1j[s] * model[s] * np.conj(a2j[s])
-
+                out += a1j[s]*model[s]*np.conj(a2j[s])
     elif mode == DIAG:
-
         def jones_mul(a1j, model, a2j, out):
             n_dir = np.shape(model)[0]
             for s in range(n_dir):
-                out[0, 0] += a1j[s, 0] * model[s, 0, 0] * np.conj(a2j[s, 0])
-                out[0, 1] += a1j[s, 0] * model[s, 0, 1] * np.conj(a2j[s, 1])
-                out[1, 0] += a1j[s, 1] * model[s, 1, 0] * np.conj(a2j[s, 0])
-                out[1, 1] += a1j[s, 1] * model[s, 1, 1] * np.conj(a2j[s, 1])
-
+                out[0, 0] += a1j[s, 0]*model[s, 0, 0] * np.conj(a2j[s, 0])
+                out[0, 1] += a1j[s, 0]*model[s, 0, 1] * np.conj(a2j[s, 1])
+                out[1, 0] += a1j[s, 1]*model[s, 1, 0] * np.conj(a2j[s, 0])
+                out[1, 1] += a1j[s, 1]*model[s, 1, 1] * np.conj(a2j[s, 1])
     elif mode == FULL:
-
         def jones_mul(a1j, model, a2j, out):
             n_dir = np.shape(model)[0]
             for s in range(n_dir):
                 # precompute resuable terms
-                t1 = a1j[s, 0, 0] * model[s, 0, 0]
-                t2 = a1j[s, 0, 1] * model[s, 1, 0]
-                t3 = a1j[s, 0, 0] * model[s, 0, 1]
-                t4 = a1j[s, 0, 1] * model[s, 1, 1]
+                t1 = a1j[s, 0, 0]*model[s, 0, 0]
+                t2 = a1j[s, 0, 1]*model[s, 1, 0]
+                t3 = a1j[s, 0, 0]*model[s, 0, 1]
+                t4 = a1j[s, 0, 1]*model[s, 1, 1]
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
-                out[0, 0] += (
-                    t1 * tmp[0, 0]
-                    + t2 * tmp[0, 0]
-                    + t3 * tmp[1, 0]
-                    + t4 * tmp[1, 0]
-                )
-                out[0, 1] += (
-                    t1 * tmp[0, 1]
-                    + t2 * tmp[0, 1]
-                    + t3 * tmp[1, 1]
-                    + t4 * tmp[1, 1]
-                )
-                t1 = a1j[s, 1, 0] * model[s, 0, 0]
-                t2 = a1j[s, 1, 1] * model[s, 1, 0]
-                t3 = a1j[s, 1, 0] * model[s, 0, 1]
-                t4 = a1j[s, 1, 1] * model[s, 1, 1]
-                out[1, 0] += (
-                    t1 * tmp[0, 0]
-                    + t2 * tmp[0, 0]
-                    + t3 * tmp[1, 0]
-                    + t4 * tmp[1, 0]
-                )
-                out[1, 1] += (
-                    t1 * tmp[0, 1]
-                    + t2 * tmp[0, 1]
-                    + t3 * tmp[1, 1]
-                    + t4 * tmp[1, 1]
-                )
+                out[0, 0] += t1*tmp[0, 0] +\
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
+                out[0, 1] += t1*tmp[0, 1] +\
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
+                t1 = a1j[s, 1, 0]*model[s, 0, 0]
+                t2 = a1j[s, 1, 1]*model[s, 1, 0]
+                t3 = a1j[s, 1, 0]*model[s, 0, 1]
+                t4 = a1j[s, 1, 1]*model[s, 1, 1]
+                out[1, 0] += t1*tmp[0, 0] +\
+                    t2*tmp[0, 0] +\
+                    t3*tmp[1, 0] +\
+                    t4*tmp[1, 0]
+                out[1, 1] += t1*tmp[0, 1] +\
+                    t2*tmp[0, 1] +\
+                    t3*tmp[1, 1] +\
+                    t4*tmp[1, 1]
 
-    return njit(nogil=True, inline="always")(jones_mul)
+    return njit(nogil=True, inline='always')(jones_mul)
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def corrupt_vis(
-    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
-):
+def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
+                antenna2, jones, model):
 
-    mode = check_type(jones, model, vis_type="model")
+    mode = check_type(jones, model, vis_type='model')
     jones_mul = jones_mul_factory(mode)
 
-    def _corrupt_vis_fn(
-        time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
-    ):
+    def _corrupt_vis_fn(time_bin_indices, time_bin_counts, antenna1,
+                        antenna2, jones, model):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
@@ -89,9 +74,8 @@ def corrupt_vis(
         vis = np.zeros(vis_shape, dtype=model.dtype)
         n_chan = model_shape[1]
         for t in range(n_tim):
-            for row in range(
-                time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]
-            ):
+            for row in range(time_bin_indices[t],
+                             time_bin_indices[t] + time_bin_counts[t]):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
                 gp = jones[t, p]
@@ -103,8 +87,7 @@ def corrupt_vis(
     return _corrupt_vis_fn
 
 
-CORRUPT_VIS_DOCS = DocstringTemplate(
-    """
+CORRUPT_VIS_DOCS = DocstringTemplate("""
 Corrupts model visibilities with arbitrary
 Jones terms.
 
@@ -133,13 +116,11 @@ vis : $(array_type)
     visibilities of shape
     :code:`(time, ant, chan, dir, corr)`
     or :code:`(time, ant, chan, dir, corr, corr)`.
-"""
-)
+""")
 
 
 try:
     corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
-        array_type=":class:`numpy.ndarray`"
-    )
+                                    array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

@@ -7,7 +7,7 @@ def uvw_norotate(uvw, ra0, dec0, ra, dec, policy_type):
 
 
 def uvw_rotate(uvw, ra0, dec0, ra, dec, policy_type):
-    """
+    '''
         Compute the following 3x3 coordinate transformation matrix:
         Z_rot(facet_new_rotation) * \\
         T(new_phase_centre_ra,new_phase_centre_dec) * \\
@@ -27,7 +27,7 @@ def uvw_rotate(uvw, ra0, dec0, ra, dec, policy_type):
         centre here, so the last rotation matrix is ignored!
         This transformation will let the image be tangent to the celestial
         sphere at the new delay centre
-    """
+    '''
     d_ra = ra - ra0
     c_d_ra = cos(d_ra)
     s_d_ra = sin(d_ra)
@@ -51,18 +51,18 @@ def uvw_rotate(uvw, ra0, dec0, ra, dec, policy_type):
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=False)
 def uvw_planarwapprox(uvw, ra0, dec0, ra, dec, policy_type):
-    """
-    Implements the coordinate uv transform associated with taking a planar
-    approximation to w(n-1) as described in Kogan & Greisen's AIPS Memo 113
-    This is essentially equivalent to rotating the facet to be tangent to
-    the celestial sphere as Perley suggested to limit error, but it instead
-    takes w into account in a linear approximation to the phase error near
-    the facet centre. This keeps the facets parallel to the original facet
-    plane. Of course this 2D taylor expansion of the first order is only
-    valid over a small field of view, but that true of normal tilted
-    faceting as well. Only a convolution can get rid of the (n-1)
-    factor in the ME.
-    """
+    '''
+        Implements the coordinate uv transform associated with taking a planar
+        approximation to w(n-1) as described in Kogan & Greisen's AIPS Memo 113
+        This is essentially equivalent to rotating the facet to be tangent to
+        the celestial sphere as Perley suggested to limit error, but it instead
+        takes w into account in a linear approximation to the phase error near
+        the facet centre. This keeps the facets parallel to the original facet
+        plane. Of course this 2D taylor expansion of the first order is only
+        valid over a small field of view, but that true of normal tilted
+        faceting as well. Only a convolution can get rid of the (n-1)
+        factor in the ME.
+    '''
     d_ra = ra - ra0
     n_dec = dec
     o_dec = dec0

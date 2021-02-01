@@ -11,10 +11,8 @@ import tempfile
 
 import numpy as np
 
-from africanus.rime.examples.predict import (
-    predict,
-    create_parser as predict_parser,
-)
+from africanus.rime.examples.predict import (predict,
+                                             create_parser as predict_parser)
 from africanus.util.requirements import requires_optional
 from africanus.testing.beam_factory import beam_factory
 
@@ -26,7 +24,7 @@ else:
     opt_import_error = None
 
 
-@requires_optional("pyrap.tables", opt_import_error)
+@requires_optional('pyrap.tables', opt_import_error)
 def inspect_polarisation_type(args):
     linear_corr_types = set([9, 10, 11, 12])
     circular_corr_types = set([5, 6, 7, 8])
@@ -43,46 +41,41 @@ def inspect_polarisation_type(args):
     elif discovered_corr_types.issubset(circular_corr_types):
         return "circular"
 
-    raise ValueError(
-        "MS Correlation types are not wholly "
-        "linear or circular: %s" % discovered_corr_types
-    )
+    raise ValueError("MS Correlation types are not wholly "
+                     "linear or circular: %s" % discovered_corr_types)
 
 
 def cmp_script_factory(args, pol_type):
     beam_pattern = args.beam.replace("$", r"\$")
 
-    return [
-        "python",
-        "cmp_codex_vs_meq.py",
-        args.ms,
-        "-sm " + args.sky_model,
-        '-b "' + beam_pattern + '"',
-        "--run-predict",
-    ]
+    return ["python",
+            "cmp_codex_vs_meq.py",
+            args.ms,
+            "-sm " + args.sky_model,
+            '-b "' + beam_pattern + '"',
+            "--run-predict"]
 
 
 def meqtrees_command_factory(args, pol_type):
     # Directory in which meqtree-related files are read/written
-    meq_dir = "meqtrees"
+    meq_dir = 'meqtrees'
 
     # Scripts
-    meqpipe = "meqtree-pipeliner.py"
+    meqpipe = 'meqtree-pipeliner.py'
 
     # Meqtree profile and script
-    cfg_file = pjoin(meq_dir, "tdlconf.profiles")
-    sim_script = pjoin(meq_dir, "turbo-sim.py")
+    cfg_file = pjoin(meq_dir, 'tdlconf.profiles')
+    sim_script = pjoin(meq_dir, 'turbo-sim.py')
 
     meqtrees_vis_column = "CORRECTED_DATA"
 
-    if pol_type == "linear":
-        cfg_section = "-".join(("codex", "compare", "linear"))
-    elif pol_type == "circular":
-        cfg_section = "-".join(("codex", "compare", "circular"))
+    if pol_type == 'linear':
+        cfg_section = '-'.join(('codex', 'compare', 'linear'))
+    elif pol_type == 'circular':
+        cfg_section = '-'.join(('codex', 'compare', 'circular'))
     else:
-        raise ValueError(
-            "pol_type %s not in ('circular', 'linear')" % pol_type
-        )
+        raise ValueError("pol_type %s not in ('circular', 'linear')"
+                         % pol_type)
 
     # $ is a special pattern is most shells, escape it
     beam_pattern = args.beam.replace("$", r"\$")
@@ -93,35 +86,34 @@ def meqtrees_command_factory(args, pol_type):
 
     cmd_list = [
         # Meqtree Pipeline script
-        "$(which {})".format(meqpipe),
+        '$(which {})'.format(meqpipe),
         # Configuration File
-        "-c",
-        cfg_file,
+        '-c', cfg_file,
         # Configuration section
         '"[{section}]"'.format(section=cfg_section),
         # Measurement Set
-        "ms_sel.msname={ms}".format(ms=args.ms),
+        'ms_sel.msname={ms}'.format(ms=args.ms),
         # Tigger sky file
-        "tiggerlsm.filename={sm}".format(sm=args.sky_model),
+        'tiggerlsm.filename={sm}'.format(sm=args.sky_model),
         # Output column
-        "ms_sel.output_column={c}".format(c=meqtrees_vis_column),
+        'ms_sel.output_column={c}'.format(c=meqtrees_vis_column),
         # Enable the beam?
-        "me.e_enable={e}".format(e=1),
+        'me.e_enable={e}'.format(e=1),
         # Enable feed rotation
-        "me.l_enable={e}".format(e=1),
+        'me.l_enable={e}'.format(e=1),
         # Beam FITS file pattern
         'pybeams_fits.filename_pattern="{p}"'.format(p=beam_pattern),
         # FITS L and M AXIS
-        "pybeams_fits.l_axis={lax}".format(lax=args.l_axis),
-        "pybeams_fits.m_axis={max}".format(max=args.m_axis),
+        'pybeams_fits.l_axis={lax}'.format(lax=args.l_axis),
+        'pybeams_fits.m_axis={max}'.format(max=args.m_axis),
         sim_script,
-        "=simulate",
+        '=simulate'
     ]
 
     return cmd_list
 
 
-@requires_optional("pyrap.tables", opt_import_error)
+@requires_optional('pyrap.tables', opt_import_error)
 def compare_columns(args, codex_column, meqtrees_column):
     with pt.table(args.ms) as T:
         codex_vis = T.getcol(codex_column)
@@ -139,15 +131,12 @@ def compare_columns(args, codex_column, meqtrees_column):
             print("Codex Africanus visibilities agrees with MeqTrees")
             return True
 
-        bad_vis_file = "bad_visibilities.txt"
+        bad_vis_file = 'bad_visibilities.txt'
 
         # Some visibilities differ, do some analysis
-        print(
-            "Codex Africanus differs from MeqTrees by {nc}/{t} "
-            "visibilities. Writing them out to '{bvf}'".format(
-                nc=problems[0].size, t=not_close.size, bvf=bad_vis_file
-            )
-        )
+        print("Codex Africanus differs from MeqTrees by {nc}/{t} "
+              "visibilities. Writing them out to '{bvf}'"
+              .format(nc=problems[0].size, t=not_close.size, bvf=bad_vis_file))
 
         mb_problems = codex_vis[problems]
         meq_problems = meqtrees_vis[problems]
@@ -162,14 +151,11 @@ def compare_columns(args, codex_column, meqtrees_column):
         it = itertools.islice(it, 0, 1000, 1)
 
         # Write out the problematic visibilities to file
-        with open(bad_vis_file, "w") as f:
+        with open(bad_vis_file, 'w') as f:
             for i, (p, mb, meq, d, amp) in it:
-                f.write(
-                    "{i} {t} Codex Africanus: {mb} MeqTrees: {meq} "
-                    "Difference {d} Absolute Difference {ad} \n".format(
-                        i=i, t=p, mb=mb, meq=meq, d=d, ad=amp
-                    )
-                )
+                f.write("{i} {t} Codex Africanus: {mb} MeqTrees: {meq} "
+                        "Difference {d} Absolute Difference {ad} \n"
+                        .format(i=i, t=p, mb=mb, meq=meq, d=d, ad=amp))
 
         return False
 
@@ -178,7 +164,8 @@ def create_beams(schema, pol_type):
     td = tempfile.mkdtemp(prefix="beams-")
 
     path = Path(td, schema)
-    filenames = beam_factory(polarisation_type=pol_type, schema=path, npix=257)
+    filenames = beam_factory(polarisation_type=pol_type,
+                             schema=path, npix=257)
     return path, filenames
 
 
@@ -209,38 +196,25 @@ def compare():
                 nrow = min(row_chunk, nrows - r)
 
                 exemplar = T.getcol("MODEL_DATA", startrow=r, nrow=nrow)
-                T.putcol(
-                    "MODEL_DATA",
-                    np.zeros_like(exemplar),
-                    startrow=r,
-                    nrow=nrow,
-                )
-                T.putcol(
-                    "CORRECTED_DATA",
-                    np.zeros_like(exemplar),
-                    startrow=r,
-                    nrow=nrow,
-                )
+                T.putcol("MODEL_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
+                T.putcol("CORRECTED_DATA", np.zeros_like(exemplar),
+                         startrow=r, nrow=nrow)
 
         pol_type = inspect_polarisation_type(args)
-        beam_path, filenames = create_beams(
-            "beams_$(corr)_$(reim).fits", pol_type
-        )
+        beam_path, filenames = create_beams("beams_$(corr)_$(reim).fits",
+                                            pol_type)
         args.beam = str(beam_path)
         meq_cmd = " ".join(meqtrees_command_factory(args, pol_type))
         cmp_cmd = " ".join(cmp_script_factory(args, pol_type))
 
-        print(
-            "\nRUN THE FOLLOWING COMMAND IN A SEPARATE "
-            "MEQTREES ENVIRONMENT, PREFERABLY BUILT FROM SOURCE\n"
-            "https://github.com/ska-sa/meqtrees/wiki/BuildFromSource"
-            "\n\n%s\n\n\n" % meq_cmd
-        )
+        print("\nRUN THE FOLLOWING COMMAND IN A SEPARATE "
+              "MEQTREES ENVIRONMENT, PREFERABLY BUILT FROM SOURCE\n"
+              "https://github.com/ska-sa/meqtrees/wiki/BuildFromSource"
+              "\n\n%s\n\n\n" % meq_cmd)
 
-        print(
-            "\nTHEN RUN THIS IN THE CURRENT ENVIRONMENT"
-            "\n\n%s\n\n\n" % cmp_cmd
-        )
+        print("\nTHEN RUN THIS IN THE CURRENT ENVIRONMENT"
+              "\n\n%s\n\n\n" % cmp_cmd)
 
         return True
 

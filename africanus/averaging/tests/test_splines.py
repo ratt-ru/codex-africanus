@@ -4,12 +4,13 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 import pytest
 
-from africanus.averaging.splines import fit_cubic_spline, evaluate_spline
+from africanus.averaging.splines import (fit_cubic_spline,
+                                         evaluate_spline)
 
 
 # Generate y,z coords from given x coords
 def generate_y_coords(x):
-    y = -0.5 * x ** 2 - 0.3 * x + 5.0
+    y = -0.5 * x**2 - 0.3 * x + 5.0
     # z = 0.1 * x**3 + 5
     return y
 

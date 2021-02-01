@@ -3,25 +3,33 @@
 
 import warnings
 
+<<<<<<< HEAD
 from .parangles_astropy import (
     have_astropy_parangles,
     astropy_parallactic_angles,
 )
 from .parangles_casa import have_casa_parangles, casa_parallactic_angles
+=======
+from .parangles_astropy import (have_astropy_parangles,
+                                astropy_parallactic_angles)
+from .parangles_casa import (have_casa_parangles,
+                             casa_parallactic_angles)
+>>>>>>> parent of d728390... Formatting for Flake8
 
 _discovered_backends = []
 
 if have_astropy_parangles:
-    _discovered_backends.append("astropy")
+    _discovered_backends.append('astropy')
 
 if have_casa_parangles:
-    _discovered_backends.append("casa")
+    _discovered_backends.append('casa')
 
 
-_standard_backends = set(["casa", "astropy", "test"])
+_standard_backends = set(['casa', 'astropy', 'test'])
 
 
-def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
+def parallactic_angles(times, antenna_positions, field_centre,
+                       backend='casa'):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
@@ -52,12 +60,12 @@ def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
         Parallactic angles of shape :code:`(time,ant)`
     """
     if backend not in _standard_backends:
-        raise ValueError(
-            "'%s' is not one of the "
-            "standard backends '%s'" % (backend, _standard_backends)
-        )
+        raise ValueError("'%s' is not one of the "
+                         "standard backends '%s'"
+                         % (backend, _standard_backends))
 
     if not field_centre.shape == (2,):
+<<<<<<< HEAD
         raise ValueError(
             "Invalid field_centre shape %s" % (field_centre.shape,)
         )
@@ -71,5 +79,21 @@ def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
         return casa_parallactic_angles(times, antenna_positions, field_centre)
     elif backend == "test":
         return times[:, None] * (antenna_positions.sum(axis=1)[None, :])
+=======
+        raise ValueError("Invalid field_centre shape %s" %
+                         (field_centre.shape,))
+
+    if backend == 'astropy':
+        warnings.warn('astropy backend currently returns the incorrect values')
+        return astropy_parallactic_angles(times,
+                                          antenna_positions,
+                                          field_centre)
+    elif backend == 'casa':
+        return casa_parallactic_angles(times,
+                                       antenna_positions,
+                                       field_centre)
+    elif backend == 'test':
+        return times[:, None]*(antenna_positions.sum(axis=1)[None, :])
+>>>>>>> parent of d728390... Formatting for Flake8
     else:
         raise ValueError("Invalid backend %s" % backend)

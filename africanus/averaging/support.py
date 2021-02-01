@@ -10,21 +10,18 @@ from africanus.util.numba import generated_jit, njit
 @njit(nogil=True, cache=True)
 def _unique_internal(data):
     if len(data.shape) != 1:
-        raise ValueError(
-            "_unique_internal currently " "only supports 1D arrays"
-        )
+        raise ValueError("_unique_internal currently "
+                         "only supports 1D arrays")
 
     # Handle the empty array case
     if data.shape[0] == 0:
-        return (
-            data,
-            np.empty((0,), dtype=np.intp),
-            np.empty((0,), dtype=np.intp),
-            np.empty((0,), dtype=np.intp),
-        )
+        return (data,
+                np.empty((0,), dtype=np.intp),
+                np.empty((0,), dtype=np.intp),
+                np.empty((0,), dtype=np.intp))
 
     # See numpy's unique1d
-    perm = np.argsort(data, kind="mergesort")
+    perm = np.argsort(data, kind='mergesort')
 
     # Combine these arrays to save on allocations?
     aux = np.empty_like(data)
@@ -73,10 +70,9 @@ def unique_baselines(ant1, ant2):
     """ Return unique baselines, inverse index and counts """
     if not ant1.dtype == numba.int32 or not ant2.dtype == numba.int32:
         # Need these to be int32 for the bl_32bit.view(np.int64) trick
-        raise ValueError(
-            "ant1 and ant2 must be np.int32 "
-            "but received %s and %s" % (ant1.dtype, ant2.dtype)
-        )
+        raise ValueError("ant1 and ant2 must be np.int32 "
+                         "but received %s and %s" %
+                         (ant1.dtype, ant2.dtype))
 
     def impl(ant1, ant2):
         # Trickery, stack the two int32 antenna pairs in an array

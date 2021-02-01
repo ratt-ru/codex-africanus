@@ -10,14 +10,14 @@ from africanus.rime.jax.phase import phase_delay
 
 @pytest.mark.parametrize("dtype", [onp.float32, onp.float64])
 def test_jax_phase_delay(dtype):
-    jax = pytest.importorskip("jax")
-    np = pytest.importorskip("jax.numpy")
+    jax = pytest.importorskip('jax')
+    np = pytest.importorskip('jax.numpy')
 
     onp.random.seed(0)
 
     uvw = onp.random.random(size=(100, 3)).astype(dtype)
-    lm = onp.random.random(size=(10, 2)).astype(dtype) * 0.001
-    frequency = onp.linspace(0.856e9, 0.856e9 * 2, 64).astype(dtype)
+    lm = onp.random.random(size=(10, 2)).astype(dtype)*0.001
+    frequency = onp.linspace(.856e9, .856e9*2, 64).astype(dtype)
 
     # Compute complex phase
     np_complex_phase = np_phase_delay(lm, uvw, frequency)

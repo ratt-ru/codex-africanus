@@ -6,7 +6,7 @@ import ast
 import builtins
 
 # builtin function whitelist
-_BUILTIN_WHITELIST = frozenset(["slice"])
+_BUILTIN_WHITELIST = frozenset(['slice'])
 _missing = _BUILTIN_WHITELIST.difference(dir(builtins))
 if len(_missing) > 0:
     raise ValueError("'%s' are not valid builtin functions.'" % list(_missing))
@@ -50,11 +50,10 @@ def parse_python_assigns(assign_str):
             func_name = stmt_value.func.id
 
             if func_name not in _BUILTIN_WHITELIST:
-                raise ValueError(
-                    "Function '%s' in '%s' is not builtin. "
-                    "Available builtins: '%s'"
-                    % (func_name, assign_str, list(_BUILTIN_WHITELIST))
-                )
+                raise ValueError("Function '%s' in '%s' is not builtin. "
+                                 "Available builtins: '%s'" %
+                                 (func_name, assign_str,
+                                  list(_BUILTIN_WHITELIST)))
 
             # Recursively pass arguments through this same function
             if stmt_value.args is not None:
@@ -64,9 +63,14 @@ def parse_python_assigns(assign_str):
 
             # Recursively pass keyword arguments through this same function
             if stmt_value.keywords is not None:
+<<<<<<< HEAD
                 kwargs = {
                     kw.arg: _eval_value(kw.value) for kw in stmt_value.keywords
                 }
+=======
+                kwargs = {kw.arg: _eval_value(kw.value) for kw
+                          in stmt_value.keywords}
+>>>>>>> parent of d728390... Formatting for Flake8
             else:
                 kwargs = {}
 
@@ -79,14 +83,12 @@ def parse_python_assigns(assign_str):
     variables = {}
 
     # Parse the assignment string
-    stmts = ast.parse(assign_str, mode="single").body
+    stmts = ast.parse(assign_str, mode='single').body
 
     for i, stmt in enumerate(stmts):
         if not isinstance(stmt, ast.Assign):
-            raise ValueError(
-                "Statement %d in '%s' is not a "
-                "variable assignment." % (i, assign_str)
-            )
+            raise ValueError("Statement %d in '%s' is not a "
+                             "variable assignment." % (i, assign_str))
 
         # Evaluate assignment lhs
         values = _eval_value(stmt.value)
@@ -103,11 +105,9 @@ def parse_python_assigns(assign_str):
                 # Require all tuple/list elements to be variable names,
                 # although anything else is probably a syntax error
                 if not all(isinstance(e, ast.Name) for e in target.elts):
-                    raise ValueError(
-                        "Tuple unpacking in assignment %d "
-                        "in expression '%s' failed as not all "
-                        "tuple contents are variable names."
-                    )
+                    raise ValueError("Tuple unpacking in assignment %d "
+                                     "in expression '%s' failed as not all "
+                                     "tuple contents are variable names.")
 
                 # Promote for zip and length checking
                 if not isinstance(values, (tuple, list)):
@@ -116,6 +116,7 @@ def parse_python_assigns(assign_str):
                     elements = values
 
                 if not len(target.elts) == len(elements):
+<<<<<<< HEAD
                     raise ValueError(
                         "Unpacking '%s' into a tuple/list in "
                         "assignment %d of expression '%s' "
@@ -123,14 +124,19 @@ def parse_python_assigns(assign_str):
                         "did not match the number of values."
                         % (values, i, assign_str)
                     )
+=======
+                    raise ValueError("Unpacking '%s' into a tuple/list in "
+                                     "assignment %d of expression '%s' "
+                                     "failed. The number of tuple elements "
+                                     "did not match the number of values."
+                                     % (values, i, assign_str))
+>>>>>>> parent of d728390... Formatting for Flake8
 
                 # Unpack
                 for variable, value in zip(target.elts, elements):
                     variables[variable.id] = value
             else:
-                raise TypeError(
-                    "'%s' types are not supported"
-                    "as assignment targets." % type(target)
-                )
+                raise TypeError("'%s' types are not supported"
+                                "as assignment targets." % type(target))
 
     return variables

@@ -18,14 +18,14 @@ from africanus.util.appdirs import downloads_dir, include_dir
 from africanus.util.files import sha_hash_file
 
 _cub_dir = pjoin(include_dir, "cub")
-_cub_url = "https://github.com/NVlabs/cub/archive/1.8.0.zip"
-_cub_sha_hash = "836f523a34c32a7e99fba36b30abfe7a68d41d4b"
-_cub_version_str = "Current release: v1.8.0 (02/16/2018)"
+_cub_url = 'https://github.com/NVlabs/cub/archive/1.8.0.zip'
+_cub_sha_hash = '836f523a34c32a7e99fba36b30abfe7a68d41d4b'
+_cub_version_str = 'Current release: v1.8.0 (02/16/2018)'
 _cub_version = "1.8.0"
-_cub_zip_dir = "cub-" + _cub_version
+_cub_zip_dir = 'cub-' + _cub_version
 _cub_download_filename = "cub-" + _cub_version + ".zip"
-_cub_header = pjoin(_cub_dir, "cub", "cub.cuh")
-_cub_readme = pjoin(_cub_dir, "README.md")
+_cub_header = pjoin(_cub_dir, 'cub', 'cub.cuh')
+_cub_readme = pjoin(_cub_dir, 'README.md')
 _cub_new_unzipped_path = _cub_dir
 
 
@@ -50,31 +50,40 @@ def download_cub(archive_file):
 
 def is_cub_installed(readme_filename, header_filename, cub_version_str):
     # Check if the cub.h exists
+<<<<<<< HEAD
     if not os.path.exists(header_filename) or not os.path.isfile(
         header_filename
     ):
+=======
+    if (not os.path.exists(header_filename) or
+            not os.path.isfile(header_filename)):
+>>>>>>> parent of d728390... Formatting for Flake8
 
         reason = "CUB header '{}' does not exist".format(header_filename)
         return (False, reason)
 
     # Check if the README.md exists
+<<<<<<< HEAD
     if not os.path.exists(readme_filename) or not os.path.isfile(
         readme_filename
     ):
+=======
+    if (not os.path.exists(readme_filename) or
+            not os.path.isfile(readme_filename)):
+>>>>>>> parent of d728390... Formatting for Flake8
 
         reason = "CUB readme '{}' does not exist".format(readme_filename)
         return (False, reason)
 
     # Search for the version string, returning True if found
-    with open(readme_filename, "r") as f:
+    with open(readme_filename, 'r') as f:
         for line in f:
             if line.find(cub_version_str) != -1:
                 return (True, "")
 
     # Nothing found!
     reason = "CUB version string '{}' not found in '{}'".format(
-        cub_version_str, readme_filename
-    )
+        cub_version_str, readme_filename)
 
     return (False, reason)
 
@@ -94,23 +103,28 @@ def _install_cub():
         sha_hash = download_cub(archive)
         # Compare against our supplied hash
         if _cub_sha_hash != sha_hash:
-            msg = (
-                "Hash of file %s downloaded from %s "
-                "is %s and does not match the expected "
-                "hash of %s."
-            ) % (_cub_download_filename, _cub_url, _cub_sha_hash, sha_hash)
+            msg = ('Hash of file %s downloaded from %s '
+                   'is %s and does not match the expected '
+                   'hash of %s.') % (
+                        _cub_download_filename, _cub_url,
+                        _cub_sha_hash, sha_hash)
 
             raise InstallCubException(msg)
 
     # Unzip into include/cub
-    with ZipFile(archive, "r") as zip_file:
+    with ZipFile(archive, 'r') as zip_file:
         # Remove any existing install
         try:
             shutil.rmtree(_cub_dir, ignore_errors=True)
         except Exception as e:
+<<<<<<< HEAD
             raise InstallCubException(
                 "Removing %s failed\n%s" % (_cub_dir, str(e))
             )
+=======
+            raise InstallCubException("Removing %s failed\n%s" % (
+                                      _cub_dir, str(e)))
+>>>>>>> parent of d728390... Formatting for Flake8
 
         try:
             # Unzip into temporary directory
@@ -122,18 +136,28 @@ def _install_cub():
             # Move
             shutil.move(unzip_path, _cub_dir)
         except Exception as e:
+<<<<<<< HEAD
             raise InstallCubException(
                 "Extracting %s failed\n%s" % (archive, str(e))
             )
+=======
+            raise InstallCubException("Extracting %s failed\n%s" % (
+                                      archive, str(e)))
+>>>>>>> parent of d728390... Formatting for Flake8
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
         log.info("NVIDIA cub archive unzipped into '%s'" % _cub_dir)
 
     # Final check on installation
+<<<<<<< HEAD
     there, reason = is_cub_installed(
         _cub_readme, _cub_header, _cub_version_str
     )
+=======
+    there, reason = is_cub_installed(_cub_readme, _cub_header,
+                                     _cub_version_str)
+>>>>>>> parent of d728390... Formatting for Flake8
 
     if not there:
         raise InstallCubException(reason)
@@ -142,9 +166,14 @@ def _install_cub():
 _cub_install_lock = Lock()
 
 with _cub_install_lock:
+<<<<<<< HEAD
     _cub_installed, _ = is_cub_installed(
         _cub_readme, _cub_header, _cub_version_str
     )
+=======
+    _cub_installed, _ = is_cub_installed(_cub_readme, _cub_header,
+                                         _cub_version_str)
+>>>>>>> parent of d728390... Formatting for Flake8
 
 
 def cub_dir():
