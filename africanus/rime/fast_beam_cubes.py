@@ -85,13 +85,13 @@ def beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
 
     lscale = lmaxf / (upper_l - lower_l)
     mscale = mmaxf / (upper_m - lower_m)
-    
+
     one = ex_dtype.type(1)
     zero = ex_dtype.type(0)
 
     # Flatten the beam on correlation
     fbeam = beam.reshape((beam_lw, beam_mh, beam_nud, ncorrs))
-    
+
     # Allocate output array with correlations flattened
     fjones = np.empty((nsrc, ntime, nants, nchan, ncorrs), dtype=beam.dtype)
 
