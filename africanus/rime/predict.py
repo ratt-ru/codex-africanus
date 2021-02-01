@@ -1,555 +1,667 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 
-import argparse
-from collections import namedtuple
-from functools import lru_cache
-from operator import getitem
-import weakref
-
 import numpy as np
 
+from africanus.util.docs import DocstringTemplate
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
+
+
+JONES_NOT_PRESENT = 0
+JONES_1_OR_2 = 1
+JONES_2X2 = 2
+
+
+def _get_jones_types(name, numba_ndarray_type, corr_1_dims, corr_2_dims):
+    """
+    Determine which of the following three cases are valid:
+
+    1. The array is not present (None) and therefore no Jones Matrices
+    2. single (1,) or (2,) dual correlation
+    3. (2, 2) full correlation
+
+    Parameters
+    ----------
+    name: str
+        Array name
+    numba_ndarray_type: numba.type
+        Array numba type
+    corr_1_dims: int
+        Number of `numba_ndarray_type` dimensions,
+        including correlations (first option)
+    corr_2_dims: int
+        Number of `numba_ndarray_type` dimensions,
+        including correlations (second option)
+
+    Returns
+    -------
+    int
+        Enumeration describing the Jones Matrix Type
+
+        - 0 -- Not Present
+        - 1 -- (1,) or (2,)
+        - 2 -- (2, 2)
+    """
+
+    if is_numba_type_none(numba_ndarray_type):
+        return JONES_NOT_PRESENT
+    if numba_ndarray_type.ndim == corr_1_dims:
+        return JONES_1_OR_2
+    elif numba_ndarray_type.ndim == corr_2_dims:
+        return JONES_2X2
+    else:
+        raise ValueError("%s.ndim not in (%d, %d)" %
+                         (name, corr_1_dims, corr_2_dims))
+
+
+def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
+    """
+    Outputs a function that multiplies some combination of
+    (dde1_jones, baseline_jones, dde2_jones) together.
+
+    Parameters
+    ----------
+    have_ddes : boolean
+        If True, indicates that antenna jones terms are present
+    have_coh : boolean
+        If True, indicates that baseline jones terms are present
+    jones_type : int
+        Type of Jones matrix
+    accumulate : boolean
+        If True, the result of the multiplication is accumulated
+        into the output, otherwise, it is assigned
+
+    Notes
+    -----
+    ``accumulate`` is treated by LLVM as a compile-time constant,
+    according to https://numba.pydata.org/numba-doc/latest/glossary.html.
+
+    Therefore in principle, the conditional checks
+    involving ``accumulate`` inside the functions should
+    be elided by the compiler.
+
+
+    Returns
+    -------
+    callable
+        jitted numba function performing the Jones Multiply
+    """
+    ex = ValueError("Invalid Jones Type %s" % jones_type)
+
+    if have_coh and have_ddes:
+        if jones_type == JONES_1_OR_2:
+            def jones_mul(a1j, blj, a2j, out):
+                for c in range(out.shape[0]):
+                    if accumulate:
+                        out[c] += a1j[c] * blj[c] * np.conj(a2j[c])
+                    else:
+                        out[c] = a1j[c] * blj[c] * np.conj(a2j[c])
+
+        elif jones_type == JONES_2X2:
+            def jones_mul(a1j, blj, a2j, out):
+                a2_xx_H = np.conj(a2j[0, 0])
+                a2_xy_H = np.conj(a2j[0, 1])
+                a2_yx_H = np.conj(a2j[1, 0])
+                a2_yy_H = np.conj(a2j[1, 1])
+
+                xx = blj[0, 0] * a2_xx_H + blj[0, 1] * a2_xy_H
+                xy = blj[0, 0] * a2_yx_H + blj[0, 1] * a2_yy_H
+                yx = blj[1, 0] * a2_xx_H + blj[1, 1] * a2_xy_H
+                yy = blj[1, 0] * a2_yx_H + blj[1, 1] * a2_yy_H
+
+                if accumulate:
+                    out[0, 0] += a1j[0, 0] * xx + a1j[0, 1] * yx
+                    out[0, 1] += a1j[0, 0] * xy + a1j[0, 1] * yy
+                    out[1, 0] += a1j[1, 0] * xx + a1j[1, 1] * yx
+                    out[1, 1] += a1j[1, 0] * xy + a1j[1, 1] * yy
+                else:
+                    out[0, 0] = a1j[0, 0] * xx + a1j[0, 1] * yx
+                    out[0, 1] = a1j[0, 0] * xy + a1j[0, 1] * yy
+                    out[1, 0] = a1j[1, 0] * xx + a1j[1, 1] * yx
+                    out[1, 1] = a1j[1, 0] * xy + a1j[1, 1] * yy
+
+        else:
+            raise ex
+    elif have_ddes and not have_coh:
+        if jones_type == JONES_1_OR_2:
+            def jones_mul(a1j, a2j, out):
+                for c in range(out.shape[0]):
+                    if accumulate:
+                        out[c] += a1j[c] * np.conj(a2j[c])
+                    else:
+                        out[c] = a1j[c] * np.conj(a2j[c])
+
+        elif jones_type == JONES_2X2:
+            def jones_mul(a1j, a2j, out):
+                a2_xx_H = np.conj(a2j[0, 0])
+                a2_xy_H = np.conj(a2j[0, 1])
+                a2_yx_H = np.conj(a2j[1, 0])
+                a2_yy_H = np.conj(a2j[1, 1])
+
+                if accumulate:
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
+                else:
+                    out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
+        else:
+            raise ex
+    elif not have_ddes and have_coh:
+        if jones_type == JONES_1_OR_2:
+            def jones_mul(blj, out):
+                for c in range(out.shape[0]):
+                    if accumulate:
+                        out[c] += blj[c]
+                    elif id(blj) == id(out):
+                        pass
+                    else:
+                        out[c] = blj[c]
+
+        elif jones_type == JONES_2X2:
+            def jones_mul(blj, out):
+                if accumulate:
+                    out[0, 0] += blj[0, 0]
+                    out[0, 1] += blj[0, 1]
+                    out[1, 0] += blj[1, 0]
+                    out[1, 1] += blj[1, 1]
+                elif id(blj) == id(out):
+                    pass
+                else:
+                    out[0, 0] = blj[0, 0]
+                    out[0, 1] = blj[0, 1]
+                    out[1, 0] = blj[1, 0]
+                    out[1, 1] = blj[1, 1]
+        else:
+            raise ex
+    else:
+        # noop
+        def jones_mul():
+            pass
+
+    return njit(nogil=True, inline='always')(jones_mul)
+
+
+def sum_coherencies_factory(have_ddes, have_coh, jones_type):
+    """ Factory function generating a function that sums coherencies """
+    jones_mul = jones_mul_factory(have_ddes, have_coh, jones_type, True)
+
+    if have_ddes and have_coh:
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+            for s in range(a1j.shape[0]):
+                for r in range(time.shape[0]):
+                    ti = time[r] - tmin
+                    a1 = ant1[r]
+                    a2 = ant2[r]
+
+                    for f in range(a1j.shape[3]):
+                        jones_mul(a1j[s, ti, a1, f],
+                                  blj[s, r, f],
+                                  a2j[s, ti, a2, f],
+                                  out[r, f])
+
+    elif have_ddes and not have_coh:
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+            for s in range(a1j.shape[0]):
+                for r in range(time.shape[0]):
+                    ti = time[r] - tmin
+                    a1 = ant1[r]
+                    a2 = ant2[r]
+
+                    for f in range(a1j.shape[3]):
+                        jones_mul(a1j[s, ti, a1, f],
+                                  a2j[s, ti, a2, f],
+                                  out[r, f])
+
+    elif not have_ddes and have_coh:
+        if jones_type == JONES_2X2:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c1 in range(blj.shape[3]):
+                                for c2 in range(blj.shape[4]):
+                                    out[r, f, c1, c2] += blj[s, r, f, c1, c2]
+        else:
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+                for s in range(blj.shape[0]):
+                    for r in range(blj.shape[1]):
+                        for f in range(blj.shape[2]):
+                            for c in range(blj.shape[3]):
+                                out[r, f, c] += blj[s, r, f, c]
+    else:
+        # noop
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, out):
+            pass
+
+    return njit(nogil=True, inline='always')(sum_coh_fn)
+
+
+def output_factory(have_ddes, have_coh, have_dies, have_base_vis, out_dtype):
+    """ Factory function generating a function that creates function output """
+    if have_ddes:
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones):
+            row = time_index.shape[0]
+            chan = dde1_jones.shape[3]
+            corrs = dde1_jones.shape[4:]
+            return np.zeros((row, chan) + corrs, dtype=out_dtype)
+    elif have_coh:
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones):
+            row = time_index.shape[0]
+            chan = source_coh.shape[2]
+            corrs = source_coh.shape[3:]
+            return np.zeros((row, chan) + corrs, dtype=out_dtype)
+    elif have_dies:
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones):
+            row = time_index.shape[0]
+            chan = die1_jones.shape[2]
+            corrs = die1_jones.shape[3:]
+            return np.zeros((row, chan) + corrs, dtype=out_dtype)
+    elif have_base_vis:
+        def output(time_index, dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones):
+            row = time_index.shape[0]
+            chan = base_vis.shape[1]
+            corrs = base_vis.shape[2:]
+            return np.zeros((row, chan) + corrs, dtype=out_dtype)
+
+    else:
+        raise ValueError("Insufficient inputs were supplied "
+                         "for determining the output shape")
+
+    # TODO(sjperkins)
+    # perhaps inline='always' on resolution of
+    # https://github.com/numba/numba/issues/4691
+    return njit(nogil=True, inline='never')(output)
+
+
+def add_coh_factory(have_bvis):
+    if have_bvis:
+        def add_coh(base_vis, out):
+            out += base_vis
+    else:
+        # noop
+        def add_coh(base_vis, out):
+            pass
+
+    return njit(nogil=True, inline='always')(add_coh)
+
+
+def apply_dies_factory(have_dies, have_bvis, jones_type):
+    """
+    Factory function returning a function that applies
+    Direction Independent Effects
+    """
+
+    # We always "have visibilities", (the output array)
+    jones_mul = jones_mul_factory(have_dies, True, jones_type, False)
+
+    if have_dies and have_bvis:
+        def apply_dies(time, ant1, ant2,
+                       die1_jones, die2_jones,
+                       tmin, out):
+            # Iterate over rows
+            for r in range(time.shape[0]):
+                ti = time[r] - tmin
+                a1 = ant1[r]
+                a2 = ant2[r]
+
+                # Iterate over channels
+                for c in range(out.shape[1]):
+                    jones_mul(die1_jones[ti, a1, c], out[r, c],
+                              die2_jones[ti, a2, c], out[r, c])
+
+    elif have_dies and not have_bvis:
+        def apply_dies(time, ant1, ant2,
+                       die1_jones, die2_jones,
+                       tmin, out):
+            # Iterate over rows
+            for r in range(time.shape[0]):
+                ti = time[r] - tmin
+                a1 = ant1[r]
+                a2 = ant2[r]
+
+                # Iterate over channels
+                for c in range(out.shape[1]):
+                    jones_mul(die1_jones[ti, a1, c], out[r, c],
+                              die2_jones[ti, a2, c],
+                              out[r, c])
+    else:
+        # noop
+        def apply_dies(time, ant1, ant2,
+                       die1_jones, die2_jones,
+                       tmin, out):
+            pass
+
+    return njit(nogil=True, inline='always')(apply_dies)
+
+
+def _default_none_check(arg):
+    return arg is not None
+
+
+def predict_checks(time_index, antenna1, antenna2,
+                   dde1_jones, source_coh, dde2_jones,
+                   die1_jones, base_vis, die2_jones,
+                   none_check=_default_none_check):
+
+    have_ddes1 = none_check(dde1_jones)
+    have_coh = none_check(source_coh)
+    have_ddes2 = none_check(dde2_jones)
+    have_dies1 = none_check(die1_jones)
+    have_bvis = none_check(base_vis)
+    have_dies2 = none_check(die2_jones)
+
+    assert time_index.ndim == 1
+    assert antenna1.ndim == 1
+    assert antenna2.ndim == 1
+
+    if have_ddes1 ^ have_ddes2:
+        raise ValueError("Both dde1_jones and dde2_jones "
+                         "must be present or absent")
+
+    if have_dies1 ^ have_dies2:
+        raise ValueError("Both die1_jones and die2_jones "
+                         "must be present or absent")
+
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
+
+    if have_ddes1 and dde1_jones.ndim not in (5, 6):
+        raise ValueError("dde1_jones.ndim %d not in (5, 6)" % dde1_jones.ndim)
+
+    if have_ddes2 and dde2_jones.ndim not in (5, 6):
+        raise ValueError("dde2_jones.ndim %d not in (5, 6)" % dde2_jones.ndim)
+
+    if have_ddes and dde1_jones.ndim != dde2_jones.ndim:
+        raise ValueError("dde1_jones.ndim != dde2_jones.ndim")
+
+    if have_coh and source_coh.ndim not in (4, 5):
+        raise ValueError("source_coh.ndim %d not in (4, 5)" % source_coh.ndim)
+
+    if have_dies1 and die1_jones.ndim not in (4, 5):
+        raise ValueError("die1_jones.ndim %d not in (4, 5)" % die1_jones.ndim)
+
+    if have_bvis and base_vis.ndim not in (3, 4):
+        raise ValueError("base_vis.ndim %d not in (3, 4)" % base_vis.ndim)
+
+    if have_dies2 and die2_jones.ndim not in (4, 5):
+        raise ValueError("die2_jones.ndim %d not in (4, 5)" % die2_jones.ndim)
+
+    if have_dies1 and have_dies2 and die1_jones.ndim != die2_jones.ndim:
+        raise ValueError("die1_jones.ndim != die2_jones.ndim")
+
+    expected_sizes = []
+
+    if have_ddes:
+        ndim = dde1_jones.ndim
+        expected_sizes.append([ndim, ndim - 1, ndim - 2, ndim - 1]),
+
+    if have_coh:
+        ndim = source_coh.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_dies:
+        ndim = die1_jones.ndim
+        expected_sizes.append([ndim + 1, ndim, ndim - 1, ndim])
+
+    if have_bvis:
+        ndim = base_vis.ndim
+        expected_sizes.append([ndim + 2, ndim + 1, ndim, ndim + 1])
+
+    if not all(expected_sizes[0] == s for s in expected_sizes[1:]):
+        raise ValueError("One of the following pre-conditions is broken "
+                         "(missing values are ignored):\n"
+                         "dde_jones{1,2}.ndim == source_coh.ndim + 1\n"
+                         "dde_jones{1,2}.ndim == base_vis.ndim + 2\n"
+                         "dde_jones{1,2}.ndim == die_jones{1,2}.ndim + 1")
+
+    return (have_ddes1, have_coh, have_ddes2,
+            have_dies1, have_bvis, have_dies2)
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def predict_vis(time_index, antenna1, antenna2,
+                dde1_jones=None, source_coh=None, dde2_jones=None,
+                die1_jones=None, base_vis=None, die2_jones=None):
+
+    tup = predict_checks(time_index, antenna1, antenna2,
+                         dde1_jones, source_coh, dde2_jones,
+                         die1_jones, base_vis, die2_jones,
+                         lambda x: not is_numba_type_none(x))
+
+    (have_ddes1, have_coh, have_ddes2, have_dies1, have_bvis, have_dies2) = tup
+
+    # Infer the output dtype
+    dtype_arrays = (dde1_jones, source_coh, dde2_jones,
+                    die1_jones, base_vis, die2_jones)
+
+    out_dtype = np.result_type(*(np.dtype(a.dtype.name)
+                                 for a in dtype_arrays
+                                 if not is_numba_type_none(a)))
+
+    jones_types = [
+        _get_jones_types("dde1_jones", dde1_jones, 5, 6),
+        _get_jones_types("source_coh", source_coh, 4, 5),
+        _get_jones_types("dde2_jones", dde2_jones, 5, 6),
+        _get_jones_types("die1_jones", die1_jones, 4, 5),
+        _get_jones_types("base_vis", base_vis, 3, 4),
+        _get_jones_types("die2_jones", die2_jones, 4, 5)]
+
+    ptypes = [t for t in jones_types if t != JONES_NOT_PRESENT]
+
+    if not all(ptypes[0] == p for p in ptypes[1:]):
+        raise ValueError("Jones Matrix Correlations were mismatched")
+
+    try:
+        jones_type = ptypes[0]
+    except IndexError:
+        raise ValueError("No Jones Matrices were supplied")
+
+    have_ddes = have_ddes1 and have_ddes2
+    have_dies = have_dies1 and have_dies2
+
+    # Create functions that we will use inside our predict function
+    out_fn = output_factory(have_ddes, have_coh,
+                            have_dies, have_bvis, out_dtype)
+    sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
+    apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
+    add_coh_fn = add_coh_factory(have_bvis)
+
+    def _predict_vis_fn(time_index, antenna1, antenna2,
+                        dde1_jones=None, source_coh=None, dde2_jones=None,
+                        die1_jones=None, base_vis=None, die2_jones=None):
+
+        # Get the output shape
+        out = out_fn(time_index, dde1_jones, source_coh, dde2_jones,
+                     die1_jones, base_vis, die2_jones)
+
+        # Minimum time index, used to normalise within function
+        tmin = time_index.min()
+
+        # Sum coherencies if any
+        sum_coh_fn(time_index, antenna1, antenna2,
+                   dde1_jones, source_coh, dde2_jones,
+                   tmin, out)
+
+        # Add base visibilities to the output, if any
+        add_coh_fn(base_vis, out)
+
+        # Apply direction independent effects, if any
+        apply_dies_fn(time_index, antenna1, antenna2,
+                      die1_jones, die2_jones,
+                      tmin, out)
+
+        return out
+
+    return _predict_vis_fn
+
+
+@generated_jit(nopython=True, nogil=True, cache=True)
+def apply_gains(time_index, antenna1, antenna2,
+                die1_jones, corrupted_vis, die2_jones):
+
+    def impl(time_index, antenna1, antenna2,
+             die1_jones, corrupted_vis, die2_jones):
+        return predict_vis(time_index, antenna1, antenna2,
+                           die1_jones=die1_jones,
+                           base_vis=corrupted_vis,
+                           die2_jones=die2_jones)
+
+    return impl
+
+
+PREDICT_DOCS = DocstringTemplate(r"""
+Multiply Jones terms together to form model visibilities according
+to the following formula:
+
+.. math::
+
+
+    V_{pq} = G_{p} \left(
+        B_{pq} + \sum_{s} E_{ps} X_{pqs} E_{qs}^H
+        \right) G_{q}^H
+
+where for antenna :math:`p` and :math:`q`, and source :math:`s`:
+
+
+- :math:`B_{{pq}}` represent base coherencies.
+- :math:`E_{{ps}}` represents Direction-Dependent Jones terms.
+- :math:`X_{{pqs}}` represents a coherency matrix (per-source).
+- :math:`G_{{p}}` represents Direction-Independent Jones terms.
+
+Generally, :math:`E_{ps}`, :math:`G_{p}`, :math:`X_{pqs}`
+should be formed by using the `RIME API <rime-api-anchor_>`_ functions
+and combining them together with :func:`~numpy.einsum`.
+
+**Please read the Notes**
+
+Notes
+-----
+* Direction-Dependent terms (dde{1,2}_jones) and
+  Independent (die{1,2}_jones) are optional,
+  but if one is present, the other must be present.
+* The inputs to this function involve ``row``, ``time``
+  and ``ant`` (antenna) dimensions.
+* Each ``row`` is associated with a pair of antenna Jones matrices
+  at a particular timestep via the
+  ``time_index``, ``antenna1`` and ``antenna2`` inputs.
+* The ``row`` dimension must be an increasing partial order in time.
+$(extra_notes)
+
+
+Parameters
+----------
+time_index : $(array_type)
+    Time index used to look up the antenna Jones index
+    for a particular baseline with shape :code:`(row,)`.
+    Obtainable via $(get_time_index).
+antenna1 : $(array_type)
+    Antenna 1 index used to look up the antenna Jones
+    for a particular baseline.
+    with shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Antenna 2 index used to look up the antenna Jones
+    for a particular baseline.
+    with shape :code:`(row,)`.
+dde1_jones : $(array_type), optional
+    :math:`E_{ps}` Direction-Dependent Jones terms for the first antenna.
+    shape :code:`(source,time,ant,chan,corr_1,corr_2)`
+source_coh : $(array_type), optional
+    :math:`X_{pqs}` Direction-Dependent Coherency matrix for the baseline.
+    with shape :code:`(source,row,chan,corr_1,corr_2)`
+dde2_jones : $(array_type), optional
+    :math:`E_{qs}` Direction-Dependent Jones terms for the second antenna.
+    This is usually the same array as ``dde1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
+    shape :code:`(source,time,ant,chan,corr_1,corr_2)`
+die1_jones : $(array_type), optional
+    :math:`G_{ps}` Direction-Independent Jones terms for the
+    first antenna of the baseline.
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+base_vis : $(array_type), optional
+    :math:`B_{pq}` base coherencies, added to source coherency summation
+    *before* multiplication with `die1_jones` and `die2_jones`.
+    shape :code:`(row,chan,corr_1,corr_2)`.
+die2_jones : $(array_type), optional
+    :math:`G_{ps}` Direction-Independent Jones terms for the
+    second antenna of the baseline.
+    This is usually the same array as ``die1_jones`` as this
+    preserves the symmetry of the RIME. ``predict_vis`` will
+    perform the conjugate transpose internally.
+    shape :code:`(time,ant,chan,corr_1,corr_2)`
+$(extra_args)
+
+Returns
+-------
+visibilities : $(array_type)
+    Model visibilities of shape :code:`(row,chan,corr_1,corr_2)`
+""")
+
+
 try:
-    from astropy.io import fits
-    import dask
-    import dask.array as da
-    from dask.diagnostics import ProgressBar
-    import Tigger
-    from daskms import xds_from_ms, xds_from_table, xds_to_table
-except ImportError as e:
-    opt_import_error = e
-else:
-    opt_import_error = None
-
-from africanus.util.beams import beam_filenames, beam_grids
-from africanus.coordinates.dask import radec_to_lm
-from africanus.rime.dask import (phase_delay, predict_vis, parallactic_angles,
-                                 beam_cube_dde, feed_rotation)
-from africanus.model.coherency.dask import convert
-from africanus.model.spectral.dask import spectral_model
-from africanus.model.shape.dask import gaussian as gaussian_shape
-from africanus.util.requirements import requires_optional
-
-
-_einsum_corr_indices = 'ijkl'
-
-
-def _brightness_schema(corrs, index):
-    if corrs == 4:
-        return "sf" + _einsum_corr_indices[index:index + 2], index + 1
-    else:
-        return "sfi", index
-
-
-def _phase_delay_schema(corrs, index):
-    return "srf", index
-
-
-def _spi_schema(corrs, index):
-    return "s", index
-
-
-def _gauss_shape_schema(corrs, index):
-    return "srf", index
-
-
-def _bl_jones_output_schema(corrs, index):
-    if corrs == 4:
-        return "->srfi" + _einsum_corr_indices[index]
-    else:
-        return "->srfi"
-
-
-_rime_term_map = {
-    'brightness': _brightness_schema,
-    'phase_delay': _phase_delay_schema,
-    'spi': _spi_schema,
-    'gauss_shape': _gauss_shape_schema,
-}
-
-
-def corr_schema(pol):
-    """
-    Parameters
-    ----------
-    pol : Dataset
-    Returns
-    -------
-    corr_schema : list of list
-        correlation schema from the POLARIZATION table,
-        `[[9, 10], [11, 12]]` for example
-    """
-
-    # Select the single row out
-    corrs = pol.NUM_CORR.data[0]
-    corr_types = pol.CORR_TYPE.data[0]
-
-    if corrs == 4:
-        return [[corr_types[0], corr_types[1]],
-                [corr_types[2], corr_types[3]]]  # (2, 2) shape
-    elif corrs == 2:
-        return [corr_types[0], corr_types[1]]    # (2, ) shape
-    elif corrs == 1:
-        return [corr_types[0]]                   # (1, ) shape
-    else:
-        raise ValueError("corrs %d not in (1, 2, 4)" % corrs)
-
-
-def baseline_jones_multiply(corrs, *args):
-    names = args[::2]
-    arrays = args[1::2]
-
-    input_einsum_schemas = []
-    corr_index = 0
-
-    for name, array in zip(names, arrays):
-        try:
-            # Obtain function for prescribing the input einsum schema
-            schema_fn = _rime_term_map[name]
-        except KeyError:
-            raise ValueError("Unknown RIME term '%s'" % name)
-        else:
-            # Extract it and the next corr index
-            einsum_schema, corr_index = schema_fn(corrs, corr_index)
-            input_einsum_schemas.append(einsum_schema)
-            print(name, einsum_schema)
-
-            if not len(einsum_schema) == array.ndim:
-                raise ValueError("%s len(%s) == %d != %s.ndim"
-                                 % (name, einsum_schema,
-                                    len(einsum_schema), array.shape))
-
-    output_schema = _bl_jones_output_schema(corrs, corr_index)
-    schema = ",".join(input_einsum_schemas) + output_schema
-
-    return da.einsum(schema, *arrays)
-
-
-def create_parser():
-    p = argparse.ArgumentParser()
-    p.add_argument("ms")
-    p.add_argument("-sm", "--sky-model", default="sky-model.txt")
-    p.add_argument("-rc", "--row-chunks", type=int, default=10000)
-    p.add_argument("-mc", "--model-chunks", type=int, default=10)
-    p.add_argument("-b", "--beam", default=None)
-    p.add_argument("-iuvw", "--invert-uvw", action="store_true",
-                   help="Invert UVW coordinates. Useful if we want "
-                        "compare our visibilities against MeqTrees")
-    return p
-
-
-@lru_cache(maxsize=16)
-def load_beams(beam_file_schema, corr_types):
-
-    class FITSFile(object):
-        """ Exists so that fits file is closed when last ref is gc'd """
-
-        def __init__(self, filename):
-            self.hdul = hdul = fits.open(filename)
-            assert len(hdul) == 1
-            self.__del_ref = weakref.ref(self, lambda r: hdul.close())
-
-    # Open files and get headers
-    beam_files = []
-    headers = []
-
-    for corr, (re, im) in beam_filenames(beam_file_schema, corr_types).items():
-        re_f = FITSFile(re)
-        im_f = FITSFile(im)
-        beam_files.append((corr, (re_f, im_f)))
-        headers.append((corr, (re_f.hdul[0].header, im_f.hdul[0].header)))
-
-    # All FITS headers should agree (apart from DATE)
-    flat_headers = []
-
-    for corr, (re_header, im_header) in headers:
-        del re_header["DATE"]
-        del im_header["DATE"]
-        flat_headers.append(re_header)
-        flat_headers.append(im_header)
-
-    if not all(flat_headers[0] == h for h in flat_headers[1:]):
-        raise ValueError("BEAM FITS Header Files differ")
-
-    #  Map FITS header type to NumPy type
-    BITPIX_MAP = {8: np.dtype('uint8').type, 16: np.dtype('int16').type,
-                  32: np.dtype('int32').type, -32: np.dtype('float32').type,
-                  -64: np.dtype('float64').type}
-
-    header = flat_headers[0]
-    bitpix = header['BITPIX']
-
-    try:
-        dtype = BITPIX_MAP[bitpix]
-    except KeyError:
-        raise ValueError("No mapping from BITPIX %s to a numpy type" % bitpix)
-    else:
-        dtype = np.result_type(dtype, np.complex64)
-
-    if not header['NAXIS'] == 3:
-        raise ValueError("FITS must have exactly three axes. "
-                         "L or X, M or Y and FREQ. NAXIS != 3")
-
-    (l_ax, l_grid), (m_ax, m_grid), (nu_ax, nu_grid) = beam_grids(header)
-
-    # Shape of each correlation
-    shape = (l_grid.shape[0], m_grid.shape[0], nu_grid.shape[0])
-
-    # Axis tranpose, FITS is FORTRAN ordered
-    ax = (nu_ax - 1, m_ax - 1, l_ax - 1)
-
-    def _load_correlation(re, im, ax):
-        # Read real and imaginary for each correlation
-        return (re.hdul[0].data.transpose(ax) +
-                im.hdul[0].data.transpose(ax)*1j)
-
-    # Create delayed loads of the beam
-    beam_loader = dask.delayed(_load_correlation)
-
-    beam_corrs = [beam_loader(re, im, ax)
-                  for c, (corr, (re, im)) in enumerate(beam_files)]
-    beam_corrs = [da.from_delayed(bc, shape=shape, dtype=dtype)
-                  for bc in beam_corrs]
-
-    # Stack correlations and rechunk to one great big block
-    beam = da.stack(beam_corrs, axis=3)
-    beam = beam.rechunk(shape + (len(corr_types),))
-
-    # Dask arrays for the beam extents and beam frequency grid
-    beam_lm_ext = np.array([[l_grid[0], l_grid[-1]], [m_grid[0], m_grid[-1]]])
-    beam_lm_ext = da.from_array(beam_lm_ext, chunks=beam_lm_ext.shape)
-    beam_freq_grid = da.from_array(nu_grid, chunks=nu_grid.shape)
-
-    return beam, beam_lm_ext, beam_freq_grid
-
-
-def parse_sky_model(filename, chunks):
-    """
-    Parses a Tigger sky model
-    Parameters
-    ----------
-    filename : str
-        Sky Model filename
-    chunks : tuple of ints or int
-        Source chunking strategy
-    Returns
-    -------
-    source_data : dict
-        Dictionary of source data,
-        :code:`{'point': (...), 'gauss': (...) }`
-    """
-    sky_model = Tigger.load(filename, verbose=False)
-
-    _empty_spectrum = object()
-
-    point_radec = []
-    point_stokes = []
-    point_spi = []
-    point_ref_freq = []
-
-    gauss_radec = []
-    gauss_stokes = []
-    gauss_spi = []
-    gauss_ref_freq = []
-    gauss_shape = []
-
-    for source in sky_model.sources:
-        ra = source.pos.ra
-        dec = source.pos.dec
-        typecode = source.typecode.lower()
-
-        I = source.flux.I  # noqa
-        Q = source.flux.Q
-        U = source.flux.U
-        V = source.flux.V
-
-        spectrum = (getattr(source, "spectrum", _empty_spectrum)
-                    or _empty_spectrum)
-
-        try:
-            # Extract reference frequency
-            ref_freq = spectrum.freq0
-        except AttributeError:
-            ref_freq = sky_model.freq0
-
-        try:
-            # Extract SPI for I.
-            # Zero Q, U and V to get 1 on the exponential
-            spi = [[spectrum.spi, 0, 0, 0]]
-        except AttributeError:
-            # Default I SPI to -0.7
-            spi = [[-0.7, 0, 0, 0]]
-
-        if typecode == "gau":
-            emaj = source.shape.ex
-            emin = source.shape.ey
-            pa = source.shape.pa
-
-            gauss_radec.append([ra, dec])
-            gauss_stokes.append([I, Q, U, V])
-            gauss_spi.append(spi)
-            gauss_ref_freq.append(ref_freq)
-            gauss_shape.append([emaj, emin, pa])
-
-        elif typecode == "pnt":
-            point_radec.append([ra, dec])
-            point_stokes.append([I, Q, U, V])
-            point_spi.append(spi)
-            point_ref_freq.append(ref_freq)
-        else:
-            raise ValueError("Unknown source morphology %s" % typecode)
-
-    Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
-    Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq",
-                                 "shape"])
-
-    source_data = {}
-
-    if len(point_radec) > 0:
-        source_data['point'] = Point(
-                    da.from_array(point_radec, chunks=(chunks, -1)),
-                    da.from_array(point_stokes, chunks=(chunks, -1)),
-                    da.from_array(point_spi, chunks=(chunks, 1, -1)),
-                    da.from_array(point_ref_freq, chunks=chunks))
-
-    if len(gauss_radec) > 0:
-        source_data['gauss'] = Gauss(
-                    da.from_array(gauss_radec, chunks=(chunks, -1)),
-                    da.from_array(gauss_stokes, chunks=(chunks, -1)),
-                    da.from_array(gauss_spi, chunks=(chunks, 1, -1)),
-                    da.from_array(gauss_ref_freq, chunks=chunks),
-                    da.from_array(gauss_shape, chunks=(chunks, -1)))
-
-    return source_data
-
-
-def support_tables(args):
-    """
-    Parameters
-    ----------
-    args : object
-        Script argument objects
-    Returns
-    -------
-    table_map : dict of Dataset
-        {name: dataset}
-    """
-
-    n = {k: '::'.join((args.ms, k)) for k
-         in ("ANTENNA", "DATA_DESCRIPTION", "FIELD",
-             "SPECTRAL_WINDOW", "POLARIZATION")}
-
-    # All rows at once
-    lazy_tables = {"ANTENNA": xds_from_table(n["ANTENNA"])}
-
-    compute_tables = {
-        # Fixed shape rows
-        "DATA_DESCRIPTION": xds_from_table(n["DATA_DESCRIPTION"]),
-        # Variably shaped, need a dataset per row
-        "FIELD": xds_from_table(n["FIELD"],
-                                group_cols="__row__"),
-        "SPECTRAL_WINDOW": xds_from_table(n["SPECTRAL_WINDOW"],
-                                          group_cols="__row__"),
-        "POLARIZATION": xds_from_table(n["POLARIZATION"],
-                                       group_cols="__row__"),
-    }
-
-    lazy_tables.update(dask.compute(compute_tables)[0])
-    return lazy_tables
-
-
-def _zero_pes(parangles, frequency, dtype_):
-    """ Create zeroed pointing errors """
-    ntime, na = parangles.shape
-    nchan = frequency.shape[0]
-    return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
-
-
-def _unity_ant_scales(parangles, frequency, dtype_):
-    """ Create zeroed antenna scalings """
-    _, na = parangles[0].shape
-    nchan = frequency.shape[0]
-    return np.ones((na, nchan, 2), dtype=dtype_)
-
-
-def dde_factory(args, ms, ant, field, pol, lm, utime, frequency):
-    if args.beam is None:
-        return None
-
-    # Beam is requested
-    corr_type = tuple(pol.CORR_TYPE.data[0])
-
-    if not len(corr_type) == 4:
-        raise ValueError("Need four correlations for DDEs")
-
-    parangles = parallactic_angles(utime, ant.POSITION.data,
-                                   field.PHASE_DIR.data[0][0])
-
-    corr_type_set = set(corr_type)
-
-    if corr_type_set.issubset(set([9, 10, 11, 12])):
-        pol_type = 'linear'
-    elif corr_type_set.issubset(set([5, 6, 7, 8])):
-        pol_type = 'circular'
-    else:
-        raise ValueError("Cannot determine polarisation type "
-                         "from correlations %s. Constructing "
-                         "a feed rotation matrix will not be "
-                         "possible." % (corr_type,))
-
-    # Construct feed rotation
-    feed_rot = feed_rotation(parangles, pol_type)
-
-    dtype = np.result_type(parangles, frequency)
-
-    # Create zeroed pointing errors
-    zpe = da.blockwise(_zero_pes, ("time", "ant", "chan", "comp"),
-                       parangles, ("time", "ant"),
-                       frequency, ("chan",),
-                       dtype, None,
-                       new_axes={"comp": 2},
-                       dtype=dtype)
-
-    # Created zeroed antenna scaling factors
-    zas = da.blockwise(_unity_ant_scales, ("ant", "chan", "comp"),
-                       parangles, ("time", "ant"),
-                       frequency, ("chan",),
-                       dtype, None,
-                       new_axes={"comp": 2},
-                       dtype=dtype)
-
-    # Load the beam information
-    beam, lm_ext, freq_map = load_beams(args.beam, corr_type)
-
-    # Introduce the correlation axis
-    beam = beam.reshape(beam.shape[:3] + (2, 2))
-
-    beam_dde = beam_cube_dde(beam, lm_ext, freq_map, lm, parangles,
-                             zpe, zas,
-                             frequency)
-
-    # Multiply the beam by the feed rotation to form the DDE term
-    return da.einsum("stafij,tajk->stafik", beam_dde, feed_rot)
-
-
-def vis_factory(args, source_type, sky_model,
-                ms, ant, field, spw, pol):
-    try:
-        source = sky_model[source_type]
-    except KeyError:
-        raise ValueError("Source type '%s' unsupported" % source_type)
-
-    # Select single dataset rows
-    corrs = pol.NUM_CORR.data[0]
-    frequency = spw.CHAN_FREQ.data[0]
-    phase_dir = field.PHASE_DIR.data[0][0]  # row, poly
-
-    lm = radec_to_lm(source.radec, phase_dir)
-    uvw = -ms.UVW.data if args.invert_uvw else ms.UVW.data
-
-    # (source, row, frequency)
-    phase = phase_delay(
-        lm*np.array([[0, 0]]) + np.array([[0, 0.000]]), uvw, frequency)
-
-    # (source, spi, corrs)
-    # Apply spectral mode to stokes parameters
-    stokes = spectral_model(source.stokes,
-                            source.spi,
-                            source.ref_freq,
-                            frequency,
-                            base=[1, 0, 0, 0])
-
-    brightness = convert(stokes, ["I", "Q", "U", "V"],
-                         corr_schema(pol))
-
-    bl_jones_args = ["phase_delay", phase]
-
-    # Add any visibility amplitude terms
-    if source_type == "gauss":
-        bl_jones_args.append("gauss_shape")
-        bl_jones_args.append(gaussian_shape(uvw, frequency, source.shape))
-
-    bl_jones_args.extend(["brightness", brightness])
-
-    # Unique times and time index for each row chunk
-    # The index is not global
-    meta = np.empty((0,), dtype=tuple)
-    utime_inv = ms.TIME.data.map_blocks(np.unique, return_inverse=True,
-                                        meta=meta, dtype=tuple)
-
-    # Need unique times for parallactic angles
-    utime = utime_inv.map_blocks(getitem, 0,
-                                 chunks=(np.nan,),
-                                 dtype=ms.TIME.dtype)
-
-    time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
-
-    jones = baseline_jones_multiply(corrs, *bl_jones_args)
-
-    dde = dde_factory(args, ms, ant, field, pol, lm, utime, frequency)
-
-    return predict_vis(time_idx, ms.ANTENNA1.data, ms.ANTENNA2.data,
-                       dde, jones, dde, None, None, None)
-
-
-@requires_optional("dask.array", "Tigger",
-                   "daskms", opt_import_error)
-def predict(args):
-    # Convert source data into dask arrays
-    sky_model = parse_sky_model(args.sky_model, args.model_chunks)
-
-    # Get the support tables
-    tables = support_tables(args)
-
-    ant_ds = tables["ANTENNA"]
-    field_ds = tables["FIELD"]
-    ddid_ds = tables["DATA_DESCRIPTION"]
-    spw_ds = tables["SPECTRAL_WINDOW"]
-    pol_ds = tables["POLARIZATION"]
-
-    # List of write operations
-    writes = []
-
-    # Construct a graph for each DATA_DESC_ID
-    for xds in xds_from_ms(args.ms,
-                           columns=["UVW", "ANTENNA1", "ANTENNA2", "TIME"],
-                           group_cols=["FIELD_ID", "DATA_DESC_ID"],
-                           chunks={"row": args.row_chunks}):
-
-        # Perform subtable joins
-        ant = ant_ds[0]
-        field = field_ds[xds.attrs['FIELD_ID']]
-        ddid = ddid_ds[xds.attrs['DATA_DESC_ID']]
-        spw = spw_ds[ddid.SPECTRAL_WINDOW_ID.data[0]]
-        pol = pol_ds[ddid.POLARIZATION_ID.data[0]]
-
-        # Select single dataset row out
-        corrs = pol.NUM_CORR.data[0]
-
-        # Generate visibility expressions for each source type
-        source_vis = [vis_factory(args, stype, sky_model,
-                                  xds, ant, field, spw, pol)
-                      for stype in sky_model.keys()]
-
-        # Sum visibilities together
-        vis = sum(source_vis)
-
-        # Reshape (2, 2) correlation to shape (4,)
-        if corrs == 4:
-            vis = vis.reshape(vis.shape[:2] + (4,))
-
-        # Assign visibilities to MODEL_DATA array on the dataset
-        xds = xds.assign(MODEL_DATA=(("row", "chan", "corr"), vis))
-        # Create a write to the table
-        write = xds_to_table(xds, args.ms, ['MODEL_DATA'])
-        # Add to the list of writes
-        writes.append(write)
-    # Submit all graph computations in parallel
-    with ProgressBar():
-        dask.compute(writes)
-
-
-if __name__ == "__main__":
-    args = create_parser().parse_args()
-    predict(args)
+    predict_vis.__doc__ = PREDICT_DOCS.substitute(
+                            array_type=":class:`numpy.ndarray`",
+                            get_time_index=":code:`np.unique(time, "
+                                           "return_inverse=True)[1]`",
+                            extra_args="",
+                            extra_notes="")
+except AttributeError:
+    pass
+
+
+APPLY_GAINS_DOCS = DocstringTemplate(r"""
+Apply gains to corrupted visibilities in order to recover
+the true visibilities.
+
+Thin wrapper around $(wrapper_func).
+
+.. math::
+
+
+    V_{pq} = G_{p} C_{pq} G_{q}^H
+
+
+Parameters
+----------
+time_index : $(array_type)
+    Time index used to look up the antenna Jones index
+    for a particular baseline
+    with shape :code:`(row,)`.
+antenna1 : $(array_type)
+    Antenna 1 index used to look up the antenna Jones
+    for a particular baseline
+    with shape :code:`(row,)`.
+antenna2 : $(array_type)
+    Antenna 2 index used to look up the antenna Jones
+    for a particular baseline
+    with shape :code:`(row,)`.
+gains1 : $(array_type), optional
+    :math:`G_{ps}` Gains for the first antenna of the baseline.
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`
+corrupted_vis : $(array_type), optiona
+    :math:`B_{pq}` corrupted visibilities.
+    with shape :code:`(row,chan,corr_1,corr_2)`.
+gains2 : $(array_type), optional
+    :math:`G_{ps}` Gains for the second antenna of the baseline
+    with shape :code:`(time,ant,chan,corr_1,corr_2)`.
+
+Returns
+-------
+true_vis : $(array_type)
+    True visibilities of shape :code:`(row,chan,corr_1,corr_2)`
+""")
+
+try:
+    apply_gains.__doc__ = APPLY_GAINS_DOCS.substitute(
+                        array_type=":class:`numpy.ndarray`",
+                        wrapper_func=":func:`~africanus.rime.predict_vis`")
+except AttributeError:
+    pass
