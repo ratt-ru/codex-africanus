@@ -11,8 +11,14 @@ Spline = namedtuple("Spline", "ma mb mc mx my")
 
 
 @njit(nogil=True, cache=True)
+def solve_trid_system(x, y, left_type=2, right_type=2,
+                      left_value=0.0, right_value=0.0):
+    """
+    Solves a tridiagonal matrix
+
     https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm
     """
+    diag = np.zeros((x.shape[0], 3), dtype=x.dtype)
     v = np.zeros_like(y)
     n = x.shape[0]
 
