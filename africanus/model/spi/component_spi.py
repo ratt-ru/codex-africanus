@@ -13,7 +13,7 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                              jac, beam, ncomps, nfreqs,
                              tol, maxiter, mindet):
     w = freqs/freq0
-    dof = w.size - 2
+    dof = np.maximum(w.size - 2, 1)
     for comp in range(ncomps):
         eps = 1.0
         k = 0
