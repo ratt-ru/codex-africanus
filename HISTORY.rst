@@ -4,6 +4,7 @@ History
 
 0.2.10 (YYYY-MM-DD)
 -------------------
+* Don't let dof go to zero during spi fitting (:pr:`240`)
 * Add support for Shapelets and Zernike Polynomials (:pr:`231`)
 * Add beam model during SPI fitting (:pr:`238`)
 * Add double accumulation option and Hessian function to wgridder (:pr:`237`)
