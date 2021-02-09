@@ -2,7 +2,7 @@
 History
 =======
 
-0.2.10 (YYYY-MM-DD)
+0.2.10 (2021-02-09)
 -------------------
 * Don't let dof go to zero during spi fitting (:pr:`240`)
 * Add support for Shapelets and Zernike Polynomials (:pr:`231`)
