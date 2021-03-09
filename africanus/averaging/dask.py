@@ -6,6 +6,7 @@ from operator import getitem
 from africanus.averaging.bda_mapping import (
                 atemkeng_mapper as np_bda_mapper)
 from africanus.averaging.bda_avg import (
+                BDA_DOCS,
                 row_average as np_bda_row_avg,
                 row_chan_average as np_bda_row_chan_avg,
                 AverageOutput as BDAAverageOutput,
@@ -803,5 +804,6 @@ def bda(time, interval, antenna1, antenna2,
 try:
     time_and_channel.__doc__ = TC_AVERAGING_DOCS.substitute(
                                     array_type=":class:`dask.array.Array`")
+    bda.__doc__ = BDA_DOCS.substitute(array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass

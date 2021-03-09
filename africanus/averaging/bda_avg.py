@@ -9,6 +9,7 @@ from africanus.averaging.bda_mapping import (atemkeng_mapper,
 from africanus.averaging.shared import (chan_corrs,
                                         merge_flags,
                                         vis_output_arrays)
+from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import (generated_jit,
                                   intrinsic,
                                   is_numba_type_none)
@@ -592,3 +593,87 @@ def bda(time, interval, antenna1, antenna2,
                              row_chan_avg.sigma_spectrum)
 
     return impl
+
+
+BDA_DOCS = DocstringTemplate("""
+Averages in time and channel, dependent on baseline length.
+
+Parameters
+----------
+time : $(array_type)
+    Time values of shape :code:`(row,)`.
+interval : $(array_type)
+    Interval values of shape :code:`(row,)`.
+antenna1 : $(array_type)
+    First antenna indices of shape :code:`(row,)`
+antenna2 : $(array_type)
+    Second antenna indices of shape :code:`(row,)`
+time_centroid : $(array_type), optional
+    Time centroid values of shape :code:`(row,)`
+exposure : $(array_type), optional
+    Exposure values of shape :code:`(row,)`
+flag_row : $(array_type), optional
+    Flagged rows of shape :code:`(row,)`.
+uvw : $(array_type), optional
+    UVW coordinates of shape :code:`(row, 3)`.
+weight : $(array_type), optional
+    Weight values of shape :code:`(row, corr)`.
+sigma : $(array_type), optional
+    Sigma values of shape :code:`(row, corr)`.
+chan_freq : $(array_type), optional
+    Channel frequencies of shape :code:`(chan,)`.
+chan_width : $(array_type), optional
+    Channel widths of shape :code:`(chan,)`.
+effective_bw : $(array_type), optional
+    Effective channel bandwidth of shape :code:`(chan,)`.
+resolution : $(array_type), optional
+    Effective channel resolution of shape :code:`(chan,)`.
+visibility : $(array_type) or tuple of $(array_type), optional
+    Visibility data of shape :code:`(row, chan, corr)`.
+    Tuples of visibilities arrays may be supplied,
+    in which case tuples will be output.
+flag : $(array_type), optional
+    Flag data of shape :code:`(row, chan, corr)`.
+weight_spectrum : $(array_type), optional
+    Weight spectrum of shape :code:`(row, chan, corr)`.
+sigma_spectrum : $(array_type), optional
+    Sigma spectrum of shape :code:`(row, chan, corr)`.
+max_uvw_dist : float, optional
+    Maximum UVW distance. Will be inferred from the UVW
+    coordinates if not supplied.
+max_fov : float
+    Maximum Field of View Radius. Defaults to 3 degrees.
+decorrelation : float
+    Acceptable amount of decorrelation. This is
+    a floating point value between 0.0 and 1.0.
+time_bin_secs : float, optional
+    Maximum number of seconds worth of data that
+    can be aggregated into a bin.
+    Defaults to None in which case the value is only
+    bounded by the decorrelation factor and the
+    field of view.
+min_nchan : int, optional
+    Minimum number of channels in an averaged sample.
+    Useful in cases where imagers expect
+    at least `min_nchan` channels.
+    Defaults to 1.
+
+Notes
+-----
+
+The implementation currently requires unique lexicographical
+combinations of (TIME, ANTENNA1, ANTENNA2). This can usually
+be achieved by suitably partitioning input data on indexing rows,
+DATA_DESC_ID and SCAN_NUMBER in particular.
+
+Returns
+-------
+namedtuple
+    A namedtuple whose entries correspond to the input arrays.
+    Output arrays will be ``None`` if the inputs were ``None``.
+""")
+
+try:
+    bda.__doc__ = BDA_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+except AttributeError:
+    pass
