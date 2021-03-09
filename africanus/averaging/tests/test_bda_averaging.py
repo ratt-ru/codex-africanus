@@ -42,8 +42,8 @@ def flag():
 def bda_test_map():
     # 5 rows, 4 channels => 3 rows
     #
-    # row 1 contains 2 channel
-    # row 2 contains 3 channel
+    # row 1 contains 2 channels
+    # row 2 contains 3 channels
     # row 3 contains 1 channel
 
     return np.array([[0, 0, 1, 1],
@@ -113,9 +113,14 @@ def _calc_sigma(weight, sigma, rows):
 def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
     rs = np.random.RandomState(42)
 
-    in_row, _ = bda_test_map.shape
+    out_chan = np.array([np.unique(rows).size for rows
+                         in np.unique(bda_test_map, axis=0)])
+
+    out_row = out_chan.sum()
+    assert out_row == bda_test_map.max() + 1
+
+    in_row, in_chan = bda_test_map.shape
     in_corr = 4
-    out_row = bda_test_map.max() + 1
     offsets = np.array([0, 2, 5, out_row])
     assert_array_equal(offsets[:-1], np.unique(bda_test_map[:, 0]))
 
@@ -124,6 +129,9 @@ def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
     uvw = np.arange(in_row*3).reshape(in_row, 3).astype(np.float64)
     weight = rs.normal(size=(in_row, in_corr))
     sigma = rs.normal(size=(in_row, in_corr))
+    chan_width = np.repeat(.856e9 / out_chan, out_chan)
+    # chan_freq = np.repeat([np.linspace(.856e9, oc) for oc in out_chan], out_chan)
+
 
     # Aggregate time and interval, in_row => out_row
     # first channel in the map. We're only averaging over
@@ -158,7 +166,7 @@ def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
                     in sorted(inv_row_map.items())]
 
     meta = RowMapOutput(bda_test_map, offsets,
-                        None, out_time, out_interval,
+                        chan_width, out_time, out_interval,
                         None, out_flag_row)
 
     ant1 = np.full(in_row, 0, dtype=np.int32)
@@ -188,7 +196,14 @@ def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
     assert_array_equal(row_avg.weight, out_weight)
     assert_array_equal(row_avg.sigma, out_sigma)
 
-    assert row_avg.uvw.shape == (out_row, 3)
+    vshape = (in_row, in_chan, in_corr)
+    vis = rs.normal(size=vshape) + rs.normal(size=vshape)*1j
+
+    row_chan_avg = row_chan_average(meta, visibilities=vis)
+
+    out_vis = [vis[rows, chans, :].mean(axis=0) for _, (rows, chans)
+               in sorted(inv_bda_test_map.items())]
+    assert_array_equal(row_chan_avg.vis, np.stack(out_vis))
 
 
 def test_bda_row_chan_avg(bda_test_map, inv_bda_test_map):
