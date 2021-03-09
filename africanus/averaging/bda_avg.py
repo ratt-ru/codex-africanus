@@ -4,7 +4,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.averaging.bda_mapping import (atemkeng_mapper,
+from africanus.averaging.bda_mapping import (bda_mapper,
                                              RowMapOutput)
 from africanus.averaging.shared import (chan_corrs,
                                         merge_flags,
@@ -548,7 +548,7 @@ def bda(time, interval, antenna1, antenna2,
         # Merge flag_row and flag arrays
         flag_row = merge_flags(flag_row, flag)
 
-        meta = atemkeng_mapper(time, interval, antenna1, antenna2, uvw,
+        meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
                                chan_width, chan_freq,
                                max_uvw_dist,
                                flag_row=flag_row,

@@ -319,7 +319,7 @@ RowMapOutput = namedtuple("RowMapOutput",
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def atemkeng_mapper(time, interval, ant1, ant2, uvw,
+def bda_mapper(time, interval, ant1, ant2, uvw,
                     chan_width, chan_freq,
                     max_uvw_dist,
                     flag_row=None,

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
+
 import numpy as np
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
@@ -13,7 +15,7 @@ from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
                             chan_width,
                             chan_freq)
 
-from africanus.averaging.bda_mapping import atemkeng_mapper
+from africanus.averaging.bda_mapping import bda_mapper
 from africanus.averaging.bda_avg import row_average, row_chan_average, bda
 
 
@@ -59,41 +61,35 @@ def bda_test_map():
      [1, 0, 0, 0]],
 ])
 def flags(request):
-    pass
+    return request.param
 
 
 @pytest.fixture
 def inv_bda_test_map(bda_test_map):
-    from collections import defaultdict
-
+    """ Generates a :code:`{out_row: [in_row, in_chan]}` mapping"""
     inv = defaultdict(list)
     for idx in np.ndindex(*bda_test_map.shape):
         inv[bda_test_map[idx]].append(idx)
 
-    return {ro: tuple(list(i)
-                      for i in zip(*v))
+    return {ro: tuple(list(i) for i in zip(*v))
             for ro, v in inv.items()}
-
-
-@pytest.fixture
-def inv_bda_test_row_map(inv_bda_test_map):
-    return {ro: np.unique(rm, return_counts=True)
-            for ro, (rm, _)
-            in inv_bda_test_map.items()}
 
 
 @pytest.fixture(params=[[], [0, 1], [2]])
 def flag_row(request, bda_test_map):
     row, _ = bda_test_map.shape
-    flag_row = np.zeros(row, np.uint8)
-    flag_row[request.param] = True
+    flag_row = np.full(row, 0, np.uint8)
+    flag_row[request.param] = 1
 
     return flag_row
 
 
-def test_bda_avg2(bda_test_map, inv_bda_test_row_map,
-                  inv_bda_test_map, flag_row):
+def test_bda_avg2(bda_test_map, inv_bda_test_map, flag_row):
     from africanus.averaging.bda_mapping import RowMapOutput
+
+    from pprint import pprint
+    print(bda_test_map)
+    pprint(inv_bda_test_map)
 
     in_row, in_chan = bda_test_map.shape
     out_row = bda_test_map.max() + 1
@@ -123,20 +119,23 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map,
     out_interval[:] = out_interval[copy_idx]
     out_time /= out_counts
 
-    inv_row_map = {ro: np.unique(rm, return_counts=True)
-                   for ro, (rm, _) in inv_bda_test_map.items()}
-
-    out_time2 = [time[rm].sum() / len(rc) for _, (rm, rc)
+    inv_row_map = {ro: np.unique(rows, return_counts=True)
+                   for ro, (rows, _) in inv_bda_test_map.items()}
+    out_time2 = [time[rows].sum() / len(chans) for _, (rows, chans)
                  in sorted(inv_row_map.items())]
-    out_interval2 = [interval[rm].sum() for _, (rm, _)
+    out_interval2 = [interval[rows].sum() for _, (rows, chans)
                      in sorted(inv_row_map.items())]
+    out_flag_row = [flag_row[rows].all() for _, (rows, chans)
+                    in sorted(inv_row_map.items())]
+
+    out_time_centroid = []
 
     assert_array_equal(out_time, out_time2)
     assert_array_equal(out_interval, out_interval2)
 
     meta = RowMapOutput(bda_test_map, offsets,
                         out_time, out_interval,
-                        None, None, None)
+                        None, None, out_flag_row)
 
     ant1 = np.full(in_row, 0, dtype=np.int32)
     ant2 = np.full(in_row, 1, dtype=np.int32)
@@ -144,7 +143,8 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map,
     row_avg = row_average(meta, ant1, ant2,
                           time_centroid=time,
                           exposure=interval,
-                          uvw=uvw)
+                          uvw=uvw,
+                          flag_row=flag_row)
 
     assert_array_equal(row_avg.antenna1, 0)
     assert_array_equal(row_avg.antenna2, 1)
@@ -187,7 +187,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
 
     none_flag_row = None
     start = timing.perf_counter()
-    meta = atemkeng_mapper(time, interval, ant1, ant2, uvw,
+    meta = bda_mapper(time, interval, ant1, ant2, uvw,
                            chan_width, chan_freq,
                            max_uvw_dist,
                            flag_row=none_flag_row, max_fov=3.0,
