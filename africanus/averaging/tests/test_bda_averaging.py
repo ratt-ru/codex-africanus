@@ -15,7 +15,7 @@ from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
                             chan_width,
                             chan_freq)
 
-from africanus.averaging.bda_mapping import bda_mapper
+from africanus.averaging.bda_mapping import bda_mapper, RowMapOutput
 from africanus.averaging.bda_avg import row_average, row_chan_average, bda
 
 
@@ -75,7 +75,7 @@ def inv_bda_test_map(bda_test_map):
             for ro, v in inv.items()}
 
 
-@pytest.fixture(params=[[], [0, 1], [2]])
+@pytest.fixture(params=[[], [0, 1], [2], [2, 3], [4], [0, 2, 4]])
 def flag_row(request, bda_test_map):
     row, _ = bda_test_map.shape
     flag_row = np.full(row, 0, np.uint8)
@@ -84,14 +84,37 @@ def flag_row(request, bda_test_map):
     return flag_row
 
 
-def test_bda_avg2(bda_test_map, inv_bda_test_map, flag_row):
-    from africanus.averaging.bda_mapping import RowMapOutput
+def _effective_row_map(flag_row, inv_row_map):
+    """ Build an effective row map """
+    emap = []
 
-    from pprint import pprint
-    print(bda_test_map)
-    pprint(inv_bda_test_map)
+    for _, (rows, counts) in sorted(inv_row_map.items()):
+        if flag_row[rows].all():
+            # Pass through all rows if the entire bin is flagged
+            emap.append((rows, counts))
+        else:
+            # Pass through only unflagged rows if some of the bin is flagged
+            it = ((r, c) for r, c in zip(rows, counts) if flag_row[r] == 0)
+            emap.append(tuple(map(list, zip(*it))))
 
-    in_row, in_chan = bda_test_map.shape
+    return emap
+
+
+def _calc_sigma(weight, sigma, rows):
+    weight = weight[rows]
+    sigma = sigma[rows]
+    numerator = (sigma**2 * weight**2).sum(axis=0)
+    denominator = weight.sum(axis=0)**2
+    denominator[denominator == 0.0] = 1.0
+
+    return np.sqrt(numerator / denominator)
+
+
+def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
+    rs = np.random.RandomState(42)
+
+    in_row, _ = bda_test_map.shape
+    in_corr = 4
     out_row = bda_test_map.max() + 1
     offsets = np.array([0, 2, 5, out_row])
     assert_array_equal(offsets[:-1], np.unique(bda_test_map[:, 0]))
@@ -99,6 +122,8 @@ def test_bda_avg2(bda_test_map, inv_bda_test_map, flag_row):
     time = np.linspace(1.0, float(in_row), in_row, dtype=np.float64)  # noqa
     interval = np.full(in_row, 1.0, dtype=np.float64)  # noqa
     uvw = np.arange(in_row*3).reshape(in_row, 3).astype(np.float64)
+    weight = rs.normal(size=(in_row, in_corr))
+    sigma = rs.normal(size=(in_row, in_corr))
 
     # Aggregate time and interval, in_row => out_row
     # first channel in the map. We're only averaging over
@@ -121,21 +146,20 @@ def test_bda_avg2(bda_test_map, inv_bda_test_map, flag_row):
 
     inv_row_map = {ro: np.unique(rows, return_counts=True)
                    for ro, (rows, _) in inv_bda_test_map.items()}
-    out_time2 = [time[rows].sum() / len(chans) for _, (rows, chans)
+    out_time2 = [time[rows].sum() / len(counts) for _, (rows, counts)
                  in sorted(inv_row_map.items())]
-    out_interval2 = [interval[rows].sum() for _, (rows, chans)
-                     in sorted(inv_row_map.items())]
-    out_flag_row = [flag_row[rows].all() for _, (rows, chans)
-                    in sorted(inv_row_map.items())]
-
-    out_time_centroid = []
-
     assert_array_equal(out_time, out_time2)
+
+    out_interval2 = [interval[rows].sum() for _, (rows, _)
+                     in sorted(inv_row_map.items())]
     assert_array_equal(out_interval, out_interval2)
 
+    out_flag_row = [flag_row[rows].all() for _, (rows, _)
+                    in sorted(inv_row_map.items())]
+
     meta = RowMapOutput(bda_test_map, offsets,
-                        out_time, out_interval,
-                        None, None, out_flag_row)
+                        None, out_time, out_interval,
+                        None, out_flag_row)
 
     ant1 = np.full(in_row, 0, dtype=np.int32)
     ant2 = np.full(in_row, 1, dtype=np.int32)
@@ -144,16 +168,31 @@ def test_bda_avg2(bda_test_map, inv_bda_test_map, flag_row):
                           time_centroid=time,
                           exposure=interval,
                           uvw=uvw,
+                          weight=weight, sigma=sigma,
                           flag_row=flag_row)
 
     assert_array_equal(row_avg.antenna1, 0)
     assert_array_equal(row_avg.antenna2, 1)
 
-    # Without flags, these should be the same
-    assert_array_equal(row_avg.time_centroid, out_time)
+    # Effective averages
+    effective_map = _effective_row_map(flag_row, inv_row_map)
+    out_time_centroid = [time[r].sum() / len(c) for r, c in effective_map]
+    out_interval = [interval[r].sum() for r, _ in effective_map]
+    out_uvw = [uvw[r].sum(axis=0) / len(c) for r, c in effective_map]
+    out_weight = [weight[r].sum(axis=0) for r, _ in effective_map]
+    out_sigma = [_calc_sigma(weight, sigma, r) for r, _ in effective_map]
+
+    assert_array_equal(row_avg.time_centroid, out_time_centroid)
     assert_array_equal(row_avg.exposure, out_interval)
+    assert_array_equal(row_avg.uvw, out_uvw)
+    assert_array_equal(row_avg.weight, out_weight)
+    assert_array_equal(row_avg.sigma, out_sigma)
+
     assert row_avg.uvw.shape == (out_row, 3)
 
+
+def test_bda_row_chan_avg(bda_test_map, inv_bda_test_map):
+    pass
 
 def test_bda_avg(time, interval, ants,   # noqa: F811
                  phase_dir,              # noqa: F811
@@ -188,10 +227,10 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
     none_flag_row = None
     start = timing.perf_counter()
     meta = bda_mapper(time, interval, ant1, ant2, uvw,
-                           chan_width, chan_freq,
-                           max_uvw_dist,
-                           flag_row=none_flag_row, max_fov=3.0,
-                           decorrelation=decorrelation)
+                      chan_width, chan_freq,
+                      max_uvw_dist,
+                      flag_row=none_flag_row, max_fov=3.0,
+                      decorrelation=decorrelation)
 
     time_centroid = time
     exposure = interval
