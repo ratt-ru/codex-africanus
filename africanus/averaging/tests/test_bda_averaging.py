@@ -71,7 +71,7 @@ def inv_bda_test_map(bda_test_map):
         inv[bda_test_map[idx]].append(idx)
 
     return {ro: tuple(list(i)
-            for i in zip(*v))
+                      for i in zip(*v))
             for ro, v in inv.items()}
 
 
@@ -91,17 +91,17 @@ def flag_row(request, bda_test_map):
     return flag_row
 
 
-def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row):
+def test_bda_avg2(bda_test_map, inv_bda_test_row_map,
+                  inv_bda_test_map, flag_row):
     from africanus.averaging.bda_mapping import RowMapOutput
-    rs = np.random.RandomState(42)
 
     in_row, in_chan = bda_test_map.shape
     out_row = bda_test_map.max() + 1
     offsets = np.array([0, 2, 5, out_row])
     assert_array_equal(offsets[:-1], np.unique(bda_test_map[:, 0]))
 
-    time = np.linspace(1.0, float(in_row), in_row, dtype=np.float64)
-    interval = np.full(in_row, 1.0, dtype=np.float64)
+    time = np.linspace(1.0, float(in_row), in_row, dtype=np.float64)  # noqa
+    interval = np.full(in_row, 1.0, dtype=np.float64)  # noqa
     uvw = np.arange(in_row*3).reshape(in_row, 3).astype(np.float64)
 
     # Aggregate time and interval, in_row => out_row
@@ -109,7 +109,7 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row
     # row so we don't want to aggregate per channel
     idx = bda_test_map[np.arange(in_row), 0]
     out_time = np.zeros(out_row, dtype=time.dtype)
-    out_counts =  np.zeros(out_row, dtype=np.uint32)
+    out_counts = np.zeros(out_row, dtype=np.uint32)
     out_interval = np.zeros(out_row, dtype=interval.dtype)
     np.add.at(out_time, idx, time)
     np.add.at(out_counts, idx, 1)
@@ -130,7 +130,6 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row
                  in sorted(inv_row_map.items())]
     out_interval2 = [interval[rm].sum() for _, (rm, _)
                      in sorted(inv_row_map.items())]
-
 
     assert_array_equal(out_time, out_time2)
     assert_array_equal(out_interval, out_interval2)
@@ -154,6 +153,7 @@ def test_bda_avg2(bda_test_map, inv_bda_test_row_map, inv_bda_test_map, flag_row
     assert_array_equal(row_avg.time_centroid, out_time)
     assert_array_equal(row_avg.exposure, out_interval)
     assert row_avg.uvw.shape == (out_row, 3)
+
 
 def test_bda_avg(time, interval, ants,   # noqa: F811
                  phase_dir,              # noqa: F811
@@ -245,6 +245,7 @@ def test_bda_avg(time, interval, ants,   # noqa: F811
               weight_spectrum=weight_spectrum,
               sigma_spectrum=sigma_spectrum,
               max_uvw_dist=max_uvw_dist)
+
 
 @pytest.mark.parametrize("vis_format", ["ragged", "flat"])
 def test_dask_bda_avg(time, interval, ants,   # noqa: F811
