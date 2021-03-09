@@ -2,6 +2,21 @@
 History
 =======
 
+0.2.10 (2021-02-09)
+-------------------
+* Don't let dof go to zero during spi fitting (:pr:`240`)
+* Add support for Shapelets and Zernike Polynomials (:pr:`231`)
+* Add beam model during SPI fitting (:pr:`238`)
+* Add double accumulation option and Hessian function to wgridder (:pr:`237`)
+* Upgrade ducc0 to version 0.8.0 (:pr:`236`)
+* Add mindet to avoid div0 errors in spi fitter and fix alpha and I0 variance
+  estimates (:pr:`234`)
+
+0.2.9 (2020-12-15)
+------------------
+* Upgrade ducc0 to version 0.7.0 (:pr:`233`)
+* Fix manually specifying wgridder precision (:pr:`230`)
+
 0.2.8 (2020-10-08)
 ------------------
 * Fix NoneType issue in wgridder when weights are None (:pr:`228`)
