@@ -262,6 +262,7 @@ def row_mapper(time, interval, antenna1, antenna2,
 
                     tbin += 1
                     bin_count = 0
+                    bin_low = time[r] - half_int
                     bin_flag_count = 0
 
                 # Record the output bin associated with the row

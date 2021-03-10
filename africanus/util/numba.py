@@ -25,9 +25,10 @@ if on_rtd():
 
     overload = _fake_decorator
     register_jitable = _fake_decorator
+    intrinsic = _fake_decorator
 else:
     from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
-    from numba.extending import overload, register_jitable  # noqa
+    from numba.extending import overload, register_jitable, intrinsic  # noqa
 
 
 def is_numba_type_none(arg):
