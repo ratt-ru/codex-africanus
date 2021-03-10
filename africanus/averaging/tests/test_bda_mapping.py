@@ -7,71 +7,12 @@ import pytest
 from africanus.averaging.bda_mapping import bda_mapper, Binner
 
 
-def synthesize_uvw(antenna_positions, time, phase_dir,
-                   auto_correlations=True):
-    """
-    Synthesizes new UVW coordinates based on time according to
-    NRAO CASA convention (same as in fixvis)
-    User should check these UVW coordinates carefully:
-    if time centroid was used to compute
-    original uvw coordinates the centroids
-    of these new coordinates may be wrong, depending on whether
-    data timesteps were heavily flagged.
-    """
-    pytest.importorskip('pyrap')
-
-    from pyrap.measures import measures
-    from pyrap.quanta import quantity as q
-
-    dm = measures()
-    epoch = dm.epoch("UT1", q(time[0], "s"))
-    ref_dir = dm.direction("j2000",
-                           q(phase_dir[0], "rad"),
-                           q(phase_dir[1], "rad"))
-    ox, oy, oz = antenna_positions[0]
-    obs = dm.position("ITRF", q(ox, "m"), q(oy, "m"), q(oz, "m"))
-
-    # Setup local horizon coordinate frame with antenna 0 as reference position
-    dm.do_frame(obs)
-    dm.do_frame(ref_dir)
-    dm.do_frame(epoch)
-
-    ant1, ant2 = np.triu_indices(antenna_positions.shape[0],
-                                 0 if auto_correlations else 1)
-
-    ant1 = ant1.astype(np.int32)
-    ant2 = ant2.astype(np.int32)
-
-    ntime = time.shape[0]
-    nbl = ant1.shape[0]
-    rows = ntime * nbl
-    uvw = np.empty((rows, 3), dtype=np.float64)
-
-    # For each timestep
-    for ti, t in enumerate(time):
-        epoch = dm.epoch("UT1", q(t, "s"))
-        dm.do_frame(epoch)
-
-        ant_uvw = np.zeros_like(antenna_positions)
-
-        # Calculate antenna UVW positions
-        for ai, (x, y, z) in enumerate(antenna_positions):
-            bl = dm.baseline("ITRF",
-                             q([x, ox], "m"),
-                             q([y, oy], "m"),
-                             q([z, oz], "m"))
-
-            ant_uvw[ai] = dm.to_uvw(bl)["xyz"].get_value()[0:3]
-
-        # Now calculate baseline UVW positions
-        # noting that ant1 - ant2 is the CASA convention
-        base = ti*nbl
-        uvw[base:base + nbl, :] = ant_uvw[ant1] - ant_uvw[ant2]
-
-    return ant1, ant2, uvw
+@pytest.fixture(scope="session", params=[4096])
+def nchan(request):
+    return request.param
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def time():
     return np.array([
         5.03373334e+09,   5.03373334e+09,   5.03373335e+09,
@@ -88,7 +29,7 @@ def time():
         5.03373360e+09,   5.03373361e+09,   5.03373362e+09])
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def interval():
     return np.array([
         7.99661697,  7.99661697,  7.99661697,  7.99661697,  7.99661697,
@@ -101,7 +42,7 @@ def interval():
         7.99661697])
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def ants():
     return np.array([
        [5109224.29038545,  2006790.35753831, -3239100.60907827],
@@ -142,35 +83,102 @@ def ants():
        [5108666.77102205,  2005032.4814725, -3241081.69797118]])
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def phase_dir():
     return np.array([5.1461782, -1.11199629])
 
 
-@pytest.fixture
-def chan_width():
-    nchan = 4096
+@pytest.fixture(scope="session")
+def chan_width(nchan):
     return np.full(nchan, (2*.856e9 - .856e9) / nchan)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def chan_freq(chan_width):
     return .856e9 + np.cumsum(np.concatenate([[0], chan_width[1:]]))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def ref_freq(chan_freq):
     return (chan_freq[0] + chan_freq[-1]) / 2.0
 
 
-@pytest.mark.parametrize("auto_corrs", [False, True])
+@pytest.fixture(scope="session", params=[True, False])
+def auto_correlations(request):
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def synthesized_uvw(ants, time, phase_dir, auto_correlations):
+    """
+    Synthesizes new UVW coordinates based on time according to
+    NRAO CASA convention (same as in fixvis)
+    User should check these UVW coordinates carefully:
+    if time centroid was used to compute
+    original uvw coordinates the centroids
+    of these new coordinates may be wrong, depending on whether
+    data timesteps were heavily flagged.
+    """
+    pytest.importorskip('pyrap')
+
+    from pyrap.measures import measures
+    from pyrap.quanta import quantity as q
+
+    dm = measures()
+    epoch = dm.epoch("UT1", q(time[0], "s"))
+    ref_dir = dm.direction("j2000",
+                           q(phase_dir[0], "rad"),
+                           q(phase_dir[1], "rad"))
+    ox, oy, oz = ants[0]
+    obs = dm.position("ITRF", q(ox, "m"), q(oy, "m"), q(oz, "m"))
+
+    # Setup local horizon coordinate frame with antenna 0 as reference position
+    dm.do_frame(obs)
+    dm.do_frame(ref_dir)
+    dm.do_frame(epoch)
+
+    ant1, ant2 = np.triu_indices(ants.shape[0],
+                                 0 if auto_correlations else 1)
+
+    ant1 = ant1.astype(np.int32)
+    ant2 = ant2.astype(np.int32)
+
+    ntime = time.shape[0]
+    nbl = ant1.shape[0]
+    rows = ntime * nbl
+    uvw = np.empty((rows, 3), dtype=np.float64)
+
+    # For each timestep
+    for ti, t in enumerate(time):
+        epoch = dm.epoch("UT1", q(t, "s"))
+        dm.do_frame(epoch)
+
+        ant_uvw = np.zeros_like(ants)
+
+        # Calculate antenna UVW positions
+        for ai, (x, y, z) in enumerate(ants):
+            bl = dm.baseline("ITRF",
+                             q([x, ox], "m"),
+                             q([y, oy], "m"),
+                             q([z, oz], "m"))
+
+            ant_uvw[ai] = dm.to_uvw(bl)["xyz"].get_value()[0:3]
+
+        # Now calculate baseline UVW positions
+        # noting that ant1 - ant2 is the CASA convention
+        base = ti*nbl
+        uvw[base:base + nbl, :] = ant_uvw[ant1] - ant_uvw[ant2]
+
+    return ant1, ant2, uvw
+
+
 @pytest.mark.parametrize("decorrelation", [0.95])
 @pytest.mark.parametrize("min_nchan", [1])
-def test_bda_mapper(time, ants, interval, phase_dir,
+def test_bda_mapper(time, synthesized_uvw, interval,
                     chan_freq, chan_width,
-                    auto_corrs, decorrelation, min_nchan):
+                    decorrelation, min_nchan):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants, time, phase_dir, auto_corrs)
+    ant1, ant2, uvw = synthesized_uvw
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
@@ -203,12 +211,12 @@ def test_bda_mapper(time, ants, interval, phase_dir,
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
-@pytest.mark.parametrize("auto_corrs", [False, True])
-def test_bda_binner(time, ants, interval, phase_dir,
-                    ref_freq, chan_freq, chan_width,
-                    auto_corrs):
+def test_bda_binner(time, interval, synthesized_uvw,
+                    ref_freq, chan_freq, chan_width):
     time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants[:2], time, phase_dir, auto_corrs)
+    ant1, ant2, uvw = synthesized_uvw
+
+    auto_corrs = np.any(ant1 == ant2)
 
     nbl = ant1.shape[0]
     ntime = time.shape[0]
