@@ -320,13 +320,13 @@ RowMapOutput = namedtuple("RowMapOutput",
 
 @generated_jit(nopython=True, nogil=True, cache=True)
 def bda_mapper(time, interval, ant1, ant2, uvw,
-                    chan_width, chan_freq,
-                    max_uvw_dist,
-                    flag_row=None,
-                    max_fov=3.0,
-                    decorrelation=0.98,
-                    time_bin_secs=None,
-                    min_nchan=1):
+               chan_width, chan_freq,
+               max_uvw_dist,
+               flag_row=None,
+               max_fov=3.0,
+               decorrelation=0.98,
+               time_bin_secs=None,
+               min_nchan=1):
 
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 

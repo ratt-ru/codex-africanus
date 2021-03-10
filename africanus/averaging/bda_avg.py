@@ -549,13 +549,13 @@ def bda(time, interval, antenna1, antenna2,
         flag_row = merge_flags(flag_row, flag)
 
         meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
-                               chan_width, chan_freq,
-                               max_uvw_dist,
-                               flag_row=flag_row,
-                               max_fov=max_fov,
-                               decorrelation=decorrelation,
-                               time_bin_secs=time_bin_secs,
-                               min_nchan=min_nchan)
+                          chan_width, chan_freq,
+                          max_uvw_dist,
+                          flag_row=flag_row,
+                          max_fov=max_fov,
+                          decorrelation=decorrelation,
+                          time_bin_secs=time_bin_secs,
+                          min_nchan=min_nchan)
 
         row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
                               time_centroid, exposure, uvw,

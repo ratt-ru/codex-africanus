@@ -184,12 +184,12 @@ def test_atemkeng_bda_mapper(time, ants, interval, phase_dir,
     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
     row_meta = bda_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
-                               chan_width, chan_freq,
-                               max_uvw_dist,
-                               flag_row=flag_row,
-                               max_fov=3.0,
-                               decorrelation=decorrelation,
-                               min_nchan=min_nchan)
+                          chan_width, chan_freq,
+                          max_uvw_dist,
+                          flag_row=flag_row,
+                          max_fov=3.0,
+                          decorrelation=decorrelation,
+                          min_nchan=min_nchan)
 
     offsets = np.unique(row_meta.map[np.arange(time.shape[0]), 0])
     assert_array_equal(offsets, row_meta.offsets[:-1])

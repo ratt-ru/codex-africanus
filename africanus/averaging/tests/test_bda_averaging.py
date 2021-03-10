@@ -6,54 +6,66 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
 
-from africanus.averaging.tests.test_bda_mapping import (  # noqa: F401
-                            synthesize_uvw,
-                            time,
-                            interval,
-                            ants,
-                            phase_dir,
-                            chan_width,
-                            chan_freq)
-
-from africanus.averaging.bda_mapping import bda_mapper, RowMapOutput
-from africanus.averaging.bda_avg import row_average, row_chan_average, bda
+from africanus.averaging.bda_mapping import RowMapOutput
+from africanus.averaging.bda_avg import row_average, row_chan_average
+from africanus.averaging.dask import bda as dask_bda
 
 
-@pytest.fixture
-def vis():
-    def _vis(row, chan, fcorrs):
-        flat_vis = (np.arange(row*chan*fcorrs, dtype=np.float64) +
-                    np.arange(1, row*chan*fcorrs+1, dtype=np.float64)*1j)
-
-        return flat_vis.reshape(row, chan, fcorrs)
-
-    return _vis
-
-
-@pytest.fixture
-def flag():
-    def _flag(row, chan, fcorrs):
-        return np.random.randint(0, 2, (row, chan, fcorrs))
-
-    return _flag
-
-
-@pytest.fixture
-def bda_test_map():
+@pytest.fixture(params=[
     # 5 rows, 4 channels => 3 rows
     #
     # row 1 contains 2 channels
     # row 2 contains 3 channels
     # row 3 contains 1 channel
-
-    return np.array([[0, 0, 1, 1],
-                     [0, 0, 1, 1],
-                     [2, 3, 3, 4],
-                     [2, 3, 3, 4],
-                     [5, 5, 5, 5]])
+    [[0, 0, 1, 1],
+     [0, 0, 1, 1],
+     [2, 3, 3, 4],
+     [2, 3, 3, 4],
+     [5, 5, 5, 5]]
+])
+def bda_test_map(request):
+    return np.asarray(request.param)
 
 
 @pytest.fixture(params=[
+    # No flags
+    [[0, 0, 0, 0],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0]],
+
+    # Row 0 and 1 flagged
+    [[1, 1, 1, 1],
+     [1, 1, 1, 1],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0]],
+
+    # Row 2 flagged
+    [[0, 0, 0, 0],
+     [0, 0, 0, 0],
+     [1, 1, 1, 1],
+     [0, 0, 0, 0],
+     [0, 0, 0, 0]],
+
+    # Row 0, 2, 4 flagged
+    [[1, 1, 1, 1],
+     [0, 0, 0, 0],
+     [1, 1, 1, 1],
+     [0, 0, 0, 0],
+     [1, 1, 1, 1]],
+
+
+    # All flagged
+    [[1, 1, 1, 1],
+     [1, 1, 1, 1],
+     [1, 1, 1, 1],
+     [1, 1, 1, 1],
+     [1, 1, 1, 1]],
+
+
+    # Partially flagged
     [[0, 1, 0, 1],
      [0, 1, 0, 0],
      [0, 0, 0, 0],
@@ -61,7 +73,7 @@ def bda_test_map():
      [1, 0, 0, 0]],
 ])
 def flags(request):
-    return request.param
+    return np.asarray(request.param)
 
 
 @pytest.fixture
@@ -73,15 +85,6 @@ def inv_bda_test_map(bda_test_map):
 
     return {ro: tuple(list(i) for i in zip(*v))
             for ro, v in inv.items()}
-
-
-@pytest.fixture(params=[[], [0, 1], [2], [2, 3], [4], [0, 2, 4]])
-def flag_row(request, bda_test_map):
-    row, _ = bda_test_map.shape
-    flag_row = np.full(row, 0, np.uint8)
-    flag_row[request.param] = 1
-
-    return flag_row
 
 
 def _effective_row_map(flag_row, inv_row_map):
@@ -100,6 +103,19 @@ def _effective_row_map(flag_row, inv_row_map):
     return emap
 
 
+def _effective_rowchan_map(flags, inv_bda_test_map):
+    emap = []
+
+    for _, (rows, chans) in sorted(inv_bda_test_map.items()):
+        if flags[rows, chans].all():
+            emap.append((rows, chans))
+        else:
+            it = ((r, c) for r, c in zip(rows, chans) if flags[r, c] == 0)
+            emap.append(tuple(map(list, zip(*it))))
+
+    return emap
+
+
 def _calc_sigma(weight, sigma, rows):
     weight = weight[rows]
     sigma = sigma[rows]
@@ -110,12 +126,16 @@ def _calc_sigma(weight, sigma, rows):
     return np.sqrt(numerator / denominator)
 
 
-def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
+def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
     rs = np.random.RandomState(42)
+
+    # Derive flag_row from flags
+    flag_row = flags.all(axis=1)
 
     out_chan = np.array([np.unique(rows).size for rows
                          in np.unique(bda_test_map, axis=0)])
 
+    # Number of output rows is sum of row channels
     out_row = out_chan.sum()
     assert out_row == bda_test_map.max() + 1
 
@@ -130,8 +150,6 @@ def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
     weight = rs.normal(size=(in_row, in_corr))
     sigma = rs.normal(size=(in_row, in_corr))
     chan_width = np.repeat(.856e9 / out_chan, out_chan)
-    # chan_freq = np.repeat([np.linspace(.856e9, oc) for oc in out_chan], out_chan)
-
 
     # Aggregate time and interval, in_row => out_row
     # first channel in the map. We're only averaging over
@@ -198,155 +216,98 @@ def test_bda_row_avg(bda_test_map, inv_bda_test_map, flag_row):
 
     vshape = (in_row, in_chan, in_corr)
     vis = rs.normal(size=vshape) + rs.normal(size=vshape)*1j
+    weight_spectrum = rs.normal(size=vshape)
+    sigma_spectrum = rs.normal(size=vshape)
+    flag = np.broadcast_to(flags[:, :, None], vshape)
 
-    row_chan_avg = row_chan_average(meta, visibilities=vis)
+    effective_map = _effective_rowchan_map(flags, inv_bda_test_map)
+    out_ws = np.stack([
+        weight_spectrum[r, c, :].sum(axis=0) for r, c in effective_map])
+    out_ss = np.stack([
+        (sigma_spectrum[r, c, :]**2 * weight_spectrum[r, c, :]**2).sum(axis=0)
+        for r, c in effective_map])
+    out_vis = np.stack([
+        (vis[r, c, :]*weight_spectrum[r, c, :]).sum(axis=0)
+        for r, c in effective_map])
+    out_flag = np.stack([flag[r, c, :].all(axis=0) for r, c in effective_map])
 
-    out_vis = [vis[rows, chans, :].mean(axis=0) for _, (rows, chans)
-               in sorted(inv_bda_test_map.items())]
-    assert_array_equal(row_chan_avg.vis, np.stack(out_vis))
+    weight_div = out_ws.copy()
+    weight_div[weight_div == 0.0] = 1.0
+    out_vis /= weight_div
+    out_ss = np.sqrt(out_ss / (weight_div**2))
 
+    # Broadcast flag data up to correlation dimension
+    row_chan_avg = row_chan_average(
+        meta, flag_row=flag_row, visibilities=vis,
+        weight_spectrum=weight_spectrum,
+        sigma_spectrum=sigma_spectrum,
+        flag=flag)
 
-def test_bda_row_chan_avg(bda_test_map, inv_bda_test_map):
-    pass
-
-def test_bda_avg(time, interval, ants,   # noqa: F811
-                 phase_dir,              # noqa: F811
-                 chan_freq, chan_width,  # noqa: F811
-                 vis, flag):             # noqa: F811
-    time = np.unique(time)
-    ant1, ant2, uvw = synthesize_uvw(ants[:14], time, phase_dir, False)
-
-    nchan = chan_width.shape[0]
-    ncorr = 4
-
-    nbl = ant1.shape[0]
-    ntime = time.shape[0]
-
-    time = np.repeat(time, nbl)
-    interval = np.repeat(interval, nbl)
-    ant1 = np.tile(ant1, ntime)
-    ant2 = np.tile(ant2, ntime)
-    flag_row = np.zeros(time.shape[0], dtype=np.int8)
-
-    decorrelation = 0.999
-    max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
-
-    vis = vis(time.shape[0], nchan, ncorr)
-    flag = flag(time.shape[0], nchan, ncorr)
-    flag_row = np.all(flag, axis=(1, 2))
-    weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
-    sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
-
-    import time as timing
-
-    none_flag_row = None
-    start = timing.perf_counter()
-    meta = bda_mapper(time, interval, ant1, ant2, uvw,
-                      chan_width, chan_freq,
-                      max_uvw_dist,
-                      flag_row=none_flag_row, max_fov=3.0,
-                      decorrelation=decorrelation)
-
-    time_centroid = time
-    exposure = interval
-
-    start = timing.perf_counter()
-    row_avg = row_average(meta, ant1, ant2, none_flag_row,  # noqa: F841
-                          time_centroid, exposure,
-                          uvw, weight=None, sigma=None)
-
-    print("row_average: %f" % (timing.perf_counter() - start))
-
-    assert_array_almost_equal(row_avg.exposure, meta.interval)
-    assert_array_almost_equal(row_avg.time_centroid, meta.time)
-
-    # vis = vis(time.shape[0], nchan, ncorr)
-    # flag = flag(time.shape[0], nchan, ncorr)
-    # weight_spectrum = np.random.random(size=flag.shape).astype(np.float64)
-    # sigma_spectrum = np.random.random(size=flag.shape).astype(np.float64)
-
-    start = timing.perf_counter()
-    row_chan = row_chan_average(meta,  # noqa: F841
-                                flag_row=flag_row,
-                                visibilities=vis, flag=flag,
-                                weight_spectrum=weight_spectrum,
-                                sigma_spectrum=sigma_spectrum)
-
-    row_chan2 = row_chan_average(meta,  # noqa: F841
-                                 flag_row=flag_row,
-                                 visibilities=(vis, vis), flag=flag,
-                                 weight_spectrum=weight_spectrum,
-                                 sigma_spectrum=sigma_spectrum)
-
-    assert_array_almost_equal(row_chan.vis, row_chan2.vis[0])
-    assert_array_almost_equal(row_chan.vis, row_chan2.vis[1])
-    assert_array_almost_equal(row_chan.flag, row_chan2.flag)
-    assert_array_almost_equal(row_chan.weight_spectrum,
-                              row_chan2.weight_spectrum)
-    assert_array_almost_equal(row_chan.sigma_spectrum,
-                              row_chan2.sigma_spectrum)
-
-    print("row_chan_average: %f" % (timing.perf_counter() - start))
-
-    print(vis.shape, vis.nbytes / (1024.**2),
-          row_chan.vis.shape, row_chan.vis.nbytes / (1024.**2))
-
-    avg = bda(time, interval, ant1, ant2,  # noqa: F841
-              time_centroid=time_centroid, exposure=exposure,
-              flag_row=flag_row, uvw=uvw,
-              chan_freq=chan_freq, chan_width=chan_width,
-              visibilities=vis, flag=flag,
-              weight_spectrum=weight_spectrum,
-              sigma_spectrum=sigma_spectrum,
-              max_uvw_dist=max_uvw_dist)
+    assert_array_almost_equal(row_chan_avg.vis, out_vis)
+    assert_array_almost_equal(row_chan_avg.flag, out_flag)
+    assert_array_almost_equal(row_chan_avg.weight_spectrum, out_ws)
+    assert_array_almost_equal(row_chan_avg.sigma_spectrum, out_ss)
 
 
 @pytest.mark.parametrize("vis_format", ["ragged", "flat"])
-def test_dask_bda_avg(time, interval, ants,   # noqa: F811
-                      phase_dir,              # noqa: F811
-                      chan_freq, chan_width,  # noqa: F811
-                      vis, flag,              # noqa: F811
-                      vis_format):            # noqa: F811
+def test_dask_bda_avg(vis_format):
     da = pytest.importorskip('dask.array')
-    from africanus.averaging.dask import bda as dask_bda
 
-    time = np.unique(time)
-    interval = interval[:time.shape[0]]
-    ant1, ant2, uvw = synthesize_uvw(ants[:14], time, phase_dir, False)
+    dim_chunks = {
+        "chan": (4,),
+        "time": (5, 4, 5),
+        "ant": (7,),
+        "corr": (4,)
+    }
 
-    nchan = chan_width.shape[0]
-    ncorr = 4
-
+    ant1, ant2 = np.triu_indices(sum(dim_chunks["ant"]), 1)
+    ant1 = ant1.astype(np.int32)
+    ant2 = ant2.astype(np.int32)
     nbl = ant1.shape[0]
-    ntime = time.shape[0]
-
+    ntime = sum(dim_chunks["time"])
+    time = np.linspace(1.0, 2.0, ntime)
     time = np.repeat(time, nbl)
-    interval = np.repeat(interval, nbl)
     ant1 = np.tile(ant1, ntime)
     ant2 = np.tile(ant2, ntime)
-    flag_row = np.zeros(time.shape[0], dtype=np.uint8)
-    vis = vis(time.shape[0], nchan, ncorr)
-    flag = flag(time.shape[0], nchan, ncorr)
-    mask = flag_row.astype(np.bool)
-    flag[mask, :, :] = 1
+    interval = np.full(time.shape, 1.0)
 
-    assert time.shape == ant1.shape
+    row_chunks = tuple(t*nbl for t in dim_chunks["time"])
+    nrow = sum(row_chunks)
+    assert nrow == time.shape[0]
+
+    nchan = sum(dim_chunks["chan"])
+    ncorr = sum(dim_chunks["corr"])
+
+    flag_row = np.zeros(time.shape[0], dtype=np.uint8)
+    vshape = (nrow, nchan, ncorr)
+
+    rs = np.random.RandomState(42)
+    uvw = rs.normal(size=(nrow, 3))
+    vis = rs.normal(size=vshape) + rs.normal(size=vshape)*1j
+    flag = rs.randint(0, 2, size=vshape)
+    flag_row = flag.all(axis=(1, 2))
+    assert flag_row.shape == (nrow,)
+
+    chan_freq = np.linspace(.856e9, 2*.856e9, nchan)
+    chan_width = np.full(nchan, .856e9 / nchan)
+    chan_chunks = dim_chunks["chan"]
 
     decorrelation = 0.999
-    chunks = 1000
 
-    da_time = da.from_array(time, chunks=chunks)
-    da_interval = da.from_array(interval, chunks=chunks)
-    da_flag_row = da.from_array(flag_row, chunks=chunks)
-    da_ant1 = da.from_array(ant1, chunks=chunks)
-    da_ant2 = da.from_array(ant2, chunks=chunks)
-    da_uvw = da.from_array(uvw, chunks=(chunks, 3))
+    vis_chunks = (row_chunks, chan_chunks, dim_chunks["corr"])
+
+    da_time = da.from_array(time, chunks=row_chunks)
+    da_interval = da.from_array(interval, chunks=row_chunks)
+    da_flag_row = da.from_array(flag_row, chunks=row_chunks)
+    da_ant1 = da.from_array(ant1, chunks=row_chunks)
+    da_ant2 = da.from_array(ant2, chunks=row_chunks)
+    da_uvw = da.from_array(uvw, chunks=(row_chunks, 3))
     da_time_centroid = da_time
     da_exposure = da_interval
-    da_chan_freq = da.from_array(chan_freq, chunks=nchan)
-    da_chan_width = da.from_array(chan_width, chunks=nchan)
-    da_vis = da.from_array(vis, chunks=(chunks, nchan, ncorr))
-    da_flag = da.from_array(flag, chunks=(chunks, nchan, ncorr))
+    da_chan_freq = da.from_array(chan_freq, chunks=chan_chunks)
+    da_chan_width = da.from_array(chan_width, chunks=chan_chunks)
+    da_vis = da.from_array(vis, chunks=vis_chunks)
+    da_flag = da.from_array(flag, chunks=vis_chunks)
 
     avg = dask_bda(da_time, da_interval, da_ant1, da_ant2,
                    time_centroid=da_time_centroid, exposure=da_exposure,
