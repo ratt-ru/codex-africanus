@@ -661,16 +661,35 @@ min_nchan : int, optional
 Notes
 -----
 
+In all cases arrays starting with :code:`(row, chan)`
+and :code:`(row,)` dimensions are respectively averaged
+and expanded into a :code:`(rowchan,)` dimension,
+as the number of channels varies per output row.
+
+The output namedtuple contains an `offsets` array of
+shape :code:`(out_rows + 1,)` encoding the starting
+offsets of each output row, as well as a single entry at
+the end such that :code:`np.diff(offsets)` produces
+the number of channels for each output row.
+
+.. code-block:: python
+
+    avg = bda(...)
+    time = avg.time[avg.offsets[:-1]]
+    out_chans = np.diff(avg.offsets)
+
 The implementation currently requires unique lexicographical
 combinations of (TIME, ANTENNA1, ANTENNA2). This can usually
 be achieved by suitably partitioning input data on indexing rows,
 DATA_DESC_ID and SCAN_NUMBER in particular.
+
 
 Returns
 -------
 namedtuple
     A namedtuple whose entries correspond to the input arrays.
     Output arrays will be ``None`` if the inputs were ``None``.
+    See the Notes for an explanation of the output formats.
 """)
 
 try:
