@@ -2,6 +2,10 @@
 History
 =======
 
+0.2.11 (YYYY-MM-DD)
+-------------------
+* Baseline-Dependent Time-and-Channel Averaging (:pr:`173`)
+
 0.2.10 (2021-02-09)
 -------------------
 * Don't let dof go to zero during spi fitting (:pr:`240`)
