@@ -243,7 +243,7 @@ def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
         sigma_spectrum=sigma_spectrum,
         flag=flag)
 
-    assert_array_almost_equal(row_chan_avg.vis, out_vis)
+    assert_array_almost_equal(row_chan_avg.visibilities, out_vis)
     assert_array_almost_equal(row_chan_avg.flag, out_flag)
     assert_array_almost_equal(row_chan_avg.weight_spectrum, out_ws)
     assert_array_almost_equal(row_chan_avg.sigma_spectrum, out_ss)
@@ -319,7 +319,7 @@ def test_dask_bda_avg(vis_format):
 
     avg = {f: getattr(avg, f) for f in ("time", "interval",
                                         "time_centroid", "exposure",
-                                        "vis")}
+                                        "visibilities")}
 
     avg2 = dask_bda(da_time, da_interval, da_ant1, da_ant2,
                     time_centroid=da_time_centroid, exposure=da_exposure,
@@ -330,8 +330,8 @@ def test_dask_bda_avg(vis_format):
                     format=vis_format)
 
     avg2 = {f: getattr(avg2, f) for f in ("time", "interval",
-                                          "time_centroid",
-                                          "exposure", "vis")}
+                                          "time_centroid", "exposure",
+                                          "visibilities")}
 
     import dask
     result = dask.persist(avg, scheduler='single-threaded')[0]
@@ -341,11 +341,11 @@ def test_dask_bda_avg(vis_format):
     assert_array_almost_equal(result['time'], result['time_centroid'])
 
     # Flatten all three visibility graphs
-    dsk1 = dict(result['vis'].__dask_graph__())
-    dsk2 = dict(result2['vis'][0].__dask_graph__())
-    dsk3 = dict(result2['vis'][1].__dask_graph__())
-    dsk2_name = result2['vis'][0].name
-    dsk3_name = result2['vis'][1].name
+    dsk1 = dict(result["visibilities"].__dask_graph__())
+    dsk2 = dict(result2["visibilities"][0].__dask_graph__())
+    dsk3 = dict(result2["visibilities"][1].__dask_graph__())
+    dsk2_name = result2["visibilities"][0].name
+    dsk3_name = result2["visibilities"][1].name
 
     # For each task, compare the row dictionaries
     for k, v in dsk1.items():

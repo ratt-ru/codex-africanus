@@ -291,7 +291,7 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     chan_avg_shape = (row_meta.interval.shape[0], chan_bins, flag.shape[2])
 
-    assert avg.vis.shape == chan_avg_shape
+    assert avg.visibilities.shape == chan_avg_shape
     assert avg.flag.shape == chan_avg_shape
     assert avg.weight_spectrum.shape == chan_avg_shape
     assert avg.sigma_spectrum.shape == chan_avg_shape
@@ -326,7 +326,8 @@ def test_averager(time, ant1, ant2, flagged_rows,
                     exp_vis = exp_vis / exp_wts
                     exp_sigma = np.sqrt(exp_sigma / (exp_wts**2))
 
-                assert_array_almost_equal(exp_vis, avg.vis[orow, ch, corr])
+                assert_array_almost_equal(exp_vis,
+                                          avg.visibilities[orow, ch, corr])
                 assert_array_almost_equal(exp_wts,
                                           avg.weight_spectrum[orow, ch, corr])
                 assert_array_almost_equal(exp_sigma,
@@ -415,13 +416,13 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                               avg.chan_freq,
                               avg.chan_width,
                               avg.resolution,
-                              avg.vis, avg.flag)
+                              avg.visibilities, avg.flag)
 
     # Should match
     assert_array_equal(np_avg.time_centroid, avg_time_centroid)
     assert_array_equal(np_avg.exposure, avg_exposure)
     assert_array_equal(np_avg.flag_row, avg_flag_row)
-    assert_array_equal(np_avg.vis, avg_vis)
+    assert_array_equal(np_avg.visibilities, avg_vis)
     assert_array_equal(np_avg.flag, avg_flag)
     assert_array_equal(np_avg.chan_freq, avg_chan_freq)
     assert_array_equal(np_avg.chan_width, avg_chan_width)
@@ -459,5 +460,5 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
                     time_bin_secs=time_bin_secs,
                     chan_bin_size=chan_bin_size)
 
-    assert_array_equal(avg.vis, avg2.vis[0])
-    assert_array_equal(avg.vis, avg2.vis[1])
+    assert_array_equal(avg.visibilities, avg2.visibilities[0])
+    assert_array_equal(avg.visibilities, avg2.visibilities[1])

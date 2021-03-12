@@ -183,7 +183,10 @@ def row_average(meta, ant1, ant2, flag_row=None,
     return impl
 
 
-_rowchan_output_fields = ["vis", "flag", "weight_spectrum", "sigma_spectrum"]
+_rowchan_output_fields = ["visibilities",
+                          "flag",
+                          "weight_spectrum",
+                          "sigma_spectrum"]
 RowChanAverageOutput = namedtuple("RowChanAverageOutput",
                                   _rowchan_output_fields)
 
@@ -587,7 +590,7 @@ def bda(time, interval, antenna1, antenna2,
                              # None,  # chan_data.chan_width,
                              # None,  # chan_data.effective_bw,
                              # None,  # chan_data.resolution,
-                             row_chan_avg.vis,
+                             row_chan_avg.visibilites,
                              row_chan_avg.flag,
                              row_chan_avg.weight_spectrum,
                              row_chan_avg.sigma_spectrum)
@@ -628,7 +631,7 @@ effective_bw : $(array_type), optional
     Effective channel bandwidth of shape :code:`(chan,)`.
 resolution : $(array_type), optional
     Effective channel resolution of shape :code:`(chan,)`.
-visibility : $(array_type) or tuple of $(array_type), optional
+visibilities : $(array_type) or tuple of $(array_type), optional
     Visibility data of shape :code:`(row, chan, corr)`.
     Tuples of visibilities arrays may be supplied,
     in which case tuples will be output.
