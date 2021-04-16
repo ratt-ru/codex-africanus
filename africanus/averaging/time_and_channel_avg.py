@@ -615,6 +615,8 @@ def time_and_channel(time, interval, antenna1, antenna2,
                                    chan_freq, chan_width,
                                    effective_bw, resolution)
 
+
+
         # Merge flag_row and flag arrays
         flag_row = merge_flags(flag_row, flag)
 

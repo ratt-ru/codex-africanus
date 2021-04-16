@@ -2,6 +2,7 @@
 
 
 from collections import namedtuple
+from numbers import Number
 
 import numpy as np
 import numba
@@ -15,108 +16,199 @@ class RowMapperError(Exception):
     pass
 
 
-def is_flagged_factory(have_flag_row):
-    if have_flag_row:
-        def impl(flag_row, r):
-            return flag_row[r] != 0
+def _numba_type(obj):
+    if isinstance(obj, np.ndarray):
+        return numba.typeof(obj.dtype).dtype
+    elif isinstance(obj, numba.types.npytypes.Array):
+        return obj.dtype
+    elif isinstance(obj, (np.dtype, numba.types.Type)):
+        return numba.typeof(obj).dtype
+    elif isinstance(obj, Number):
+        return numba.typeof(obj)
     else:
-        def impl(flag_row, r):
-            return False
-
-    return njit(nogil=True, cache=True)(impl)
+        raise TypeError(f"Unhandled type {type(obj)}")
 
 
-def output_factory(have_flag_row):
-    if have_flag_row:
-        def impl(rows, flag_row):
-            return np.zeros(rows, dtype=flag_row.dtype)
+def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
+    if flag_row is None:
+        have_flag_row = False
     else:
-        def impl(rows, flag_row):
-            return None
+        have_flag_row = not is_numba_type_none(flag_row)
 
-    return njit(nogil=True, cache=True)(impl)
+    class Binner:
+        def __init__(self, time, interval, antenna1, antenna2, flag_row, time_bin_secs):
+            ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
+            utime, _, time_inv, _ = unique_time(time)
+
+            ntime = utime.shape[0]
+            nbl = ubl.shape[0]
+            self.bl_inv = bl_inv
+            self.time_inv = time_inv
+            self.out_rows = 0
+            row_lookup = np.full((nbl, ntime), -1, dtype=np.intp)
+
+            # Create a mapping from the full bl x time resolution back
+            # to the original input rows
+            for r, (t, bl) in enumerate(zip(time_inv, bl_inv)):
+                if row_lookup[bl, t] == -1:
+                    row_lookup[bl, t] = r
+                else:
+                    raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2) "
+                                    "combinations were discovered in the input "
+                                    "data. This is usually caused by not "
+                                    "partitioning your data sufficiently "
+                                    "by indexing columns, DATA_DESC_ID "
+                                    "and SCAN_NUMBER in particular.")
 
 
-def set_flag_row_factory(have_flag_row):
-    if have_flag_row:
-        def impl(flag_row, in_row, out_flag_row, out_row, flagged):
-            if flag_row[in_row] == 0 and flagged:
-                raise RowMapperError("Unflagged input row contributing "
-                                     "to flagged output row. "
-                                     "This should never happen!")
+            sentinel = np.finfo(time.dtype).max
 
-            out_flag_row[out_row] = (1 if flagged else 0)
-    else:
-        def impl(flag_row, in_row, out_flag_row, out_row, flagged):
-            pass
+            self.row_lookup = row_lookup
+            self.time_bin_secs = time_bin_secs
+            self.time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
+            self.interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
+            self.bin_flagged = np.full((nbl, ntime), False)
+            self.bin_lookup = np.full((nbl, ntime), -1)
 
-    return njit(nogil=True, cache=True)(impl)
+            self.time = time
+            self.interval = interval
 
+            if have_flag_row:
+                self.flag_row = flag_row
 
-FinaliseOutput = namedtuple("FinaliseOutput",
-                            ["tbin", "time", "interval", "flag"])
+        def start_baseline(self):
+            self.tbin = 0
+            self.rs = 0
+            self.re = 0
+            self.bin_count = 0
+            self.bin_flag_count = 0
 
+        def finalise_baseline(self):
+            self.out_rows += self.tbin
 
-class Binner:
-    def __init__(self, row_start, row_end, time_bin_secs):
-        self.rs = row_start
-        self.re = row_end
-        self.time_bin_secs = time_bin_secs
-        self.tbin = 0
-        self.bin_count = 0
-        self.bin_flag_count = 0
+        @property
+        def bin_empty(self):
+            return self.bin_count == 0
 
-    def reset(self):
-        self.__init__(0, 0, self.time_bin_secs)
+        def start_bin(self, row, flag_row):
+            self.rs = row
+            self.re = row
+            self.bin_count = 1
+            self.bin_flag_count = int(have_flag_row and flag_row[row] != 0)
 
-    @property
-    def empty(self):
-        return self.bin_count == 0
+        def add_row(self, row, time, interval, flag_row):
+            rs = self.rs
 
-    def start_bin(self, row, flag_row):
-        self.rs = row
-        self.re = row
-        self.bin_count = 1
-        flagged = flag_row is not None and flag_row[row] != 0
-        self.bin_flag_count = int(flagged)
+            if self.re == row:
+                raise ValueError("start_bin should be called "
+                                 "to start a bin before add_row "
+                                 "is called.")
 
-    def add_row(self, row, auto_corr, time, interval, flag_row):
-        rs = self.rs
-        re = self.re
+            dt = (time[row] + 0.5*interval[row]) - (time[rs] - 0.5*interval[rs])
 
-        if re == row:
-            raise ValueError("start_bin should be called to start a bin "
-                             "before add_row is called.")
-
-        dt = (time[row] + 0.5*interval[row]) - (time[rs] - 0.5*interval[rs])
-
-        if dt > self.time_bin_secs:
-            return False
-        else:
+            if dt > self.time_bin_secs:
+                return False
             self.re = row
             self.bin_count += 1
-            flagged = flag_row is not None and flag_row[row] != 0
+            flagged = have_flag_row and flag_row[row] != 0
             self.bin_flag_count += int(flagged)
 
-        return True
+            return True
 
-    def finalise_bin(self, time, interval):
-        rs = self.rs
-        re = self.re
+        def finalise_bin(self, bl, next_row, time, interval):
+            rs = self.rs
+            re = self.re
+            tbin = self.tbin
 
-        if rs == re:
-            bin_time = time[rs]
-            bin_interval = interval[rs]
-        else:
-            dt = time[re] - time[rs]
-            bin_time = 0.5*(time[re] + time[rs])
-            bin_interval = 0.5*interval[rs] + 0.5*interval[re] + dt
+            # No averaging required
+            if rs == re:
+                bin_time = time[rs]
+                bin_interval = interval[rs]
+            # Use the row beyond the edge of the bin to define the
+            # nominal values of the bin
+            # elif next_row != re:
+            #     bin_time = 0.5*(time[next_row] + time[rs])
+            #     dt = time[next_row] - time[rs]
+            #     bin_interval = 0.5*interval[rs] + 0.5*interval[next_row] + dt
+            else:
+                bin_time = 0.5*(time[re] + time[rs])
+                dt = time[re] - time[rs]
+                bin_interval = 0.5*interval[rs] + 0.5*interval[re] + dt
 
-        out = FinaliseOutput(self.tbin, bin_time, bin_interval,
-                             self.bin_count == self.bin_flag_count)
+            self.time_lookup[bl, tbin] = bin_time
+            self.interval_lookup[bl, tbin] = bin_interval
+            self.bin_flagged[bl, tbin] = self.bin_count == self.bin_flag_count
 
-        self.tbin += 1
-        return out
+            self.tbin += 1
+
+        def execute(self):
+            row_lookup = self.row_lookup
+            time = self.time
+            interval = self.interval
+            flag_row = self.flag_row if have_flag_row else None
+            bin_lookup = self.bin_lookup
+
+            # Average times over each baseline and construct the
+            # bin_lookup and time_lookup arrays
+            for bl in range(row_lookup.shape[0]):
+                self.start_baseline()
+
+                for t in range(row_lookup.shape[1]):
+                    r = row_lookup[bl, t]
+
+                    if r == -1:
+                        continue
+
+                    if self.bin_empty:
+                        self.start_bin(r, flag_row)
+                    elif not self.add_row(r, time, interval, flag_row):
+                        # Can't add a new row to this bin, close it
+                        # and start a new one
+                        self.finalise_bin(bl, r, time, interval)
+                        self.start_bin(r, flag_row)
+
+                    # Register the output time bin for this row
+                    bin_lookup[bl, t] = self.tbin
+
+                # Close any open bins
+                if self.bin_empty:
+                    self.finalise_bin(bl, r, time, interval)
+
+                self.finalise_baseline()
+
+    time = _numba_type(time)
+    interval = _numba_type(interval)
+    antenna1 = _numba_type(antenna1)
+    antenna2 = _numba_type(antenna2)
+    time_bin_secs = _numba_type(time_bin_secs)
+
+    spec = [
+        ('out_rows', numba.uintp),
+        ('rs', numba.intp),
+        ('re', numba.intp),
+        ('tbin', numba.intp),
+        ('bin_count', numba.uintp),
+        ('bin_flag_count', numba.uintp),
+        ('bl_inv', numba.uintp[:]),
+        ('time_inv', numba.uintp[:])]
+
+    spec.extend([
+        ('time_lookup', time[:, :]),
+        ('interval_lookup', interval[:, :]),
+        ('row_lookup', numba.intp[:, :]),
+        ('bin_lookup', numba.intp[:, :]),
+        ('bin_flagged', numba.bool_[:, :]),
+        ('time_bin_secs', time_bin_secs)])
+
+    spec.extend([
+        ('time', time[:]),
+        ('interval', interval[:])])
+
+    if have_flag_row:
+        flag_row = _numba_type(flag_row)
+        spec.append(('flag_row', flag_row[:]))
+
+    return jitclass(spec)(Binner)
 
 
 RowMapOutput = namedtuple("RowMapOutput",
@@ -246,116 +338,29 @@ def row_mapper(time, interval, antenna1, antenna2,
 
     """
     have_flag_row = not is_numba_type_none(flag_row)
-
-    output_flag_row = output_factory(have_flag_row)
-    set_flag_row = set_flag_row_factory(have_flag_row)
-
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
     time_bin_secs_type = time_bin_secs if have_time_bin_secs else time.dtype
 
-    spec = [
-        ('tbin', numba.uintp),
-        ('bin_count', numba.uintp),
-        ('bin_flag_count', numba.uintp),
-        ('rs', numba.uintp),
-        ('re', numba.uintp),
-        ('time_bin_secs', time_bin_secs_type)]
-
-    JitBinner = jitclass(spec)(Binner)
+    JitBinner = binner_factory(time, interval, antenna1, antenna2,
+                               flag_row, time_bin_secs_type)
 
     def impl(time, interval, antenna1, antenna2,
              flag_row=None, time_bin_secs=1):
-        ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
-        utime, _, time_inv, _ = unique_time(time)
-
-        nbl = ubl.shape[0]
-        ntime = utime.shape[0]
-
-        sentinel = np.finfo(time.dtype).max
-        out_rows = numba.uint32(0)
-
-        scratch = np.full(3*nbl*ntime, -1, dtype=np.int32)
-        row_lookup = scratch[:nbl*ntime].reshape(nbl, ntime)
-        bin_lookup = scratch[nbl*ntime:2*nbl*ntime].reshape(nbl, ntime)
-        inv_argsort = scratch[2*nbl*ntime:]
-        time_lookup = np.zeros((nbl, ntime), dtype=time.dtype)
-        interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
-
-        # Is the entire bin flagged?
-        bin_flagged = np.zeros((nbl, ntime), dtype=np.bool_)
-
-        # Create a mapping from the full bl x time resolution back
-        # to the original input rows
-        for r in range(time.shape[0]):
-            bl = bl_inv[r]
-            t = time_inv[r]
-
-            if row_lookup[bl, t] == -1:
-                row_lookup[bl, t] = r
-            else:
-                raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2) "
-                                 "combinations were discovered in the input "
-                                 "data. This is usually caused by not "
-                                 "partitioning your data sufficiently "
-                                 "by indexing columns, DATA_DESC_ID "
-                                 "and SCAN_NUMBER in particular.")
-
         # If we don't have time_bin_secs
         # set it to the maximum floating point value,
         # effectively ignoring this limit
         if not have_time_bin_secs:
             time_bin_secs = np.finfo(time.dtype).max
 
-        binner = JitBinner(0, 0, time_bin_secs)
-
-        # Average times over each baseline and construct the
-        # bin_lookup and time_lookup arrays
-        for bl in range(ubl.shape[0]):
-            binner.reset()
-
-            # Auto-correlated baseline
-            auto_corr = ubl[bl, 0] == ubl[bl, 1]
-
-            for t in range(utime.shape[0]):
-                # Lookup input row
-                r = row_lookup[bl, t]
-
-                # Ignore if not present
-                if r == -1:
-                    continue
-
-                if binner.empty:
-                    binner.start_bin(r, flag_row)
-                elif not binner.add_row(r, auto_corr, time,
-                                        interval, flag_row):
-                    f = binner.finalise_bin(time, interval)
-                    time_lookup[bl, f.tbin] = f.time
-                    interval_lookup[bl, f.tbin] = f.interval
-                    bin_flagged[bl, f.tbin] = f.flag
-                    binner.start_bin(r, flag_row)
-
-                # Record the output bin associated with the row
-                bin_lookup[bl, t] = binner.tbin
-
-            # Normalise the last bin if it has entries in it
-            if not binner.empty:
-                f = binner.finalise_bin(time, interval)
-                time_lookup[bl, f.tbin] = f.time
-                interval_lookup[bl, f.tbin] = f.interval
-                bin_flagged[bl, f.tbin] = f.flag
-
-            # Add this baseline's number of bins to the output rows
-            out_rows += binner.tbin
-
-            # Set any remaining bins to sentinel value and unflagged
-            for tbin in range(binner.tbin, ntime):
-                time_lookup[bl, tbin] = sentinel
-                bin_flagged[bl, tbin] = False
+        binner = JitBinner(time, interval, antenna1, antenna2,
+                           flag_row, time_bin_secs)
+        binner.execute()
 
         # Flatten the time lookup and argsort it
-        flat_time = time_lookup.ravel()
-        flat_int = interval_lookup.ravel()
+        flat_time = binner.time_lookup.ravel()
+        flat_int = binner.interval_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
+        inv_argsort = np.empty_like(argsort)
 
         # Generate lookup from flattened (bl, time) to output row
         for i, a in enumerate(argsort):
@@ -364,8 +369,22 @@ def row_mapper(time, interval, antenna1, antenna2,
         # Construct the final row map
         row_map = np.empty(time.shape[0], dtype=np.uint32)
 
+        nbl, ntime = binner.row_lookup.shape
+        out_rows = binner.out_rows
+        bin_lookup = binner.bin_lookup
+        bin_flagged = binner.bin_flagged
+        bl_inv = binner.bl_inv
+        time_inv = binner.time_inv
+
         # Construct output flag row, if necessary
-        out_flag_row = output_flag_row(out_rows, flag_row)
+        out_flag_row = (np.zeros(out_rows, dtype=flag_row.dtype)
+                        if have_flag_row else None)
+
+        # print("\n")
+        # print(flat_time)
+        # print(argsort)
+        # print(inv_argsort)
+        # print(bin_lookup)
 
         # foreach input row
         for in_row in range(time.shape[0]):
@@ -377,14 +396,25 @@ def row_mapper(time, interval, antenna1, antenna2,
             tbin = bin_lookup[bl, t]
             # lookup output row in inv_argsort
             out_row = inv_argsort[bl*ntime + tbin]
+            # print(in_row, bl, t, tbin, bl*ntime + tbin, out_row, out_rows)
 
             if out_row >= out_rows:
+                # print("\n")
+                # print(flat_time)
+                # print(argsort)
+                # print(inv_argsort)
+                # print(bin_lookup)
+                # print(in_row, bl, t, tbin, bl*ntime + tbin, out_row, out_rows)
                 raise RowMapperError("out_row >= out_rows")
 
-            # Handle output row flagging
-            set_flag_row(flag_row, in_row,
-                         out_flag_row, out_row,
-                         bin_flagged[bl, tbin])
+            if have_flag_row:
+                flagged = bin_flagged[bl, tbin]
+                if flag_row[in_row] == 0 and flagged:
+                    raise RowMapperError("Unflagged input row contributing "
+                                        "to flagged output row. "
+                                        "This should never happen!")
+
+                out_flag_row[out_row] = 1 if flagged else 0
 
             row_map[in_row] = out_row
 
