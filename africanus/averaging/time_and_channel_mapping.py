@@ -171,7 +171,7 @@ def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
                     bin_lookup[bl, t] = self.tbin
 
                 # Close any open bins
-                if self.bin_empty:
+                if not self.bin_empty:
                     self.finalise_bin(bl, r, time, interval)
 
                 self.finalise_baseline()
