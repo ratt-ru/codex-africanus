@@ -107,6 +107,29 @@ def test_row_mapper(time, interval, ant1, ant2,
     assert_array_almost_equal(new_exp, new_exp2)
 
 
+@pytest.mark.parametrize("time_bin_secs", [3.0])
+def test_interpolation(time_bin_secs):
+    time = np.linspace(1.0, 10.0, 10)
+    interval = np.full_like(time, 1.0, time.dtype)
+
+    ant1 = np.full_like(time, 0, np.int32)
+    ant2 = np.full_like(time, 1, np.int32)
+    flag_row = np.full_like(time, 0, np.uint8)
+
+    full = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
+
+    keep = [0, 1, 3, 4, 5, 7, 8, 9]
+    holes = row_mapper(time[keep], interval[keep],
+                       ant1[keep], ant2[keep],
+                       flag_row[keep], time_bin_secs)
+    print(full.time)
+    print(holes.time)
+    print(full.interval)
+    print(holes.interval)
+    assert_array_almost_equal(full.time, holes.time)
+    assert_array_almost_equal(full.interval, holes.interval)
+
+
 def test_channel_mapper():
     chan_map, out_chans = channel_mapper(64, 17)
 

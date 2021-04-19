@@ -9,7 +9,7 @@ import numba
 from numba.experimental import jitclass
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.util.numba import is_numba_type_none, generated_jit, njit, jit
+from africanus.util.numba import is_numba_type_none, generated_jit, njit
 
 
 class RowMapperError(Exception):
@@ -29,14 +29,16 @@ def _numba_type(obj):
         raise TypeError(f"Unhandled type {type(obj)}")
 
 
-def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
+def binner_factory(time, interval, antenna1, antenna2,
+                   flag_row, time_bin_secs):
     if flag_row is None:
         have_flag_row = False
     else:
         have_flag_row = not is_numba_type_none(flag_row)
 
     class Binner:
-        def __init__(self, time, interval, antenna1, antenna2, flag_row, time_bin_secs):
+        def __init__(self, time, interval, antenna1, antenna2,
+                     flag_row, time_bin_secs):
             ubl, _, bl_inv, _ = unique_baselines(antenna1, antenna2)
             utime, _, time_inv, _ = unique_time(time)
 
@@ -54,19 +56,18 @@ def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
                     row_lookup[bl, t] = r
                 else:
                     raise ValueError("Duplicate (TIME, ANTENNA1, ANTENNA2) "
-                                    "combinations were discovered in the input "
-                                    "data. This is usually caused by not "
-                                    "partitioning your data sufficiently "
-                                    "by indexing columns, DATA_DESC_ID "
-                                    "and SCAN_NUMBER in particular.")
-
+                                     "combinations were discovered in the "
+                                     "input data. This is usually caused by "
+                                     "not partitioning your data sufficiently "
+                                     "by indexing columns, DATA_DESC_ID "
+                                     "and SCAN_NUMBER in particular.")
 
             sentinel = np.finfo(time.dtype).max
 
             self.row_lookup = row_lookup
             self.time_bin_secs = time_bin_secs
-            self.time_lookup = np.full((nbl, ntime), sentinel, dtype=time.dtype)
-            self.interval_lookup = np.zeros((nbl, ntime), dtype=interval.dtype)
+            self.time_lookup = np.full((nbl, ntime), sentinel, time.dtype)
+            self.interval_lookup = np.zeros((nbl, ntime), interval.dtype)
             self.bin_flagged = np.full((nbl, ntime), False)
             self.bin_lookup = np.full((nbl, ntime), -1)
 
@@ -104,7 +105,8 @@ def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
                                  "to start a bin before add_row "
                                  "is called.")
 
-            dt = (time[row] + 0.5*interval[row]) - (time[rs] - 0.5*interval[rs])
+            dt = ((time[row] + 0.5*interval[row]) -
+                  (time[rs] - 0.5*interval[rs]))
 
             if dt > self.time_bin_secs:
                 return False
@@ -148,11 +150,16 @@ def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
                 if next_row != re:
                     # Use the time and interval of the next row outside
                     # the bin to establish the end time of the bin
-                    time_end = time[next_row] - 0.5*interval[rs]
+                    time_end = time[next_row] - 0.5*interval[next_row]
+
+                    if time_end - time_start > self.time_bin_secs:
+                        time_end = time_start + self.time_bin_secs
                 else:
-                    # Use the time and interval of the endiing row
+                    # Use the time and interval of the ending row
                     # to establish the end time of the bin
                     time_end = time[re] + 0.5*interval[re]
+
+                print(time_start, time_end)
 
                 # Establish the midpoint
                 bin_time = 0.5*(time_start + time_end)
@@ -422,8 +429,8 @@ def row_mapper(time, interval, antenna1, antenna2,
                 flagged = bin_flagged[bl, tbin]
                 if flag_row[in_row] == 0 and flagged:
                     raise RowMapperError("Unflagged input row contributing "
-                                        "to flagged output row. "
-                                        "This should never happen!")
+                                         "to flagged output row. "
+                                         "This should never happen!")
 
                 out_flag_row[out_row] = 1 if flagged else 0
 
@@ -437,7 +444,7 @@ def row_mapper(time, interval, antenna1, antenna2,
     return impl
 
 
-@jit(nopython=True, nogil=True, cache=True)
+@njit(nogil=True, cache=True)
 def channel_mapper(nchan, chan_bin_size=1):
     chan_map = np.empty(nchan, dtype=np.uint32)
 
