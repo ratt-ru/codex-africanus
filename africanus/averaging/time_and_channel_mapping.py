@@ -159,8 +159,6 @@ def binner_factory(time, interval, antenna1, antenna2,
                     # to establish the end time of the bin
                     time_end = time[re] + 0.5*interval[re]
 
-                print(time_start, time_end)
-
                 # Establish the midpoint
                 bin_time = 0.5*(time_start + time_end)
                 bin_interval = time_end - time_start
@@ -420,7 +418,6 @@ def row_mapper(time, interval, antenna1, antenna2,
             tbin = bin_lookup[bl, t]
             # lookup output row in inv_argsort
             out_row = inv_argsort[bl*ntime + tbin]
-            # print(in_row, bl, t, tbin, bl*ntime + tbin, out_row, out_rows)
 
             if out_row >= out_rows:
                 raise RowMapperError("out_row >= out_rows")
