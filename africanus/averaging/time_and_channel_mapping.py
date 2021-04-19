@@ -120,20 +120,43 @@ def binner_factory(time, interval, antenna1, antenna2, flag_row, time_bin_secs):
             re = self.re
             tbin = self.tbin
 
-            # No averaging required
+            # No interpolation required
             if rs == re:
                 bin_time = time[rs]
                 bin_interval = interval[rs]
-            # Use the row beyond the edge of the bin to define the
-            # nominal values of the bin
-            # elif next_row != re:
-            #     bin_time = 0.5*(time[next_row] + time[rs])
-            #     dt = time[next_row] - time[rs]
-            #     bin_interval = 0.5*interval[rs] + 0.5*interval[next_row] + dt
             else:
-                bin_time = 0.5*(time[re] + time[rs])
-                dt = time[re] - time[rs]
-                bin_interval = 0.5*interval[rs] + 0.5*interval[re] + dt
+                # Interpolate between bin start and end times.
+
+                # 1. We use the previous bin and the first row of
+                #    the next bin to establish this where possible
+                #    as these points determine the full bin extent.
+                # 2. Otherwise we must use the first and last row
+                #    in the bin for the first and last bin
+                #    respectively. This is not as accurate as (1),
+                #    but is best effort in the case of missing edge data
+                if tbin > 0:
+                    # Use the bin prior to this one to establish
+                    # the start time of the bin
+                    time_start = (self.time_lookup[bl, tbin - 1] +
+                                  0.5*self.interval_lookup[bl, tbin - 1])
+                else:
+                    # Use the time and interval of the starting row to
+                    # establish the start time of the bin
+                    time_start = time[rs] - 0.5*interval[rs]
+
+                # Find bin ending time
+                if next_row != re:
+                    # Use the time and interval of the next row outside
+                    # the bin to establish the end time of the bin
+                    time_end = time[next_row] - 0.5*interval[rs]
+                else:
+                    # Use the time and interval of the endiing row
+                    # to establish the end time of the bin
+                    time_end = time[re] + 0.5*interval[re]
+
+                # Establish the midpoint
+                bin_time = 0.5*(time_start + time_end)
+                bin_interval = time_end - time_start
 
             self.time_lookup[bl, tbin] = bin_time
             self.interval_lookup[bl, tbin] = bin_interval
@@ -380,12 +403,6 @@ def row_mapper(time, interval, antenna1, antenna2,
         out_flag_row = (np.zeros(out_rows, dtype=flag_row.dtype)
                         if have_flag_row else None)
 
-        # print("\n")
-        # print(flat_time)
-        # print(argsort)
-        # print(inv_argsort)
-        # print(bin_lookup)
-
         # foreach input row
         for in_row in range(time.shape[0]):
             # Lookup baseline and time
@@ -399,12 +416,6 @@ def row_mapper(time, interval, antenna1, antenna2,
             # print(in_row, bl, t, tbin, bl*ntime + tbin, out_row, out_rows)
 
             if out_row >= out_rows:
-                # print("\n")
-                # print(flat_time)
-                # print(argsort)
-                # print(inv_argsort)
-                # print(bin_lookup)
-                # print(in_row, bl, t, tbin, bl*ntime + tbin, out_row, out_rows)
                 raise RowMapperError("out_row >= out_rows")
 
             if have_flag_row:
