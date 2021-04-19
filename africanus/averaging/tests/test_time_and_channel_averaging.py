@@ -48,8 +48,6 @@ def uvw():
 @pytest.fixture
 def interval(time):
     return np.full_like(time, 1.0)
-    # data = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
-    # return 0.1 * data
 
 
 @pytest.fixture
