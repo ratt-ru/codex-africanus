@@ -4,6 +4,7 @@ History
 
 0.2.11 (YYYY-MM-DD)
 -------------------
+* Interpolate missing nominal values during Averaging (:pr:`246`)
 * Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
 
 0.2.10 (2021-02-09)

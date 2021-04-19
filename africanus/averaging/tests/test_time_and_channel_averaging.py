@@ -46,9 +46,8 @@ def uvw():
 
 
 @pytest.fixture
-def interval():
-    data = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
-    return 0.1 * data
+def interval(time):
+    return np.full_like(time, 1.0)
 
 
 @pytest.fixture
@@ -140,6 +139,37 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
     #    data
     # 2. Nominal row bin, which includes both flagged and unflagged rows
 
+    def _can_add_row(high, low):
+        dt = ((time[high] + 0.5*interval[high]) -
+              (time[low] - 0.5*interval[low]))
+
+        if dt > time_bin_secs:
+            return False
+
+        return True
+
+    def _time_avg(nominal_rows):
+        if len(nominal_rows) == 0:
+            raise ValueError("nominal_rows == 0")
+        elif len(nominal_rows) == 1:
+            return time[nominal_rows[0]]
+        else:
+            low = nominal_rows[0]
+            high = nominal_rows[-1]
+            return 0.5*(time[high] + time[low])
+
+    def _int_sum(nominal_rows):
+        if len(nominal_rows) == 0:
+            raise ValueError("nominal_rows == 0")
+        elif len(nominal_rows) == 1:
+            return interval[nominal_rows[0]]
+        else:
+            low = nominal_rows[0]
+            high = nominal_rows[-1]
+
+            return (0.5*interval[high] + 0.5*interval[low] +
+                    (time[high] - time[low]))
+
     for bl, (a1, a2) in enumerate(ubl):
         bl_row_idx = bl_time_lookup[bl, :]
 
@@ -153,13 +183,13 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
             if ri == -1:
                 continue
 
-            half_int = 0.5 * interval[ri]
-
             # We're starting a new bin
             if len(nominal_map) == 0:
-                bin_low = time[ri] - half_int
+                rs = ri
+                effective_map = []
+                nominal_map = []
             # Reached passed the endpoint of the bin, start a new one
-            elif time[ri] + half_int - bin_low > time_bin_secs:
+            elif not _can_add_row(ri, rs):
                 if len(effective_map) > 0:
                     effective_bin_map.append(effective_map)
                     nominal_bin_map.append(nominal_map)
@@ -170,6 +200,7 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
                 else:
                     raise ValueError("Zero-filled bin")
 
+                rs = ri
                 effective_map = []
                 nominal_map = []
 
@@ -190,13 +221,15 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
             effective_bin_map.append(nominal_map)
             nominal_bin_map.append(nominal_map)
 
-        # Produce a (avg_time, bl, effective_rows, nominal_rows) tuple
-        time_bl_row_map.extend((time[nrows].mean(), (a1, a2), erows, nrows)
+        # Produce a tuple of the form
+        # (avg_time, bl, interval, effective_rows, nominal_rows)
+        time_bl_row_map.extend((_time_avg(nrows), (a1, a2),
+                                _int_sum(nrows), erows, nrows)
                                for erows, nrows
                                in zip(effective_bin_map, nominal_bin_map))
 
-    # Sort lookup sorted on averaged times
-    return sorted(time_bl_row_map, key=lambda tup: tup[0])
+    # Sort lookup sorted on averaged times and baselines
+    return sorted(time_bl_row_map, key=lambda tup: tup[:2])
 
 
 def _calc_sigma(sigma, weight, idx):
@@ -239,19 +272,22 @@ def test_averager(time, ant1, ant2, flagged_rows,
     row_meta = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     chan_map, chan_bins = channel_mapper(nchan, chan_bin_size)
 
-    time_bl_row_map = _gen_testing_lookup(time_centroid, exposure, ant1, ant2,
+    time_bl_row_map = _gen_testing_lookup(time, interval, ant1, ant2,
                                           flag_row, time_bin_secs,
                                           row_meta)
 
     # Effective and Nominal rows associated with each output row
-    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, nrows, erows
+    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, _, nrows, erows
                              in time_bl_row_map])
 
     eff_idx = [ei for ei in eff_idx if len(ei) > 0]
 
-    # Check that the averaged times from the test and accelerated lookup match
-    assert_array_equal([t for t, _, _, _ in time_bl_row_map],
+    # Check that the times and intervals from the test lookup
+    # match those of the accelerated lookup
+    assert_array_equal([t for t, _, _, _, _ in time_bl_row_map],
                        row_meta.time)
+    assert_array_equal([i for _, _, i, _, _ in time_bl_row_map],
+                       row_meta.interval)
 
     avg = time_and_channel(time, interval, ant1, ant2,
                            flag_row=flag_row,
@@ -266,20 +302,16 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     # Take mean time, but first ant1 and ant2
     expected_time_centroids = [time_centroid[i].mean(axis=0) for i in eff_idx]
-    expected_times = [time[i].mean(axis=0) for i in nom_idx]
     expected_ant1 = [ant1[i[0]] for i in nom_idx]
     expected_ant2 = [ant2[i[0]] for i in nom_idx]
     expected_flag_row = [flag_row[i].any(axis=0) for i in eff_idx]
 
     # Take mean average, but sum of interval and exposure
     expected_uvw = [uvw[i].mean(axis=0) for i in eff_idx]
-    expected_interval = [interval[i].sum(axis=0) for i in nom_idx]
     expected_exposure = [exposure[i].sum(axis=0) for i in eff_idx]
     expected_weight = [weight[i].sum(axis=0) for i in eff_idx]
     expected_sigma = [_calc_sigma(sigma, weight, i) for i in eff_idx]
 
-    assert_array_equal(row_meta.time, expected_times)
-    assert_array_equal(row_meta.interval, expected_interval)
     assert_array_equal(row_meta.flag_row, expected_flag_row)
     assert_array_equal(avg.antenna1, expected_ant1)
     assert_array_equal(avg.antenna2, expected_ant2)

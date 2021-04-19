@@ -168,8 +168,6 @@ class Binner(object):
         self.rs = row
         self.re = row
         self.bin_count = 1
-        self.time_sum = time[row]
-        self.interval_sum = interval[row]
         self.bin_flag_count = (1 if flag_row is not None and flag_row[row] != 0
                                else 0)
 
@@ -196,8 +194,6 @@ class Binner(object):
             self.re = row
             self.bin_half_Δψ = self.decorrelation
             self.bin_count += 1
-            self.time_sum += time[row]
-            self.interval_sum += interval[row]
 
             if flag_row is not None and flag_row[row] != 0:
                 self.bin_flag_count += 1
@@ -233,8 +229,6 @@ class Binner(object):
         self.re = row
         self.bin_half_Δψ = half_𝞓𝞇
         self.bin_count += 1
-        self.time_sum += time[row]
-        self.interval_sum += interval[row]
 
         if flag_row is not None and flag_row[row] != 0:
             self.bin_flag_count += 1
@@ -245,7 +239,9 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, nchan_factors,
+    def finalise_bin(self, auto_corr,
+                     time, interval,
+                     uvw, nchan_factors,
                      chan_width, chan_freq):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
@@ -301,10 +297,20 @@ class Binner(object):
             s = np.searchsorted(nchan_factors, nchan, side='left')
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
 
+        if rs == re:
+            # single value in the bin, re-use time and interval
+            bin_time = time[rs]
+            bin_interval = interval[rs]
+        else:
+            # take the midpoint
+            dt = time[re] - time[rs]
+            bin_time = 0.5*(time[re] + time[rs])
+            bin_interval = 0.5*interval[re] + 0.5*interval[rs] + dt
+
         # Finalise bin values for return
         out = FinaliseOutput(self.tbin,
-                             self.time_sum / self.bin_count,
-                             self.interval_sum,
+                             bin_time,
+                             bin_interval,
                              nchan,
                              self.bin_count == self.bin_flag_count)
 
@@ -487,8 +493,8 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                 elif not binner.add_row(r, auto_corr,
                                         time, interval,
                                         uvw, flag_row):
-                    f = binner.finalise_bin(auto_corr, uvw,
-                                            nchan_factors,
+                    f = binner.finalise_bin(auto_corr, time, interval,
+                                            uvw, nchan_factors,
                                             chan_width, chan_freq)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
@@ -499,9 +505,8 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(auto_corr, uvw,
-                                        nchan_factors,
-                                        chan_width, chan_freq)
+                f = binner.finalise_bin(auto_corr, time, interval, uvw,
+                                        nchan_factors, chan_width, chan_freq)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
