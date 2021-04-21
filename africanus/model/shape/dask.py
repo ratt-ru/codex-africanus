@@ -22,7 +22,7 @@ else:
     opt_import_error = None
 
 
-def _wrapper(uvw, frequency, shape_params):
+def gaussian_wrapper(uvw, frequency, shape_params):
     return np_gaussian(uvw[0], frequency, shape_params[0])
 
 
@@ -31,7 +31,7 @@ def gaussian(uvw, frequency, shape_params):
     dtype = np.result_type(uvw.dtype, frequency.dtype, shape_params.dtype)
 
     return da.blockwise(
-        _wrapper,
+        gaussian_wrapper,
         ("source", "row", "chan"),
         uvw,
         ("row", "uvw-comp"),

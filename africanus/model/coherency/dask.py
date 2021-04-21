@@ -15,8 +15,8 @@ else:
     da_import_error = None
 
 
-def _wrapper(np_input, mapping=None, in_shape=None,
-             out_shape=None, dtype_=None):
+def convert_wrapper(np_input, mapping=None, in_shape=None,
+                    out_shape=None, dtype_=None):
     result = convert_impl(np_input, mapping, in_shape,
                           out_shape, dtype_)
 
@@ -41,7 +41,8 @@ def convert(input, input_schema, output_schema):
     # Note the dummy in_corr_dims introduced at the end of our output,
     # We do this to prevent a contraction over the input dimensions
     # (which can be arbitrary) within the wrapper class
-    res = da.core.blockwise(_wrapper, free_dims + out_corr_dims + in_corr_dims,
+    res = da.core.blockwise(convert_wrapper,
+                            free_dims + out_corr_dims + in_corr_dims,
                             input, free_dims + in_corr_dims,
                             mapping=mapping,
                             in_shape=in_shape,
