@@ -4,6 +4,7 @@ History
 
 0.2.11 (YYYY-MM-DD)
 -------------------
+* Clarify _wrapper names (:pr:`247`)
 * Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
 
 0.2.10 (2021-02-09)
