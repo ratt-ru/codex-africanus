@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-
-import os
-
 import numpy as np
 import pytest
 
@@ -11,6 +8,69 @@ from africanus.gridding.perleypolyhedron import (kernels,
 from africanus.dft.kernels import im_to_vis, vis_to_im
 from africanus.coordinates import radec_to_lmn
 from africanus.constants import c as lightspeed
+
+
+@pytest.fixture(scope="module", params=[512])
+def npix(request):
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[3])
+def oversampling(request):
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[5])
+def kernel_width(request):
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[np.array([1.4e9])])
+def frequency(request):
+    return request.param
+
+
+@pytest.fixture(scope="module")
+def wavelength(frequency):
+    return lightspeed / frequency
+
+
+@pytest.fixture(scope="module", params=[10])
+def pxacrossbeam(request):
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[100])
+def uvw(request):
+    nrow = request.param
+    x = np.linspace(0, 2 * np.pi, nrow)
+
+    return np.column_stack((
+        5000.0 * np.cos(x),
+        5000.0 * np.sin(x),
+        np.zeros(nrow))
+    ).astype(np.float64)
+
+
+@pytest.fixture(scope="module")
+def model(npix, kernel_width):
+    W = kernel_width
+    mod = np.zeros((1, npix, npix), dtype=np.complex64)
+    mod[0, npix // 2 - W, npix // 2 - W] = 1.0
+    return mod
+
+
+@pytest.fixture(scope="module")
+def ftmodel(model):
+    _, npix, _ = model.shape
+    return np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(
+        model[0, :, :]))).reshape((1, npix, npix))
+
+
+@pytest.fixture(scope="module")
+def cell_size(request, uvw, wavelength, pxacrossbeam):
+    max_uv = np.max(uvw[:, :2], axis=(0, 1), keepdims=False)
+    return np.rad2deg(wavelength[0] / (2 * max_uv * pxacrossbeam))
 
 
 def test_construct_kernels(tmp_path_factory):
@@ -110,53 +170,50 @@ def test_facetcodepath():
                     "conv_1d_axisymmetric_packed_scatter")
 
 
-def test_degrid_dft(tmp_path_factory):
+@pytest.fixture(scope="module")
+def global_var_degrid():
+    pytest.__CACHE_DEGRID_DFT = None
+
+
+@pytest.fixture(scope="module")
+def vis_dft(request, model, cell_size, uvw, frequency):
+    _, npix, _ = model.shape
+    extent = np.arange(-npix // 2, npix // 2) * np.deg2rad(cell_size)
+    ra, dec = np.meshgrid(extent, extent)
+    radec = np.column_stack((ra.flatten(), dec.flatten()))
+    return im_to_vis(model[0, :, :].reshape(1, 1, npix * npix).T.copy(),
+                     uvw, radec, frequency)
+
+
+# We can indirectly parametrize the number of pixels
+# in the model and ftmodel like so
+# @pytest.mark.parametrize("npix", [256], indirect=True)
+# or the number of UVW rows like so
+# @pytest.mark.parametrize("uvw", [128], indirect=True)
+def test_degrid_dft(oversampling, kernel_width,
+                    wavelength, uvw,
+                    ftmodel, cell_size,
+                    vis_dft, tmp_path_factory):
+
     # construct kernel
-    W = 5
-    OS = 3
-    kern = kernels.kbsinc(W, oversample=OS)
-    uvw = np.column_stack(
-        (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 1000)),
-            5000.0 * np.sin(np.linspace(0, 2 * np.pi, 1000)), np.zeros(1000)))
+    kern = kernels.kbsinc(kernel_width, oversample=oversampling)
 
-    pxacrossbeam = 10
-    frequency = np.array([1.4e9])
-    wavelength = lightspeed / frequency
-
-    cell = np.rad2deg(
-        wavelength[0] /
-        (2 * max(np.max(np.abs(uvw[:, 0])), np.max(np.abs(uvw[:, 1]))) *
-            pxacrossbeam))
-    npix = 512
-    mod = np.zeros((1, npix, npix), dtype=np.complex64)
-    mod[0, npix // 2 - 5, npix // 2 - 5] = 1.0
-
-    ftmod = np.fft.ifftshift(np.fft.fft2(np.fft.fftshift(
-        mod[0, :, :]))).reshape((1, npix, npix))
     chanmap = np.array([0])
     vis_degrid = degridder.degridder(
         uvw,
-        ftmod,
+        ftmodel,
         wavelength,
         chanmap,
-        cell * 3600.0,
+        cell_size * 3600.0,
         (0, np.pi / 4.0),
         (0, np.pi / 4.0),
         kern,
-        W,
-        OS,
+        kernel_width,
+        oversampling,
         "None",  # no faceting
         "None",  # no faceting
         "XXYY_FROM_I",
         "conv_1d_axisymmetric_unpacked_gather")
-
-    dec, ra = np.meshgrid(
-        np.arange(-npix // 2, npix // 2) * np.deg2rad(cell),
-        np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
-    radec = np.column_stack((ra.flatten(), dec.flatten()))
-
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
-                        uvw, radec, frequency)
 
     try:
         import matplotlib
@@ -173,9 +230,8 @@ def test_degrid_dft(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                         "degrid_vs_dft_re.png"))
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft") /
+                    "degrid_vs_dft_re.png")
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
@@ -195,7 +251,7 @@ def test_degrid_dft(tmp_path_factory):
         99.0) < 0.05
 
 
-def test_degrid_dft_packed(tmp_path_factory):
+def test_degrid_dft_packed(tmp_path_factory, global_var_degrid):
     # construct kernel
     W = 5
     OS = 3
@@ -203,8 +259,8 @@ def test_degrid_dft_packed(tmp_path_factory):
                                W,
                                oversample=OS)
     uvw = np.column_stack(
-        (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 1000)),
-            5000.0 * np.sin(np.linspace(0, 2 * np.pi, 1000)), np.zeros(1000)))
+        (5000.0 * np.cos(np.linspace(0, 2 * np.pi, 100)),
+            5000.0 * np.sin(np.linspace(0, 2 * np.pi, 100)), np.zeros(100)))
 
     pxacrossbeam = 10
     frequency = np.array([1.4e9])
@@ -242,8 +298,11 @@ def test_degrid_dft_packed(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1, npix * npix).T.copy(),
-                        uvw, radec, frequency)
+    if pytest.__CACHE_DEGRID_DFT is None:
+        pytest.__CACHE_DEGRID_DFT = im_to_vis(mod[0, :, :].reshape(
+            1, 1, npix * npix).T.copy(),
+            uvw, radec, frequency)
+    vis_dft = pytest.__CACHE_DEGRID_DFT
 
     try:
         import matplotlib
@@ -260,9 +319,8 @@ def test_degrid_dft_packed(tmp_path_factory):
         plt.legend()
         plt.xlabel("sample")
         plt.ylabel("Real of predicted")
-        plt.savefig(
-            os.path.join(os.environ.get("TMPDIR", "/tmp"),
-                         "degrid_vs_dft_re_packed.png"))
+        plt.savefig(tmp_path_factory.mktemp("degrid_dft_packed") /
+                    "degrid_vs_dft_re_packed.png")
         plt.figure()
         plt.plot(vis_degrid[:, 0, 0].imag, label=r"$\Im(\mathtt{degrid})$")
         plt.plot(vis_dft[:, 0, 0].imag, label=r"$\Im(\mathtt{dft})$")
@@ -317,12 +375,19 @@ def test_detaper(tmp_path_factory):
     assert (np.max(np.abs(detaperdft - detaperdftsep)) < 1.0e-14)
 
 
-def test_grid_dft(tmp_path_factory):
+@pytest.fixture(scope="module")
+def global_vars_grid():
+    pytest.__CACHE_GRID_MOD = None
+    pytest.__CACHE_GRID_DFT = None
+
+
+def test_grid_dft(tmp_path_factory, global_vars_grid):
     # construct kernel
     W = 7
     OS = 9
     kern = kernels.kbsinc(W, oversample=OS)
-    nrow = 5000
+    nrow = 1500
+
     np.random.seed(0)
     uvw = np.random.normal(scale=6000, size=(nrow, 3))
     uvw[:, 2] = 0.0  # ignore widefield effects for now
@@ -353,9 +418,14 @@ def test_grid_dft(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                             npix * npix).T.copy(), uvw,
-                        radec, frequency).repeat(2).reshape(nrow, 1, 2)
+    if pytest.__CACHE_GRID_MOD is None:
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]
+                                            .reshape(1, 1,
+                                                     npix *
+                                                     npix).T.copy(), uvw,
+                                            radec, frequency)\
+                                    .repeat(2).reshape(nrow, 1, 2)
+    vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
 
     detaper = kernels.compute_detaper(int(npix * fftpad),
@@ -387,11 +457,14 @@ def test_grid_dft(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
                   int(npix * fftpad) // 2 -
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
-    dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                       np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
-                                    2, 1, npix, npix) / nrow
-
+    if pytest.__CACHE_GRID_DFT is None:
+        pytest.__CACHE_GRID_DFT = \
+            vis_to_im(vis_dft, uvw, radec, frequency,
+                      np.zeros(vis_dft.shape,
+                               dtype=np.bool))\
+            .T.copy().reshape(2, 1,
+                              npix, npix) / nrow
+    dftvis = pytest.__CACHE_GRID_DFT
     try:
         import matplotlib
     except ImportError:
@@ -416,15 +489,16 @@ def test_grid_dft(tmp_path_factory):
                     "grid_diff_dft.png")
 
     assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
-                          95.0) < 0.15)
+                          85.0) < 0.20)
 
 
-def test_grid_dft_packed(tmp_path_factory):
+def test_grid_dft_packed(tmp_path_factory, global_vars_grid):
     # construct kernel
     W = 7
     OS = 1009
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-    nrow = 5000
+    nrow = 1500
+
     np.random.seed(0)
     uvw = np.random.normal(scale=6000, size=(nrow, 3))
     uvw[:, 2] = 0.0  # ignore widefield effects for now
@@ -455,9 +529,14 @@ def test_grid_dft_packed(tmp_path_factory):
         np.arange(-npix // 2, npix // 2) * np.deg2rad(cell))
     radec = np.column_stack((ra.flatten(), dec.flatten()))
 
-    vis_dft = im_to_vis(mod[0, :, :].reshape(1, 1,
-                                             npix * npix).T.copy(), uvw,
-                        radec, frequency).repeat(2).reshape(nrow, 1, 2)
+    if pytest.__CACHE_GRID_MOD is None:
+        pytest.__CACHE_GRID_MOD = im_to_vis(mod[0, :, :]
+                                            .reshape(1, 1,
+                                                     npix *
+                                                     npix).T.copy(), uvw,
+                                            radec, frequency)\
+                                    .repeat(2).reshape(nrow, 1, 2)
+    vis_dft = pytest.__CACHE_GRID_MOD
     chanmap = np.array([0])
     detaper = kernels.compute_detaper_dft_seperable(
         int(npix * fftpad), kernels.unpack_kernel(kern, W, OS), W, OS)
@@ -488,10 +567,14 @@ def test_grid_dft_packed(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix,
                   int(npix * fftpad) // 2 -
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
-    dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
-                       np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
-                                    2, 1, npix, npix) / nrow
+    if pytest.__CACHE_GRID_DFT is None:
+        pytest.__CACHE_GRID_DFT = \
+            vis_to_im(vis_dft, uvw, radec, frequency,
+                      np.zeros(vis_dft.shape,
+                               dtype=np.bool))\
+            .T.copy().reshape(2, 1,
+                              npix, npix) / nrow
+    dftvis = pytest.__CACHE_GRID_DFT
 
     try:
         import matplotlib
@@ -517,7 +600,7 @@ def test_grid_dft_packed(tmp_path_factory):
                     "grid_diff_dft_packed.png")
 
     assert (np.percentile(np.abs(ftvis[0, :, :] - dftvis[0, 0, :, :]),
-                          95.0) < 0.15)
+                          85.0) < 0.20)
 
 
 def test_wcorrection_faceting_backward(tmp_path_factory):
@@ -525,7 +608,7 @@ def test_wcorrection_faceting_backward(tmp_path_factory):
     W = 5
     OS = 9
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-    nrow = 5000
+    nrow = 500
     np.random.seed(0)
     # simulate some ficticious baselines rotated by an hour angle
     uvw = np.zeros((nrow, 3), dtype=np.float64)
@@ -652,7 +735,8 @@ def test_wcorrection_faceting_forward(tmp_path_factory):
     W = 5
     OS = 9
     kern = kernels.pack_kernel(kernels.kbsinc(W, oversample=OS), W, OS)
-    nrow = 5000
+    nrow = 500
+
     np.random.seed(0)
     # simulate some ficticious baselines rotated by an hour angle
     uvw = np.zeros((nrow, 3), dtype=np.float64)

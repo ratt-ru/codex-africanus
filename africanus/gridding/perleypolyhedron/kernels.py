@@ -57,6 +57,7 @@ def kbsinc(W, b=None, oversample=5, order=15):
     with a modification of higher order bessels as default, as
     this improves the kernel at low number of taps.
     """
+
     if b is None:
         b = np.poly1d(_KBSINC_AUTOCOEFFS)((W + 2))
 
@@ -78,6 +79,7 @@ def hanningsinc(W, a=None, oversample=5):
     """
     if a is None:
         a = np.poly1d(_HANNING_AUTOCOEFFS)((W + 2))
+
     u = uspace(W, oversample)
     wnd = a + (1 - a) * np.cos(2 * np.pi / ((W + 2) + 1) * u)
     res = sinc(W, oversample=oversample) * wnd
