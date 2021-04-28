@@ -79,8 +79,6 @@ def binner_factory(time, interval, antenna1, antenna2,
 
         def start_baseline(self):
             self.tbin = 0
-            self.rs = 0
-            self.re = 0
             self.bin_count = 0
             self.bin_flag_count = 0
 
@@ -91,89 +89,88 @@ def binner_factory(time, interval, antenna1, antenna2,
         def bin_empty(self):
             return self.bin_count == 0
 
-        def start_bin(self, row, flag_row):
-            self.rs = row
-            self.re = row
+        def start_bin(self, bl, row):
+            # Establish the starting time of bin
+            #
+            # (1) Preferably use the edge of the last bin, as this
+            #     is more accurate
+            # (2) Use the first discovered row in the current bin, this is less
+            #     accurate than (1) but is best effort when data is missing
+            if self.tbin > 0:
+                last_tbin = self.tbin - 1
+                self.time_start = (self.time_lookup[bl, last_tbin] +
+                                   self.interval_lookup[bl, last_tbin]*0.5)
+            else:
+                self.time_start = self.time[row] - 0.5*self.interval[row]
+
+            self.rc = row
             self.bin_count = 1
-            self.bin_flag_count = int(have_flag_row and flag_row[row] != 0)
+            self.bin_flag_count = int(have_flag_row and
+                                      self.flag_row[row] != 0)
 
-        def add_row(self, row, time, interval, flag_row):
-            rs = self.rs
-
-            if self.re == row:
+        def add_row(self, row):
+            if self.rc == row:
                 raise ValueError("start_bin should be called "
                                  "to start a bin before add_row "
                                  "is called.")
 
-            dt = ((time[row] + 0.5*interval[row]) -
-                  (time[rs] - 0.5*interval[rs]))
+            dt = ((self.time[row] + 0.5*self.interval[row]) - self.time_start)
 
             if dt > self.time_bin_secs:
                 return False
-            self.re = row
+
+            self.rc = row
             self.bin_count += 1
-            flagged = have_flag_row and flag_row[row] != 0
+            flagged = have_flag_row and self.flag_row[row] != 0
             self.bin_flag_count += int(flagged)
 
             return True
 
-        def finalise_bin(self, bl, next_row, time, interval):
-            rs = self.rs
-            re = self.re
-            tbin = self.tbin
+        def finalise_bin(self, bl, next_row):
+            rc = self.rc
 
             # No interpolation required
-            if rs == re:
-                bin_time = time[rs]
-                bin_interval = interval[rs]
+            if self.bin_count == 1:
+                bin_time = self.time[rc]
+                bin_interval = self.interval[rc]
             else:
                 # Interpolate between bin start and end times.
 
-                # 1. We use the previous bin and the first row of
-                #    the next bin to establish this where possible
-                #    as these points determine the full bin extent.
-                # 2. Otherwise we must use the first and last row
-                #    in the bin for the first and last bin
-                #    respectively. This is not as accurate as (1),
+                # 1. We use the first row of the next bin to establish this
+                #    where possible as these points determine
+                #    the full bin extent.
+                # 2. Otherwise we must use the last row
+                #    of the bin. This is not as accurate as (1),
                 #    but is best effort in the case of missing edge data
-                if tbin > 0:
-                    # Use the bin prior to this one to establish
-                    # the start time of the bin
-                    time_start = (self.time_lookup[bl, tbin - 1] +
-                                  0.5*self.interval_lookup[bl, tbin - 1])
-                else:
-                    # Use the time and interval of the starting row to
-                    # establish the start time of the bin
-                    time_start = time[rs] - 0.5*interval[rs]
 
                 # Find bin ending time
-                if next_row != re:
+                if next_row != rc:
                     # Use the time and interval of the next row outside
                     # the bin to establish the end time of the bin
-                    time_end = time[next_row] - 0.5*interval[next_row]
+                    time_end = (self.time[next_row] -
+                                0.5*self.interval[next_row])
 
-                    if time_end - time_start > self.time_bin_secs:
-                        time_end = time_start + self.time_bin_secs
+                    # But we cannot exceed the prescribed interval
+                    if time_end - self.time_start > self.time_bin_secs:
+                        time_end = self.time_start + self.time_bin_secs
                 else:
                     # Use the time and interval of the ending row
                     # to establish the end time of the bin
-                    time_end = time[re] + 0.5*interval[re]
+                    time_end = self.time[rc] + 0.5*self.interval[rc]
 
                 # Establish the midpoint
-                bin_time = 0.5*(time_start + time_end)
-                bin_interval = time_end - time_start
+                bin_time = 0.5*(self.time_start + time_end)
+                bin_interval = time_end - self.time_start
 
-            self.time_lookup[bl, tbin] = bin_time
-            self.interval_lookup[bl, tbin] = bin_interval
-            self.bin_flagged[bl, tbin] = self.bin_count == self.bin_flag_count
+            self.time_lookup[bl, self.tbin] = bin_time
+            self.interval_lookup[bl, self.tbin] = bin_interval
+            flagged = self.bin_count == self.bin_flag_count
+            self.bin_flagged[bl, self.tbin] = flagged
 
             self.tbin += 1
 
         def execute(self):
             row_lookup = self.row_lookup
-            time = self.time
-            interval = self.interval
-            flag_row = self.flag_row if have_flag_row else None
             bin_lookup = self.bin_lookup
 
             # Average times over each baseline and construct the
@@ -188,19 +185,19 @@ def binner_factory(time, interval, antenna1, antenna2,
                         continue
 
                     if self.bin_empty:
-                        self.start_bin(r, flag_row)
-                    elif not self.add_row(r, time, interval, flag_row):
+                        self.start_bin(bl, r)
+                    elif not self.add_row(r):
                         # Can't add a new row to this bin, close it
                         # and start a new one
-                        self.finalise_bin(bl, r, time, interval)
-                        self.start_bin(r, flag_row)
+                        self.finalise_bin(bl, r)
+                        self.start_bin(bl, r)
 
                     # Register the output time bin for this row
                     bin_lookup[bl, t] = self.tbin
 
                 # Close any open bins
                 if not self.bin_empty:
-                    self.finalise_bin(bl, r, time, interval)
+                    self.finalise_bin(bl, r)
 
                 self.finalise_baseline()
 
@@ -212,9 +209,9 @@ def binner_factory(time, interval, antenna1, antenna2,
 
     spec = [
         ('out_rows', numba.uintp),
-        ('rs', numba.intp),
-        ('re', numba.intp),
+        ('rc', numba.intp),
         ('tbin', numba.intp),
+        ('time_start', time),
         ('bin_count', numba.uintp),
         ('bin_flag_count', numba.uintp),
         ('bl_inv', numba.uintp[:]),
