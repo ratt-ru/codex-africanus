@@ -29,7 +29,7 @@ extras_require = {
     "dask": ["dask[array] >= 2.2.0"],
     "jax": ["jax >= 0.2.11", "jaxlib >= 0.1.65"],
     "scipy": ["scipy >= 1.4.0"],
-    "astropy": ["astropy >= 3.0"],
+    "astropy": ["astropy >= 4.0"],
     "python-casacore": ["python-casacore >= 3.4.0"],
     "ducc0": ["ducc0 >= 0.9.0"],
     "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6"],
