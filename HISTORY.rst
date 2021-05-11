@@ -4,6 +4,7 @@ History
 
 0.2.11 (YYYY-MM-DD)
 -------------------
+* Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
 * Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
 
 0.2.10 (2021-02-09)
