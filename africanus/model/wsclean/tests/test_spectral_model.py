@@ -58,7 +58,7 @@ def test_spectral_model(spectral_model_inputs, freq):
     model = spectra(I, spi, False, ref_freq, freq)
     assert_array_almost_equal(model, ordinary_spec_model)
 
-    log_si_all_true = np.full(I.shape, True, dtype=np.bool)
+    log_si_all_true = np.full(I.shape, True, dtype=np.bool_)
     I = np.abs(I)  # noqa
     spi = np.abs(spi)
     log_spec_model = log_spectral_model(I, spi, log_si_all_true,

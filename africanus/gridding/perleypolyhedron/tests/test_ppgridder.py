@@ -389,7 +389,7 @@ def test_grid_dft(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
     dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
                        np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
+                                dtype=np.bool_)).T.copy().reshape(
                                     2, 1, npix, npix) / nrow
 
     try:
@@ -490,7 +490,7 @@ def test_grid_dft_packed(tmp_path_factory):
                   npix // 2:int(npix * fftpad) // 2 - npix // 2 + npix]
     dftvis = vis_to_im(vis_dft, uvw, radec, frequency,
                        np.zeros(vis_dft.shape,
-                                dtype=np.bool)).T.copy().reshape(
+                                dtype=np.bool_)).T.copy().reshape(
                                     2, 1, npix, npix) / nrow
 
     try:

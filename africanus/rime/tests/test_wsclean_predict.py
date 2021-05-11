@@ -26,7 +26,7 @@ def test_wsclean_predict(chunks):
     chan = sum(chunks['channels'])
 
     rs = np.random.RandomState(42)
-    source_sel = rs.randint(0, 2, src).astype(np.bool)
+    source_sel = rs.randint(0, 2, src).astype(np.bool_)
     source_type = np.where(source_sel, "POINT", "GAUSSIAN")
 
     gauss_shape = rs.normal(size=(src, 3))
@@ -34,7 +34,7 @@ def test_wsclean_predict(chunks):
     lm = rs.normal(size=(src, 2))*1e-5
     flux = rs.normal(size=src)
     coeffs = rs.normal(size=(src, 2))
-    log_poly = rs.randint(0, 2, src, dtype=np.bool)
+    log_poly = rs.randint(0, 2, src, dtype=np.bool_)
     flux[log_poly] = np.abs(flux[log_poly])
     coeffs[log_poly] = np.abs(coeffs[log_poly])
     freq = np.linspace(.856e9, 2*.856e9, chan)
@@ -68,7 +68,7 @@ def test_dask_wsclean_predict(chunks):
     chan = sum(chunks['channels'])
 
     rs = np.random.RandomState(42)
-    source_sel = rs.randint(0, 2, src).astype(np.bool)
+    source_sel = rs.randint(0, 2, src).astype(np.bool_)
     source_type = np.where(source_sel, "POINT", "GAUSSIAN")
 
     gauss_shape = rs.normal(size=(src, 3))
@@ -77,7 +77,7 @@ def test_dask_wsclean_predict(chunks):
     lm = rs.normal(size=(src, 2))*1e-5
     flux = rs.normal(size=src)
     coeffs = rs.normal(size=(src, 2))
-    log_poly = rs.randint(0, 2, src, dtype=np.bool)
+    log_poly = rs.randint(0, 2, src, dtype=np.bool_)
     flux[log_poly] = np.abs(flux[log_poly])
     coeffs[log_poly] = np.abs(coeffs[log_poly])
     freq = np.linspace(.856e9, 2*.856e9, chan)
