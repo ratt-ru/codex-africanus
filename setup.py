@@ -26,7 +26,7 @@ if not on_rtd:
 extras_require = {
     'cuda': ['cupy >= 5.0.0', 'jinja2 >= 2.10'],
     'dask': ['dask[array] >= 1.1.0'],
-    'jax': ['jax == 0.1.68', 'jaxlib == 0.1.47'],
+    'jax': ['jax >= 0.2.11', 'jaxlib >= 0.1.65'],
     'scipy': ['scipy >= 1.4.0'],
     'astropy': ['astropy >= 3.0'],
     'python-casacore': ['python-casacore >= 3.3.1'],
@@ -82,7 +82,7 @@ setup(
     keywords='codex-africanus',
     name='codex-africanus',
     packages=find_packages(),
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
