@@ -232,8 +232,8 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     # flagged_row and flag should agree
     flag_row[flagged_rows] = 1
-    flag[flag_row.astype(np.bool), :, :] = 1
-    flag[~flag_row.astype(np.bool), :, :] = 0
+    flag[flag_row.astype(np.bool_), :, :] = 1
+    flag[~flag_row.astype(np.bool_), :, :] = 0
     assert_array_equal(flag.all(axis=(1, 2)).astype(np.uint8), flag_row)
 
     row_meta = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
@@ -365,8 +365,8 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     flag = flag(rows, chans, corrs)
     flag_row = np.zeros(time_centroid.shape[0], dtype=np.uint8)
     flag_row[flagged_rows] = 1
-    flag[flag_row.astype(np.bool), :, :] = 1
-    flag[~flag_row.astype(np.bool), :, :] = 0
+    flag[flag_row.astype(np.bool_), :, :] = 1
+    flag[~flag_row.astype(np.bool_), :, :] = 0
 
     np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
                               flag_row=flag_row,

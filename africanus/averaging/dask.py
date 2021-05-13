@@ -71,7 +71,7 @@ def tc_chan_metadata(row_chan_arrays, chan_arrays, chan_bin_size):
               for i, c in enumerate(chan_chunks)}
     graph = HighLevelGraph.from_collections(name, layers, ())
     chunks = (chan_chunks,)
-    chan_mapper = da.Array(graph, name, chunks, dtype=np.object)
+    chan_mapper = da.Array(graph, name, chunks, dtype=object)
 
     return chan_mapper
 
@@ -87,8 +87,8 @@ def tc_row_mapper(time, interval, antenna1, antenna2,
                         flag_row, None if flag_row is None else ("row",),
                         adjust_chunks={"row": lambda x: np.nan},
                         time_bin_secs=time_bin_secs,
-                        meta=np.empty((0,), dtype=np.object),
-                        dtype=np.object)
+                        meta=np.empty((0,), dtype=object),
+                        dtype=object)
 
 
 def _getitem_row(avg, idx, array, dims):
@@ -142,8 +142,8 @@ def tc_row_average(row_meta, ant1, ant2, flag_row=None,
                        *(v for pair in args for v in pair[1:]),
                        align_arrays=False,
                        adjust_chunks={"row": lambda x: np.nan},
-                       meta=np.empty((0,)*len(rd), dtype=np.object),
-                       dtype=np.object)
+                       meta=np.empty((0,)*len(rd), dtype=object),
+                       dtype=object)
 
     # ant1, ant2, time_centroid, exposure, uvw, weight, sigma
     out_args = [(a, dims) for out, a, dims in args if out is True]
@@ -166,7 +166,7 @@ def _getitem_row_chan(avg, idx, dtype):
 
     graph = HighLevelGraph.from_collections(name, layers, (avg,))
     return da.Array(graph, name, avg.chunks,
-                    meta=np.empty((0,)*len(dim), dtype=np.object),
+                    meta=np.empty((0,)*len(dim), dtype=object),
                     dtype=dtype)
 
 
@@ -227,8 +227,8 @@ def tc_row_chan_average(row_meta, chan_meta, flag_row=None, weight=None,
                        align_arrays=False,
                        adjust_chunks=adjust_chunks,
                        meta=np.empty((0,)*len(_row_chan_avg_dims),
-                                     dtype=np.object),
-                       dtype=np.object)
+                                     dtype=object),
+                       dtype=object)
 
     tuple_gets = (None if a is None else _getitem_row_chan(avg, i, a.dtype)
                   for i, a in enumerate([visibilities, flag,
@@ -286,8 +286,8 @@ def tc_chan_average(chan_meta, chan_freq=None, chan_width=None,
                        effective_bw, None if effective_bw is None else cdim,
                        resolution, None if resolution is None else cdim,
                        adjust_chunks=adjust_chunks,
-                       meta=np.empty((0,), dtype=np.object),
-                       dtype=np.object)
+                       meta=np.empty((0,), dtype=object),
+                       dtype=object)
 
     tuple_gets = (None if a is None else _getitem_chan(avg, i, a.dtype)
                   for i, a in enumerate([chan_freq, chan_width,
@@ -431,7 +431,7 @@ def bda_mapper(time, interval, antenna1, antenna2, uvw,
                         time_bin_secs=time_bin_secs,
                         min_nchan=min_nchan,
                         adjust_chunks={"row": lambda x: np.nan},
-                        meta=np.empty((0, 0), dtype=np.object))
+                        meta=np.empty((0, 0), dtype=object))
 
 
 def _bda_row_average_wrapper(meta, ant1, ant2, flag_row,
@@ -512,7 +512,7 @@ def _bda_getitem_row_chan(avg, idx, dtype, format, avg_meta, nchan):
                               numblocks={avg.name: avg.numblocks})
 
         chunks = avg.chunks
-        meta = np.empty((0, 0), dtype=np.object)
+        meta = np.empty((0, 0), dtype=object)
     elif format == "ragged":
         dims = ("row", "chan", "corr")
         new_axes = {"chan": nchan}
@@ -527,7 +527,7 @@ def _bda_getitem_row_chan(avg, idx, dtype, format, avg_meta, nchan):
                                   avg_meta.name: avg_meta.numblocks})
 
         chunks = (avg.chunks[0], (nchan,), avg.chunks[1])
-        meta = np.empty((0, 0, 0), dtype=np.object)
+        meta = np.empty((0, 0, 0), dtype=object)
     else:
         raise ValueError("Invalid format %s" % format)
 
@@ -559,8 +559,8 @@ def bda_row_average(meta, ant1, ant2, flag_row=None,
                        *(v for pair in args for v in pair[1:]),
                        align_arrays=False,
                        adjust_chunks={"row": lambda x: np.nan},
-                       meta=np.empty((0,)*len(rd), dtype=np.object),
-                       dtype=np.object)
+                       meta=np.empty((0,)*len(rd), dtype=object),
+                       dtype=object)
 
     # ant1, ant2, time_centroid, exposure, uvw, weight, sigma
     out_args = [(a, dims) for out, a, dims in args if out is True]
@@ -654,8 +654,8 @@ def bda_row_chan_average(avg_meta, flag_row=None, weight=None,
                        sigma_spectrum, ss_dims,
                        align_arrays=False,
                        adjust_chunks=adjust_chunks,
-                       meta=np.empty((0, 0), dtype=np.object),
-                       dtype=np.object)
+                       meta=np.empty((0, 0), dtype=object),
+                       dtype=object)
 
     tuple_gets = (None if a is None else
                   _bda_getitem_row_chan(avg, i, a.dtype,

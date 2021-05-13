@@ -17,13 +17,13 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, ncorr, npoly))
     parallactic_angles = np.zeros((ntime, na), dtype=np.float64)
@@ -68,13 +68,13 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, ncorr, npoly))
     parallactic_angles = np.zeros((ntime, na), dtype=np.float64)
@@ -119,13 +119,13 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, ncorr, npoly))
     parallactic_angles = np.zeros((ntime, na), dtype=np.float64)
@@ -170,13 +170,13 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, ncorr, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, 1, npoly))
     parallactic_angles = np.zeros((ntime, na), dtype=np.float64)
@@ -221,13 +221,13 @@ def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
 
@@ -275,13 +275,13 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
 
     # Linear (l,m) grid
     nx, ny = npix, npix
-    grid = (np.indices((nx, ny), dtype=np.float) - nx // 2) * 2 / nx
+    grid = (np.indices((nx, ny), dtype=float) - nx // 2) * 2 / nx
     ll, mm = grid[0], grid[1]
 
     lm = np.vstack((ll.flatten(), mm.flatten())).T
 
     # Initializing coords, coeffs, and noll_indices
-    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=np.float)
+    coords = np.empty((3, nsrc, ntime, na, nchan), dtype=float)
     coeffs = np.empty((na, nchan, corr1, corr2, npoly), dtype=np.complex128)
     noll_indices = np.empty((na, nchan, corr1, corr2, npoly))
 

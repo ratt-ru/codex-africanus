@@ -39,7 +39,7 @@ def test_dask_nifty_gridder():
     vis = rf(size=(nrow, nchan, ncorr)).astype(np.complex128)
     freq = np.linspace(.856e9, 2*.856e9, nchan)
     flag = np.zeros(vis.shape, dtype=np.uint8)
-    flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8).astype(np.bool)
+    flag = np.random.randint(0, 2, vis.shape, dtype=np.uint8).astype(np.bool_)
     weight = rf(vis.shape).astype(np.float64)
 
     da_vis = da.from_array(vis, chunks=(row, chan, corr))
@@ -100,7 +100,7 @@ def test_dask_nifty_degridder():
     # Random UV data
     uvw = rf(size=(nrow, 3)).astype(np.float64)*128
     freq = np.linspace(.856e9, 2*.856e9, nchan)
-    flag = np.zeros((nrow, nchan, ncorr), dtype=np.bool)
+    flag = np.zeros((nrow, nchan, ncorr), dtype=np.bool_)
     weight = np.ones((nrow, nchan, ncorr), dtype=np.float64)
     image = rc(size=(nx, ny, ncorr)).astype(np.complex128)
 

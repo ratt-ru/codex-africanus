@@ -90,7 +90,7 @@ def data_factory():
         weights = np.ones(vis.shape, dtype=np.float64)
         if sigma_n:
             weights /= sigma_n**2
-        flag = np.zeros(vis.shape, dtype=np.bool)
+        flag = np.zeros(vis.shape, dtype=np.bool_)
         data_dict = {}
         data_dict["DATA"] = vis
         data_dict["MODEL_DATA"] = model_data
