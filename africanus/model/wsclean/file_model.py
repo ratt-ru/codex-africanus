@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-from ast import literal_eval
 import math
 import re
 
@@ -52,6 +51,7 @@ def _deg_converter(deg_str):
 
 def arcsec2rad(arcseconds=0.0):
     return np.deg2rad(float(arcseconds) / 3600.)
+
 
 def spi_converter(spi):
     return [float(c) for c in spi.strip("[] ").split(",")]
