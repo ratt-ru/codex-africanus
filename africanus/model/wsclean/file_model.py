@@ -53,6 +53,9 @@ def _deg_converter(deg_str):
 def arcsec2rad(arcseconds=0.0):
     return np.deg2rad(float(arcseconds) / 3600.)
 
+def spi_converter(spi):
+    return [float(c) for c in spi.strip("[] ").split(",")]
+
 
 _COLUMN_CONVERTERS = {
     'Name': str,
@@ -60,7 +63,7 @@ _COLUMN_CONVERTERS = {
     'Ra': _hour_converter,
     'Dec': _deg_converter,
     'I': float,
-    'SpectralIndex': literal_eval,
+    'SpectralIndex': spi_converter,
     'LogarithmicSI': lambda x: bool(x == "true"),
     'ReferenceFrequency': float,
     'MajorAxis': arcsec2rad,

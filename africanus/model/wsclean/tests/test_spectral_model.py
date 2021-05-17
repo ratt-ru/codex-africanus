@@ -89,7 +89,7 @@ def test_dask_spectral_model(spectral_model_inputs, freq):
                           ordinary_spec_model)
 
     # Create dask arrays
-    src_chunks = (4, 3)
+    src_chunks = (4, 4)
     spi_chunks = (2,)
     freq_chunks = (4, 4, 4, 4)
 
