@@ -92,5 +92,5 @@ def test_wsclean_model_file(wsclean_model_file):
 
     assert I[6] == 0.000660490865128381
 
-    assert np.all(np.isnan(spi[7]) & np.isnan([float('nan'), float('nan')]))
     assert np.isnan(I[7])
+    assert np.isnan(spi[7][0]) and np.isinf(spi[7][1])
