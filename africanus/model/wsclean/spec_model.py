@@ -58,7 +58,7 @@ def _log_polynomial(log_poly, s):
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
-def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
+def spectra(I, coeffs, log_poly, ref_freq, frequency, zero_):  # noqa: E741
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
@@ -86,7 +86,7 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
                     flux = I[s]
 
                     if flux <= 0.0:
-                        raise ValueError("Log polynomial flux must be > 0")
+                        raise ValueError("log polynomial flux must be > 0")
 
                     # Initialise with base polynomial value
                     spectral_model[s, f] = np.log(flux)

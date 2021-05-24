@@ -2,7 +2,7 @@
 
 
 import numpy as np
-from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_almost_equal, assert_array_equal
 
 from africanus.model.wsclean.file_model import load, arcsec2rad
 
@@ -43,7 +43,7 @@ def test_wsclean_model_file(wsclean_model_file):
     assert dec[0] == expected_dec0
 
     # SPI read correctly
-    assert spi[0] == [-0.00695379313004673, -0.0849693907803257]
+    assert_array_equal(spi[0], [-0.00695379313004673, -0.0849693907803257])
 
     # LogrithmicSI read correctly
     assert log_si[0] is True
@@ -92,5 +92,5 @@ def test_wsclean_model_file(wsclean_model_file):
 
     assert I[6] == 0.000660490865128381
 
-    assert np.isnan(I[7])
-    assert np.isnan(spi[7][0]) and np.isinf(spi[7][1])
+    assert I[7] == 0
+    assert_array_equal(spi[7], [0.0, 0.0])

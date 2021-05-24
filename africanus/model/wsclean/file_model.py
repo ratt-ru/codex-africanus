@@ -3,6 +3,7 @@
 
 import math
 import re
+import warnings
 
 import numpy as np
 
@@ -37,7 +38,7 @@ def _deg_converter(deg_str):
     m = deg_re.match(deg_str)
 
     if not m:
-        raise ValueError("Error parsing '%s'" % deg_str)
+        raise ValueError(f"Error parsing '{deg_str}'")
 
     value = float(m.group("degs")) / 360.0
     value += float(m.group("mins")) / (360.0*60.0)
@@ -54,7 +55,26 @@ def arcsec2rad(arcseconds=0.0):
 
 
 def spi_converter(spi):
-    return [float(c) for c in spi.strip("[] ").split(",")]
+    spi = np.asarray([float(c) for c in spi.strip("[] ").split(",")])
+
+    mask = np.isfinite(spi)
+
+    if mask.any():
+        warnings.warn("Non-finite spectral indices zeroed during source model parsing")
+        spi[~mask] = 0.0
+
+    return spi
+
+
+def flux_converter(flux):
+    flux = float(flux)
+
+    if np.isfinite(flux):
+        return flux
+
+    warnings.warn("Non-finite flux zeroed during source model parsing")
+
+    return 0.0
 
 
 _COLUMN_CONVERTERS = {
@@ -62,7 +82,7 @@ _COLUMN_CONVERTERS = {
     'Type': str,
     'Ra': _hour_converter,
     'Dec': _deg_converter,
-    'I': float,
+    'I': flux_converter,
     'SpectralIndex': spi_converter,
     'LogarithmicSI': lambda x: bool(x == "true"),
     'ReferenceFrequency': float,
@@ -90,7 +110,7 @@ def _parse_col_descriptor(column_descriptor):
         m = _COL_HEADER_RE.search(column)
 
         if m is None:
-            raise ValueError("'%s' is not a valid column header" % column)
+            raise ValueError(f"'{column}' is not a valid column header")
 
         name, default = m.group('name', 'default')
 
@@ -104,7 +124,7 @@ def _parse_header(header):
     format_str, col_desc = (c.strip() for c in header.split("=", 1))
 
     if format_str != "Format":
-        raise ValueError("'%s' does not appear to be a wsclean header")
+        raise ValueError(f"'{format_str}' does not appear to be a wsclean header")
 
     return _parse_col_descriptor(col_desc)
 
@@ -116,8 +136,8 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
         components = [c.strip() for c in re.split(_COMMA_SPLIT_RE, line)]
 
         if len(components) != len(column_names):
-            raise ValueError("line %d '%s' should have %d components" %
-                             (line_nr, line, len(column_names)))
+            raise ValueError(f"line {line_nr} '{line}' should "
+                             f"have {len(column_names)} components")
 
         # Iterate through each column's data
         it = zip(column_names, components, converters, source_data, defaults)
@@ -128,12 +148,11 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
                     try:
                         default = conv()
                     except Exception as e:
-                        raise ValueError("No value supplied for column '%s' "
-                                         "on line %d and no default was "
-                                         "supplied either. Attempting to "
-                                         "generate a default produced the "
-                                         "following exception %s"
-                                         % (name, line_nr, str(e)))
+                        raise ValueError(f"No value supplied for column '{name}' "
+                                         f"on line {line_nr} and no default was "
+                                         f"supplied either. Attempting to "
+                                         f"generate a default produced the "
+                                         f"following exception {e}")
 
                 value = default
             else:
@@ -198,15 +217,15 @@ def load(filename):
             line_nr += 1
 
         if not header:
-            raise ValueError("'%s' does not contain a valid wsclean header"
-                             % filename)
+            raise ValueError(f"'{filename}' does not contain "
+                             f"a valid wsclean header")
 
         column_names, defaults = _parse_header(header)
 
         try:
             converters = [_COLUMN_CONVERTERS[n] for n in column_names]
         except KeyError as e:
-            raise ValueError("No converter registered for column %s" % str(e))
+            raise ValueError("No converter registered for column {e}")
 
         return _parse_lines(fh, line_nr, column_names, defaults, converters)
     finally:
