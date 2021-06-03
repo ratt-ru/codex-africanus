@@ -247,7 +247,7 @@ def load(filename):
         try:
             converters = [_COLUMN_CONVERTERS[n] for n in column_names]
         except KeyError as e:
-            raise ValueError(f"No converter registered for column {e}")
+            raise ValueError(f"No converter registered for column {str(e)}")
 
         return _parse_lines(fh, line_nr, column_names, defaults, converters)
 
