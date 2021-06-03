@@ -55,26 +55,7 @@ def arcsec2rad(arcseconds=0.0):
 
 
 def spi_converter(spi):
-    spi = np.asarray([float(c) for c in spi.strip("[] ").split(",")])
-
-    mask = np.isfinite(spi)
-
-    if mask.any():
-        warnings.warn("Non-finite spectral indices zeroed during source model parsing")
-        spi[~mask] = 0.0
-
-    return spi
-
-
-def flux_converter(flux):
-    flux = float(flux)
-
-    if np.isfinite(flux):
-        return flux
-
-    warnings.warn("Non-finite flux zeroed during source model parsing")
-
-    return 0.0
+    return [float(c) for c in spi.strip("[] ").split(",")]
 
 
 _COLUMN_CONVERTERS = {
@@ -82,7 +63,7 @@ _COLUMN_CONVERTERS = {
     'Type': str,
     'Ra': _hour_converter,
     'Dec': _deg_converter,
-    'I': flux_converter,
+    'I': float,
     'SpectralIndex': spi_converter,
     'LogarithmicSI': lambda x: bool(x == "true"),
     'ReferenceFrequency': float,
@@ -124,7 +105,8 @@ def _parse_header(header):
     format_str, col_desc = (c.strip() for c in header.split("=", 1))
 
     if format_str != "Format":
-        raise ValueError(f"'{format_str}' does not appear to be a wsclean header")
+        raise ValueError(f"'{format_str}' does not "
+                         f"appear to be a wsclean header")
 
     return _parse_col_descriptor(col_desc)
 
@@ -148,11 +130,12 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
                     try:
                         default = conv()
                     except Exception as e:
-                        raise ValueError(f"No value supplied for column '{name}' "
-                                         f"on line {line_nr} and no default was "
-                                         f"supplied either. Attempting to "
-                                         f"generate a default produced the "
-                                         f"following exception {e}")
+                        raise ValueError(
+                            f"No value supplied for column '{name}' "
+                            f"on line {line_nr} and no default was "
+                            f"supplied either. Attempting to "
+                            f"generate a default produced the "
+                            f"following exception {e}")
 
                 value = default
             else:
@@ -160,7 +143,46 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
 
             data_list.append(conv(value))
 
-    return zip(*(column_names, source_data))
+    columns = dict(zip(*(column_names, source_data)))
+
+    # Zero any spectral model's with nan/inf values
+    try:
+        name_column = columns["Name"]
+        flux_column = columns["I"]
+        spi_column = columns["SpectralIndex"]
+        log_spi_column = columns["LogarithmicSI"]
+    except KeyError as e:
+        raise ValueError(f"WSClean Model File missing "
+                         f"required column {str(e)}")
+
+    it = zip(name_column, flux_column, spi_column, log_spi_column)
+
+    # Zero flux and spi's in-place
+    for i, (name, flux, spi, log_spi) in enumerate(it):
+        good = True
+
+        if not math.isfinite(flux):
+            warnings.warn(f"Non-finite I {flux} encountered "
+                          f"for source {name}. This source model will "
+                          f"be zeroed.")
+            good = False
+
+        if not all(map(math.isfinite, spi)):
+            warnings.warn(f"Non-finite SpectralIndex {spi} encountered "
+                          f"for source {name}. This source model will "
+                          f"be zeroed.")
+            good = False
+
+        if good:
+            continue
+
+        # np.log(1.0) = 0.0
+        flux_column[i] = 1.0 if log_spi else 0.0
+
+        for j in range(len(spi)):
+            spi[j] = 0.0
+
+    return list(columns.items())
 
 
 def load(filename):
@@ -225,9 +247,10 @@ def load(filename):
         try:
             converters = [_COLUMN_CONVERTERS[n] for n in column_names]
         except KeyError as e:
-            raise ValueError("No converter registered for column {e}")
+            raise ValueError(f"No converter registered for column {e}")
 
         return _parse_lines(fh, line_nr, column_names, defaults, converters)
+
     finally:
         if close_filename:
             fh.close()
