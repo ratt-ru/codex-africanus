@@ -6,7 +6,7 @@ from africanus.util.numba import generated_jit
 from africanus.util.docs import DocstringTemplate
 
 
-def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
+def ordinary_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
     """ Numpy ordinary polynomial implementation """
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
@@ -16,7 +16,7 @@ def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
     return I[:, None] + term.sum(axis=2)
 
 
-def log_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
+def log_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
     """ Numpy logarithmic polynomial implementation """
     # No negative flux
     I = np.where(log_poly == False, 1.0, I)  # noqa: E741, E712
@@ -65,6 +65,7 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
 
     def impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
         if not (I.shape[0] == coeffs.shape[0] == ref_freq.shape[0]):
+            print(I.shape, coeffs.shape, ref_freq.shape)
             raise ValueError("first dimensions of I, coeffs "
                              "and ref_freq don't match.")
 
@@ -86,19 +87,13 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
                     flux = I[s]
 
                     if flux <= 0.0:
-                        raise ValueError("Log polynomial flux must be > 0")
+                        raise ValueError("log polynomial flux must be > 0")
 
                     # Initialise with base polynomial value
                     spectral_model[s, f] = np.log(flux)
 
                     for c in range(ncoeffs):
-                        term = coeffs[s, c]
-
-                        if term <= 0.0:
-                            raise ValueError("log polynomial coefficient "
-                                             "must be > 0")
-
-                        term *= np.log(nu/rf)**(c + 1)
+                        term = coeffs[s, c] * np.log(nu/rf)**(c + 1)
                         spectral_model[s, f] += term
 
                     spectral_model[s, f] = np.exp(spectral_model[s, f])
