@@ -183,3 +183,33 @@ def test_channel_mapper():
     assert_array_equal(counts, [17, 17, 17, 13])
 
     assert out_chans == 4
+
+
+@pytest.mark.parametrize("time_bin_secs", [3])
+def test_row_mapper2(time_bin_secs):
+    time = np.linspace(1.0, 10.0, 10)
+    interval = np.full_like(time, 1.0)
+
+    min_time_i = time.argmin()
+    max_time_i = time.argmax()
+
+    time_min = time[min_time_i] - interval[min_time_i] / 2
+    time_max = time[max_time_i] + interval[max_time_i] / 2
+    grid = [time_min]
+    next = time_min + time_bin_secs
+
+    while next < time_max:
+        grid.append(next)
+        next += time_bin_secs
+
+    grid.append(time_max)
+    grid = np.asarray(grid)
+    print(grid, np.diff(grid))
+
+    for j, (t, i) in enumerate(zip(time, interval)):
+        half_i = i / 2
+        l = np.searchsorted(grid, t - half_i, side="left")  # noqa
+        u = np.searchsorted(grid, t + half_i, side="left")
+        vals = ([((t - half_i, t + half_i), (l, u), (grid[l], grid[u]))] +
+                [time[k] for k in range(l, u)])
+        print(*vals, sep=", ", end="\n")
