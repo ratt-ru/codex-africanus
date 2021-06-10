@@ -15,7 +15,7 @@ from africanus.util.requirements import requires_optional
 
 try:
     import cupy as cp
-    from cupy.core._scalar import get_typename as _get_typename
+    from cupy._core._scalar import get_typename as _get_typename
     from cupy.cuda.compiler import CompileException
 except ImportError as e:
     opt_import_error = e
@@ -49,7 +49,6 @@ def _generate_interp_kernel(beam_freq_map, frequencies):
                   beam_freq_type=_get_typename(beam_freq_map.dtype),
                   freq_type=_get_typename(frequencies.dtype))
 
-    code = code.encode('utf-8')
     dtype = np.result_type(beam_freq_map, frequencies)
 
     return cp.RawKernel(code, name), block, dtype
@@ -134,8 +133,6 @@ def _generate_main_kernel(beam, beam_lm_ext, beam_freq_map,
                   freq_type=_get_typename(frequencies.dtype),
                   dde_type=_get_typename(beam.real.dtype),
                   dde_dims=dde_dims)
-
-    code = code.encode('utf-8')
 
     # Complex output type
     return cp.RawKernel(code, name), block, dtype
