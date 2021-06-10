@@ -176,7 +176,7 @@ def _generate_kernel(inputs, input_schema, output_schema):
                   input_type=cuda_type(inputs.dtype),
                   output_type=cuda_type(out_dtype),
                   assign_exprs=assign_exprs,
-                  elements=in_elems).encode("utf-8")
+                  elements=in_elems)
 
     # cuda block, flatten non-schema dims into a single source dim
     blockdimx = 512

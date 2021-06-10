@@ -15,7 +15,7 @@ from africanus.util.requirements import requires_optional
 
 try:
     import cupy as cp
-    from cupy.core._scalar import get_typename as _get_typename
+    from cupy._core._scalar import get_typename as _get_typename
     from cupy.cuda.compiler import CompileException
 except ImportError:
     pass
@@ -53,7 +53,7 @@ def _generate_kernel(lm, uvw, frequency):
                   sincos_fn=cuda_function('sincos', out_dtype),
                   minus_two_pi_over_c=minus_two_pi_over_c,
                   blockdimx=blockdimx,
-                  blockdimy=blockdimy).encode('utf-8')
+                  blockdimy=blockdimy)
 
     # Complex output type
     out_dtype = np.result_type(out_dtype, np.complex64)

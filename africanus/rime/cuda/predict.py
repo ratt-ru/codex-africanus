@@ -96,7 +96,7 @@ def _generate_kernel(time_index, antenna1, antenna2,
                   out_type=cuda_type(out_dtype),
                   corrs=ncorrs,
                   out_ndim=out_ndim,
-                  warp_size=32).encode('utf-8')
+                  warp_size=32)
 
     return cp.RawKernel(code, name), block, out_dtype
 
