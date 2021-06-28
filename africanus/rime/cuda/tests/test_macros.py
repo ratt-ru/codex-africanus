@@ -30,7 +30,7 @@ def test_cuda_inplace_warp_transpose(ncorrs, dtype, nvis, debug):
     }
 
     code = render(type=dtypes[dtype], warp_size=32,
-                  corrs=ncorrs, debug=debug).encode("utf-8")
+                  corrs=ncorrs, debug=debug)
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)

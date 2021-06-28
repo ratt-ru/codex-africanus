@@ -118,7 +118,7 @@ def test_cuda_shuffle_transpose():
     }
 
     code = _TEMPLATE.render(type=dtypes[dtype], warp_size=32,
-                            corrs=ncorrs, debug="false").encode("utf-8")
+                            corrs=ncorrs, debug="false")
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)
@@ -345,7 +345,7 @@ def test_cuda_shuffle_transpose_2(ncorrs):
                             register_assign_cycles=register_assign_cycles,
                             warp_size=32,
                             corrs=ncorrs,
-                            debug="false").encode("utf-8")
+                            debug="false")
     kernel = cp.RawKernel(code, "kernel")
 
     inputs = cp.arange(nvis*ncorrs, dtype=dtype).reshape(nvis, ncorrs)

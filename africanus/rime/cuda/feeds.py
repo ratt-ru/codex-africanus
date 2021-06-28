@@ -14,7 +14,7 @@ from africanus.util.requirements import requires_optional
 
 try:
     import cupy as cp
-    from cupy.core._scalar import get_typename as _get_typename
+    from cupy._core._scalar import get_typename as _get_typename
     from cupy.cuda.compiler import CompileException
 except ImportError as e:
     opt_import_error = e
@@ -53,8 +53,6 @@ def _generate_kernel(parallactic_angles, feed_type):
                   sincos_fn=cuda_function('sincos', dtype),
                   pa_type=_get_typename(dtype),
                   out_type=_get_typename(dtype))
-
-    code = code.encode('utf-8')
 
     # Complex output type
     out_dtype = np.result_type(dtype, np.complex64)
