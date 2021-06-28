@@ -253,10 +253,10 @@ class Binner(object):
         elif self.bin_count == 1:
             # Single entry in the bin, no averaging occurs
             out = FinaliseOutput(self.tbin,
-                                self.time_sum,
-                                self.interval_sum,
-                                chan_width.size,
-                                self.bin_count == self.bin_flag_count)
+                                 self.time_sum,
+                                 self.interval_sum,
+                                 chan_width.size,
+                                 self.bin_count == self.bin_flag_count)
 
             self.tbin += 1
 
