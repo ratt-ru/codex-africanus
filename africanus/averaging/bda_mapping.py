@@ -192,7 +192,7 @@ class Binner(object):
 
         if auto_corr:
             # Fast path for auto-correlated baseline.
-            # By definition, uvw == (0, 0, 0) for these samples
+            # By definition, duvw == (0, 0, 0) for these samples
             self.re = row
             self.bin_half_Δψ = self.decorrelation
             self.bin_count += 1
@@ -250,6 +250,17 @@ class Binner(object):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
+        elif self.bin_count == 1:
+            # Single entry in the bin, no averaging occurs
+            out = FinaliseOutput(self.tbin,
+                                self.time_sum,
+                                self.interval_sum,
+                                chan_width.size,
+                                self.bin_count == self.bin_flag_count)
+
+            self.tbin += 1
+
+            return out
 
         rs = self.rs
         re = self.re
