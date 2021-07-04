@@ -2,7 +2,15 @@
 History
 =======
 
-0.2.10 (YYYY-MM-DD)
+0.2.11 (YYYY-MM-DD)
+-------------------
+* Upgrade to CuPy 9.0 and fix template encoding (:pr:`251`)
+* Parse and zero spectral models containing 'nan' and 'inf' in wsclean model files (:pr:`250`)
+* Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
+* Clarify _wrapper names (:pr:`247`)
+* Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
+
+0.2.10 (2021-02-09)
 -------------------
 * Don't let dof go to zero during spi fitting (:pr:`240`)
 * Add support for Shapelets and Zernike Polynomials (:pr:`231`)

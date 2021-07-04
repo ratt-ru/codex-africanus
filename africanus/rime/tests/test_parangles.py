@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.rime.parangles import _discovered_backends
@@ -156,5 +157,4 @@ def test_dask_parallactic_angles(observation, wsrt_ants, backend):
     da_fc = da.from_array(np_fc, chunks=2)
 
     da_pa = da_parangle(da_times, da_ants, da_fc, backend=backend)
-
-    assert np.all(np_pa == da_pa.compute())
+    assert_array_equal(np_pa, np.asarray(da_pa.compute()))

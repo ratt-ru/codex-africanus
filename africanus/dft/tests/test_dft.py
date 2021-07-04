@@ -302,7 +302,7 @@ def test_symmetric_covariance():
 
     freq = np.array([1.0e9])
 
-    flags = np.zeros((nrows, nchan, ncorr), dtype=np.bool)
+    flags = np.zeros((nrows, nchan, ncorr), dtype=np.bool_)
 
     # get the "psf" matrix at source locations
     psf_source = np.zeros((nsource, nsource), dtype=np.float64)

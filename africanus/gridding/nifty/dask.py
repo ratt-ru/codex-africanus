@@ -310,7 +310,7 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
     baselines = da.blockwise(_nifty_baselines, ("row",),
                              uvw, ("row", "uvw"),
                              frequencies, ("chan",),
-                             dtype=np.object)
+                             dtype=object)
 
     if len(frequencies.chunks[0]) != 1:
         raise ValueError("Chunking in channel unsupported")
@@ -492,7 +492,7 @@ def degrid(grid, uvw, flags, weights, frequencies,
     baselines = da.blockwise(_nifty_baselines, ("row",),
                              uvw, ("row", "uvw"),
                              frequencies, ("chan",),
-                             dtype=np.object)
+                             dtype=object)
 
     gc = grid_config.object
     vis_chunks = []

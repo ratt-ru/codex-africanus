@@ -68,7 +68,7 @@ def test_2d_shapelet(gf_shapelets):
     img_coords = np.zeros((nrow, 3))
     img_coeffs = np.random.randn(nsrc, ncoeffs[0], ncoeffs[1])
     img_beta = np.zeros((nsrc, 2))
-    frequency = np.empty((nchan), dtype=np.float)
+    frequency = np.empty((nchan), dtype=float)
 
     # Assign values to input arrays
     img_coords[:, :2], img_coords[:, 2] = lm[:, :], 0

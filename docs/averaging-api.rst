@@ -198,8 +198,10 @@ Numpy
 
 .. autosummary::
     time_and_channel
+    bda
 
 .. autofunction:: time_and_channel
+.. autofunction:: bda
 
 
 Dask
@@ -209,6 +211,8 @@ Dask
 
 .. autosummary::
     time_and_channel
+    bda
 
 .. autofunction:: time_and_channel
+.. autofunction:: bda
 
