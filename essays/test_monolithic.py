@@ -123,6 +123,12 @@ class Phase(Term):
 
                         real_phase[source, row] = l*u + m*v + (n - one)*w
 
+            def sampler(self):
+                def sample(r, t, a1, a2, c, args):
+                    pass
+
+                return sample, (self.lm, self.uvw, self.chan_freq)
+
         return klass
 
 
@@ -211,10 +217,11 @@ if __name__ == "__main__":
         def __init__(self, a):
             self.a = a
 
-    @jitclass(spec=[("b", nb.int32)])
-    class B:
-        def __init__(self, b):
-            self.b = b
+        def sampler(self):
+            def impl(r, t, a1, a2, c):
+                return r
+
+            return impl
 
     @intrinsic
     def test(typingctx, args):
@@ -248,11 +255,13 @@ if __name__ == "__main__":
     def fn(i):
         # a = A(*(1,))
         # print(a)
-        return test((i,))
+        a = test((i,))
+        impl = a.sampler()
+        return impl(10, 0, 0, 0, 0)
 
     import pdb
     pdb.set_trace()
-    print(fn(11).a)
+    print(fn(11))
 
     rime = rime_factory()
     lm = np.random.random(size=(10, 2))
