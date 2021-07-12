@@ -1,9 +1,7 @@
-from abc import abstractclassmethod, abstractmethod, abstractproperty
-
-
 import abc
 from numba import njit, generated_jit
 from numba.core import cgutils, typing, types  # noqa
+from numba.core.errors import TypingError
 from numba.extending import (
     overload,
     overload_method,
@@ -15,13 +13,28 @@ import numba as nb
 import numpy as np
 
 
-class BaseTermType(types.StructRef):
+class BaseStructRef(types.StructRef):
     def preprocess_fields(self, fields):
         """ Disallow literal types in field definitions """
         return tuple((n, types.unliteral(t)) for n, t in fields)    
 
 
 class Term(abc.ABC):
+    @classmethod
+    @abc.abstractmethod
+    def term_type(cls, *args):
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def initialiser(cls, *args):
+        raise NotImplementedError
+
+    @classmethod
+    @abc.abstractmethod
+    def sampler(cls):
+        raise NotImplementedError
+
     @staticmethod
     def result_type(*args):
         types = []
@@ -42,40 +55,35 @@ class Term(abc.ABC):
 
 
 @structref.register
-class PhaseType(BaseTermType):
+class GeneralStateType(BaseStructRef):
     pass
 
-class PhaseProxy(structref.StructRefProxy):
-    def __new__(cls, *args):
-        return structref.StructRefProxy.__new__(cls, *args)
-
+@structref.register
+class PhaseType(BaseStructRef):
+    pass
 
 class PhaseTerm(Term):
-    args = ["lm", "uvw", "chan_freq"]
-    type = PhaseType
-    proxy = PhaseProxy
+    term_args = ["lm", "uvw", "chan_freq"]
+    abstract_type = PhaseType
 
     @classmethod
-    def term_type(cls, lm, uvw, chan_freq):
+    def term_type(cls, *args):
+        assert len(cls.term_args) == len(args)
+        lm, uvw, chan_freq = args
         phase_dot = cls.result_type(lm, uvw, chan_freq)
-        return PhaseType([
-            ("lm", lm),
-            ("uvw", uvw),
-            ("chan_freq", chan_freq),
-            ("phase_dot", phase_dot[:, :, :])
-        ])
-
-    @classmethod
-    def initialiser(cls, lm, uvw, chan_freq):
-        phase_dot = cls.result_type(lm, uvw, chan_freq)
-        struct_type = PhaseType([
+        return cls.abstract_type([
             ("lm", lm),
             ("uvw", uvw),
             ("chan_freq", chan_freq),
             ("phase_dot", phase_dot[:, :])
         ])
 
-        def impl(lm, uvw, chan_freq):
+    @classmethod
+    def initialiser(cls, *args):
+        struct_type = cls.term_type(*args)
+        dot_dtype = struct_type.field_dict["phase_dot"].dtype
+
+        def phase(lm, uvw, chan_freq):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape
@@ -84,11 +92,11 @@ class PhaseTerm(Term):
             state.lm = lm
             state.uvw = uvw
             state.chan_freq = chan_freq
-            state.phase_dot = np.empty((nsrc, nrow), dtype=phase_dot)
+            state.phase_dot = np.empty((nsrc, nrow), dtype=dot_dtype)
 
             zero = lm.dtype.type(0.0)
             one = lm.dtype.type(1.0)
-            C = phase_dot(-2*np.pi/3e8)
+            C = dot_dtype(-2*np.pi/3e8)
 
             for s in range(nsrc):
                 l = lm[s, 0]
@@ -105,63 +113,120 @@ class PhaseTerm(Term):
                 
             return state
 
-        return impl
+        return phase
 
     @classmethod
     def sampler(cls):
-        def impl(state, s, r, t, a1, a2, c):
-            return np.exp(state.phase_dot[s, r]*state.chan_freq[c])
+        def phase_sample(state, s, r, t, a1, a2, c):
+            return np.exp(state.phase_dot[s, r] * state.chan_freq[c])
 
-        return impl
-
-structref.define_proxy(PhaseProxy, PhaseType, PhaseTerm.args)
-
+        return phase_sample
 
 @structref.register
-class BrightnessType(BaseTermType):
+class BrightnessType(BaseStructRef):
     pass
 
-class BrightnessProxy(structref.StructRefProxy):
-    def __new__(cls, stokes, chan_freq):
-        return structref.StructRefProxy.__new__(cls, stokes, chan_freq)
-
-
 class BrightnessTerm(Term):
-    args = ["stokes", "chan_freq"]
-    type = BrightnessType
-    proxy = BrightnessProxy
+    term_args = ["stokes", "chan_freq"]
+    abstract_type = BrightnessType
 
-structref.define_proxy(BrightnessProxy, BrightnessType, BrightnessTerm.args)
+    @classmethod
+    def term_type(cls, *args):
+        assert len(cls.term_args) == len(args)
+        stokes, chan_freq = args
+
+        return cls.abstract_type([
+            ("stokes", stokes),
+            ("chan_freq", chan_freq)
+        ])
+
+    @classmethod
+    def initialiser(cls, *args):
+        struct_type = cls.term_type(*args)
+
+        def brightness(stokes, chan_freq):
+            state = structref.new(struct_type)
+            return state
+
+        return brightness
+
+    @classmethod
+    def sampler(cls):
+        def brightness_sampler(state, s, r, t, a1, a2, c):
+            return 0
+
+        return brightness_sampler
+
+# class PhaseProxy(structref.StructRefProxy):
+#     pass
+# class BrightnessProxy(structref.StructRefProxy):
+#     pass
+#structref.define_proxy(PhaseProxy, PhaseType, ["lm", "uvw", "chan_freq"])
+#structref.define_proxy(BrightnessProxy, BrightnessType, ["stokes", "chan_freq"])
 
 
 def term_factory(args, terms, term_arg_inds):
-    types = [term.type for term in terms]
-    proxies = [term.proxy for term in terms]
     term_arg_types = tuple(tuple(args[j] for j in idx)
                            for idx in term_arg_inds)
-    term_arg_names = tuple(tuple(term.args) for term in terms)
-
-    it = zip(term_arg_names, term_arg_types)
-    term_fields = [[(n, t) for n, t in zip(names, types)]
-                   for names, types in it]
-
-    term_types = [typ(fields) for typ, fields in zip(types, term_fields)]
+    assert len(terms) == len(term_arg_inds)
 
     @intrinsic
     def implementation(typginctx, args):
-        return_type = nb.types.Tuple(term_types)
+        if not isinstance(args, nb.core.types.Tuple):
+            raise TypingError("args must be a Tuple")
+        
+        term_state_types = [term.term_type(*arg_types)
+                            for term, arg_types
+                            in zip(terms, term_arg_types)]
+
+        constructors = [term.initialiser(*arg_types)
+                        for term, arg_types
+                        in zip(terms, term_arg_types)]
+
+        general_state_type = GeneralStateType([
+            ("source", nb.int64),
+            ("row", nb.int64),
+            ("chan", nb.int64),
+            ("corr", nb.int64)
+        ])
+
+        return_type = nb.types.Tuple(term_state_types)
+
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):
-            tuple_type = signature.args[0]
             return_type = signature.return_type
-            ret_type = context.get_value_type(return_type)
-            ret_tuple = cgutils.get_null_value(ret_type)
 
-            for t in range(return_type.count):
-                pass
+            if not isinstance(return_type, nb.types.Tuple):
+                raise TypingError("signature.return_type should be a Tuple")
 
-                
+            llvm_ret_type = context.get_value_type(return_type)
+            ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+            if not len(args) == 1:
+                raise TypingError("args must contain a single value")
+
+            # Our single argument is a tuple of arguments, but we
+            # need to extract those arguments necessary to construct
+            # the term StructRef
+            constructor_args = [[builder.extract_value(args[0], j)
+                                 for j in idx]
+                                for idx in term_arg_inds]
+
+            # Sanity
+            assert all(len(ca) == len(at) for ca, at
+                       in zip(constructor_args, term_arg_types))
+
+            for ti in range(return_type.count):
+                constructor_sig = return_type[ti](*term_arg_types[ti])
+                data = context.compile_internal(builder,
+                                                constructors[ti],
+                                                constructor_sig,
+                                                constructor_args[ti])
+
+                ret_tuple = builder.insert_value(ret_tuple, data, ti)
+
+            return ret_tuple
 
         return sig, codegen
 
@@ -170,27 +235,49 @@ def term_factory(args, terms, term_arg_inds):
 class rime_factory:
     def __init__(self):
         terms = [PhaseTerm, BrightnessTerm]
-        args = list(sorted(set(a for t in terms for a in t.args)))
+        args = list(sorted(set(a for t in terms for a in t.term_args)))
         arg_map = {a: i for i, a in enumerate(args)}
-        term_arg_inds = tuple(tuple(arg_map[a] for a in t.args) for t in terms)
+        term_arg_inds = tuple(tuple(arg_map[a] for a in t.term_args) for t in terms)
+
+        try:
+            lm_i = arg_map["lm"]
+            uvw_i = arg_map["uvw"]
+            chan_freq_i = arg_map["chan_freq"]
+            stokes_i = arg_map["stokes"]
+        except KeyError as e:
+            raise ValueError(f"'{str(e)}' is a required argument")
 
         @generated_jit(nopython=True, nogil=True, cache=True)
-        def function(*args):
-            # tfactory = term_factory(args[0], terms, term_arg_inds)
+        def rime(*args):
+            assert len(args) == 1
+            state_factory = term_factory(args[0], terms, term_arg_inds)
 
             def impl(*args):
-                # terms = tfactory(args)  # noqa: F841
-                pass
+                term_state = state_factory(args)  # noqa: F841
+
+                nsrc, _ = args[lm_i].shape
+                nrow, _ = args[uvw_i].shape
+                nchan, = args[chan_freq_i].shape
+                _, ncorr = args[stokes_i].shape
+
+                vis = np.zeros((nrow, nchan, ncorr), np.complex128)
+
+                for s in range(nsrc):
+                    for r in range(nrow):
+                        for f in range(nchan):
+                            for c in range(ncorr):
+                                vis[r, f, c] += 1
+
+                return vis
 
             return impl
 
         self.terms = terms
         self.args = args
         self.arg_map = arg_map
-        self.impl = function
+        self.impl = rime
 
     def __call__(self, **kwargs):
-
         try:
             args = tuple(kwargs[a] for a in self.args)
         except KeyError as e:
@@ -200,10 +287,6 @@ class rime_factory:
 
 
 if __name__ == "__main__":
-    @njit
-    def fn():
-        return PhaseProxy(np.ones(100), 2, 3)
-
     rime = rime_factory()
     lm = np.random.random(size=(10, 2))
     uvw = np.random.random(size=(5, 3))
@@ -211,13 +294,12 @@ if __name__ == "__main__":
     stokes = np.random.random(size=(10, 4))
 
 
-    @generated_jit(nopython=True)
+    @generated_jit(nopython=True, cache=True)
     def fn(lm, uvw, chan_freq):
         init = PhaseTerm.initialiser(lm, uvw, chan_freq)
         sampler = PhaseTerm.sampler()
         init = register_jitable(inline="always")(init)
         sampler = register_jitable(inline="always")(sampler)
-
 
         def impl(lm, uvw, chan_freq):
             state = init(lm, uvw, chan_freq)
@@ -238,4 +320,13 @@ if __name__ == "__main__":
 
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes)
 
-    print(fn(lm, uvw, chan_freq))
+
+    print(out)
+
+    # import pdb;  pdb.set_trace()
+    res = fn(lm, uvw, chan_freq)
+    print(res)
+
+    from pprint import pprint
+
+    #print(fn.inspect_types(signature=fn.signatures[0]))
