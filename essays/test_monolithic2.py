@@ -1,6 +1,7 @@
 import abc
 from numba import njit, generated_jit
-from numba.core import cgutils, typing, types  # noqa
+from numba.core import compiler, cgutils, typing, types  # noqa
+from numba.core.typed_passes import type_inference_stage
 from numba.core.errors import TypingError
 from numba.extending import (
     overload,
@@ -170,19 +171,21 @@ def term_factory(args, terms, term_arg_inds):
                            for idx in term_arg_inds)
     assert len(terms) == len(term_arg_inds)
 
-    @intrinsic
-    def implementation(typginctx, args):
-        if not isinstance(args, nb.core.types.Tuple):
-            raise TypingError("args must be a Tuple")
-        
-        term_state_types = [term.term_type(*arg_types)
-                            for term, arg_types
-                            in zip(terms, term_arg_types)]
-
-        constructors = [term.initialiser(*arg_types)
+    term_state_types = [term.term_type(*arg_types)
                         for term, arg_types
                         in zip(terms, term_arg_types)]
 
+    constructors = [term.initialiser(*arg_types)
+                    for term, arg_types
+                    in zip(terms, term_arg_types)]
+
+    samplers = [term.sampler() for term in terms]
+
+    @intrinsic
+    def construct_terms(typginctx, args):
+        if not isinstance(args, nb.core.types.Tuple):
+            raise TypingError("args must be a Tuple")
+        
         general_state_type = GeneralStateType([
             ("source", nb.int64),
             ("row", nb.int64),
@@ -230,7 +233,36 @@ def term_factory(args, terms, term_arg_inds):
 
         return sig, codegen
 
-    return implementation
+
+    @intrinsic
+    def apply_terms(typingctx, state):
+        if not isinstance(state, nb.types.Tuple):
+            raise TypingError(f"{state} must be a Tuple")
+
+        if not len(state) == len(term_state_types):
+            raise TypingError(f"State length does not equal the number of terms")
+
+        if not all(st == tst for st, tst in zip(state, term_state_types)):
+            raise TypingError(f"State types don't match")
+
+        sampler_ir = list(map(compiler.run_frontend, samplers))
+
+        ir_args = [(typ,) + (nb.int64,)*6 for typ in term_state_types]
+
+        type_infer = [type_inference_stage(typingctx, ir, args, None)
+                      for ir, args in zip(sampler_ir, ir_args)]
+
+        sig = nb.types.none(state)
+
+        def codegen(context, builder, signature, args):
+            ret_type = context.get_value_type(signature.return_type)
+            return cgutils.get_null_value(ret_type)
+
+        return sig, codegen
+
+    return construct_terms, apply_terms
+
+
 
 class rime_factory:
     def __init__(self):
@@ -250,7 +282,7 @@ class rime_factory:
         @generated_jit(nopython=True, nogil=True, cache=True)
         def rime(*args):
             assert len(args) == 1
-            state_factory = term_factory(args[0], terms, term_arg_inds)
+            state_factory, apply_terms = term_factory(args[0], terms, term_arg_inds)
 
             def impl(*args):
                 term_state = state_factory(args)  # noqa: F841
@@ -259,6 +291,8 @@ class rime_factory:
                 nrow, _ = args[uvw_i].shape
                 nchan, = args[chan_freq_i].shape
                 _, ncorr = args[stokes_i].shape
+
+                apply_terms(term_state)
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
 
@@ -329,4 +363,4 @@ if __name__ == "__main__":
 
     from pprint import pprint
 
-    #print(fn.inspect_types(signature=fn.signatures[0]))
+    print(fn.inspect_types(signature=fn.signatures[0]))
