@@ -156,7 +156,12 @@ class BrightnessTerm(Term):
     @classmethod
     def sampler(cls):
         def brightness_sampler(state, s, r, t, a1, a2, c):
-            return 0
+            #assert state.stokes.shape[1] == 4
+            c1 = state.stokes[s, 0]
+            c2 = state.stokes[s, 1]
+            c3 = state.stokes[s, 2]
+            c4 = state.stokes[s, 3]
+            return c1, c2, c3, c4
 
         return brightness_sampler
 
@@ -241,7 +246,9 @@ def term_factory(args, terms, term_arg_inds):
         if not isinstance(state, nb.types.Tuple):
             raise TypingError(f"{state} must be a Tuple")
 
-        if not len(state) == len(term_state_types):
+        nterms = len(state)
+
+        if not nterms == len(term_state_types):
             raise TypingError(f"State length does not equal the number of terms")
 
         if not all(st == tst for st, tst in zip(state, term_state_types)):
@@ -252,9 +259,30 @@ def term_factory(args, terms, term_arg_inds):
         ir_args = [(typ,) + idx_types for typ in term_state_types]
         type_infer = [type_inference_stage(typingctx, ir, args, None)
                       for ir, args in zip(sampler_ir, ir_args)]
+        sampler_return_types = [ti.return_type for ti in type_infer]
         sig = nb.float64(state, s, r, t, a1, a2, c)
 
         def codegen(context, builder, signature, args):
+            [state, s, r, t, a1, a2, c] = args
+
+            for ti in range(nterms):
+                sampling_fn = samplers[ti]
+
+                # Build signature for the sampling function
+                ret_type = sampler_return_types[ti]
+                sampler_arg_types = (term_state_types[ti],) + signature.args[1:]
+                sampler_sig = ret_type(*sampler_arg_types)
+
+                # Build LLVM arguments for the sampling function
+                term_state = builder.extract_value(state, ti)
+                sampler_args = [term_state] + [s, r, t, a1, a2, c]
+
+                # Call the sampling function
+                data = context.compile_internal(builder,
+                                                sampling_fn,
+                                                sampler_sig,
+                                                sampler_args)
+
             return context.get_constant(types.float64, 10.0)
 
         return sig, codegen
