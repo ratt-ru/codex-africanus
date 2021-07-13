@@ -147,6 +147,8 @@ class BrightnessTerm(Term):
 
         def brightness(stokes, chan_freq):
             state = structref.new(struct_type)
+            state.stokes = stokes
+            state.chan_freq = chan_freq
             return state
 
         return brightness
@@ -235,7 +237,7 @@ def term_factory(args, terms, term_arg_inds):
 
 
     @intrinsic
-    def apply_terms(typingctx, state):
+    def sample_terms(typingctx, state, s, r, t, a1, a2, c):
         if not isinstance(state, nb.types.Tuple):
             raise TypingError(f"{state} must be a Tuple")
 
@@ -246,26 +248,25 @@ def term_factory(args, terms, term_arg_inds):
             raise TypingError(f"State types don't match")
 
         sampler_ir = list(map(compiler.run_frontend, samplers))
-
-        ir_args = [(typ,) + (nb.int64,)*6 for typ in term_state_types]
-
+        idx_types = (s, r, t, a1, a2, c)
+        ir_args = [(typ,) + idx_types for typ in term_state_types]
         type_infer = [type_inference_stage(typingctx, ir, args, None)
                       for ir, args in zip(sampler_ir, ir_args)]
-
-        sig = nb.types.none(state)
+        sig = nb.float64(state, s, r, t, a1, a2, c)
 
         def codegen(context, builder, signature, args):
-            ret_type = context.get_value_type(signature.return_type)
-            return cgutils.get_null_value(ret_type)
+            return context.get_constant(types.float64, 10.0)
 
         return sig, codegen
 
-    return construct_terms, apply_terms
+    return construct_terms, sample_terms
 
 
 
 class rime_factory:
     def __init__(self):
+
+        # "G_{p}[E_{stp}K_{stp}B_{s}K_{stq}E_{stq}]sG_{q}"
         terms = [PhaseTerm, BrightnessTerm]
         args = list(sorted(set(a for t in terms for a in t.term_args)))
         arg_map = {a: i for i, a in enumerate(args)}
@@ -279,10 +280,10 @@ class rime_factory:
         except KeyError as e:
             raise ValueError(f"'{str(e)}' is a required argument")
 
-        @generated_jit(nopython=True, nogil=True, cache=True)
+        @generated_jit(nopython=True, nogil=True)
         def rime(*args):
             assert len(args) == 1
-            state_factory, apply_terms = term_factory(args[0], terms, term_arg_inds)
+            state_factory, sample_terms = term_factory(args[0], terms, term_arg_inds)
 
             def impl(*args):
                 term_state = state_factory(args)  # noqa: F841
@@ -292,15 +293,12 @@ class rime_factory:
                 nchan, = args[chan_freq_i].shape
                 _, ncorr = args[stokes_i].shape
 
-                apply_terms(term_state)
-
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
 
                 for s in range(nsrc):
                     for r in range(nrow):
                         for f in range(nchan):
-                            for c in range(ncorr):
-                                vis[r, f, c] += 1
+                            vis[r, f, 0] += sample_terms(term_state, s, r, 0, 0, 0, f)
 
                 return vis
 
@@ -322,7 +320,7 @@ class rime_factory:
 
 if __name__ == "__main__":
     rime = rime_factory()
-    lm = np.random.random(size=(10, 2))
+    lm = np.random.random(size=(10, 2))*1e-5
     uvw = np.random.random(size=(5, 3))
     chan_freq = np.linspace(.856e9, 2*.859e9, 4)
     stokes = np.random.random(size=(10, 4))
@@ -363,4 +361,4 @@ if __name__ == "__main__":
 
     from pprint import pprint
 
-    print(fn.inspect_types(signature=fn.signatures[0]))
+    #print(fn.inspect_types(signature=fn.signatures[0]))
