@@ -10,5 +10,4 @@ def test_monolithic_rime():
     stokes = np.random.random(size=(10, 4))
 
     rime = rime_factory()
-
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes)  # noqa
