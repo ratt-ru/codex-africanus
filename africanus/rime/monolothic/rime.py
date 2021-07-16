@@ -76,7 +76,7 @@ def classify_arg(arg):
     """
     if isinstance(arg, types.Number):
         return "scalar"
-    elif isinstance(arg, types.Tuple):
+    elif isinstance(arg, types.BaseTuple):
         if len(arg) == 2:
             return "diag"
         elif len(arg) == 4:
@@ -237,13 +237,13 @@ def term_factory(args, terms, term_arg_inds):
 
             raise err
 
-        out_types = []
-        it = zip(sampler_return_types[:-1], sampler_return_types[1:])
+        sampler_ret_type = types.float64
 
-        for lhs, rhs in it:
-            out_types.append(unify_jones_terms(typingctx, lhs, rhs))
+        for typ in sampler_return_types:
+            sampler_ret_type = unify_jones_terms(typingctx,
+                                                 sampler_ret_type, typ)
 
-        sig = types.float64(state, s, r, t, a1, a2, c)
+        sig = sampler_ret_type(state, s, r, t, a1, a2, c)
 
         def codegen(context, builder, signature, args):
             [state, s, r, t, a1, a2, c] = args
@@ -269,11 +269,21 @@ def term_factory(args, terms, term_arg_inds):
                                                 sampler_args)
                 jones.append(data)
 
-            for j1, j2 in zip(jones[:-1], jones[1:]):
-                # context.compile_internal(builder)
-                pass
+            prev = context.get_constant(types.float64, 1.0)
+            prev_t = types.float64
 
-            return context.get_constant(types.float64, 10.0)
+            for jrt, j in zip(sampler_return_types, jones):
+                jones_mul = term_mul(prev_t, jrt)
+                jones_mul_typ = unify_jones_terms(context.typing_context,
+                                                  prev_t, jrt)
+                jones_sig = jones_mul_typ(prev_t, jrt)
+                prev = context.compile_internal(builder, jones_mul,
+                                                jones_sig,
+                                                [prev, j])
+
+                prev_t = jones_mul_typ
+
+            return prev
 
         return sig, codegen
 
@@ -291,6 +301,12 @@ class rime_factory:
         arg_map = {a: i for i, a in enumerate(args)}
         term_arg_inds = tuple(tuple(arg_map[a]
                               for a in t.term_args) for t in terms)
+
+        if PhaseTerm not in terms:
+            raise ValueError("RIME must at least contain a Phase Term")
+
+        if BrightnessTerm not in terms:
+            raise ValueError("RIME must at least contain a Brightness Term")
 
         try:
             lm_i = arg_map["lm"]
@@ -319,8 +335,12 @@ class rime_factory:
                 for s in range(nsrc):
                     for r in range(nrow):
                         for f in range(nchan):
-                            vis[r, f, 0] += sample_terms(term_state,
-                                                         s, r, 0, 0, 0, f)
+                            X = sample_terms(term_state, s, r, 0, 0, 0, f)
+
+                            vis[r, f, 0] += X[0]
+                            vis[r, f, 1] += X[1]
+                            vis[r, f, 2] += X[2]
+                            vis[r, f, 3] += X[3]
 
                 return vis
 

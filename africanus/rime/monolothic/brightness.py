@@ -37,10 +37,11 @@ class BrightnessTerm(Term):
     @classmethod
     def sampler(cls):
         def brightness_sampler(state, s, r, t, a1, a2, c):
-            XX = (state.stokes[s, 0] + state.stokes[s, 3]) / 2.0
-            XY = (state.stokes[s, 1] + state.stokes[s, 2])*1j / 2.0
-            YX = (state.stokes[s, 1] - state.stokes[s, 2])*1j / 2.0
-            YY = (state.stokes[s, 0] - state.stokes[s, 3]) / 2.0
+            # I Q U V
+            XX = (state.stokes[s, 0] + state.stokes[s, 1]) / 2.0
+            XY = (state.stokes[s, 2] + state.stokes[s, 3])*1j / 2.0
+            YX = (state.stokes[s, 2] - state.stokes[s, 3])*1j / 2.0
+            YY = (state.stokes[s, 0] - state.stokes[s, 1]) / 2.0
             return XX, XY, YX, YY
 
         return brightness_sampler
