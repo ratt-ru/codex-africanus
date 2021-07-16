@@ -8,26 +8,42 @@ import numpy as np
 def scalar_scalar(lhs, rhs):
     return lhs*rhs
 
+
 def scalar_diag(lhs, rhs):
-        return lhs*rhs[0], lhs*rhs[1]
+    return lhs*rhs[0], lhs*rhs[1]
+
 
 def scalar_full(lhs, rhs):
-        return lhs*rhs[0], lhs*rhs[1], lhs*rhs[2], lhs*rhs[3]
+    return lhs*rhs[0], lhs*rhs[1], lhs*rhs[2], lhs*rhs[3]
+
 
 def diag_scalar(lhs, rhs):
     return lhs[0]*rhs, lhs[1]*rhs
 
+
 def diag_diag(lhs, rhs):
     return lhs[0]*rhs[0], lhs[1]*rhs[1]
 
+
 def diag_full(lhs, rhs):
-    raise NotImplementedError
+    return (
+        lhs[0]*rhs[0],
+        lhs[0]*rhs[1],
+        lhs[1]*rhs[2],
+        lhs[1]*rhs[3])
+
 
 def full_scalar(lhs, rhs):
     return lhs[0]*rhs, lhs[1]*rhs, lhs[2]*rhs, lhs[3]*rhs
 
+
 def full_diag(lhs, rhs):
-    raise NotImplementedError
+    return (
+        lhs[0]*rhs[0],
+        lhs[1]*rhs[1],
+        lhs[2]*rhs[0],
+        lhs[3]*rhs[1])
+
 
 def full_full(lhs, rhs):
     return (
@@ -35,6 +51,7 @@ def full_full(lhs, rhs):
         lhs[0]*rhs[1] + lhs[1]*rhs[3],
         lhs[2]*rhs[0] + lhs[3]*rhs[2],
         lhs[2]*rhs[1] + lhs[3]*rhs[3])
+
 
 _jones_typ_map = {
     ("scalar", "scalar"): scalar_scalar,
@@ -48,7 +65,15 @@ _jones_typ_map = {
     ("full", "full"): full_full
 }
 
+
 def classify_arg(arg):
+    """
+    Returns
+    -------
+    arg_type : {"scalar", "diag", "full", None}
+        A string describing the argument type, else `None`
+        if this is not possible
+    """
     if isinstance(arg, types.Number):
         return "scalar"
     elif isinstance(arg, types.Tuple):
@@ -61,6 +86,17 @@ def classify_arg(arg):
 
 
 def term_mul(lhs, rhs):
+    """
+    Parameters
+    ----------
+    lhs : :class:`numba.Type`
+    rhs : :class:`numba.Type`
+
+    Returns
+    -------
+    multiplier : callable
+        Function multiplying arguments of types lhs and rhs together
+    """
     lhs_type = classify_arg(lhs)
     rhs_type = classify_arg(rhs)
 
@@ -70,7 +106,11 @@ def term_mul(lhs, rhs):
         raise errors.TypingError(f"No known multiplication "
                                  f"function for {lhs} and {rhs}")
 
+
 def unify_jones_terms(typingctx, lhs, rhs):
+    """
+    Unify Jones Term Types.
+    """
     lhs_type = classify_arg(lhs)
     rhs_type = classify_arg(rhs)
 
@@ -80,7 +120,9 @@ def unify_jones_terms(typingctx, lhs, rhs):
         lhs_corrs = corr_map[lhs_type]
         rhs_corrs = corr_map[rhs_type]
     except KeyError:
-        raise errors.TypingError(f"{lhs} or {rhs} has no mapping")
+        raise errors.TypingError(f"{lhs} or {rhs} has no "
+                                 f"entry in the {corr_map} "
+                                 f"mapping")
 
     lhs_types = (lhs,) if lhs_corrs == 1 else tuple(lhs)
     rhs_types = (rhs,) if rhs_corrs == 1 else tuple(rhs)
@@ -103,8 +145,6 @@ def term_factory(args, terms, term_arg_inds):
     constructors = [term.initialiser(*arg_types)
                     for term, arg_types
                     in zip(terms, term_arg_types)]
-
-    samplers = [term.sampler() for term in terms]
 
     @intrinsic
     def construct_terms(typginctx, args):
@@ -152,14 +192,15 @@ def term_factory(args, terms, term_arg_inds):
 
         return sig, codegen
 
+    samplers = [term.sampler() for term in terms]
+    nterms = len(terms)
+
     @intrinsic
     def sample_terms(typingctx, state, s, r, t, a1, a2, c):
         if not isinstance(state, types.Tuple):
             raise errors.TypingError(f"{state} must be a Tuple")
 
-        nterms = len(state)
-
-        if not nterms == len(term_state_types):
+        if not nterms == len(state) == len(term_state_types):
             raise errors.TypingError(
                 "State length does not equal the number of terms")
 
@@ -181,8 +222,8 @@ def term_factory(args, terms, term_arg_inds):
             err = errors.TypingError(
                 f"{sampler} should return:\n"
                 f"(1) a single scalar correlation\n"
-                f"(2) a tuple containing 2 scalar correlations\n"
-                f"(3) a tuple containing 4 scalar correlations\n"
+                f"(2) a Tuple containing 2 scalar correlations\n"
+                f"(3) a Tuple containing 4 scalar correlations\n"
                 f"but instead got a {typ}")
 
             if isinstance(typ, types.BaseTuple):
@@ -196,11 +237,16 @@ def term_factory(args, terms, term_arg_inds):
 
             raise err
 
+        out_types = []
+        it = zip(sampler_return_types[:-1], sampler_return_types[1:])
+
+        for lhs, rhs in it:
+            out_types.append(unify_jones_terms(typingctx, lhs, rhs))
+
         sig = types.float64(state, s, r, t, a1, a2, c)
 
         def codegen(context, builder, signature, args):
             [state, s, r, t, a1, a2, c] = args
-
             jones = []
 
             for ti in range(nterms):
@@ -208,8 +254,8 @@ def term_factory(args, terms, term_arg_inds):
 
                 # Build signature for the sampling function
                 ret_type = sampler_return_types[ti]
-                sampler_arg_types = (
-                    term_state_types[ti],) + signature.args[1:]
+                sampler_arg_types = ((term_state_types[ti],) +
+                                     signature.args[1:])
                 sampler_sig = ret_type(*sampler_arg_types)
 
                 # Build LLVM arguments for the sampling function
@@ -223,8 +269,9 @@ def term_factory(args, terms, term_arg_inds):
                                                 sampler_args)
                 jones.append(data)
 
-            for lhs, rhs in zip(sampler_return_types[:-1], sampler_return_types[1:]):
-                out_type = unify_jones_terms(typingctx, lhs, rhs)
+            for j1, j2 in zip(jones[:-1], jones[1:]):
+                # context.compile_internal(builder)
+                pass
 
             return context.get_constant(types.float64, 10.0)
 
@@ -239,7 +286,7 @@ class rime_factory:
         # "G_{p}[E_{stp}K_{stp}B_{s}K_{stq}E_{stq}]sG_{q}"
         from africanus.rime.monolothic.phase import PhaseTerm
         from africanus.rime.monolothic.brightness import BrightnessTerm
-        terms = [PhaseTerm, BrightnessTerm]
+        terms = [PhaseTerm, BrightnessTerm, PhaseTerm, BrightnessTerm]
         args = list(sorted(set(a for t in terms for a in t.term_args)))
         arg_map = {a: i for i, a in enumerate(args)}
         term_arg_inds = tuple(tuple(arg_map[a]
