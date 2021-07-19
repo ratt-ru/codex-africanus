@@ -11,6 +11,7 @@ class PhaseType(TermStructRef):
 
 class PhaseTerm(Term):
     term_args = ["lm", "uvw", "chan_freq"]
+    optional_args = ["convention"]
     abstract_type = PhaseType
 
     @classmethod

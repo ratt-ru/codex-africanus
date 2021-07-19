@@ -2,22 +2,41 @@ from numba import generated_jit
 import numpy as np
 
 from africanus.rime.monolothic.intrinsics import term_factory
+from africanus.rime.monolothic.terms import Term
+
 
 class rime_factory:
     def __init__(self):
         from africanus.rime.monolothic.phase import PhaseTerm
         from africanus.rime.monolothic.brightness import BrightnessTerm
         terms = [PhaseTerm, BrightnessTerm, PhaseTerm, BrightnessTerm]
-        args = list(sorted(set(a for t in terms for a in t.term_args)))
-        arg_map = {a: i for i, a in enumerate(args)}
-        term_arg_inds = tuple(tuple(arg_map[a]
-                              for a in t.term_args) for t in terms)
+
+        for t in terms:
+            if not issubclass(t, Term):
+                raise TypeError(f"{t} is not of type {Term}")
 
         if PhaseTerm not in terms:
             raise ValueError("RIME must at least contain a Phase Term")
 
         if BrightnessTerm not in terms:
             raise ValueError("RIME must at least contain a Brightness Term")
+
+        args = set(a for t in terms for a in t.term_args)
+        args = list(sorted(args))
+
+        opt_args = set(a for t in terms
+                       for a in getattr(t, "optional_args", ()))
+        opt_args = list(sorted(opt_args))
+
+        print("OPTIONAL ARGS", opt_args)
+        arg_map = {a: i for i, a in enumerate(args)}
+        opt_arg_map = {a: i for i, a in enumerate(opt_args, len(arg_map))}
+        term_arg_inds = tuple(tuple(arg_map[a]
+                              for a in t.term_args)
+                              for t in terms)
+        opt_arg_inds = tuple(tuple(opt_arg_map[a]
+                             for a in getattr(t, "optional_args", ()))
+                             for t in terms)
 
         try:
             lm_i = arg_map["lm"]
@@ -64,9 +83,28 @@ class rime_factory:
         self.impl = rime
 
     def __call__(self, **kwargs):
-        try:
-            args = tuple(kwargs[a] for a in self.args)
-        except KeyError as e:
-            raise ValueError(f"{e} is a required kwarg")
-        else:
-            return self.impl(*args)
+        args = []
+
+        # Look for required arguments
+        for a in self.args:
+            try:
+                arg = kwargs.pop(a)
+            except KeyError:
+                raise ValueError(f"{a} is a required kwarg")
+            else:
+                args.append(arg)
+
+        # Optional arguments 
+        opt_args = []
+
+        for o, v in kwargs.items():
+            try:
+                i = self.opt_arg_map[o]
+            except KeyError:
+                raise ValueError(f"{o} is an unknown argument")
+            else:
+                opt_args.append(i)
+                opt_args.append(v)
+
+        # Call the implementation
+        return self.impl(*args, *opt_args)
