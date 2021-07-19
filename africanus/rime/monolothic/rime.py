@@ -237,9 +237,9 @@ def term_factory(args, terms, term_arg_inds):
 
             raise err
 
-        sampler_ret_type = types.float64
+        sampler_ret_type = sampler_return_types[0]
 
-        for typ in sampler_return_types:
+        for typ in sampler_return_types[1:]:
             sampler_ret_type = unify_jones_terms(typingctx,
                                                  sampler_ret_type, typ)
 
@@ -269,10 +269,10 @@ def term_factory(args, terms, term_arg_inds):
                                                 sampler_args)
                 jones.append(data)
 
-            prev = context.get_constant(types.float64, 1.0)
-            prev_t = types.float64
+            prev = jones[0]
+            prev_t = sampler_return_types[0]
 
-            for jrt, j in zip(sampler_return_types, jones):
+            for jrt, j in zip(sampler_return_types[1:], jones[1:]):
                 jones_mul = term_mul(prev_t, jrt)
                 jones_mul_typ = unify_jones_terms(context.typing_context,
                                                   prev_t, jrt)
