@@ -11,7 +11,7 @@ class PhaseType(TermStructRef):
 
 class PhaseTerm(Term):
     term_args = ["lm", "uvw", "chan_freq"]
-    optional_args = ["convention"]
+    term_kwargs = ["convention"]
     abstract_type = PhaseType
 
     @classmethod
@@ -31,6 +31,8 @@ class PhaseTerm(Term):
         struct_type = cls.term_type(*args)
         dot_dtype = struct_type.field_dict["phase_dot"].dtype
 
+        constant = -2.0*np.pi/3e8
+
         def phase(lm, uvw, chan_freq):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
@@ -44,7 +46,7 @@ class PhaseTerm(Term):
 
             zero = lm.dtype.type(0.0)
             one = lm.dtype.type(1.0)
-            C = dot_dtype(-2*np.pi/3e8)
+            C = dot_dtype(constant)
 
             for s in range(nsrc):
                 l = lm[s, 0]  # noqa

@@ -24,18 +24,19 @@ class rime_factory:
         args = set(a for t in terms for a in t.term_args)
         args = list(sorted(args))
 
-        opt_args = set(a for t in terms
-                       for a in getattr(t, "optional_args", ()))
-        opt_args = list(sorted(opt_args))
+        term_kwargs = set(a for t in terms
+                       for a in getattr(t, "term_kwargs", ()))
+        term_kwargs = list(sorted(term_kwargs))
 
-        print("OPTIONAL ARGS", opt_args)
+        print("OPTIONAL ARGS", term_kwargs)
         arg_map = {a: i for i, a in enumerate(args)}
-        opt_arg_map = {a: i for i, a in enumerate(opt_args, len(arg_map))}
         term_arg_inds = tuple(tuple(arg_map[a]
                               for a in t.term_args)
                               for t in terms)
-        opt_arg_inds = tuple(tuple(opt_arg_map[a]
-                             for a in getattr(t, "optional_args", ()))
+
+        term_kw_map = {a: i for i, a in enumerate(term_kwargs, len(arg_map))}
+        term_kw_inds = tuple(tuple(term_kw_map[a]
+                             for a in getattr(t, "term_kwargs", ()))
                              for t in terms)
 
         try:
@@ -95,7 +96,7 @@ class rime_factory:
                 args.append(arg)
 
         # Optional arguments 
-        opt_args = []
+        kws = []
 
         for o, v in kwargs.items():
             try:
@@ -103,8 +104,8 @@ class rime_factory:
             except KeyError:
                 raise ValueError(f"{o} is an unknown argument")
             else:
-                opt_args.append(i)
-                opt_args.append(v)
+                kws.append(i)
+                kws.append(v)
 
         # Call the implementation
-        return self.impl(*args, *opt_args)
+        return self.impl(*args, *kws)
