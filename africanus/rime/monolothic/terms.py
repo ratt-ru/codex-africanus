@@ -12,17 +12,14 @@ class TermStructRef(types.StructRef):
 
 
 class Term(abc.ABC):
-    @classmethod
     @abc.abstractmethod
     def term_type(cls, *args):
         raise NotImplementedError
 
-    @classmethod
     @abc.abstractmethod
     def initialiser(cls, *args):
         raise NotImplementedError
 
-    @classmethod
     @abc.abstractmethod
     def sampler(cls):
         raise NotImplementedError

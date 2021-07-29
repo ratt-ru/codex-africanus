@@ -1,4 +1,4 @@
-from numba import generated_jit
+from numba import generated_jit, types
 import numpy as np
 
 from africanus.rime.monolothic.intrinsics import term_factory
@@ -9,35 +9,30 @@ class rime_factory:
     def __init__(self):
         from africanus.rime.monolothic.phase import PhaseTerm
         from africanus.rime.monolothic.brightness import BrightnessTerm
-        terms = [PhaseTerm, BrightnessTerm, PhaseTerm, BrightnessTerm]
+        terms = [PhaseTerm(), BrightnessTerm(), PhaseTerm(), BrightnessTerm()]
 
         for t in terms:
-            if not issubclass(t, Term):
+            if not isinstance(t, Term):
                 raise TypeError(f"{t} is not of type {Term}")
 
-        if PhaseTerm not in terms:
+        if not any(isinstance(t, PhaseTerm) for t in terms):
             raise ValueError("RIME must at least contain a Phase Term")
 
-        if BrightnessTerm not in terms:
+        if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        args = set(a for t in terms for a in t.term_args)
-        args = list(sorted(args))
+        rime_args = set(a for t in terms for a in t.term_args)
+        rime_args = list(sorted(rime_args))
 
-        term_kwargs = set(a for t in terms
+        term_kwarg_set = set(a for t in terms
                        for a in getattr(t, "term_kwargs", ()))
-        term_kwargs = list(sorted(term_kwargs))
+        term_kwargs = list(sorted(term_kwarg_set))
 
         print("OPTIONAL ARGS", term_kwargs)
-        arg_map = {a: i for i, a in enumerate(args)}
+        arg_map = {a: i for i, a in enumerate(rime_args)}
         term_arg_inds = tuple(tuple(arg_map[a]
                               for a in t.term_args)
                               for t in terms)
-
-        term_kw_map = {a: i for i, a in enumerate(term_kwargs, len(arg_map))}
-        term_kw_inds = tuple(tuple(term_kw_map[a]
-                             for a in getattr(t, "term_kwargs", ()))
-                             for t in terms)
 
         try:
             lm_i = arg_map["lm"]
@@ -52,6 +47,19 @@ class rime_factory:
             assert len(args) == 1
             state_factory, sample_terms = term_factory(
                 args[0], terms, term_arg_inds)
+
+            if len(args[0]) < len(rime_args):
+                raise ValueError("Insufficient required arguments supplied to RIME")
+
+            if (len(args[0]) - len(rime_args)) % 2 != 0:
+                raise ValueError("Invalid keyword argument setup")
+
+            for k in args[0][(len(rime_args))::2]:
+                if not isinstance(k, types.StringLiteral):
+                    raise ValueError(f"{k} must be a String Literal")
+
+                if k.literal_value not in term_kwarg_set:
+                    raise ValueError(f"{k.literal_value} is not a valid kwarg")
 
             def impl(*args):
                 term_state = state_factory(args)  # noqa: F841
@@ -79,33 +87,20 @@ class rime_factory:
             return impl
 
         self.terms = terms
-        self.args = args
+        self.args = rime_args
         self.arg_map = arg_map
+        self.term_kwarg_set = term_kwarg_set
         self.impl = rime
 
     def __call__(self, **kwargs):
-        args = []
-
-        # Look for required arguments
-        for a in self.args:
-            try:
-                arg = kwargs.pop(a)
-            except KeyError:
-                raise ValueError(f"{a} is a required kwarg")
-            else:
-                args.append(arg)
-
-        # Optional arguments 
-        kws = []
-
-        for o, v in kwargs.items():
-            try:
-                i = self.opt_arg_map[o]
-            except KeyError:
-                raise ValueError(f"{o} is an unknown argument")
-            else:
-                kws.append(i)
-                kws.append(v)
-
         # Call the implementation
-        return self.impl(*args, *kws)
+        try:
+            args = tuple(kwargs.pop(a) for a in self.args)
+        except KeyError as e:
+            raise ValueError(f"{str(e)} is a required argument")
+
+        kw = tuple(e for (k, v) in kwargs.items()
+                   if k in self.term_kwarg_set
+                   for e in (types.literal(k), v))
+
+        return self.impl(*args, *kw)

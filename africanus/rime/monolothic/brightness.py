@@ -11,6 +11,11 @@ class BrightnessType(TermStructRef):
 class BrightnessTerm(Term):
     term_args = ["stokes", "chan_freq"]
     term_kwargs = ["ref_frequency", "spectral_index"]
+    arg_schema = {
+        "stokes": ("source", "corr"),
+        "chan_freq": ("chan",)
+    }
+             
     abstract_type = BrightnessType
 
     @classmethod

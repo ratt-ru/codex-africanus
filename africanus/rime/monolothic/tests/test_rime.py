@@ -26,6 +26,6 @@ def test_monolithic_rime():
     stokes[:, 2:] = 0
 
     rime = rime_factory()
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes)
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes, convention="casa")
     # print(out)
     #print(list(rime.impl.inspect_asm().values())[0])
