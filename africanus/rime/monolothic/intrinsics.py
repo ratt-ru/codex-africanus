@@ -135,11 +135,6 @@ def unify_jones_terms(typingctx, lhs, rhs):
 
 
 def expected_typing_sig(term, name):
-    try:
-        fn = getattr(term, name)
-    except AttributeError:
-        raise ValueError(f"{name} is not a method of {term}")
-
     args = list(getattr(term, "term_args", []))
     kw = list(getattr(term, "term_kwargs", []))
     arg_sig = ", ".join(["cls"] + args + kw)
@@ -196,9 +191,11 @@ def term_factory(args, kwargs, terms):
                     in zip(terms, term_arg_types, term_kw_types)]
 
     for term, constructor in zip(terms, constructors):
-        check_signature(term, term.initialiser, "initialiser")
         check_signature(term, term.term_type, "term_type")
-        check_signature(term, constructor, "initialiser")
+        factory_spec = check_signature(term, term.initialiser,
+                                       "initialiser")
+        init_spec = check_signature(term, constructor,
+                                    "initialiser")
 
     @intrinsic
     def construct_terms(typginctx, args):
