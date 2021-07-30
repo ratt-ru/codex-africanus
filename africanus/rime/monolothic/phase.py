@@ -1,4 +1,6 @@
+from africanus.constants import c as lightspeed
 from numba.experimental import structref
+from numba import types
 import numpy as np
 
 from africanus.rime.monolothic.terms import TermStructRef, Term
@@ -19,9 +21,7 @@ class PhaseTerm(Term):
     abstract_type = PhaseType
 
     @classmethod
-    def term_type(cls, *args):
-        assert len(cls.term_args) == len(args)
-        lm, uvw, chan_freq = args
+    def term_type(cls, lm, uvw, chan_freq, convention):
         phase_dot = cls.result_type(lm, uvw, chan_freq)
         return cls.abstract_type([
             ("lm", lm),
@@ -31,13 +31,11 @@ class PhaseTerm(Term):
         ])
 
     @classmethod
-    def initialiser(cls, *args):
-        struct_type = cls.term_type(*args)
+    def initialiser(cls, lm, uvw, chan_freq, convention):
+        struct_type = cls.term_type(lm, uvw, chan_freq, convention)
         dot_dtype = struct_type.field_dict["phase_dot"].dtype
 
-        constant = -2.0*np.pi/3e8
-
-        def phase(lm, uvw, chan_freq):
+        def phase(lm, uvw, chan_freq, convention):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape
@@ -50,7 +48,13 @@ class PhaseTerm(Term):
 
             zero = lm.dtype.type(0.0)
             one = lm.dtype.type(1.0)
-            C = dot_dtype(constant)
+
+            if convention is None or convention == "fourier":
+                C = dot_dtype(-2.0*np.pi/lightspeed)
+            elif convention == "casa":
+                C = dot_dtype(2.0*np.pi/lightspeed)
+            else:
+                raise ValueError("convention not in (\"fourier\", \"casa\")") 
 
             for s in range(nsrc):
                 l = lm[s, 0]  # noqa

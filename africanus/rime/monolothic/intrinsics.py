@@ -1,3 +1,5 @@
+import inspect
+
 from numba import types
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
@@ -132,18 +134,71 @@ def unify_jones_terms(typingctx, lhs, rhs):
     return out_type if out_corrs == 1 else types.Tuple((out_type,)*out_corrs)
 
 
-def term_factory(args, terms, term_arg_inds):
-    term_arg_types = tuple(tuple(args[j] for j in idx)
-                           for idx in term_arg_inds)
-    assert len(terms) == len(term_arg_inds)
+def expected_typing_sig(term, name):
+    try:
+        fn = getattr(term, name)
+    except AttributeError:
+        raise ValueError(f"{name} is not a method of {term}")
 
-    term_state_types = [term.term_type(*arg_types)
-                        for term, arg_types
-                        in zip(terms, term_arg_types)]
+    args = list(getattr(term, "term_args", []))
+    kw = list(getattr(term, "term_kwargs", []))
+    arg_sig = ", ".join(["cls"] + args + kw)
+    msg = f"{term.initialiser} should have signature: {name}("
+    return ValueError("".join((msg, arg_sig, ")")))
 
-    constructors = [term.initialiser(*arg_types)
-                    for term, arg_types
-                    in zip(terms, term_arg_types)]
+
+def check_signature(term, fn, fn_name):
+    spec = inspect.getfullargspec(fn)
+    
+    if spec.varargs is not None:
+        raise expected_typing_sig(term, fn_name) 
+
+    if spec.varkw is not None:
+        raise expected_typing_sig(term, fn_name) 
+
+    full_args = list(term.term_args) + list(term.term_kwargs)
+
+    if list(spec.args[-len(full_args):]) != full_args:
+        raise expected_typing_sig(term, fn_name) 
+
+    return spec
+
+
+def term_factory(args, kwargs, terms):
+    term_arg_types = []
+    term_arg_index = []
+    term_kw_types = []
+    term_kw_index = []
+
+    o = types.Omitted(None)
+
+    for term in terms:
+        term_args = getattr(term, "term_args", ())
+        term_kw = getattr(term, "term_kwargs", ())
+
+        arg_types, arg_i = zip(*(args[a] for a in term_args))
+
+        kw_res = {a: kwargs.get(a, (o, -1)) for a in term_kw}
+        kw_types = {k: v[0] for k, v in kw_res.items()}
+        kw_i = {k: v[1] for k, v in kw_res.items()}
+
+        term_arg_types.append(arg_types)
+        term_arg_index.append(arg_i)
+        term_kw_types.append(kw_types)
+        term_kw_index.append(kw_i)
+
+    term_state_types = [term.term_type(*arg_types, **kwarg_types)
+                        for term, arg_types, kwarg_types
+                        in zip(terms, term_arg_types, term_kw_types)]
+
+    constructors = [term.initialiser(*arg_types, **kwarg_types)
+                    for term, arg_types, kwarg_types
+                    in zip(terms, term_arg_types, term_kw_types)]
+
+    for term, constructor in zip(terms, constructors):
+        check_signature(term, term.initialiser, "initialiser")
+        check_signature(term, term.term_type, "term_type")
+        check_signature(term, constructor, "initialiser")
 
     @intrinsic
     def construct_terms(typginctx, args):
@@ -167,19 +222,35 @@ def term_factory(args, terms, term_arg_inds):
             if not len(args) == 1:
                 raise errors.TypingError("args must contain a single value")
 
+            constructor_args = []
+            constructor_types = []
+
             # Our single argument is a tuple of arguments, but we
             # need to extract those arguments necessary to construct
             # the term StructRef
-            constructor_args = [[builder.extract_value(args[0], j)
-                                 for j in idx]
-                                for idx in term_arg_inds]
+            it = zip(terms, term_arg_index, term_arg_types, term_kw_index, term_kw_types)
+            for term, arg_index, arg_types, kw_index, kw_types in it:
+                cargs = [builder.extract_value(args[0], j) for j in arg_index]
+                ctypes = list(arg_types)
 
-            # Sanity
-            assert all(len(ca) == len(at) for ca, at
-                       in zip(constructor_args, term_arg_types))
+                for k in getattr(term, "term_kwargs", ()):
+                    kt = kw_types[k]
+                    ki = kw_index[k]
+
+                    if ki == -1:
+                        assert isinstance(kt, types.Omitted)
+                        vt = context.get_value_type(types.none)
+                        cargs.append(cgutils.get_null_value(vt))
+                    else:
+                        cargs.append(builder.extract_value(args[0], ki))
+
+                    ctypes.append(kt)
+
+                constructor_args.append(cargs)
+                constructor_types.append(ctypes)
 
             for ti in range(return_type.count):
-                constructor_sig = return_type[ti](*term_arg_types[ti])
+                constructor_sig = return_type[ti](*constructor_types[ti])
                 data = context.compile_internal(builder,
                                                 constructors[ti],
                                                 constructor_sig,

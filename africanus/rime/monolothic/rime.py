@@ -21,18 +21,15 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        rime_args = set(a for t in terms for a in t.term_args)
-        rime_args = list(sorted(rime_args))
+        expected_args = set(a for t in terms
+                             for a in getattr(t, "term_args", ()))
+        expected_args = list(sorted(expected_args))
 
-        term_kwarg_set = set(a for t in terms
-                       for a in getattr(t, "term_kwargs", ()))
-        term_kwargs = list(sorted(term_kwarg_set))
+        extra_args_set = set(a for t in terms
+                             for a in getattr(t, "term_kwargs", ()))
+        extra_args = list(sorted(extra_args_set))
 
-        print("OPTIONAL ARGS", term_kwargs)
-        arg_map = {a: i for i, a in enumerate(rime_args)}
-        term_arg_inds = tuple(tuple(arg_map[a]
-                              for a in t.term_args)
-                              for t in terms)
+        arg_map = {a: i for i, a in enumerate(expected_args)}
 
         try:
             lm_i = arg_map["lm"]
@@ -44,22 +41,44 @@ class rime_factory:
 
         @generated_jit(nopython=True, nogil=True)
         def rime(*args):
-            assert len(args) == 1
-            state_factory, sample_terms = term_factory(
-                args[0], terms, term_arg_inds)
+            if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
+                raise ValueError(f"{args[0]} must be be a Tuple")
+            
+            n = len(expected_args)
+            starargs = args[0]
+            kwargs = starargs[n:]
+            starargs = starargs[:n]
 
-            if len(args[0]) < len(rime_args):
+            if len(starargs) < n:
                 raise ValueError("Insufficient required arguments supplied to RIME")
 
-            if (len(args[0]) - len(rime_args)) % 2 != 0:
-                raise ValueError("Invalid keyword argument setup")
+            # Extract kwarg (string, type) pairs after
+            # the expected arguments
+            if len(kwargs) % 2 != 0:
+                raise ValueError(f"Invalid keyword argument pairs "
+                                 f"after required arguments "
+                                 f"{kwargs}")
 
-            for k in args[0][(len(rime_args))::2]:
+            tstarargs = {k: (vt, i) for i, (k, vt)
+                         in enumerate(zip(expected_args, starargs))}
+            tkwargs = {}
+            it = enumerate(zip(kwargs[::2], kwargs[1::2]))
+
+            for i, (k, vt) in it:
                 if not isinstance(k, types.StringLiteral):
                     raise ValueError(f"{k} must be a String Literal")
 
-                if k.literal_value not in term_kwarg_set:
-                    raise ValueError(f"{k.literal_value} is not a valid kwarg")
+                k = k.literal_value
+
+                if k not in extra_args_set:
+                    raise ValueError(f"{k} is not a "
+                                     f"recognised keyword argument "
+                                     f"to any term in this RIME")
+
+                tkwargs[k] = (vt, 2*i + 1 + n)
+
+            state_factory, sample_terms = term_factory(
+                tstarargs, tkwargs, terms)
 
             def impl(*args):
                 term_state = state_factory(args)  # noqa: F841
@@ -87,9 +106,9 @@ class rime_factory:
             return impl
 
         self.terms = terms
-        self.args = rime_args
+        self.args = expected_args
         self.arg_map = arg_map
-        self.term_kwarg_set = term_kwarg_set
+        self.term_kwarg_set = extra_args_set
         self.impl = rime
 
     def __call__(self, **kwargs):
@@ -99,6 +118,9 @@ class rime_factory:
         except KeyError as e:
             raise ValueError(f"{str(e)} is a required argument")
 
+        # Pack any kwargs into a
+        # (literal(key1), value1, ... literal(keyn), valuen)
+        # sequence after the required arguments
         kw = tuple(e for (k, v) in kwargs.items()
                    if k in self.term_kwarg_set
                    for e in (types.literal(k), v))

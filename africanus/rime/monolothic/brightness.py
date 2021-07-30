@@ -10,27 +10,24 @@ class BrightnessType(TermStructRef):
 
 class BrightnessTerm(Term):
     term_args = ["stokes", "chan_freq"]
-    term_kwargs = ["ref_frequency", "spectral_index"]
+    term_kwargs = []
     arg_schema = {
         "stokes": ("source", "corr"),
         "chan_freq": ("chan",)
     }
-             
+
     abstract_type = BrightnessType
 
     @classmethod
-    def term_type(cls, *args):
-        assert len(cls.term_args) == len(args)
-        stokes, chan_freq = args
-
+    def term_type(cls, stokes, chan_freq):
         return cls.abstract_type([
             ("stokes", stokes),
             ("chan_freq", chan_freq)
         ])
 
     @classmethod
-    def initialiser(cls, *args):
-        struct_type = cls.term_type(*args)
+    def initialiser(cls, stokes, chan_freq):
+        struct_type = cls.term_type(stokes, chan_freq)
 
         def brightness(stokes, chan_freq):
             state = structref.new(struct_type)
