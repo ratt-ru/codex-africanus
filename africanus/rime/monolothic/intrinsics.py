@@ -235,8 +235,6 @@ def term_factory(args, kwargs, terms):
 
                 pysig = SignatureWrapper(term.signature())
 
-                #import pdb; pdb.set_trace()
-
                 for k in pysig.kwargs:
                     kt = kw_types[k]
                     ki = kw_index[k]
