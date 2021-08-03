@@ -9,8 +9,6 @@ class BrightnessType(TermStructRef):
 
 
 class BrightnessTerm(Term):
-    term_args = ["stokes", "chan_freq"]
-    term_kwargs = []
     arg_schema = {
         "stokes": ("source", "corr"),
         "chan_freq": ("chan",)

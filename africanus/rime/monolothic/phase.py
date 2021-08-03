@@ -12,16 +12,15 @@ class PhaseType(TermStructRef):
 
 
 class PhaseTerm(Term):
-    term_args = ["lm", "uvw", "chan_freq"]
-    term_kwargs = ["convention"]
     arg_schema = {"lm": ("source", "lm"),
                   "uvw": ("row", "uvw"),
                   "chan_freq": ("chan",),
                   "convention": None}
+
     abstract_type = PhaseType
 
     @classmethod
-    def term_type(cls, lm, uvw, chan_freq, convention):
+    def term_type(cls, lm, uvw, chan_freq, convention="fourier"):
         phase_dot = cls.result_type(lm, uvw, chan_freq)
         return cls.abstract_type([
             ("lm", lm),
@@ -31,11 +30,11 @@ class PhaseTerm(Term):
         ])
 
     @classmethod
-    def initialiser(cls, lm, uvw, chan_freq, convention):
+    def initialiser(cls, lm, uvw, chan_freq, convention="fourier"):
         struct_type = cls.term_type(lm, uvw, chan_freq, convention)
         dot_dtype = struct_type.field_dict["phase_dot"].dtype
 
-        def phase(lm, uvw, chan_freq, convention):
+        def phase(lm, uvw, chan_freq, convention="fourier"):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape
@@ -49,7 +48,7 @@ class PhaseTerm(Term):
             zero = lm.dtype.type(0.0)
             one = lm.dtype.type(1.0)
 
-            if convention is None or convention == "fourier":
+            if convention == "fourier":
                 C = dot_dtype(-2.0*np.pi/lightspeed)
             elif convention == "casa":
                 C = dot_dtype(2.0*np.pi/lightspeed)

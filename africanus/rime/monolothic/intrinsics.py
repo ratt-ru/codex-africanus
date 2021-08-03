@@ -1,9 +1,12 @@
 import inspect
 
+import numba
 from numba import types
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
+
+from africanus.rime.monolothic.terms import SignatureWrapper
 
 
 def scalar_scalar(lhs, rhs):
@@ -165,15 +168,17 @@ def term_factory(args, kwargs, terms):
     term_kw_types = []
     term_kw_index = []
 
-    o = types.Omitted(None)
+    term_state_types = []
+    constructors = []
 
     for term in terms:
-        term_args = getattr(term, "term_args", ())
-        term_kw = getattr(term, "term_kwargs", ())
+        sig = term.signature()
+        wsig = SignatureWrapper(sig)
 
-        arg_types, arg_i = zip(*(args[a] for a in term_args))
+        arg_types, arg_i = zip(*(args[a] for a in wsig.args))
+        kw_res = {k: kwargs.get(k, (types.Omitted(d), -1))
+                  for k, d in wsig.kwargs.items()}
 
-        kw_res = {a: kwargs.get(a, (o, -1)) for a in term_kw}
         kw_types = {k: v[0] for k, v in kw_res.items()}
         kw_i = {k: v[1] for k, v in kw_res.items()}
 
@@ -182,23 +187,21 @@ def term_factory(args, kwargs, terms):
         term_kw_types.append(kw_types)
         term_kw_index.append(kw_i)
 
-    term_state_types = [term.term_type(*arg_types, **kwarg_types)
-                        for term, arg_types, kwarg_types
-                        in zip(terms, term_arg_types, term_kw_types)]
+        term_state_types.append(term.term_type(*arg_types, **kw_types))
 
-    constructors = [term.initialiser(*arg_types, **kwarg_types)
-                    for term, arg_types, kwarg_types
-                    in zip(terms, term_arg_types, term_kw_types)]
+        constructor = term.initialiser(*arg_types, **kw_types)        
+        init_sig = inspect.signature(constructor)
+        
+        if init_sig != sig:
+            raise ValueError(f"Initialiser signatures don't match "
+                             f"{constructor.__name__}{init_sig} vs "
+                             f"initialiser{sig}")
 
-    for term, constructor in zip(terms, constructors):
-        check_signature(term, term.term_type, "term_type")
-        factory_spec = check_signature(term, term.initialiser,
-                                       "initialiser")
-        init_spec = check_signature(term, constructor,
-                                    "initialiser")
+        constructors.append(constructor)
+
 
     @intrinsic
-    def construct_terms(typginctx, args):
+    def construct_terms(typingctx, args):
         if not isinstance(args, types.Tuple):
             raise errors.TypingError("args must be a Tuple")
 
@@ -230,18 +233,23 @@ def term_factory(args, kwargs, terms):
                 cargs = [builder.extract_value(args[0], j) for j in arg_index]
                 ctypes = list(arg_types)
 
-                for k in getattr(term, "term_kwargs", ()):
+                pysig = SignatureWrapper(term.signature())
+
+                #import pdb; pdb.set_trace()
+
+                for k in pysig.kwargs:
                     kt = kw_types[k]
                     ki = kw_index[k]
 
                     if ki == -1:
                         assert isinstance(kt, types.Omitted)
-                        vt = context.get_value_type(types.none)
-                        cargs.append(cgutils.get_null_value(vt))
+                        value_type = typingctx.resolve_value_type_prefer_literal(kt.value)
+                        const = context.get_constant_generic(builder, value_type, kt.value)
+                        cargs.append(const)
+                        ctypes.append(value_type)
                     else:
                         cargs.append(builder.extract_value(args[0], ki))
-
-                    ctypes.append(kt)
+                        ctypes.append(kt)
 
                 constructor_args.append(cargs)
                 constructor_types.append(ctypes)

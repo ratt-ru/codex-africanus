@@ -27,6 +27,7 @@ def test_monolithic_rime():
 
     rime = rime_factory()
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes, convention="casa")
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes, convention="fourier")
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes)
     # print(out)
     #print(list(rime.impl.inspect_asm().values())[0])

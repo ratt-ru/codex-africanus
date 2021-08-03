@@ -1,8 +1,9 @@
+from inspect import signature
 from numba import generated_jit, types
 import numpy as np
 
 from africanus.rime.monolothic.intrinsics import term_factory
-from africanus.rime.monolothic.terms import Term
+from africanus.rime.monolothic.terms import Term, SignatureWrapper
 
 
 class rime_factory:
@@ -21,12 +22,12 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        expected_args = set(a for t in terms
-                             for a in getattr(t, "term_args", ()))
+        signatures = [SignatureWrapper(t.signature()) for t in terms]
+
+        expected_args = set(a for s in signatures for a in s.args)
         expected_args = list(sorted(expected_args))
 
-        extra_args_set = set(a for t in terms
-                             for a in getattr(t, "term_kwargs", ()))
+        extra_args_set = set(k for s in signatures for k in s.kwargs)
         extra_args = list(sorted(extra_args_set))
 
         arg_map = {a: i for i, a in enumerate(expected_args)}
