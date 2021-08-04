@@ -9,11 +9,11 @@ class SignatureAdapter:
 
     def __init__(self, signature):
         # We don't support *args or **kwargs
-        for name, parameter in signature.parameters.items():
-            if parameter.kind == parameter.VAR_POSITIONAL:
-                raise ValueError(f"*{name} is not supported")
-            elif parameter.kind == parameter.VAR_KEYWORD:
-                raise ValueError(f"**{name} is not supported")
+        for n, p in signature.parameters.items():
+            if p.kind == p.VAR_POSITIONAL:
+                raise NotImplementedError(f"*{n} is not supported")
+            elif p.kind == p.VAR_KEYWORD:
+                raise NotImplementedError(f"**{n} is not supported")
 
         self.signature = signature
 

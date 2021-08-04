@@ -23,12 +23,12 @@ class rime_factory:
             raise ValueError("RIME must at least contain a Brightness Term")
 
         signatures = [inspect.signature(t.term_type) for t in terms]
-        signatures = list(map(SignatureAdapter, signatures))
+        adapted_sigs = list(map(SignatureAdapter, signatures))
 
-        expected_args = set(a for s in signatures for a in s.args)
+        expected_args = set(a for s in adapted_sigs for a in s.args)
         expected_args = list(sorted(expected_args))
 
-        extra_args_set = set(k for s in signatures for k in s.kwargs)
+        extra_args_set = set(k for s in adapted_sigs for k in s.kwargs)
         extra_args = list(sorted(extra_args_set))
 
         arg_map = {a: i for i, a in enumerate(expected_args)}

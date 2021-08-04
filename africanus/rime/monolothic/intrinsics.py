@@ -219,6 +219,7 @@ def term_factory(args, kwargs, terms):
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):
+            typingctx = context.typing_context
             return_type = signature.return_type
 
             if not isinstance(return_type, types.Tuple):

@@ -17,12 +17,10 @@ class PhaseTerm(Term):
                   "chan_freq": ("chan",),
                   "convention": None}
 
-    abstract_type = PhaseType
-
     @classmethod
     def term_type(cls, lm, uvw, chan_freq, convention="fourier"):
         phase_dot = cls.result_type(lm, uvw, chan_freq)
-        return cls.abstract_type([
+        return PhaseType([
             ("lm", lm),
             ("uvw", uvw),
             ("chan_freq", chan_freq),

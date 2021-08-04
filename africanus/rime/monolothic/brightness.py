@@ -1,6 +1,29 @@
+from numba.extending import intrinsic
 from numba.experimental import structref
 
+from africanus.util.casa_types import STOKES_ID_MAP, STOKES_TYPES
 from africanus.rime.monolothic.terms import TermStructRef, Term
+
+
+stokes_conv = {
+    'RR': {('I', 'V'): lambda i, v: i + v + 0j},
+    'RL': {('Q', 'U'): lambda q, u: q + u*1j},
+    'LR': {('Q', 'U'): lambda q, u: q - u*1j},
+    'LL': {('I', 'V'): lambda i, v: i - v + 0j},
+
+    'XX': {('I', 'Q'): lambda i, q: i + q + 0j},
+    'XY': {('U', 'V'): lambda u, v: u + v*1j},
+    'YX': {('U', 'V'): lambda u, v: u - v*1j},
+    'YY': {('I', 'Q'): lambda i, q: i - q + 0j},
+}
+
+
+def conversion_factory(stokes_schema, corr_schema):
+    @intrinsic
+    def corr_convert(typingctx, stokes):
+        pass
+
+    return corr_convert
 
 
 @structref.register
@@ -14,11 +37,37 @@ class BrightnessTerm(Term):
         "chan_freq": ("chan",)
     }
 
-    abstract_type = BrightnessType
+    def __init__(self, corr_schema="[I,Q,U,V] -> [XX,XY,YX,YY]"):
+        bits = [s.strip() for s in corr_schema.strip().split("->")]
+
+        bad_schema = ValueError("corr_schema must have the following form "
+                                "\"[I,Q,U,V] -> [XX,XY,YX,YY]\"")
+
+        if len(bits) != 2:
+            raise bad_schema
+
+        stokes, corrs = bits
+
+        if not (stokes.startswith("[") and stokes.endswith("]")):
+            raise bad_schema
+
+        if not (corrs.startswith("[") and corrs.endswith("]")):
+            raise bad_schema
+
+        self.stokes = [s.strip().upper() for s in stokes[1:-1].split(",")]
+        self.corrs = [c.strip().upper() for c in corrs[1:-1].split(",")]
+
+        if not all(s in STOKES_TYPES for s in self.stokes):
+            raise ValueError(f"{self.stokes} contains "
+                             f"invalid stokes parameters")
+
+        if not all(c in STOKES_TYPES for c in self.corrs):
+            raise ValueError(f"{self.corrs} contains "
+                             f"invalid correlations")
 
     @classmethod
     def term_type(cls, stokes, chan_freq):
-        return cls.abstract_type([
+        return BrightnessType([
             ("stokes", stokes),
             ("chan_freq", chan_freq)
         ])
