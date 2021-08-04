@@ -1,28 +1,24 @@
-import inspect
-from inspect import Parameter
-
 import numba
 from numba.core import types
 from numba.np.numpy_support import as_dtype
 import numpy as np
 import abc
 
-
-class SignatureWrapper:
+class SignatureAdapter:
     __slots__ = ("signature",)
 
     def __init__(self, signature):
         # We don't support *args or **kwargs
         for name, parameter in signature.parameters.items():
-            if parameter.kind == Parameter.VAR_POSITIONAL:
+            if parameter.kind == parameter.VAR_POSITIONAL:
                 raise ValueError(f"*{name} is not supported")
-            elif parameter.kind == Parameter.VAR_KEYWORD:
+            elif parameter.kind == parameter.VAR_KEYWORD:
                 raise ValueError(f"**{name} is not supported")
 
         self.signature = signature
 
     def __eq__(self, other):
-        return (type(other) is SignatureWrapper and
+        return (type(other) is SignatureAdapter and
                 self.signature == other.signature)
 
     @property
@@ -36,7 +32,6 @@ class SignatureWrapper:
         return {n: p.default for n, p in self.signature.parameters.items()
                 if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
                 and p.default is not p.empty}
-
 
 class TermStructRef(types.StructRef):
     def preprocess_fields(self, fields):
@@ -74,7 +69,3 @@ class Term(abc.ABC):
                 raise TypeError(f"Unknown type {type(arg)} of argument {arg}")
 
         return numba.typeof(np.result_type(*arg_types)).dtype
-
-    @classmethod
-    def signature(cls):
-        return inspect.signature(cls.term_type)

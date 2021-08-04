@@ -6,7 +6,7 @@ from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
 
-from africanus.rime.monolothic.terms import SignatureWrapper
+from africanus.rime.monolothic.terms import SignatureAdapter
 
 
 def scalar_scalar(lhs, rhs):
@@ -172,8 +172,8 @@ def term_factory(args, kwargs, terms):
     constructors = []
 
     for term in terms:
-        sig = term.signature()
-        wsig = SignatureWrapper(sig)
+        sig = inspect.signature(term.term_type)
+        wsig = SignatureAdapter(sig)
 
         arg_types, arg_i = zip(*(args[a] for a in wsig.args))
         kw_res = {k: kwargs.get(k, (types.Omitted(d), -1))
@@ -189,13 +189,22 @@ def term_factory(args, kwargs, terms):
 
         term_state_types.append(term.term_type(*arg_types, **kw_types))
 
-        constructor = term.initialiser(*arg_types, **kw_types)        
-        init_sig = inspect.signature(constructor)
-        
+        init_sig = inspect.signature(term.initialiser)
+
         if init_sig != sig:
             raise ValueError(f"Initialiser signatures don't match "
+                             f"{term.initialiser.__name__}{init_sig} vs "
+                             f"initialiser{sig}")
+
+
+        constructor = term.initialiser(*arg_types, **kw_types)        
+        constructor_sig = inspect.signature(constructor)
+
+        if constructor_sig != sig:
+            raise ValueError(f"Constructor signatures don't match "
                              f"{constructor.__name__}{init_sig} vs "
                              f"initialiser{sig}")
+
 
         constructors.append(constructor)
 
@@ -233,7 +242,7 @@ def term_factory(args, kwargs, terms):
                 cargs = [builder.extract_value(args[0], j) for j in arg_index]
                 ctypes = list(arg_types)
 
-                pysig = SignatureWrapper(term.signature())
+                pysig = SignatureAdapter(inspect.signature(term.term_type))
 
                 for k in pysig.kwargs:
                     kt = kw_types[k]
