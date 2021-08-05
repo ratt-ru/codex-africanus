@@ -190,7 +190,6 @@ def term_factory(args, kwargs, terms):
             raise errors.TypingError("args must be a Tuple")
 
         return_type = types.Tuple(term_state_types)
-
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):

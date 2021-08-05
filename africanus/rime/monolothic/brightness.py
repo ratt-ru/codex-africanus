@@ -1,11 +1,14 @@
 from numba.extending import intrinsic
 from numba.experimental import structref
+from numba.core import cgutils, compiler, types, errors
+from numba.core.typed_passes import type_inference_stage
+
 
 from africanus.util.casa_types import STOKES_ID_MAP, STOKES_TYPES
 from africanus.rime.monolothic.terms import TermStructRef, Term
 
 
-stokes_conv = {
+STOKES_CONVERSION = {
     'RR': {('I', 'V'): lambda i, v: i + v + 0j},
     'RL': {('Q', 'U'): lambda q, u: q + u*1j},
     'LR': {('Q', 'U'): lambda q, u: q - u*1j},
@@ -20,8 +23,54 @@ stokes_conv = {
 
 def conversion_factory(stokes_schema, corr_schema):
     @intrinsic
-    def corr_convert(typingctx, stokes):
-        pass
+    def corr_convert(typingctx, stokes, index):
+        if not isinstance(stokes, types.Array) or stokes.ndim != 2:
+            raise errors.TypingError(f"'stokes' should be 2D array. Got {stokes}")
+
+        if not isinstance(index, types.Integer):
+            raise errors.TypingError(f"'index' should be an integer. Got {index}")
+
+        stokes_map = {s: i for i, s in enumerate(stokes_schema)}
+        conv_map = {}
+
+        for corr in corr_schema:
+            try:
+                conv_schema = STOKES_CONVERSION[corr]
+            except KeyError:
+                raise ValueError(f"No conversion schema "
+                                 f"registered for correlation {corr}")
+
+            i1 = -1
+            i2 = -1
+
+            for (s1, s2), fn in conv_schema.items():
+                try:
+                    i1 = stokes_map[s1]
+                    i2 = stokes_map[s2]
+                except KeyError:
+                    continue
+
+            if i1 == -1 or i2 == -1:
+                raise ValueError(f"No conversion found for correlation {corr}. "
+                                 f"{stokes_schema} are available, but one "
+                                 f"of the following combinations "
+                                 f"{set(conv_schema.values())} is needed "
+                                 f"for conversion to {corr}")
+
+            conv_map[corr] = (fn, i1, i2)
+
+        cplx_type = typingctx.unify_types(stokes.dtype, types.complex64)
+        ret_type = types.Tuple([cplx_type] * len(corr_schema))
+
+        ir = [compiler.run_frontend(tup[0]) for tup in conv_map.values()]
+        sig = ret_type(stokes, index)
+
+        def codegen(context, builder, signature, args):
+            ret_type = signature.return_type
+            llvm_type = context.get_value_type(signature.return_type)
+            return cgutils.get_null_value(llvm_type)            
+
+        return sig, codegen
 
     return corr_convert
 
@@ -73,7 +122,6 @@ class BrightnessTerm(Term):
 
     def initialiser(self, stokes, chan_freq):
         struct_type = self.term_type(stokes, chan_freq)
-
         specced_stokes = len(self.stokes)
 
         def brightness(stokes, chan_freq):
@@ -91,12 +139,9 @@ class BrightnessTerm(Term):
         return brightness
 
     def sampler(self):
+        converter = conversion_factory(self.stokes, self.corrs)
+
         def brightness_sampler(state, s, r, t, a1, a2, c):
-            # I Q U V
-            XX = (state.stokes[s, 0] + state.stokes[s, 1]) / 2.0
-            XY = (state.stokes[s, 2] + state.stokes[s, 3])*1j / 2.0
-            YX = (state.stokes[s, 2] - state.stokes[s, 3])*1j / 2.0
-            YY = (state.stokes[s, 0] - state.stokes[s, 1]) / 2.0
-            return XX, XY, YX, YY
+            return converter(state.stokes, s)
 
         return brightness_sampler
