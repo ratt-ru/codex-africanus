@@ -10,7 +10,7 @@ class rime_factory:
     def __init__(self):
         from africanus.rime.monolothic.phase import PhaseTerm
         from africanus.rime.monolothic.brightness import BrightnessTerm
-        terms = [PhaseTerm(), BrightnessTerm(), PhaseTerm(), BrightnessTerm()]
+        terms = [PhaseTerm(), BrightnessTerm()]
 
         for t in terms:
             if not isinstance(t, Term):

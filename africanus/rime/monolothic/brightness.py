@@ -1,7 +1,8 @@
-from numba.extending import intrinsic
-from numba.experimental import structref
 from numba.core import cgutils, compiler, types, errors
 from numba.core.typed_passes import type_inference_stage
+from numba.cpython.unsafe.tuple import tuple_setitem
+from numba.extending import intrinsic
+from numba.experimental import structref
 
 
 from africanus.util.casa_types import STOKES_ID_MAP, STOKES_TYPES
@@ -65,10 +66,36 @@ def conversion_factory(stokes_schema, corr_schema):
         ir = [compiler.run_frontend(tup[0]) for tup in conv_map.values()]
         sig = ret_type(stokes, index)
 
+        def stokes_indexer(source_index):
+            def indexer(stokes_array, index):
+                return stokes_array[index, source_index]
+
+            return indexer
+
         def codegen(context, builder, signature, args):
-            ret_type = signature.return_type
+            array, index = args
+            array_type, index_type = signature.args
             llvm_type = context.get_value_type(signature.return_type)
-            return cgutils.get_null_value(llvm_type)            
+            corrs = cgutils.get_null_value(llvm_type)
+
+            for c, (fn, i1, i2) in enumerate(conv_map.values()):
+                # Extract the first stokes parameter from the stokes array
+                sig = array_type.dtype(array_type, index_type)
+                s1 = context.compile_internal(builder, stokes_indexer(i1),
+                                              sig, [array, index])
+
+                # Extract the second stokes parameter from the stokes array
+                s2 = context.compile_internal(builder, stokes_indexer(i2),
+                                              sig, [array, index])
+
+                # Compute correlation from stokes parameters
+                sig = signature.return_type[c](array_type.dtype, array_type.dtype)
+                corr = context.compile_internal(builder, fn, sig, [s1, s2])
+
+                # Insert result of tuple_getter into the tuple
+                corrs = builder.insert_value(corrs, corr, c)
+
+            return corrs            
 
         return sig, codegen
 
