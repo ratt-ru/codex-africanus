@@ -65,16 +65,14 @@ class BrightnessTerm(Term):
             raise ValueError(f"{self.corrs} contains "
                              f"invalid correlations")
 
-    @classmethod
-    def term_type(cls, stokes, chan_freq):
+    def term_type(self, stokes, chan_freq):
         return BrightnessType([
             ("stokes", stokes),
             ("chan_freq", chan_freq)
         ])
 
-    @classmethod
-    def initialiser(cls, stokes, chan_freq):
-        struct_type = cls.term_type(stokes, chan_freq)
+    def initialiser(self, stokes, chan_freq):
+        struct_type = self.term_type(stokes, chan_freq)
 
         def brightness(stokes, chan_freq):
             state = structref.new(struct_type)
@@ -84,8 +82,7 @@ class BrightnessTerm(Term):
 
         return brightness
 
-    @classmethod
-    def sampler(cls):
+    def sampler(self):
         def brightness_sampler(state, s, r, t, a1, a2, c):
             # I Q U V
             XX = (state.stokes[s, 0] + state.stokes[s, 1]) / 2.0

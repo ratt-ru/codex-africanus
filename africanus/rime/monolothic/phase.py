@@ -17,9 +17,8 @@ class PhaseTerm(Term):
                   "chan_freq": ("chan",),
                   "convention": None}
 
-    @classmethod
-    def term_type(cls, lm, uvw, chan_freq, convention="fourier"):
-        phase_dot = cls.result_type(lm, uvw, chan_freq)
+    def term_type(self, lm, uvw, chan_freq, convention="fourier"):
+        phase_dot = self.result_type(lm, uvw, chan_freq)
         return PhaseType([
             ("lm", lm),
             ("uvw", uvw),
@@ -27,9 +26,9 @@ class PhaseTerm(Term):
             ("phase_dot", phase_dot[:, :])
         ])
 
-    @classmethod
-    def initialiser(cls, lm, uvw, chan_freq, convention="fourier"):
-        struct_type = cls.term_type(lm, uvw, chan_freq, convention)
+
+    def initialiser(self, lm, uvw, chan_freq, convention="fourier"):
+        struct_type = self.term_type(lm, uvw, chan_freq, convention)
         dot_dtype = struct_type.field_dict["phase_dot"].dtype
 
         def phase(lm, uvw, chan_freq, convention="fourier"):
@@ -70,8 +69,7 @@ class PhaseTerm(Term):
 
         return phase
 
-    @classmethod
-    def sampler(cls):
+    def sampler(self):
         def phase_sample(state, s, r, t, a1, a2, c):
             return np.exp(state.phase_dot[s, r] * state.chan_freq[c])
 

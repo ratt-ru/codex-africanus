@@ -41,15 +41,15 @@ class TermStructRef(types.StructRef):
 
 class Term(abc.ABC):
     @abc.abstractmethod
-    def term_type(cls, *args):
+    def term_type(self, *args):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def initialiser(cls, *args):
+    def initialiser(self, *args):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def sampler(cls):
+    def sampler(self):
         raise NotImplementedError
 
     @staticmethod
