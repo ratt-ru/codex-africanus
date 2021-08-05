@@ -137,31 +137,6 @@ def unify_jones_terms(typingctx, lhs, rhs):
     return out_type if out_corrs == 1 else types.Tuple((out_type,)*out_corrs)
 
 
-def expected_typing_sig(term, name):
-    args = list(getattr(term, "term_args", []))
-    kw = list(getattr(term, "term_kwargs", []))
-    arg_sig = ", ".join(["cls"] + args + kw)
-    msg = f"{term.initialiser} should have signature: {name}("
-    return ValueError("".join((msg, arg_sig, ")")))
-
-
-def check_signature(term, fn, fn_name):
-    spec = inspect.getfullargspec(fn)
-    
-    if spec.varargs is not None:
-        raise expected_typing_sig(term, fn_name) 
-
-    if spec.varkw is not None:
-        raise expected_typing_sig(term, fn_name) 
-
-    full_args = list(term.term_args) + list(term.term_kwargs)
-
-    if list(spec.args[-len(full_args):]) != full_args:
-        raise expected_typing_sig(term, fn_name) 
-
-    return spec
-
-
 def term_factory(args, kwargs, terms):
     term_arg_types = []
     term_arg_index = []
