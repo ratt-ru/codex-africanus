@@ -74,7 +74,15 @@ class BrightnessTerm(Term):
     def initialiser(self, stokes, chan_freq):
         struct_type = self.term_type(stokes, chan_freq)
 
+        specced_stokes = len(self.stokes)
+
         def brightness(stokes, chan_freq):
+            _, nstokes = stokes.shape
+
+            if nstokes != specced_stokes:
+                raise ValueError("corr_schema stokes don't match "
+                                 "provided number of stokes")
+
             state = structref.new(struct_type)
             state.stokes = stokes
             state.chan_freq = chan_freq
