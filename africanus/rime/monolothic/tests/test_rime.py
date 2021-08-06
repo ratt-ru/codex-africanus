@@ -23,16 +23,34 @@ def test_monolithic_rime():
     # lm = np.random.random(size=(10, 2))*1e-5
     # uvw = np.random.random(size=(5, 3))
     #lm = np.zeros((10, 2))
-    lm = np.zeros((1, 2))
-    uvw = np.ones((5, 3))
-    chan_freq = np.linspace(.856e9, 2*.859e9, 4)
-    #stokes = np.random.random(size=(10, 4))
+    nsrc = 1
+    nrow = 5
+    nspi = 2
+    nchan = 4
+    
+    lm = np.zeros((nsrc, 2))
+    uvw = np.ones((nrow, 3))
+    chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.array([[1, 2, 3, 4]])
+    spi = np.zeros((nsrc, nspi, stokes.shape[1]))
+    ref_freq = np.ones(nsrc)
 
     rime = rime_factory()
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes, convention="casa")
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes, convention="fourier")
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes)
-
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+               spi=spi, ref_freq=ref_freq,
+               convention="casa", spi_base="standard")
     expected, out = np.broadcast_arrays([[[3+0j, 3+4j, 3-4j, -1+0j]]], out)
     assert_almost_equal(expected, out)
+
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+               spi=spi, ref_freq=ref_freq, convention="fourier")
+    expected, out = np.broadcast_arrays([[[3+0j, 3+4j, 3-4j, -1+0j]]], out)
+    assert_almost_equal(expected, out)
+
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+               spi=spi, ref_freq=ref_freq)
+    expected, out = np.broadcast_arrays([[[3+0j, 3+4j, 3-4j, -1+0j]]], out)
+    assert_almost_equal(expected, out)
+
+    with open("rime_asm.txt", "w") as f:
+        print(list(rime.impl.inspect_asm().values())[0], file=f)
