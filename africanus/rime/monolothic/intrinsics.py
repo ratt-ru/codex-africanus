@@ -188,7 +188,8 @@ def term_factory(args, kwargs, terms):
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):
-            rvt = context.typingctx.resolve_value_type_prefer_literal
+            typingctx = context.typing_context
+            rvt = typingctx.resolve_value_type_prefer_literal
             return_type = signature.return_type
 
             if not isinstance(return_type, types.Tuple):
