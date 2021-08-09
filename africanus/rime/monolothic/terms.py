@@ -4,6 +4,7 @@ from numba.np.numpy_support import as_dtype
 import numpy as np
 import abc
 
+
 class SignatureAdapter:
     __slots__ = ("signature",)
 
@@ -32,6 +33,7 @@ class SignatureAdapter:
         return {n: p.default for n, p in self.signature.parameters.items()
                 if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
                 and p.default is not p.empty}
+
 
 class TermStructRef(types.StructRef):
     def preprocess_fields(self, fields):

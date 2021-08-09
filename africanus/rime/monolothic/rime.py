@@ -29,8 +29,6 @@ class rime_factory:
         expected_args = list(sorted(expected_args))
 
         extra_args_set = set(k for s in adapted_sigs for k in s.kwargs)
-        extra_args = list(sorted(extra_args_set))
-
         arg_map = {a: i for i, a in enumerate(expected_args)}
 
         try:
@@ -45,14 +43,15 @@ class rime_factory:
         def rime(*args):
             if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
                 raise ValueError(f"{args[0]} must be be a Tuple")
-            
+
             n = len(expected_args)
             starargs = args[0]
             kwargs = starargs[n:]
             starargs = starargs[:n]
 
             if len(starargs) < n:
-                raise ValueError("Insufficient required arguments supplied to RIME")
+                raise ValueError("Insufficient required arguments "
+                                 "supplied to RIME")
 
             # Extract kwarg (string, type) pairs after
             # the expected arguments
@@ -93,7 +92,8 @@ class rime_factory:
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
 
                 for s in range(nsrc):
-                    # for  r, (t, a1, a2) in enumerate(zip(time, antenna1, antenna2))
+                    # it = enumerate(zip(time, antenna1, antenna2))
+                    # for r, (t, a1, a2) in it:
                     for r in range(nrow):
                         for f in range(nchan):
                             X = sample_terms(term_state, s, r, 0, 0, 0, f)

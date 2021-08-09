@@ -1,7 +1,5 @@
 import inspect
 
-import numba
-from numba import types
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
@@ -171,8 +169,7 @@ def term_factory(args, kwargs, terms):
                              f"{term.initialiser.__name__}{init_sig} vs "
                              f"initialiser{sig}")
 
-
-        constructor = term.initialiser(*arg_types, **kw_types)        
+        constructor = term.initialiser(*arg_types, **kw_types)
         constructor_sig = inspect.signature(constructor)
 
         if constructor_sig != sig:
@@ -180,9 +177,7 @@ def term_factory(args, kwargs, terms):
                              f"{constructor.__name__}{init_sig} vs "
                              f"initialiser{sig}")
 
-
         constructors.append(constructor)
-
 
     @intrinsic
     def construct_terms(typingctx, args):
@@ -193,7 +188,7 @@ def term_factory(args, kwargs, terms):
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):
-            typingctx = context.typing_context
+            rvt = context.typingctx.resolve_value_type_prefer_literal
             return_type = signature.return_type
 
             if not isinstance(return_type, types.Tuple):
@@ -212,7 +207,9 @@ def term_factory(args, kwargs, terms):
             # Our single argument is a tuple of arguments, but we
             # need to extract those arguments necessary to construct
             # the term StructRef
-            it = zip(terms, term_arg_index, term_arg_types, term_kw_index, term_kw_types)
+            it = zip(terms, term_arg_index, term_arg_types,
+                     term_kw_index, term_kw_types)
+
             for term, arg_index, arg_types, kw_index, kw_types in it:
                 cargs = [builder.extract_value(args[0], j) for j in arg_index]
                 ctypes = list(arg_types)
@@ -225,8 +222,9 @@ def term_factory(args, kwargs, terms):
 
                     if ki == -1:
                         assert isinstance(kt, types.Omitted)
-                        value_type = typingctx.resolve_value_type_prefer_literal(kt.value)
-                        const = context.get_constant_generic(builder, value_type, kt.value)
+                        value_type = rvt(kt.value)
+                        const = context.get_constant_generic(
+                            builder, value_type, kt.value)
                         cargs.append(const)
                         ctypes.append(value_type)
                     else:

@@ -1,13 +1,11 @@
 import numpy as np
 
-import numba
-from numba.core import cgutils, compiler, types, errors
-from numba.core.typed_passes import type_inference_stage
+from numba.core import cgutils, types, errors
 from numba.extending import intrinsic
 from numba.experimental import structref
 
 
-from africanus.util.casa_types import STOKES_ID_MAP, STOKES_TYPES
+from africanus.util.casa_types import STOKES_TYPES
 from africanus.rime.monolothic.terms import TermStructRef, Term
 
 
@@ -27,7 +25,8 @@ STOKES_CONVERSION = {
 def conversion_factory(stokes_schema, corr_schema):
     @intrinsic
     def corr_convert(typingctx, spectral_model, source_index, chan_index):
-        if not isinstance(spectral_model, types.Array) or spectral_model.ndim != 3:
+        if (not isinstance(spectral_model, types.Array) or
+                spectral_model.ndim != 3):
             raise errors.TypingError(f"'spectral_model' should be 3D array. "
                                      f"Got {spectral_model}")
 
@@ -60,15 +59,16 @@ def conversion_factory(stokes_schema, corr_schema):
                     continue
 
             if i1 == -1 or i2 == -1:
-                raise ValueError(f"No conversion found for correlation {corr}. "
-                                 f"{stokes_schema} are available, but one "
+                raise ValueError(f"No conversion found for correlation {corr}."
+                                 f" {stokes_schema} are available, but one "
                                  f"of the following combinations "
                                  f"{set(conv_schema.values())} is needed "
                                  f"for conversion to {corr}")
 
             conv_map[corr] = (fn, i1, i2)
 
-        cplx_type = typingctx.unify_types(spectral_model.dtype, types.complex64)
+        cplx_type = typingctx.unify_types(
+            spectral_model.dtype, types.complex64)
         ret_type = types.Tuple([cplx_type] * len(corr_schema))
         sig = ret_type(spectral_model, source_index, chan_index)
 
@@ -90,22 +90,27 @@ def conversion_factory(stokes_schema, corr_schema):
 
             for c, (conv_fn, i1, i2) in enumerate(conv_map.values()):
                 # Extract the first stokes parameter from the stokes array
-                sig = array_type.dtype(array_type, source_index_type, chan_index_type)
-                s1 = context.compile_internal(builder, indexer_factory(i1),
-                                              sig, [array, source_index, chan_index])
+                sig = array_type.dtype(
+                    array_type, source_index_type, chan_index_type)
+                s1 = context.compile_internal(
+                    builder, indexer_factory(i1),
+                    sig, [array, source_index, chan_index])
 
                 # Extract the second stokes parameter from the stokes array
-                s2 = context.compile_internal(builder, indexer_factory(i2),
-                                              sig, [array, source_index, chan_index])
+                s2 = context.compile_internal(
+                    builder, indexer_factory(i2),
+                    sig, [array, source_index, chan_index])
 
                 # Compute correlation from stokes parameters
-                sig = signature.return_type[c](array_type.dtype, array_type.dtype)
-                corr = context.compile_internal(builder, conv_fn, sig, [s1, s2])
+                sig = signature.return_type[c](
+                    array_type.dtype, array_type.dtype)
+                corr = context.compile_internal(
+                    builder, conv_fn, sig, [s1, s2])
 
                 # Insert result of tuple_getter into the tuple
                 corrs = builder.insert_value(corrs, corr, c)
 
-            return corrs            
+            return corrs
 
         return sig, codegen
 
@@ -164,8 +169,10 @@ class BrightnessTerm(Term):
     LOG = 1
     LOG10 = 2
 
-    def initialiser(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
-        struct_type = self.term_type(stokes, spi, ref_freq, chan_freq, spi_base)
+    def initialiser(self, stokes, spi, ref_freq,
+                    chan_freq, spi_base="standard"):
+        struct_type = self.term_type(
+            stokes, spi, ref_freq, chan_freq, spi_base)
         expected_nstokes = len(self.stokes)
 
         def brightness(stokes, spi, ref_freq, chan_freq, spi_base="standard"):
@@ -180,11 +187,12 @@ class BrightnessTerm(Term):
             if ((spi_base.startswith("[") and spi_base.endswith("]")) or
                     (spi_base.startswith("(") and spi_base.endswith(")"))):
 
-                list_spi_base = [s.strip().lower() for s in spi_base.split(",")]
+                list_spi_base = [s.strip().lower()
+                                 for s in spi_base.split(",")]
 
                 if len(list_spi_base) != nstokes:
                     raise ValueError("List of spectral bases must equal "
-                                     "number of stokes parameters") 
+                                     "number of stokes parameters")
             else:
                 list_spi_base = [spi_base.lower()] * nstokes
 
@@ -234,7 +242,8 @@ class BrightnessTerm(Term):
 
                             spectral_model[s, f, p] = 10**spec_model
                 else:
-                    raise ValueError("spi_base not in (\"standard\", \"log\", \"log10\")")
+                    raise ValueError(
+                        "spi_base not in (\"standard\", \"log\", \"log10\")")
 
             state.spectral_model = spectral_model
 

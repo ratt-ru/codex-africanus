@@ -1,6 +1,5 @@
 from africanus.constants import c as lightspeed
 from numba.experimental import structref
-from numba import types
 import numpy as np
 
 from africanus.rime.monolothic.terms import TermStructRef, Term
@@ -26,7 +25,6 @@ class PhaseTerm(Term):
             ("phase_dot", phase_dot[:, :])
         ])
 
-
     def initialiser(self, lm, uvw, chan_freq, convention="fourier"):
         struct_type = self.term_type(lm, uvw, chan_freq, convention)
         dot_dtype = struct_type.field_dict["phase_dot"].dtype
@@ -50,7 +48,7 @@ class PhaseTerm(Term):
             elif convention == "casa":
                 C = dot_dtype(2.0*np.pi/lightspeed)
             else:
-                raise ValueError("convention not in (\"fourier\", \"casa\")") 
+                raise ValueError("convention not in (\"fourier\", \"casa\")")
 
             for s in range(nsrc):
                 l = lm[s, 0]  # noqa
@@ -71,6 +69,7 @@ class PhaseTerm(Term):
 
     def sampler(self):
         def phase_sample(state, s, r, t, a1, a2, c):
-            return np.exp(state.phase_dot[s, r] * state.chan_freq[c])
+            p = state.phase_dot[s, r] * state.chan_freq[c]
+            return np.cos(p) + np.sin(p)*1j
 
         return phase_sample
