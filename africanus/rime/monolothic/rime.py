@@ -1,4 +1,6 @@
 import inspect
+
+import numba
 from numba import generated_jit, types
 import numpy as np
 
@@ -98,10 +100,8 @@ class rime_factory:
                         for f in range(nchan):
                             X = sample_terms(term_state, s, r, 0, 0, 0, f)
 
-                            vis[r, f, 0] += X[0]
-                            vis[r, f, 1] += X[1]
-                            vis[r, f, 2] += X[2]
-                            vis[r, f, 3] += X[3]
+                            for c, value in enumerate(numba.literal_unroll(X)):
+                                vis[r, f, c] += value
 
                 return vis
 
