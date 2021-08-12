@@ -43,11 +43,15 @@ class TermStructRef(types.StructRef):
 
 class Term(abc.ABC):
     @abc.abstractmethod
-    def term_type(self, *args):
+    def dask_schema(self, *args, **kwargs):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def initialiser(self, *args):
+    def term_type(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def initialiser(self, *args, **kwargs):
         raise NotImplementedError
 
     @abc.abstractmethod

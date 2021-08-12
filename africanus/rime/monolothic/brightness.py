@@ -123,11 +123,6 @@ class BrightnessType(TermStructRef):
 
 
 class BrightnessTerm(Term):
-    arg_schema = {
-        "stokes": ("source", "corr"),
-        "chan_freq": ("chan",)
-    }
-
     def __init__(self, corr_schema="[I,Q,U,V] -> [XX,XY,YX,YY]"):
         bits = [s.strip() for s in corr_schema.strip().split("->")]
 
@@ -155,6 +150,22 @@ class BrightnessTerm(Term):
         if not all(c in STOKES_TYPES for c in self.corrs):
             raise ValueError(f"{self.corrs} contains "
                              f"invalid correlations")
+
+    def dask_schema(self, stokes, spi, ref_freq,
+                    chan_freq, spi_base="standard"):
+        assert stokes.ndim == 2
+        assert spi.ndim == 3
+        assert ref_freq.ndim == 1
+        assert chan_freq.ndim == 1
+        assert isinstance(spi_base, str)
+
+        return {
+            "stokes": ("source", "corr"),
+            "spi": ("source", "spi", "corr"),
+            "ref_freq": ("source",),
+            "chan_freq": ("chan",),
+            "spi_base": None
+        }
 
     def term_type(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
         return BrightnessType([

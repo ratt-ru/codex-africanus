@@ -1,3 +1,5 @@
+import dask
+import dask.array as da
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
@@ -7,6 +9,7 @@ from africanus.model.spectral import spectral_model
 from africanus.model.coherency import convert
 
 from africanus.rime.monolothic.rime import rime_factory
+from africanus.rime.monolothic.dask import rime as dask_rime
 
 
 @pytest.mark.parametrize("rime_spec", [
@@ -21,17 +24,30 @@ def test_rime_parser(rime_spec):
     pass
 
 
-def test_monolithic_rime():
-    nsrc = 10
-    nrow = 5
-    nspi = 2
-    nchan = 4
+chunks = {
+    "source": (5, 5),
+    "row": (5,),
+    "spi": (2,),
+    "chan": (4,),
+    "corr": (4,),
+    "lm": (2,),
+    "uvw": (3,),
+}
+
+
+@pytest.mark.parametrize("chunks", [chunks])
+def test_monolithic_rime(chunks):
+    nsrc = sum(chunks["source"])
+    nrow = sum(chunks["row"])
+    nspi = sum(chunks["spi"])
+    nchan = sum(chunks["chan"])
+    ncorr = sum(chunks["corr"])
 
     lm = np.random.random(size=(nsrc, 2))*1e-5
     uvw = np.random.random(size=(nrow, 3))
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
-    stokes = np.random.random(size=(nsrc, 4))
-    spi = np.random.random(size=(nsrc, nspi, stokes.shape[1]))
+    stokes = np.random.random(size=(nsrc, ncorr))
+    spi = np.random.random(size=(nsrc, nspi, ncorr))
     ref_freq = np.random.random(size=nsrc)
 
     rime = rime_factory()
@@ -63,3 +79,43 @@ def test_monolithic_rime():
 
     with open("rime_asm.txt", "w") as f:
         print(list(rime.impl.inspect_asm().values())[0], file=f)
+
+
+@pytest.mark.parametrize("chunks", [chunks])
+def test_monolithic_dask_rime(chunks):
+    nsrc = sum(chunks["source"])
+    nrow = sum(chunks["row"])
+    nspi = sum(chunks["spi"])
+    nchan = sum(chunks["chan"])
+    ncorr = sum(chunks["corr"])
+
+    lm = np.random.random(size=(nsrc, 2))*1e-5
+    uvw = np.random.random(size=(nrow, 3))
+    chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
+    stokes = np.random.random(size=(nsrc, ncorr))
+    spi = np.random.random(size=(nsrc, nspi, ncorr))
+    ref_freq = np.random.random(size=nsrc)
+
+    achunks = tuple(chunks[d] for d in ("source", "lm"))
+    dask_lm = da.from_array(lm, chunks=achunks)
+
+    achunks = tuple(chunks[d] for d in ("row", "uvw"))
+    dask_uvw = da.from_array(uvw, chunks=achunks)
+
+    achunks = tuple(chunks[d] for d in ("chan",))
+    dask_chan_freq = da.from_array(chan_freq, chunks=achunks)
+
+    achunks = tuple(chunks[d] for d in ("source", "corr"))
+    dask_stokes = da.from_array(stokes, chunks=achunks)
+
+    achunks = tuple(chunks[d] for d in ("source", "spi", "corr"))
+    dask_spi = da.from_array(spi, chunks=achunks)
+
+    achunks = tuple(chunks[d] for d in ("source",))
+    dask_ref_freq = da.from_array(ref_freq, chunks=achunks)
+
+    out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
+                    spi=dask_spi, chan_freq=dask_chan_freq,
+                    ref_freq=dask_ref_freq)
+
+    out.compute()

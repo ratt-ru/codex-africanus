@@ -9,10 +9,10 @@ from africanus.rime.monolothic.terms import Term, SignatureAdapter
 
 
 class rime_factory:
-    def __init__(self):
+    def __init__(self, terms=None):
         from africanus.rime.monolothic.phase import PhaseTerm
         from africanus.rime.monolothic.brightness import BrightnessTerm
-        terms = [PhaseTerm(), BrightnessTerm()]
+        terms = terms or [PhaseTerm(), BrightnessTerm()]
 
         for t in terms:
             if not isinstance(t, Term):
@@ -25,6 +25,12 @@ class rime_factory:
             raise ValueError("RIME must at least contain a Brightness Term")
 
         signatures = [inspect.signature(t.term_type) for t in terms]
+
+        # Check matching signatures
+        for s, t in zip(signatures, terms):
+            assert inspect.signature(t.dask_schema) == s
+            assert inspect.signature(t.initialiser) == s
+
         adapted_sigs = list(map(SignatureAdapter, signatures))
 
         expected_args = set(a for s in adapted_sigs for a in s.args)
@@ -112,6 +118,51 @@ class rime_factory:
         self.arg_map = arg_map
         self.term_kwarg_set = extra_args_set
         self.impl = rime
+
+
+    def __reduce__(self):
+        return (rime_factory, (self.terms,))
+
+
+    def dask_blockwise_args(self, **kwargs):
+        """ Get the dask schema """
+        schema = {}
+
+        for t in self.terms:
+            sig = SignatureAdapter(inspect.signature(t.dask_schema))
+
+            try:
+                args = tuple(kwargs[a] for a in sig.args)
+            except KeyError as e:
+                raise ValueError(f"{str(e)} is a required argument")
+
+            kw = {k: kwargs[k] for k in sig.kwargs if k in kwargs}
+
+            schema.update(t.dask_schema(*args, **kw))
+
+        blockwise_args = []
+        names = []
+
+        for a in self.args:
+            try:
+                blockwise_args.append(kwargs.pop(a))
+                blockwise_args.append(schema[a])
+            except KeyError as e:
+                raise ValueError(f"{str(e)} is a required argument")
+
+            names.append(a)
+
+        for k, v in kw.items():
+            try:
+                blockwise_args.append(v)
+                blockwise_args.append(schema[k])
+            except KeyError as e:
+                raise ValueError(f"Something went wrong trying extract key {k}")
+
+            names.append(k)
+
+        return names, blockwise_args
+
 
     def __call__(self, **kwargs):
         # Call the implementation

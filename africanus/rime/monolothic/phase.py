@@ -11,10 +11,16 @@ class PhaseType(TermStructRef):
 
 
 class PhaseTerm(Term):
-    arg_schema = {"lm": ("source", "lm"),
-                  "uvw": ("row", "uvw"),
-                  "chan_freq": ("chan",),
-                  "convention": None}
+    def dask_schema(self, lm, uvw, chan_freq, convention="fourier"):
+        assert lm.ndim == 2
+        assert uvw.ndim == 2
+        assert chan_freq.ndim == 1
+        assert isinstance(convention, str)
+
+        return {"lm": ("source", "lm"),
+                "uvw": ("row", "uvw"),
+                "chan_freq": ("chan",),
+                "convention": None}
 
     def term_type(self, lm, uvw, chan_freq, convention="fourier"):
         phase_dot = self.result_type(lm, uvw, chan_freq)
