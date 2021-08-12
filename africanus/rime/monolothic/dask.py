@@ -1,4 +1,3 @@
-from operator import concat
 import dask.array as da
 import numpy as np
 
@@ -39,6 +38,6 @@ def rime(terms=None, **kwargs):
                        adjust_chunks=adjust_chunks,
                        dtype=np.complex64)
 
-    # Contract over concatenation dims
+    # Contract over source and concatenation dims
     axes = tuple(range(len(dims), len(dims) + len(concat_dims)))
-    return out.sum(axis=axes)
+    return out.sum(axis=(0,) + axes)

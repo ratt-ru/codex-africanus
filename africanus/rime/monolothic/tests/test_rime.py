@@ -117,4 +117,6 @@ def test_monolithic_dask_rime(chunks):
                     spi=dask_spi, chan_freq=dask_chan_freq,
                     ref_freq=dask_ref_freq, convention="fourier")
 
-    out.compute()
+    result = out.compute()
+    expected_shape = tuple(sum(chunks[d]) for d in ("row", "chan", "corr"))
+    assert result.shape == expected_shape
