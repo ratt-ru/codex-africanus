@@ -47,5 +47,5 @@ def rime(terms=None, **kwargs):
                        dtype=np.complex64)
 
     # Contract over source and concatenation dims
-    axes = tuple(range(len(dims), len(dims) + len(concat_dims)))
-    return out.sum(axis=(0,) + axes)
+    axes = (0,) + tuple(range(len(dims), len(dims) + len(concat_dims)))
+    return out.sum(axis=axes)
