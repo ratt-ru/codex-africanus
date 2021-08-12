@@ -1,6 +1,13 @@
-import dask.array as da
+try:
+    import dask.array as da
+except ImportError as e:
+    opt_import_err = e
+else:
+    opt_import_err = None
+
 import numpy as np
 
+from africanus.util.requirements import requires_optional
 from africanus.rime.monolothic.rime import rime_factory
 
 
@@ -15,6 +22,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
     return out[(None,) + (slice(None),)*out.ndim + (None,)*nconcat_dims]
 
 
+@requires_optional("dask.array", opt_import_err)
 def rime(terms=None, **kwargs):
     factory = rime_factory(terms=terms)
     names, args = factory.dask_blockwise_args(**kwargs)
