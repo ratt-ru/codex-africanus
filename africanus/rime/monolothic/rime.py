@@ -119,10 +119,8 @@ class rime_factory:
         self.term_kwarg_set = extra_args_set
         self.impl = rime
 
-
     def __reduce__(self):
         return (rime_factory, (self.terms,))
-
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
@@ -136,7 +134,7 @@ class rime_factory:
             except KeyError as e:
                 raise ValueError(f"{str(e)} is a required argument")
 
-            kw = {k: kwargs[k] for k in sig.kwargs if k in kwargs}
+            kw = {k: kwargs.get(k, v) for k, v in sig.kwargs.items()}
 
             schema.update(t.dask_schema(*args, **kw))
 
@@ -152,17 +150,17 @@ class rime_factory:
 
             names.append(a)
 
-        for k, v in kw.items():
+        for k, v in kwargs.items():
             try:
                 blockwise_args.append(v)
-                blockwise_args.append(schema[k])
-            except KeyError as e:
-                raise ValueError(f"Something went wrong trying extract key {k}")
+                blockwise_args.append(schema.get(k, None))
+            except KeyError:
+                raise ValueError(f"Something went wrong "
+                                 f"trying extract kwarg {k}")
 
             names.append(k)
 
         return names, blockwise_args
-
 
     def __call__(self, **kwargs):
         # Call the implementation

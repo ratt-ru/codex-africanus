@@ -1,4 +1,3 @@
-import dask
 import dask.array as da
 import numpy as np
 from numpy.testing import assert_allclose
@@ -116,6 +115,6 @@ def test_monolithic_dask_rime(chunks):
 
     out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
                     spi=dask_spi, chan_freq=dask_chan_freq,
-                    ref_freq=dask_ref_freq)
+                    ref_freq=dask_ref_freq, convention="fourier")
 
     out.compute()

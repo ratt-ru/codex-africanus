@@ -6,9 +6,14 @@ from africanus.rime.monolothic.rime import rime_factory
 
 
 def rime_dask_wrapper(factory, names, nconcat_dims, *args):
+    # Call the rime factory
     assert len(names) == len(args)
     out = factory(**dict(zip(names, args)))
-    return out[(slice(None),)*out.ndim + (None,)*nconcat_dims]
+    # (1) Reintroduce source dimension,
+    # (2) slice the existing dimes
+    # (3) expand by the contraction dims which will
+    #     be removed in the later dask reduction
+    return out[(None,) + (slice(None),)*out.ndim + (None,)*nconcat_dims]
 
 
 def rime(terms=None, **kwargs):
@@ -16,16 +21,24 @@ def rime(terms=None, **kwargs):
     names, args = factory.dask_blockwise_args(**kwargs)
 
     dims = ("source", "row", "chan", "corr")
-    concat_dims = set(d for t in args[1::2] for d in t) - set(dims)
+    concat_dims = set(d for ds in args[1::2] if ds is not None for d in ds)
+    concat_dims -= set(dims)
+    out_dims = dims + tuple(concat_dims)
 
-    out = da.blockwise(rime_dask_wrapper, dims + tuple(concat_dims),
+    # Source and concatentation dimension are reduced to 1 element
+    adjust_chunks = {"source": 1}
+    adjust_chunks.update((d, 1) for d in concat_dims)
+
+    # Construct the wrapper call from given arguments
+    out = da.blockwise(rime_dask_wrapper, out_dims,
                        factory, None,
                        names, None,
-                       len(concat_dims) + 1, None,
+                       len(concat_dims), None,
                        *args,
                        concatenate=False,
-                       adjust_chunks={d: 1 for d in concat_dims},
+                       adjust_chunks=adjust_chunks,
                        dtype=np.complex64)
 
+    # Contract over concatenation dims
     axes = tuple(range(len(dims), len(dims) + len(concat_dims)))
     return out.sum(axis=axes)
