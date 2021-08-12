@@ -28,24 +28,24 @@ def rime(terms=None, **kwargs):
     names, args = factory.dask_blockwise_args(**kwargs)
 
     dims = ("source", "row", "chan", "corr")
-    concat_dims = set(d for ds in args[1::2] if ds is not None for d in ds)
-    concat_dims -= set(dims)
-    out_dims = dims + tuple(concat_dims)
+    contract_dims = set(d for ds in args[1::2] if ds is not None for d in ds)
+    contract_dims -= set(dims)
+    out_dims = dims + tuple(contract_dims)
 
     # Source and concatentation dimension are reduced to 1 element
     adjust_chunks = {"source": 1}
-    adjust_chunks.update((d, 1) for d in concat_dims)
+    adjust_chunks.update((d, 1) for d in contract_dims)
 
     # Construct the wrapper call from given arguments
     out = da.blockwise(rime_dask_wrapper, out_dims,
                        factory, None,
                        names, None,
-                       len(concat_dims), None,
+                       len(contract_dims), None,
                        *args,
                        concatenate=False,
                        adjust_chunks=adjust_chunks,
                        dtype=np.complex64)
 
     # Contract over source and concatenation dims
-    axes = (0,) + tuple(range(len(dims), len(dims) + len(concat_dims)))
+    axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))
     return out.sum(axis=axes)

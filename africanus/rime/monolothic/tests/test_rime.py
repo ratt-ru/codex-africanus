@@ -1,4 +1,3 @@
-import dask.array as da
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
@@ -82,6 +81,8 @@ def test_monolithic_rime(chunks):
 
 @pytest.mark.parametrize("chunks", [chunks])
 def test_monolithic_dask_rime(chunks):
+    da = pytest.importorskip("dask.array")
+
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
     nspi = sum(chunks["spi"])
