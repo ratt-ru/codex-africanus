@@ -24,9 +24,9 @@ def test_rime_parser(rime_spec):
 
 chunks = {
     "source": (5, 5),
-    "row": (5,),
+    "row": (2, 2, 2, 2),
     "spi": (2,),
-    "chan": (4,),
+    "chan": (2, 2),
     "corr": (4,),
     "lm": (2,),
     "uvw": (3,),
@@ -114,10 +114,12 @@ def test_monolithic_dask_rime(chunks):
     achunks = tuple(chunks[d] for d in ("source",))
     dask_ref_freq = da.from_array(ref_freq, chunks=achunks)
 
-    out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
-                    spi=dask_spi, chan_freq=dask_chan_freq,
-                    ref_freq=dask_ref_freq, convention="fourier")
+    dask_out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
+                         spi=dask_spi, chan_freq=dask_chan_freq,
+                         ref_freq=dask_ref_freq, convention="fourier")
 
-    result = out.compute()
-    expected_shape = tuple(sum(chunks[d]) for d in ("row", "chan", "corr"))
-    assert result.shape == expected_shape
+    rime = rime_factory()
+    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+               spi=spi, ref_freq=ref_freq, convention="fourier")
+
+    assert_allclose(dask_out, out, rtol=1e-6)
