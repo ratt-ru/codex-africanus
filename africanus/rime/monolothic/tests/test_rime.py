@@ -75,9 +75,6 @@ def test_monolithic_rime(chunks):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_allclose(expected, out)
 
-    with open("rime_asm.txt", "w") as f:
-        print(list(rime.impl.inspect_asm().values())[0], file=f)
-
 
 @pytest.mark.parametrize("chunks", [chunks])
 def test_monolithic_dask_rime(chunks):
