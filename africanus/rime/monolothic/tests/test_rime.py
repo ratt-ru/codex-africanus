@@ -96,23 +96,15 @@ def test_monolithic_dask_rime(chunks):
     spi = np.random.random(size=(nsrc, nspi, ncorr))
     ref_freq = np.random.random(size=nsrc)*.856e9
 
-    achunks = tuple(chunks[d] for d in ("source", "lm"))
-    dask_lm = da.from_array(lm, chunks=achunks)
+    def darray(array, dims):
+        return da.from_array(array, tuple(chunks[d] for d in dims))
 
-    achunks = tuple(chunks[d] for d in ("row", "uvw"))
-    dask_uvw = da.from_array(uvw, chunks=achunks)
-
-    achunks = tuple(chunks[d] for d in ("chan",))
-    dask_chan_freq = da.from_array(chan_freq, chunks=achunks)
-
-    achunks = tuple(chunks[d] for d in ("source", "corr"))
-    dask_stokes = da.from_array(stokes, chunks=achunks)
-
-    achunks = tuple(chunks[d] for d in ("source", "spi", "corr"))
-    dask_spi = da.from_array(spi, chunks=achunks)
-
-    achunks = tuple(chunks[d] for d in ("source",))
-    dask_ref_freq = da.from_array(ref_freq, chunks=achunks)
+    dask_lm = darray(lm, ("source", "lm"))
+    dask_uvw = darray(uvw, ("row", "uvw"))
+    dask_chan_freq = darray(chan_freq, ("chan",))
+    dask_stokes = darray(stokes, ("source", "corr"))
+    dask_spi = darray(spi, ("source", "spi", "corr"))
+    dask_ref_freq = darray(ref_freq, ("source",))
 
     dask_out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
                          spi=dask_spi, chan_freq=dask_chan_freq,
