@@ -23,7 +23,7 @@ def test_rime_parser(rime_spec):
 
 
 chunks = {
-    "source": (5, 5),
+    "source": (2, 2, 2, 3),
     "row": (2, 2, 2, 2),
     "spi": (2,),
     "chan": (2, 2),
@@ -46,7 +46,7 @@ def test_monolithic_rime(chunks):
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
-    ref_freq = np.random.random(size=nsrc)
+    ref_freq = np.random.random(size=nsrc)*.856e9
 
     rime = rime_factory()
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
@@ -90,11 +90,11 @@ def test_monolithic_dask_rime(chunks):
     ncorr = sum(chunks["corr"])
 
     lm = np.random.random(size=(nsrc, 2))*1e-5
-    uvw = np.random.random(size=(nrow, 3))
+    uvw = np.random.random(size=(nrow, 3))*1e5
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
-    ref_freq = np.random.random(size=nsrc)
+    ref_freq = np.random.random(size=nsrc)*.856e9
 
     achunks = tuple(chunks[d] for d in ("source", "lm"))
     dask_lm = da.from_array(lm, chunks=achunks)
