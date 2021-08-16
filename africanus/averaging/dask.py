@@ -407,7 +407,6 @@ def _bda_mapper_wrapper(time, interval, ant1, ant2,
                          time_bin_secs=time_bin_secs,
                          min_nchan=min_nchan)
 
-
 def bda_mapper(time, interval, antenna1, antenna2, uvw,
                chan_width, chan_freq,
                max_uvw_dist,
