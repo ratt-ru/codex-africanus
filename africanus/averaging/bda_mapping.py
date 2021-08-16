@@ -169,8 +169,6 @@ class Binner(object):
         self.rs = row
         self.re = row
         self.bin_count = 1
-        self.time_sum = time[row]
-        self.interval_sum = interval[row]
         self.bin_flag_count = (1 if flag_row is not None and flag_row[row] != 0
                                else 0)
 
@@ -193,12 +191,10 @@ class Binner(object):
 
         if auto_corr:
             # Fast path for auto-correlated baseline.
-            # By definition, uvw == (0, 0, 0) for these samples
+            # By definition, duvw == (0, 0, 0) for these samples
             self.re = row
             self.bin_half_Δψ = self.decorrelation
             self.bin_count += 1
-            self.time_sum += time[row]
-            self.interval_sum += interval[row]
 
             if flag_row is not None and flag_row[row] != 0:
                 self.bin_flag_count += 1
@@ -240,8 +236,6 @@ class Binner(object):
         self.re = row
         self.bin_half_Δψ = half_𝞓𝞇
         self.bin_count += 1
-        self.time_sum += time[row]
-        self.interval_sum += interval[row]
 
         if flag_row is not None and flag_row[row] != 0:
             self.bin_flag_count += 1
@@ -252,11 +246,22 @@ class Binner(object):
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, nchan_factors,
-                     chan_width, chan_freq):
+    def finalise_bin(self, auto_corr, uvw, time, interval,
+                     nchan_factors, chan_width, chan_freq):
         """ Finalise the contents of this bin """
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
+        elif self.bin_count == 1:
+            # Single entry in the bin, no averaging occurs
+            out = FinaliseOutput(self.tbin,
+                                 time[self.rs],
+                                 interval[self.rs],
+                                 chan_width.size,
+                                 self.bin_count == self.bin_flag_count)
+
+            self.tbin += 1
+
+            return out
 
         rs = self.rs
         re = self.re
@@ -308,11 +313,14 @@ class Binner(object):
             s = np.searchsorted(nchan_factors, nchan, side='left')
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
 
+        time_start = time[rs] - (interval[rs] / 2.0)
+        time_end = time[re] + (interval[re] / 2.0)
+
         # Finalise bin values for return
         assert self.bin_count >= 1
         out = FinaliseOutput(self.tbin,
-                             self.time_sum / self.bin_count,
-                             self.interval_sum,
+                             (time_start + time_end) / 2.0,
+                             time_end - time_start,
                              nchan,
                              self.bin_count == self.bin_flag_count)
 
@@ -326,7 +334,7 @@ RowMapOutput = namedtuple("RowMapOutput",
                            "time", "interval", "chan_width", "flag_row"])
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, boundscheck=False)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def bda_mapper(time, interval, ant1, ant2, uvw,
                chan_width, chan_freq,
                max_uvw_dist,
@@ -335,6 +343,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                decorrelation=0.98,
                time_bin_secs=None,
                min_nchan=1):
+
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
     Omitted = numba.types.misc.Omitted
@@ -369,6 +378,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         ('max_uvw_dist', max_uvw_dist)]
 
     JitBinner = jitclass(spec)(Binner)
+
     def impl(time, interval, ant1, ant2, uvw,
              chan_width, chan_freq,
              max_uvw_dist,
@@ -378,12 +388,15 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
              time_bin_secs=None,
              min_nchan=1):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
+
         if decorrelation < 0.0 or decorrelation > 1.0:
             raise ValueError("0.0 <= decorrelation <= 1.0 must hold")
 
         if max_fov <= 0.0 or max_fov > 90.0:
             raise ValueError("0.0 < max_fov <= 90.0 must hold")
+
         max_lm = np.deg2rad(max_fov)
+
         ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
         utime, _, time_inv, _ = unique_time(time)
 
@@ -395,7 +408,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
             raise ValueError("Number of channels passed into averager must be at least size 1")
         nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
-        
+
         if min_nchan is None:
             min_nchan = 1
         else:
@@ -473,9 +486,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         dphi = asincapprox(decorrelation)
 
         binner = JitBinner(0, 0, max_lm,
-                            dphi,
-                            time_bin_secs,
-                            chan_freq.max())
+                           dphi,
+                           time_bin_secs,
+                           chan_freq.max())
 
         for bl in range(nbl):
             # Reset the binner for this baseline
@@ -500,9 +513,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                 elif not binner.add_row(r, auto_corr,
                                         time, interval,
                                         uvw, flag_row):
-                    f = binner.finalise_bin(auto_corr, uvw,
+                    f = binner.finalise_bin(auto_corr, uvw, time, interval,
                                             nchan_factors,
-                                            chan_width, chan_freq)                    
+                                            chan_width, chan_freq)
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -512,9 +525,8 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(auto_corr, uvw,
-                                        nchan_factors,
-                                        chan_width, chan_freq)
+                f = binner.finalise_bin(auto_corr, uvw, time, interval,
+                                        nchan_factors, chan_width, chan_freq)
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
@@ -525,6 +537,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                 bin_flagged[bl, tbin] = False
 
         assert out_rows == nr_of_time_bins
+
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
         argsort = np.argsort(flat_time, kind='mergesort')
@@ -581,9 +594,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
             # Handle output row flagging
             if flag_row is not None and flag_row[in_row] == 0 and flagged:
                 raise RowMapperError("Unflagged input row "
-                                        "contributing to "
-                                        "flagged output row. "
-                                        "This should never happen!")
+                                     "contributing to "
+                                     "flagged output row. "
+                                     "This should never happen!")
 
             # Set up the row channel map, populate
             # time, interval and chan_width
@@ -611,4 +624,5 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                             decorr_chan_width,
                             time_ret, int_ret,
                             chan_width_ret, out_flag_row)
+
     return impl
