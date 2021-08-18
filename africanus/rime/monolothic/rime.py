@@ -124,6 +124,8 @@ class rime_factory:
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
+        import dask.array as da
+
         schema = {}
 
         for t in self.terms:
@@ -143,10 +145,28 @@ class rime_factory:
 
         for a in self.args:
             try:
-                blockwise_args.append(kwargs.pop(a))
-                blockwise_args.append(schema[a])
+                arg = kwargs.pop(a)
+                arg_schema = schema[a]
             except KeyError as e:
                 raise ValueError(f"{str(e)} is a required argument")
+
+            # Do some sanity checks
+            if isinstance(arg, da.Array):
+                if (not isinstance(arg_schema, tuple) or
+                        not len(arg_schema) == arg.ndim):
+
+                    raise ValueError(f"{arg} is a dask array but "
+                                     f"associated schema {arg_schema} "
+                                     f"doesn't match the number of "
+                                     f"dimensions {arg.ndim}")
+            else:
+                if arg_schema is not None:
+                    raise ValueError(f"{arg} is not a dask array but "
+                                     f"associated schema {arg_schema} "
+                                     f"is not None")
+
+            blockwise_args.append(arg)
+            blockwise_args.append(arg_schema)
 
             names.append(a)
 

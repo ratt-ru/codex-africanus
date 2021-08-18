@@ -105,10 +105,10 @@ def test_monolithic_dask_rime(chunks):
 
     dask_out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
                          spi=dask_spi, chan_freq=dask_chan_freq,
-                         ref_freq=dask_ref_freq, convention="fourier")
+                         ref_freq=dask_ref_freq, convention="casa")
 
     rime = rime_factory()
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq, convention="fourier")
+               spi=spi, ref_freq=ref_freq, convention="casa")
 
     assert_allclose(dask_out, out, rtol=1e-6)
