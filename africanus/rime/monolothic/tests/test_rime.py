@@ -1,5 +1,7 @@
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import (
+    assert_array_almost_equal,
+    assert_array_almost_equal_nulp)
 import pytest
 
 from africanus.rime.phase import phase_delay
@@ -56,7 +58,7 @@ def test_monolithic_rime(chunks):
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
     B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
-    assert_allclose(expected, out)
+    assert_array_almost_equal_nulp(expected, out)
 
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="fourier")
@@ -65,7 +67,7 @@ def test_monolithic_rime(chunks):
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
     B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
-    assert_allclose(expected, out)
+    assert_array_almost_equal_nulp(expected, out)
 
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq)
@@ -73,7 +75,7 @@ def test_monolithic_rime(chunks):
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
     B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
-    assert_allclose(expected, out)
+    assert_array_almost_equal_nulp(expected, out)
 
 
 @pytest.mark.parametrize("chunks", [chunks])
@@ -111,4 +113,4 @@ def test_monolithic_dask_rime(chunks):
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="casa")
 
-    assert_allclose(dask_out, out, rtol=1e-6)
+    assert_array_almost_equal(dask_out, out, decimal=5)

@@ -86,7 +86,7 @@ class rime_factory:
 
                 tkwargs[k] = (vt, 2*i + 1 + n)
 
-            state_factory, sample_terms = term_factory(
+            state_factory, pairwise_sample = term_factory(
                 tstarargs, tkwargs, terms)
 
             def impl(*args):
@@ -99,15 +99,14 @@ class rime_factory:
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
 
-                for s in range(nsrc):
-                    # it = enumerate(zip(time, antenna1, antenna2))
-                    # for r, (t, a1, a2) in it:
-                    for r in range(nrow):
-                        for f in range(nchan):
-                            X = sample_terms(term_state, s, r, 0, 0, 0, f)
+                # it = enumerate(zip(time, antenna1, antenna2))
+                # for r, (t, a1, a2) in it:
+                for r in range(nrow):
+                    for f in range(nchan):
+                        X = pairwise_sample(term_state, 0, nsrc, r, 0, 0, 0, f)
 
-                            for c, value in enumerate(numba.literal_unroll(X)):
-                                vis[r, f, c] += value
+                        for c, value in enumerate(numba.literal_unroll(X)):
+                            vis[r, f, c] = value
 
                 return vis
 
