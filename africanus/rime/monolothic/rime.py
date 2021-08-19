@@ -52,6 +52,8 @@ class rime_factory:
             if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
                 raise ValueError(f"{args[0]} must be be a Tuple")
 
+            print(args)
+
             n = len(expected_args)
             starargs = args[0]
             kwargs = starargs[n:]
@@ -103,7 +105,7 @@ class rime_factory:
                 # for r, (t, a1, a2) in it:
                 for r in range(nrow):
                     for f in range(nchan):
-                        X = pairwise_sample(term_state, 0, nsrc, r, 0, 0, 0, f)
+                        X = pairwise_sample(term_state, nsrc, r, 0, 0, 0, f)
 
                         for c, value in enumerate(numba.literal_unroll(X)):
                             vis[r, f, c] = value
