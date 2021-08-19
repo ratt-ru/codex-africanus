@@ -4,8 +4,73 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolothic.intrinsics import term_factory
+from africanus.rime.monolothic.intrinsics import term_factory, tuple_adder
 from africanus.rime.monolothic.terms import Term, SignatureAdapter
+
+PAIRWISE_BLOCKSIZE = 128
+
+
+@numba.njit(nopython=True, nogil=True)
+def pairwise_sample(sample_terms, state, ss, se, r, t, a1, a2, c):
+    """
+    This code based on https://github.com/numpy/numpy/pull/3685
+    """
+    nsrc = se - ss
+
+    if nsrc < 8:
+        X = sample_terms(state, 0, r, t, a1, a2, c)
+
+        for s in range(1, nsrc):
+            Y = sample_terms(state, s, r, t, a1, a2, c)
+            X = tuple_adder(X, Y)
+
+        return X
+    elif nsrc <= PAIRWISE_BLOCKSIZE:
+        X0 = sample_terms(state, 0, r, t, a1, a2, c)
+        X1 = sample_terms(state, 1, r, t, a1, a2, c)
+        X2 = sample_terms(state, 2, r, t, a1, a2, c)
+        X3 = sample_terms(state, 3, r, t, a1, a2, c)
+        X4 = sample_terms(state, 4, r, t, a1, a2, c)
+        X5 = sample_terms(state, 5, r, t, a1, a2, c)
+        X6 = sample_terms(state, 6, r, t, a1, a2, c)
+        X7 = sample_terms(state, 7, r, t, a1, a2, c)
+
+        for s in range(8, nsrc - (nsrc % 8), 8):
+            Y0 = sample_terms(state, s + 0, r, t, a1, a2, c)
+            Y1 = sample_terms(state, s + 1, r, t, a1, a2, c)
+            Y2 = sample_terms(state, s + 2, r, t, a1, a2, c)
+            Y3 = sample_terms(state, s + 3, r, t, a1, a2, c)
+            Y4 = sample_terms(state, s + 4, r, t, a1, a2, c)
+            Y5 = sample_terms(state, s + 5, r, t, a1, a2, c)
+            Y6 = sample_terms(state, s + 6, r, t, a1, a2, c)
+            Y7 = sample_terms(state, s + 7, r, t, a1, a2, c)
+
+            X0 = tuple_adder(X0, Y0)
+            X1 = tuple_adder(X1, Y1)
+            X2 = tuple_adder(X2, Y2)
+            X3 = tuple_adder(X3, Y3)
+            X4 = tuple_adder(X4, Y4)
+            X5 = tuple_adder(X5, Y5)
+            X6 = tuple_adder(X6, Y6)
+            X7 = tuple_adder(X7, Y7)
+
+            Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
+            Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
+            X = tuple_adder(Z1, Z2)
+
+        while s < nsrc:
+            Y = sample_terms(state, s, r, t, a1, a2, c)
+            X = tuple_adder(X, Y)
+            s += 1
+
+        return X
+    else:
+        ns2 = (nsrc / 2) - (nsrc % 8)
+        X = pairwise_sample(sample_terms, state, ss, ns2,
+                            r, t, a1, a2, c)
+        Y = pairwise_sample(sample_terms, state, ss + ns2, se - ns2,
+                            r, t, a1, a2, c)
+        return tuple_adder(X, Y)
 
 
 class rime_factory:
@@ -86,7 +151,7 @@ class rime_factory:
 
                 tkwargs[k] = (vt, 2*i + 1 + n)
 
-            state_factory, pairwise_sample = term_factory(
+            state_factory, sample_terms = term_factory(
                 tstarargs, tkwargs, terms)
 
             def impl(*args):
@@ -103,7 +168,8 @@ class rime_factory:
                 # for r, (t, a1, a2) in it:
                 for r in range(nrow):
                     for f in range(nchan):
-                        X = pairwise_sample(term_state, 0, nsrc, r, 0, 0, 0, f)
+                        X = pairwise_sample(sample_terms, term_state, 0, nsrc,
+                                            r, 0, 0, 0, f)
 
                         for c, value in enumerate(numba.literal_unroll(X)):
                             vis[r, f, c] = value
