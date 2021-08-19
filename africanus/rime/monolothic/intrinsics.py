@@ -1,10 +1,13 @@
 import inspect
 
+from numba import njit
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
 
 from africanus.rime.monolothic.terms import SignatureAdapter, TermStructRef
+
+PAIRWISE_BLOCKSIZE = 128
 
 
 def scalar_scalar(lhs, rhs):
@@ -346,43 +349,102 @@ def term_factory(args, kwargs, terms):
 
         return sig, codegen
 
-    return construct_terms, sample_terms
+    @intrinsic
+    def tuple_adder(typingctx, t1, t2):
+        if not isinstance(t1, types.BaseTuple):
+            raise errors.TypingError(f"{t1} must be a Tuple")
 
+        if not isinstance(t2, types.BaseTuple):
+            raise errors.TypingError(f"{t2} must be a Tuple")
 
-@intrinsic
-def tuple_adder(typingctx, t1, t2):
-    if not isinstance(t1, types.BaseTuple):
-        raise errors.TypingError(f"{t1} must be a Tuple")
+        if not len(t1) == len(t2):
+            raise errors.TypeError(f"len({t1}) != len({t2})")
 
-    if not isinstance(t2, types.BaseTuple):
-        raise errors.TypingError(f"{t2} must be a Tuple")
+        sig = t1(t1, t2)
 
-    if not len(t1) == len(t2):
-        raise errors.TypeError(f"len({t1}) != len({t2})")
+        def codegen(context, builder, signature, args):
+            def _add(x, y):
+                return x + y
 
-    sig = t1(t1, t2)
+            [t1, t2] = args
+            [t1_type, t2_type] = signature.args
+            return_type = signature.return_type
 
-    def codegen(context, builder, signature, args):
-        def _add(x, y):
-            return x + y
+            llvm_ret_type = context.get_value_type(return_type)
+            ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
-        [t1, t2] = args
-        [t1_type, t2_type] = signature.args
-        return_type = signature.return_type
+            for i, (t1e, t2e) in enumerate(zip(t1_type, t2_type)):
+                v1 = builder.extract_value(t1, i)
+                v2 = builder.extract_value(t2, i)
+                vr = typingctx.unify_types(t1e, t2e)
 
-        llvm_ret_type = context.get_value_type(return_type)
-        ret_tuple = cgutils.get_null_value(llvm_ret_type)
+                data = context.compile_internal(builder, _add,
+                                                vr(t1e, t2e), [v1, v2])
 
-        for i, (t1e, t2e) in enumerate(zip(t1_type, t2_type)):
-            v1 = builder.extract_value(t1, i)
-            v2 = builder.extract_value(t2, i)
-            vr = typingctx.unify_types(t1e, t2e)
+                ret_tuple = builder.insert_value(ret_tuple, data, i)
 
-            data = context.compile_internal(builder, _add,
-                                            vr(t1e, t2e), [v1, v2])
+            return ret_tuple
 
-            ret_tuple = builder.insert_value(ret_tuple, data, i)
+        return sig, codegen
 
-        return ret_tuple
+    @njit(nopython=True, nogil=True)
+    def pairwise_sampler(state, ss, se, r, t, a1, a2, c):
+        """
+        This code based on https://github.com/numpy/numpy/pull/3685
+        """
+        nsrc = se - ss
 
-    return sig, codegen
+        if nsrc < 8:
+            X = sample_terms(state, 0, r, t, a1, a2, c)
+
+            for s in range(1, nsrc):
+                Y = sample_terms(state, s, r, t, a1, a2, c)
+                X = tuple_adder(X, Y)
+
+            return X
+        elif nsrc <= PAIRWISE_BLOCKSIZE:
+            X0 = sample_terms(state, 0, r, t, a1, a2, c)
+            X1 = sample_terms(state, 1, r, t, a1, a2, c)
+            X2 = sample_terms(state, 2, r, t, a1, a2, c)
+            X3 = sample_terms(state, 3, r, t, a1, a2, c)
+            X4 = sample_terms(state, 4, r, t, a1, a2, c)
+            X5 = sample_terms(state, 5, r, t, a1, a2, c)
+            X6 = sample_terms(state, 6, r, t, a1, a2, c)
+            X7 = sample_terms(state, 7, r, t, a1, a2, c)
+
+            for s in range(8, nsrc - (nsrc % 8), 8):
+                Y0 = sample_terms(state, s + 0, r, t, a1, a2, c)
+                Y1 = sample_terms(state, s + 1, r, t, a1, a2, c)
+                Y2 = sample_terms(state, s + 2, r, t, a1, a2, c)
+                Y3 = sample_terms(state, s + 3, r, t, a1, a2, c)
+                Y4 = sample_terms(state, s + 4, r, t, a1, a2, c)
+                Y5 = sample_terms(state, s + 5, r, t, a1, a2, c)
+                Y6 = sample_terms(state, s + 6, r, t, a1, a2, c)
+                Y7 = sample_terms(state, s + 7, r, t, a1, a2, c)
+
+                X0 = tuple_adder(X0, Y0)
+                X1 = tuple_adder(X1, Y1)
+                X2 = tuple_adder(X2, Y2)
+                X3 = tuple_adder(X3, Y3)
+                X4 = tuple_adder(X4, Y4)
+                X5 = tuple_adder(X5, Y5)
+                X6 = tuple_adder(X6, Y6)
+                X7 = tuple_adder(X7, Y7)
+
+                Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
+                Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
+                X = tuple_adder(Z1, Z2)
+
+            while s < nsrc:
+                Y = sample_terms(state, s, r, t, a1, a2, c)
+                X = tuple_adder(X, Y)
+                s += 1
+
+            return X
+        else:
+            ns2 = (nsrc / 2) - (nsrc % 8)
+            X = pairwise_sampler(state, ss, ns2, r, t, a1, a2, c)
+            Y = pairwise_sampler(state, ss + ns2, se - ns2, r, t, a1, a2, c)
+            return tuple_adder(X, Y)
+
+    return construct_terms, pairwise_sampler
