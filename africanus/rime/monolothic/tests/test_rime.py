@@ -22,18 +22,29 @@ def test_rime_parser(rime_spec):
     pass
 
 
-chunks = {
-    "source": (2, 2, 2, 3),
-    "row": (2, 2, 2, 2),
-    "spi": (2,),
-    "chan": (2, 2),
-    "corr": (4,),
-    "lm": (2,),
-    "uvw": (3,),
-}
+chunks = [
+    {
+        "source": (129, 67, 139),
+        "row": (2, 2, 2, 2),
+        "spi": (2,),
+        "chan": (2, 2),
+        "corr": (4,),
+        "lm": (2,),
+        "uvw": (3,),
+    },
+    {
+        "source": (5,),
+        "row": (2, 2, 2, 2),
+        "spi": (2,),
+        "chan": (2, 2),
+        "corr": (4,),
+        "lm": (2,),
+        "uvw": (3,),
+    },
+]
 
 
-@pytest.mark.parametrize("chunks", [chunks])
+@pytest.mark.parametrize("chunks", chunks)
 def test_monolithic_rime(chunks):
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
@@ -76,7 +87,7 @@ def test_monolithic_rime(chunks):
     assert_array_almost_equal(expected, out)
 
 
-@pytest.mark.parametrize("chunks", [chunks])
+@pytest.mark.parametrize("chunks", chunks)
 def test_monolithic_dask_rime(chunks):
     da = pytest.importorskip("dask.array")
 
@@ -111,4 +122,4 @@ def test_monolithic_dask_rime(chunks):
     out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="casa")
 
-    assert_array_almost_equal(dask_out, out, decimal=5)
+    assert_array_almost_equal(dask_out, out)

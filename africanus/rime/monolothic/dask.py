@@ -44,7 +44,7 @@ def rime(terms=None, **kwargs):
                        *args,
                        concatenate=False,
                        adjust_chunks=adjust_chunks,
-                       dtype=np.complex64)
+                       dtype=np.complex128)
 
     # Contract over source and concatenation dims
     axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))

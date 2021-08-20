@@ -430,23 +430,24 @@ def term_factory(args, kwargs, terms):
         stack = [(0, nsources)]
 
         while len(stack) > 0:
-            start, end = stack.pop()
+            start, end = stack.pop(0)
             nsrc = end - start
 
             if nsrc < 8:
-                for s in range(start, start + end):
+                for s in range(start, end):
                     Y = sample_terms(state, s, r, t, a1, a2, c)
                     X = tuple_adder(X, Y)
 
             elif nsrc <= PAIRWISE_BLOCKSIZE:
-                X0 = sample_terms(state, start + 0, r, t, a1, a2, c)
-                X1 = sample_terms(state, start + 1, r, t, a1, a2, c)
-                X2 = sample_terms(state, start + 2, r, t, a1, a2, c)
-                X3 = sample_terms(state, start + 3, r, t, a1, a2, c)
-                X4 = sample_terms(state, start + 4, r, t, a1, a2, c)
-                X5 = sample_terms(state, start + 5, r, t, a1, a2, c)
-                X6 = sample_terms(state, start + 6, r, t, a1, a2, c)
-                X7 = sample_terms(state, start + 7, r, t, a1, a2, c)
+                o = start
+                X0 = sample_terms(state, o + 0, r, t, a1, a2, c)
+                X1 = sample_terms(state, o + 1, r, t, a1, a2, c)
+                X2 = sample_terms(state, o + 2, r, t, a1, a2, c)
+                X3 = sample_terms(state, o + 3, r, t, a1, a2, c)
+                X4 = sample_terms(state, o + 4, r, t, a1, a2, c)
+                X5 = sample_terms(state, o + 5, r, t, a1, a2, c)
+                X6 = sample_terms(state, o + 6, r, t, a1, a2, c)
+                X7 = sample_terms(state, o + 7, r, t, a1, a2, c)
 
                 for s in range(8, nsrc - (nsrc % 8), 8):
                     o = start + s
@@ -470,15 +471,15 @@ def term_factory(args, kwargs, terms):
 
                 Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
                 Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
-                X = tuple_adder(Z1, Z2)
+                X = tuple_adder(X, tuple_adder(Z1, Z2))
 
-                for o in range(s + 8, end):
+                for o in range(start + s + 8, end):
                     Y = sample_terms(state, o, r, t, a1, a2, c)
                     X = tuple_adder(X, Y)
             else:
                 ns2 = (nsrc // 2) - (nsrc % 8)
-                stack.append((start, ns2))
-                stack.append((start + ns2, end - ns2))
+                stack.append((start, start + ns2))
+                stack.append((start + ns2, end))
 
         return X
 

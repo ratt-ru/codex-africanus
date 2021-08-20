@@ -52,8 +52,6 @@ class rime_factory:
             if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
                 raise ValueError(f"{args[0]} must be be a Tuple")
 
-            print(args)
-
             n = len(expected_args)
             starargs = args[0]
             kwargs = starargs[n:]
