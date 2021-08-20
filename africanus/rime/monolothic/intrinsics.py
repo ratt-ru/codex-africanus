@@ -137,6 +137,45 @@ def unify_jones_terms(typingctx, lhs, rhs):
     return out_type if out_corrs == 1 else types.Tuple((out_type,)*out_corrs)
 
 
+@intrinsic
+def tuple_adder(typingctx, t1, t2):
+    if not isinstance(t1, types.BaseTuple):
+        raise errors.TypingError(f"{t1} must be a Tuple")
+
+    if not isinstance(t2, types.BaseTuple):
+        raise errors.TypingError(f"{t2} must be a Tuple")
+
+    if not len(t1) == len(t2):
+        raise errors.TypeError(f"len({t1}) != len({t2})")
+
+    sig = t1(t1, t2)
+
+    def codegen(context, builder, signature, args):
+        def _add(x, y):
+            return x + y
+
+        [t1, t2] = args
+        [t1_type, t2_type] = signature.args
+        return_type = signature.return_type
+
+        llvm_ret_type = context.get_value_type(return_type)
+        ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+        for i, (t1e, t2e) in enumerate(zip(t1_type, t2_type)):
+            v1 = builder.extract_value(t1, i)
+            v2 = builder.extract_value(t2, i)
+            vr = typingctx.unify_types(t1e, t2e)
+
+            data = context.compile_internal(builder, _add,
+                                            vr(t1e, t2e), [v1, v2])
+
+            ret_tuple = builder.insert_value(ret_tuple, data, i)
+
+        return ret_tuple
+
+    return sig, codegen
+
+
 def term_factory(args, kwargs, terms):
     term_arg_types = []
     term_arg_index = []
@@ -253,8 +292,7 @@ def term_factory(args, kwargs, terms):
     samplers = [term.sampler() for term in terms]
     nterms = len(terms)
 
-    @intrinsic
-    def sample_terms(typingctx, state, s, r, t, a1, a2, c):
+    def term_sampler(typingctx, state, s, r, t, a1, a2, c):
         if not isinstance(state, types.Tuple):
             raise errors.TypingError(f"{state} must be a Tuple")
 
@@ -349,48 +387,46 @@ def term_factory(args, kwargs, terms):
         return sig, codegen
 
     @intrinsic
-    def tuple_adder(typingctx, t1, t2):
-        if not isinstance(t1, types.BaseTuple):
-            raise errors.TypingError(f"{t1} must be a Tuple")
+    def zero_vis(typingctx, state):
+        # Figure out the jones type by calling term_sampler
+        sig, _ = term_sampler(typingctx, state,
+                              types.int64, types.int64,
+                              types.int64, types.int64,
+                              types.int64, types.int64)
 
-        if not isinstance(t2, types.BaseTuple):
-            raise errors.TypingError(f"{t2} must be a Tuple")
+        jones_type = sig.return_type
 
-        if not len(t1) == len(t2):
-            raise errors.TypeError(f"len({t1}) != len({t2})")
+        if not isinstance(jones_type, types.BaseTuple):
+            raise errors.TypingError(f"{jones_type} must be "
+                                     f"a Tuple of numbers")
 
-        sig = t1(t1, t2)
+        if not all(isinstance(typ, types.Number) for typ in jones_type):
+            raise errors.TypingError(f"{jones_type} must be "
+                                     f"a Tuple of numbers")
+
+        sig = jones_type(state)
 
         def codegen(context, builder, signature, args):
-            def _add(x, y):
-                return x + y
-
-            [t1, t2] = args
-            [t1_type, t2_type] = signature.args
-            return_type = signature.return_type
-
-            llvm_ret_type = context.get_value_type(return_type)
+            jones_type = signature.return_type
+            llvm_ret_type = context.get_value_type(jones_type)
             ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
-            for i, (t1e, t2e) in enumerate(zip(t1_type, t2_type)):
-                v1 = builder.extract_value(t1, i)
-                v2 = builder.extract_value(t2, i)
-                vr = typingctx.unify_types(t1e, t2e)
-
-                data = context.compile_internal(builder, _add,
-                                                vr(t1e, t2e), [v1, v2])
-
-                ret_tuple = builder.insert_value(ret_tuple, data, i)
+            for i, value_type in enumerate(jones_type):
+                const = context.get_constant_generic(builder, value_type, 0)
+                ret_tuple = builder.insert_value(ret_tuple, const, i)
 
             return ret_tuple
 
         return sig, codegen
+
+    sample_terms = intrinsic(term_sampler)
 
     @register_jitable
     def pairwise_sampler(state, nsources, r, t, a1, a2, c):
         """
         This code based on https://github.com/numpy/numpy/pull/3685
         """
+        X = zero_vis(state)
         stack = [(0, nsources)]
 
         while len(stack) > 0:
@@ -398,30 +434,30 @@ def term_factory(args, kwargs, terms):
             nsrc = end - start
 
             if nsrc < 8:
-                X = sample_terms(state, 0, r, t, a1, a2, c)
-
-                for s in range(1, nsrc):
+                for s in range(start, start + end):
                     Y = sample_terms(state, s, r, t, a1, a2, c)
                     X = tuple_adder(X, Y)
+
             elif nsrc <= PAIRWISE_BLOCKSIZE:
-                X0 = sample_terms(state, 0, r, t, a1, a2, c)
-                X1 = sample_terms(state, 1, r, t, a1, a2, c)
-                X2 = sample_terms(state, 2, r, t, a1, a2, c)
-                X3 = sample_terms(state, 3, r, t, a1, a2, c)
-                X4 = sample_terms(state, 4, r, t, a1, a2, c)
-                X5 = sample_terms(state, 5, r, t, a1, a2, c)
-                X6 = sample_terms(state, 6, r, t, a1, a2, c)
-                X7 = sample_terms(state, 7, r, t, a1, a2, c)
+                X0 = sample_terms(state, start + 0, r, t, a1, a2, c)
+                X1 = sample_terms(state, start + 1, r, t, a1, a2, c)
+                X2 = sample_terms(state, start + 2, r, t, a1, a2, c)
+                X3 = sample_terms(state, start + 3, r, t, a1, a2, c)
+                X4 = sample_terms(state, start + 4, r, t, a1, a2, c)
+                X5 = sample_terms(state, start + 5, r, t, a1, a2, c)
+                X6 = sample_terms(state, start + 6, r, t, a1, a2, c)
+                X7 = sample_terms(state, start + 7, r, t, a1, a2, c)
 
                 for s in range(8, nsrc - (nsrc % 8), 8):
-                    Y0 = sample_terms(state, s + 0, r, t, a1, a2, c)
-                    Y1 = sample_terms(state, s + 1, r, t, a1, a2, c)
-                    Y2 = sample_terms(state, s + 2, r, t, a1, a2, c)
-                    Y3 = sample_terms(state, s + 3, r, t, a1, a2, c)
-                    Y4 = sample_terms(state, s + 4, r, t, a1, a2, c)
-                    Y5 = sample_terms(state, s + 5, r, t, a1, a2, c)
-                    Y6 = sample_terms(state, s + 6, r, t, a1, a2, c)
-                    Y7 = sample_terms(state, s + 7, r, t, a1, a2, c)
+                    o = start + s
+                    Y0 = sample_terms(state, o + 0, r, t, a1, a2, c)
+                    Y1 = sample_terms(state, o + 1, r, t, a1, a2, c)
+                    Y2 = sample_terms(state, o + 2, r, t, a1, a2, c)
+                    Y3 = sample_terms(state, o + 3, r, t, a1, a2, c)
+                    Y4 = sample_terms(state, o + 4, r, t, a1, a2, c)
+                    Y5 = sample_terms(state, o + 5, r, t, a1, a2, c)
+                    Y6 = sample_terms(state, o + 6, r, t, a1, a2, c)
+                    Y7 = sample_terms(state, o + 7, r, t, a1, a2, c)
 
                     X0 = tuple_adder(X0, Y0)
                     X1 = tuple_adder(X1, Y1)
@@ -432,16 +468,15 @@ def term_factory(args, kwargs, terms):
                     X6 = tuple_adder(X6, Y6)
                     X7 = tuple_adder(X7, Y7)
 
-                    Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
-                    Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
-                    X = tuple_adder(Z1, Z2)
+                Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
+                Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
+                X = tuple_adder(Z1, Z2)
 
-                while s < nsrc:
-                    Y = sample_terms(state, s, r, t, a1, a2, c)
+                for o in range(s + 8, end):
+                    Y = sample_terms(state, o, r, t, a1, a2, c)
                     X = tuple_adder(X, Y)
-                    s += 1
             else:
-                ns2 = (nsrc / 2) - (nsrc % 8)
+                ns2 = (nsrc // 2) - (nsrc % 8)
                 stack.append((start, ns2))
                 stack.append((start + ns2, end - ns2))
 
