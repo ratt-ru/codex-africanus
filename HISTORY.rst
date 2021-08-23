@@ -4,6 +4,7 @@ History
 
 0.2.11 (YYYY-MM-DD)
 -------------------
+* Disallow numba 0.54.0 (:pr:`254`)
 * Upgrade to CuPy 9.0 and fix template encoding (:pr:`251`)
 * Parse and zero spectral models containing 'nan' and 'inf' in wsclean model files (:pr:`250`)
 * Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
