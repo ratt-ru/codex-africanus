@@ -1,7 +1,8 @@
 import inspect
 
+from numba import njit
 from numba.core import compiler, cgutils, errors, types
-from numba.extending import intrinsic, register_jitable
+from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
 
 from africanus.rime.monolothic.terms import SignatureAdapter, TermStructRef
@@ -421,7 +422,7 @@ def term_factory(args, kwargs, terms):
 
     sample_terms = intrinsic(term_sampler)
 
-    @register_jitable
+    @njit(inline="always")
     def pairwise_sampler(state, nsources, r, t, a1, a2, c):
         """
         This code based on https://github.com/numpy/numpy/pull/3685
