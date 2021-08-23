@@ -90,15 +90,15 @@ def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
 
     if have_coh and have_ddes:
         if jones_type == JONES_1_OR_2:
-            def jones_mul(a1j, blj, a2j, jones_out):
-                for c in range(jones_out.shape[0]):
+            def jones_mul(a1j, blj, a2j, jout):
+                for c in range(jout.shape[0]):
                     if accumulate:
-                        jones_out[c] += a1j[c] * blj[c] * np.conj(a2j[c])
+                        jout[c] += a1j[c] * blj[c] * np.conj(a2j[c])
                     else:
-                        jones_out[c] = a1j[c] * blj[c] * np.conj(a2j[c])
+                        jout[c] = a1j[c] * blj[c] * np.conj(a2j[c])
 
         elif jones_type == JONES_2X2:
-            def jones_mul(a1j, blj, a2j, jones_out):
+            def jones_mul(a1j, blj, a2j, jout):
                 a2_xx_H = np.conj(a2j[0, 0])
                 a2_xy_H = np.conj(a2j[0, 1])
                 a2_yx_H = np.conj(a2j[1, 0])
@@ -110,71 +110,71 @@ def jones_mul_factory(have_ddes, have_coh, jones_type, accumulate):
                 yy = blj[1, 0] * a2_yx_H + blj[1, 1] * a2_yy_H
 
                 if accumulate:
-                    jones_out[0, 0] += a1j[0, 0] * xx + a1j[0, 1] * yx
-                    jones_out[0, 1] += a1j[0, 0] * xy + a1j[0, 1] * yy
-                    jones_out[1, 0] += a1j[1, 0] * xx + a1j[1, 1] * yx
-                    jones_out[1, 1] += a1j[1, 0] * xy + a1j[1, 1] * yy
+                    jout[0, 0] += a1j[0, 0] * xx + a1j[0, 1] * yx
+                    jout[0, 1] += a1j[0, 0] * xy + a1j[0, 1] * yy
+                    jout[1, 0] += a1j[1, 0] * xx + a1j[1, 1] * yx
+                    jout[1, 1] += a1j[1, 0] * xy + a1j[1, 1] * yy
                 else:
-                    jones_out[0, 0] = a1j[0, 0] * xx + a1j[0, 1] * yx
-                    jones_out[0, 1] = a1j[0, 0] * xy + a1j[0, 1] * yy
-                    jones_out[1, 0] = a1j[1, 0] * xx + a1j[1, 1] * yx
-                    jones_out[1, 1] = a1j[1, 0] * xy + a1j[1, 1] * yy
+                    jout[0, 0] = a1j[0, 0] * xx + a1j[0, 1] * yx
+                    jout[0, 1] = a1j[0, 0] * xy + a1j[0, 1] * yy
+                    jout[1, 0] = a1j[1, 0] * xx + a1j[1, 1] * yx
+                    jout[1, 1] = a1j[1, 0] * xy + a1j[1, 1] * yy
 
         else:
             raise ex
     elif have_ddes and not have_coh:
         if jones_type == JONES_1_OR_2:
-            def jones_mul(a1j, a2j, jones_out):
-                for c in range(jones_out.shape[0]):
+            def jones_mul(a1j, a2j, jout):
+                for c in range(jout.shape[0]):
                     if accumulate:
-                        jones_out[c] += a1j[c] * np.conj(a2j[c])
+                        jout[c] += a1j[c] * np.conj(a2j[c])
                     else:
-                        jones_out[c] = a1j[c] * np.conj(a2j[c])
+                        jout[c] = a1j[c] * np.conj(a2j[c])
 
         elif jones_type == JONES_2X2:
-            def jones_mul(a1j, a2j, jones_out):
+            def jones_mul(a1j, a2j, jout):
                 a2_xx_H = np.conj(a2j[0, 0])
                 a2_xy_H = np.conj(a2j[0, 1])
                 a2_yx_H = np.conj(a2j[1, 0])
                 a2_yy_H = np.conj(a2j[1, 1])
 
                 if accumulate:
-                    jones_out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
-                    jones_out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
-                    jones_out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
-                    jones_out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
+                    jout[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    jout[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    jout[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    jout[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
                 else:
-                    jones_out[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
-                    jones_out[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
-                    jones_out[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
-                    jones_out[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
+                    jout[0, 0] += a1j[0, 0] * a2_xx_H + a1j[0, 1] * a2_xy_H
+                    jout[0, 1] += a1j[0, 0] * a2_yx_H + a1j[0, 1] * a2_yy_H
+                    jout[1, 0] += a1j[1, 0] * a2_xx_H + a1j[1, 1] * a2_xy_H
+                    jout[1, 1] += a1j[1, 0] * a2_yx_H + a1j[1, 1] * a2_yy_H
         else:
             raise ex
     elif not have_ddes and have_coh:
         if jones_type == JONES_1_OR_2:
-            def jones_mul(blj, jones_out):
-                for c in range(jones_out.shape[0]):
+            def jones_mul(blj, jout):
+                for c in range(jout.shape[0]):
                     if accumulate:
-                        jones_out[c] += blj[c]
-                    elif id(blj) == id(jones_out):
+                        jout[c] += blj[c]
+                    elif id(blj) == id(jout):
                         pass
                     else:
-                        jones_out[c] = blj[c]
+                        jout[c] = blj[c]
 
         elif jones_type == JONES_2X2:
-            def jones_mul(blj, jones_out):
+            def jones_mul(blj, jout):
                 if accumulate:
-                    jones_out[0, 0] += blj[0, 0]
-                    jones_out[0, 1] += blj[0, 1]
-                    jones_out[1, 0] += blj[1, 0]
-                    jones_out[1, 1] += blj[1, 1]
-                elif id(blj) == id(jones_out):
+                    jout[0, 0] += blj[0, 0]
+                    jout[0, 1] += blj[0, 1]
+                    jout[1, 0] += blj[1, 0]
+                    jout[1, 1] += blj[1, 1]
+                elif id(blj) == id(jout):
                     pass
                 else:
-                    jones_out[0, 0] = blj[0, 0]
-                    jones_out[0, 1] = blj[0, 1]
-                    jones_out[1, 0] = blj[1, 0]
-                    jones_out[1, 1] = blj[1, 1]
+                    jout[0, 0] = blj[0, 0]
+                    jout[0, 1] = blj[0, 1]
+                    jout[1, 0] = blj[1, 0]
+                    jout[1, 1] = blj[1, 1]
         else:
             raise ex
     else:
@@ -190,7 +190,7 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
     jones_mul = jones_mul_factory(have_ddes, have_coh, jones_type, True)
 
     if have_ddes and have_coh:
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, coh_out):
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
             for s in range(a1j.shape[0]):
                 for r in range(time.shape[0]):
                     ti = time[r] - tmin
@@ -201,10 +201,10 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                         jones_mul(a1j[s, ti, a1, f],
                                   blj[s, r, f],
                                   a2j[s, ti, a2, f],
-                                  coh_out[r, f])
+                                  cout[r, f])
 
     elif have_ddes and not have_coh:
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, coh_out):
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
             for s in range(a1j.shape[0]):
                 for r in range(time.shape[0]):
                     ti = time[r] - tmin
@@ -214,27 +214,27 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                     for f in range(a1j.shape[3]):
                         jones_mul(a1j[s, ti, a1, f],
                                   a2j[s, ti, a2, f],
-                                  coh_out[r, f])
+                                  cout[r, f])
 
     elif not have_ddes and have_coh:
         if jones_type == JONES_2X2:
-            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, coh_out):
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
                 for s in range(blj.shape[0]):
                     for r in range(blj.shape[1]):
                         for f in range(blj.shape[2]):
                             for c1 in range(blj.shape[3]):
                                 for c2 in range(blj.shape[4]):
-                                    coh_out[r, f, c1, c2] += blj[s, r, f, c1, c2]
+                                    cout[r, f, c1, c2] += blj[s, r, f, c1, c2]
         else:
-            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, coh_out):
+            def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
                 for s in range(blj.shape[0]):
                     for r in range(blj.shape[1]):
                         for f in range(blj.shape[2]):
                             for c in range(blj.shape[3]):
-                                coh_out[r, f, c] += blj[s, r, f, c]
+                                cout[r, f, c] += blj[s, r, f, c]
     else:
         # noop
-        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, coh_out):
+        def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
             pass
 
     return njit(nogil=True, inline="always")(sum_coh_fn)
