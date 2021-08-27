@@ -8,6 +8,7 @@ import numpy as np
 
 import pytest
 
+
 @structref.register
 class StateStructRef(types.StructRef):
     def preprocess_fields(self, fields):
@@ -31,6 +32,7 @@ def test_structref_setter(check_allocations):
         if not isinstance(arg_tuple, types.BaseTuple):
             raise errors.TypingError(f"{arg_tuple} must be a Tuple")
 
+        # Determine the fields for the StructRef
         names = [f"arg_{i}" for i in range(len(arg_tuple))]
         fields = list((name, typ) for name, typ in zip(names, arg_tuple))
         state_type = StateStructRef(fields)
@@ -38,15 +40,15 @@ def test_structref_setter(check_allocations):
         sig = state_type(arg_tuple)
 
         def codegen(context, builder, signature, args):
-
             def make_struct():
+                """ Allocate the structure """
                 return structref.new(state_type)
-
-            U = structref._Utils(context, builder, state_type)
 
             state = context.compile_internal(builder, make_struct,
                                              state_type(), [])
-            # model = context.data_model_manager[state_type]
+
+            # Now assign each argument
+            U = structref._Utils(context, builder, state_type)
             data_struct = U.get_data_struct(state)
 
             for i, name in enumerate(names):

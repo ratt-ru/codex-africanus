@@ -2,11 +2,10 @@ import numpy as np
 
 from numba.core import cgutils, types, errors
 from numba.extending import intrinsic
-from numba.experimental import structref
 
 
 from africanus.util.casa_types import STOKES_TYPES
-from africanus.rime.monolothic.terms import TermStructRef, Term
+from africanus.rime.monolothic.terms import Term
 
 
 STOKES_CONVERSION = {
@@ -117,11 +116,6 @@ def conversion_factory(stokes_schema, corr_schema):
     return corr_convert
 
 
-@structref.register
-class BrightnessType(TermStructRef):
-    pass
-
-
 class BrightnessTerm(Term):
     def __init__(self, corr_schema="[I,Q,U,V] -> [XX,XY,YX,YY]"):
         bits = [s.strip() for s in corr_schema.strip().split("->")]
@@ -167,26 +161,19 @@ class BrightnessTerm(Term):
             "spi_base": None
         }
 
-    def term_type(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
-        return BrightnessType([
-            ("stokes", stokes),
-            ("chan_freq", chan_freq),
-            ("spi", spi),
-            ("ref_freq", ref_freq),
-            ("spectral_model", stokes.dtype[:, :, :]),
-        ])
+    def fields(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
+        return [("spectral_model", stokes.dtype[:, :, :])]
 
     STANDARD = 0
     LOG = 1
     LOG10 = 2
 
-    def initialiser(self, stokes, spi, ref_freq,
+    def initialiser(self, state, stokes, spi, ref_freq,
                     chan_freq, spi_base="standard"):
-        struct_type = self.term_type(
-            stokes, spi, ref_freq, chan_freq, spi_base)
         expected_nstokes = len(self.stokes)
 
-        def brightness(stokes, spi, ref_freq, chan_freq, spi_base="standard"):
+        def brightness(state, stokes, spi, ref_freq,
+                       chan_freq, spi_base="standard"):
             nsrc, nstokes = stokes.shape
             nchan, = chan_freq.shape
             nspi = spi.shape[1]
@@ -207,9 +194,6 @@ class BrightnessTerm(Term):
             else:
                 list_spi_base = [spi_base.lower()] * nstokes
 
-            state = structref.new(struct_type)
-            state.stokes = stokes
-            state.chan_freq = chan_freq
             spectral_model = np.empty((nsrc, nchan, nstokes), stokes.dtype)
 
             for p, b in enumerate(list_spi_base):
@@ -257,8 +241,6 @@ class BrightnessTerm(Term):
                         "spi_base not in (\"standard\", \"log\", \"log10\")")
 
             state.spectral_model = spectral_model
-
-            return state
 
         return brightness
 

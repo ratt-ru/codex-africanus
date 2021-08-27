@@ -1,5 +1,6 @@
 import numba
 from numba.core import types
+from numba.experimental import structref
 from numba.np.numpy_support import as_dtype
 import numpy as np
 import abc
@@ -35,7 +36,8 @@ class SignatureAdapter:
                 and p.default is not p.empty}
 
 
-class TermStructRef(types.StructRef):
+@structref.register
+class StateStructRef(types.StructRef):
     def preprocess_fields(self, fields):
         """ Disallow literal types in field definitions """
         return tuple((n, types.unliteral(t)) for n, t in fields)
@@ -47,7 +49,7 @@ class Term(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def term_type(self, *args, **kwargs):
+    def fields(self, *args, **kwargs):
         raise NotImplementedError
 
     @abc.abstractmethod

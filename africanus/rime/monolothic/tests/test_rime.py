@@ -86,6 +86,10 @@ def test_monolithic_rime(chunks):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
+    with open("rime_asm.txt", "w") as f:
+        # import pdb; pdb.set_trace()
+        f.write(list(rime.impl.inspect_asm().values())[1])
+
 
 @pytest.mark.parametrize("chunks", chunks)
 def test_monolithic_dask_rime(chunks):

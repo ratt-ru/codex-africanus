@@ -24,12 +24,16 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        signatures = [inspect.signature(t.term_type) for t in terms]
+        signatures = [inspect.signature(t.fields) for t in terms]
 
         # Check matching signatures
         for s, t in zip(signatures, terms):
-            assert inspect.signature(t.dask_schema) == s
-            assert inspect.signature(t.initialiser) == s
+            dask_sig = inspect.signature(t.dask_schema)
+            init_sig = inspect.signature(t.initialiser)
+            assert list(init_sig.parameters.keys())[0] == "state"
+            params = list(init_sig.parameters.values())
+            assert init_sig.replace(parameters=params[1:]) == s
+            assert dask_sig == s
 
         adapted_sigs = list(map(SignatureAdapter, signatures))
 
@@ -90,7 +94,7 @@ class rime_factory:
                 tstarargs, tkwargs, terms)
 
             def impl(*args):
-                term_state = state_factory(args)  # noqa: F841
+                state = state_factory(args)  # noqa: F841
 
                 nsrc, _ = args[lm_i].shape
                 nrow, _ = args[uvw_i].shape
@@ -103,7 +107,7 @@ class rime_factory:
                 # for r, (t, a1, a2) in it:
                 for r in range(nrow):
                     for f in range(nchan):
-                        X = pairwise_sample(term_state, nsrc, r, 0, 0, 0, f)
+                        X = pairwise_sample(state, nsrc, r, 0, 0, 0, f)
 
                         for c, value in enumerate(numba.literal_unroll(X)):
                             vis[r, f, c] = value

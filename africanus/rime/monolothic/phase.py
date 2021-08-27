@@ -1,13 +1,7 @@
 from africanus.constants import c as lightspeed
-from numba.experimental import structref
 import numpy as np
 
-from africanus.rime.monolothic.terms import TermStructRef, Term
-
-
-@structref.register
-class PhaseType(TermStructRef):
-    pass
+from africanus.rime.monolothic.terms import Term
 
 
 class PhaseTerm(Term):
@@ -22,28 +16,18 @@ class PhaseTerm(Term):
                 "chan_freq": ("chan",),
                 "convention": None}
 
-    def term_type(self, lm, uvw, chan_freq, convention="fourier"):
+    def fields(self, lm, uvw, chan_freq, convention="fourier"):
         phase_dot = self.result_type(lm, uvw, chan_freq)
-        return PhaseType([
-            ("lm", lm),
-            ("uvw", uvw),
-            ("chan_freq", chan_freq),
-            ("phase_dot", phase_dot[:, :])
-        ])
+        return [("phase_dot", phase_dot[:, :])]
 
-    def initialiser(self, lm, uvw, chan_freq, convention="fourier"):
-        struct_type = self.term_type(lm, uvw, chan_freq, convention)
-        dot_dtype = struct_type.field_dict["phase_dot"].dtype
+    def initialiser(self, state, lm, uvw, chan_freq, convention="fourier"):
+        dot_dtype = state.field_dict["phase_dot"].dtype
 
-        def phase(lm, uvw, chan_freq, convention="fourier"):
+        def phase(state, lm, uvw, chan_freq, convention="fourier"):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape
 
-            state = structref.new(struct_type)
-            state.lm = lm
-            state.uvw = uvw
-            state.chan_freq = chan_freq
             state.phase_dot = np.empty((nsrc, nrow), dtype=dot_dtype)
 
             zero = lm.dtype.type(0.0)
@@ -68,8 +52,6 @@ class PhaseTerm(Term):
                     w = uvw[r, 2]
 
                     state.phase_dot[s, r] = C*(l*u + m*v + n*w)
-
-            return state
 
         return phase
 

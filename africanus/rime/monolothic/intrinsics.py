@@ -4,8 +4,9 @@ from numba import njit
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
+from numba.experimental import structref
 
-from africanus.rime.monolothic.terms import SignatureAdapter, TermStructRef
+from africanus.rime.monolothic.terms import SignatureAdapter, StateStructRef
 
 PAIRWISE_BLOCKSIZE = 128
 
@@ -178,21 +179,25 @@ def tuple_adder(typingctx, t1, t2):
 
 
 def term_factory(args, kwargs, terms):
+    outer_args = args
+
     term_arg_types = []
     term_arg_index = []
     term_kw_types = []
     term_kw_index = []
 
-    term_state_types = []
     constructors = []
+    state_fields = []
 
-    for term in terms:
-        sig = inspect.signature(term.term_type)
-        wsig = SignatureAdapter(sig)
+    signatures = [inspect.signature(t.fields) for t in terms]
+    wrapped_sigs = [SignatureAdapter(s) for s in signatures]
 
-        arg_types, arg_i = zip(*(args[a] for a in wsig.args))
+    # Query Terms for fields and their types that should be created
+    # on the State object
+    for term, wrapped_sig in zip(terms, wrapped_sigs):
+        arg_types, arg_i = zip(*(args[a] for a in wrapped_sig.args))
         kw_res = {k: kwargs.get(k, (types.Omitted(d), -1))
-                  for k, d in wsig.kwargs.items()}
+                  for k, d in wrapped_sig.kwargs.items()}
 
         kw_types = {k: v[0] for k, v in kw_res.items()}
         kw_i = {k: v[1] for k, v in kw_res.items()}
@@ -202,19 +207,30 @@ def term_factory(args, kwargs, terms):
         term_kw_types.append(kw_types)
         term_kw_index.append(kw_i)
 
-        term_state_types.append(term.term_type(*arg_types, **kw_types))
+        state_fields.extend(term.fields(*arg_types, **kw_types))
 
+    arg_fields = [(k, vt) for k, (vt, i) in args.items()]
+
+    state_type = StateStructRef(arg_fields + state_fields)
+    it = zip(terms, signatures, term_arg_types, term_kw_types)
+
+    for term, sig, arg_types, kw_types in it:
         init_sig = inspect.signature(term.initialiser)
+        params = list(init_sig.parameters.values())
+        stateless_init_sig = init_sig.replace(parameters=params[1:])
 
-        if init_sig != sig:
+        if stateless_init_sig.replace(parameters=params[1:]) != sig:
             raise ValueError(f"Initialiser signatures don't match "
                              f"{term.initialiser.__name__}{init_sig} vs "
                              f"initialiser{sig}")
 
-        constructor = term.initialiser(*arg_types, **kw_types)
+        sarg_types = (state_type,) + arg_types
+        constructor = term.initialiser(*sarg_types, **kw_types)
         constructor_sig = inspect.signature(constructor)
+        params = list(constructor_sig.parameters.values())
+        stateless_const_sig = constructor_sig.replace(parameters=params[1:])
 
-        if constructor_sig != sig:
+        if stateless_const_sig != sig:
             raise ValueError(f"Constructor signatures don't match "
                              f"{constructor.__name__}{init_sig} vs "
                              f"initialiser{sig}")
@@ -226,23 +242,34 @@ def term_factory(args, kwargs, terms):
         if not isinstance(args, types.Tuple):
             raise errors.TypingError("args must be a Tuple")
 
-        return_type = types.Tuple(term_state_types)
-        sig = return_type(args)
+        sig = state_type(args)
 
         def codegen(context, builder, signature, args):
-            typingctx = context.typing_context
-            rvt = typingctx.resolve_value_type_prefer_literal
-            return_type = signature.return_type
-
-            if not isinstance(return_type, types.Tuple):
-                raise errors.TypingError(
-                    "signature.return_type should be a Tuple")
-
-            llvm_ret_type = context.get_value_type(return_type)
-            ret_tuple = cgutils.get_null_value(llvm_ret_type)
-
             if not len(args) == 1:
                 raise errors.TypingError("args must contain a single value")
+
+            typingctx = context.typing_context
+            rvt = typingctx.resolve_value_type_prefer_literal
+
+            def make_struct():
+                """ Allocate the structure """
+                return structref.new(state_type)
+
+            state = context.compile_internal(builder, make_struct,
+                                             state_type(), [])
+            U = structref._Utils(context, builder, state_type)
+            data_struct = U.get_data_struct(state)
+
+            for arg_name, (arg_type, i) in outer_args.items():
+                value = builder.extract_value(args[0], i)
+                value_type = signature.args[0][i]
+                field_type = state_type.field_dict[arg_name]
+                casted = context.cast(builder, value,
+                                      value_type, field_type)
+                old_value = getattr(data_struct, arg_name)
+                context.nrt.incref(builder, value_type, casted)
+                context.nrt.decref(builder, value_type, old_value)
+                setattr(data_struct, arg_name, casted)
 
             constructor_args = []
             constructor_types = []
@@ -254,10 +281,12 @@ def term_factory(args, kwargs, terms):
                      term_kw_index, term_kw_types)
 
             for term, arg_index, arg_types, kw_index, kw_types in it:
-                cargs = [builder.extract_value(args[0], j) for j in arg_index]
-                ctypes = list(arg_types)
+                cargs = [state]
+                cargs.extend(builder.extract_value(args[0], j)
+                             for j in arg_index)
+                ctypes = [state_type] + list(arg_types)
 
-                pysig = SignatureAdapter(inspect.signature(term.term_type))
+                pysig = SignatureAdapter(inspect.signature(term.fields))
 
                 for k in pysig.kwargs:
                     kt = kw_types[k]
@@ -277,16 +306,14 @@ def term_factory(args, kwargs, terms):
                 constructor_args.append(cargs)
                 constructor_types.append(ctypes)
 
-            for ti in range(return_type.count):
-                constructor_sig = return_type[ti](*constructor_types[ti])
-                data = context.compile_internal(builder,
-                                                constructors[ti],
-                                                constructor_sig,
-                                                constructor_args[ti])
+            for ti in range(len(terms)):
+                constructor_sig = types.none(*constructor_types[ti])
+                context.compile_internal(builder,
+                                         constructors[ti],
+                                         constructor_sig,
+                                         constructor_args[ti])
 
-                ret_tuple = builder.insert_value(ret_tuple, data, ti)
-
-            return ret_tuple
+            return state
 
         return sig, codegen
 
@@ -294,24 +321,14 @@ def term_factory(args, kwargs, terms):
     nterms = len(terms)
 
     def term_sampler(typingctx, state, s, r, t, a1, a2, c):
-        if not isinstance(state, types.Tuple):
-            raise errors.TypingError(f"{state} must be a Tuple")
-
-        if not all(isinstance(t, TermStructRef) for t in state):
-            raise errors.TypingError("All args must be an instance of Term")
-
-        if not nterms == len(state) == len(term_state_types):
-            raise errors.TypingError(
-                "State length does not equal the number of terms")
-
-        if not all(st == tst for st, tst in zip(state, term_state_types)):
-            raise errors.TypingError("State types don't match")
+        if not isinstance(state, StateStructRef):
+            raise errors.TypingError(f"{state} must be a {state_type}")
 
         sampler_ir = list(map(compiler.run_frontend, samplers))
         idx_types = (s, r, t, a1, a2, c)
-        ir_args = [(typ,) + idx_types for typ in term_state_types]
-        type_infer = [type_inference_stage(typingctx, ir, args, None)
-                      for ir, args in zip(sampler_ir, ir_args)]
+        ir_args = (state_type,) + idx_types
+        type_infer = [type_inference_stage(typingctx, ir, ir_args, None)
+                      for ir in sampler_ir]
         sampler_return_types = [ti.return_type for ti in type_infer]
 
         # Sanity check the sampler return types
@@ -354,13 +371,11 @@ def term_factory(args, kwargs, terms):
 
                 # Build signature for the sampling function
                 ret_type = sampler_return_types[ti]
-                sampler_arg_types = ((term_state_types[ti],) +
-                                     signature.args[1:])
+                sampler_arg_types = (state_type,) + signature.args[1:]
                 sampler_sig = ret_type(*sampler_arg_types)
 
                 # Build LLVM arguments for the sampling function
-                term_state = builder.extract_value(state, ti)
-                sampler_args = [term_state] + [s, r, t, a1, a2, c]
+                sampler_args = [state, s, r, t, a1, a2, c]
 
                 # Call the sampling function
                 data = context.compile_internal(builder,  # noqa
