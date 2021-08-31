@@ -2,11 +2,8 @@ import numba
 from numba.experimental import structref
 from numba.extending import intrinsic
 from numba.core import types, errors
-from numba.core.runtime import rtsys
 
 import numpy as np
-
-import pytest
 
 
 @structref.register
@@ -16,18 +13,7 @@ class StateStructRef(types.StructRef):
         return tuple((n, types.unliteral(t)) for n, t in fields)
 
 
-@pytest.fixture(scope="function", autouse=True)
-def check_allocations():
-    """ Check allocations match frees """
-    try:
-        yield
-        start = rtsys.get_allocation_stats()
-    finally:
-        end = rtsys.get_allocation_stats()
-        assert start.alloc - end.alloc == start.free - end.free
-
-
-def test_structref_setter(check_allocations):
+def test_structref_setter():
     @intrinsic
     def constructor(typingctx, arg_tuple):
         if not isinstance(arg_tuple, types.BaseTuple):
