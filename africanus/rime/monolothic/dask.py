@@ -37,8 +37,9 @@ def rime(terms=None, **kwargs):
     adjust_chunks.update((d, 1) for d in contract_dims)
 
     # This is needed otherwise, dask will call rime_dask_wrapper
-    # to infer the output dtype causing both memory allocations
-    # and exceptions, leading to memory leaks as described
+    # with dummy arugments to infer the output dtype.
+    # This incurs memory allocations within numba, as well as
+    # exceptions, leading to memory leaks as described
     # in https://github.com/numba/numba/issues/3263
     meta = np.empty((0,)*len(out_dims), dtype=np.complex128)
 

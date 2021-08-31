@@ -16,7 +16,7 @@ class StateStructRef(types.StructRef):
         return tuple((n, types.unliteral(t)) for n, t in fields)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function", autouse=True)
 def check_allocations():
     """ Check allocations match frees """
     try:
@@ -72,14 +72,7 @@ def test_structref_setter(check_allocations):
         print(s.arg_0)
         print(s.arg_1)
         print(s.arg_2)
-
-    from threading import Thread
+        return s.arg_2
 
     args = (2, "b", np.arange(10))
-    threads = [Thread(target=fn, args=args) for _ in range(10)]
-
-    for t in threads:
-        t.start()
-
-    for t in threads:
-        t.join()
+    assert np.array_equal(fn(*args), args[2])

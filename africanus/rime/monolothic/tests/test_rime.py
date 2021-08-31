@@ -1,3 +1,4 @@
+from numba.core.runtime import rtsys
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
@@ -20,6 +21,16 @@ def test_rime_parser(rime_spec):
     # custom_mapping = {"Kpq": MyCustomPhaseTerm}
     # print(parse_rime(rime_spec))
     pass
+
+
+@pytest.fixture(scope="function", autouse=True)
+def check_allocations():
+    """ Check allocations match frees """
+    try:
+        yield
+    finally:
+        stats = rtsys.get_allocation_stats()
+        assert stats.alloc == stats.free
 
 
 chunks = [
