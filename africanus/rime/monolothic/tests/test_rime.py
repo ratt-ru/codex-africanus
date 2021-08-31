@@ -28,9 +28,10 @@ def check_allocations():
     """ Check allocations match frees """
     try:
         yield
+        start = rtsys.get_allocation_stats()
     finally:
-        stats = rtsys.get_allocation_stats()
-        assert stats.alloc == stats.free
+        end = rtsys.get_allocation_stats()
+        assert start.alloc - end.alloc == start.free - end.free
 
 
 chunks = [
