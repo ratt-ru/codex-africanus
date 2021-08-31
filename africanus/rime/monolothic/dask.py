@@ -36,6 +36,12 @@ def rime(terms=None, **kwargs):
     adjust_chunks = {"source": 1}
     adjust_chunks.update((d, 1) for d in contract_dims)
 
+    # This is needed otherwise, dask will call rime_dask_wrapper
+    # to infer the output dtype causing both memory allocations
+    # and exceptions, leading to memory leaks as described
+    # in https://github.com/numba/numba/issues/3263
+    meta = np.empty((0,)*len(out_dims), dtype=np.complex128)
+
     # Construct the wrapper call from given arguments
     out = da.blockwise(rime_dask_wrapper, out_dims,
                        factory, None,
@@ -44,7 +50,7 @@ def rime(terms=None, **kwargs):
                        *args,
                        concatenate=False,
                        adjust_chunks=adjust_chunks,
-                       dtype=np.complex128)
+                       meta=meta)
 
     # Contract over source and concatenation dims
     axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))
