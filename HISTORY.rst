@@ -4,6 +4,7 @@ History
 
 0.2.11 (YYYY-MM-DD)
 -------------------
+* Using `contextlib.suppress` instead of deprecated `dask.util.ignoring` in EstimatingProgressBar (:pr:`256`)
 * Disallow numba 0.54.0 (:pr:`254`)
 * Upgrade to CuPy 9.0 and fix template encoding (:pr:`251`)
 * Parse and zero spectral models containing 'nan' and 'inf' in wsclean model files (:pr:`250`)
