@@ -37,7 +37,7 @@ class rime_factory:
         except KeyError as e:
             raise ValueError(f"'{str(e)}' is a required argument")
 
-        @generated_jit(nopython=True, nogil=True, cache=False)
+        @generated_jit(nopython=True, nogil=True, cache=True)
         def rime(*args):
             if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
                 raise ValueError(f"{args[0]} must be be a Tuple")
