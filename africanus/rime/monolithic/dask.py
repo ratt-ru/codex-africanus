@@ -8,7 +8,7 @@ else:
 import numpy as np
 
 from africanus.util.requirements import requires_optional
-from africanus.rime.monolothic.rime import rime_factory
+from africanus.rime.monolithic.rime import rime_factory
 
 
 def rime_dask_wrapper(factory, names, nconcat_dims, *args):

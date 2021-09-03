@@ -5,7 +5,7 @@ from numba.extending import intrinsic
 
 
 from africanus.util.casa_types import STOKES_TYPES
-from africanus.rime.monolothic.terms import Term
+from africanus.rime.monolithic.terms import Term
 
 
 STOKES_CONVERSION = {

@@ -2,15 +2,15 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolothic.argpack import pack_arguments
-from africanus.rime.monolothic.intrinsics import term_factory
-from africanus.rime.monolothic.terms import Term
+from africanus.rime.monolithic.argpack import pack_arguments
+from africanus.rime.monolithic.intrinsics import term_factory
+from africanus.rime.monolithic.terms import Term
 
 
 class rime_factory:
     def __init__(self, terms=None):
-        from africanus.rime.monolothic.phase import PhaseTerm
-        from africanus.rime.monolothic.brightness import BrightnessTerm
+        from africanus.rime.monolithic.phase import PhaseTerm
+        from africanus.rime.monolithic.brightness import BrightnessTerm
         terms = terms or [PhaseTerm(), BrightnessTerm()]
 
         for t in terms:
