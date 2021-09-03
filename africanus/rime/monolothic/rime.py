@@ -1,11 +1,10 @@
-import inspect
-
 import numba
 from numba import generated_jit, types
 import numpy as np
 
+from africanus.rime.monolothic.argpack import pack_arguments
 from africanus.rime.monolothic.intrinsics import term_factory
-from africanus.rime.monolothic.terms import Term, SignatureAdapter
+from africanus.rime.monolothic.terms import Term
 
 
 class rime_factory:
@@ -24,23 +23,10 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        signatures = [inspect.signature(t.fields) for t in terms]
-
-        # Check matching signatures
-        for s, t in zip(signatures, terms):
-            dask_sig = inspect.signature(t.dask_schema)
-            init_sig = inspect.signature(t.initialiser)
-            assert list(init_sig.parameters.keys())[0] == "state"
-            params = list(init_sig.parameters.values())
-            assert init_sig.replace(parameters=params[1:]) == s
-            assert dask_sig == s
-
-        adapted_sigs = list(map(SignatureAdapter, signatures))
-
-        expected_args = set(a for s in adapted_sigs for a in s.args)
+        expected_args = set(a for t in terms for a in t.ARGS)
         expected_args = list(sorted(expected_args))
 
-        extra_args_set = set(k for s in adapted_sigs for k in s.kwargs)
+        extra_args_set = set(k for t in terms for k in t.KWARGS)
         arg_map = {a: i for i, a in enumerate(expected_args)}
 
         try:
@@ -51,47 +37,13 @@ class rime_factory:
         except KeyError as e:
             raise ValueError(f"'{str(e)}' is a required argument")
 
-        @generated_jit(nopython=True, nogil=True, cache=True)
+        @generated_jit(nopython=True, nogil=True, cache=False)
         def rime(*args):
             if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
                 raise ValueError(f"{args[0]} must be be a Tuple")
 
-            n = len(expected_args)
-            starargs = args[0]
-            kwargs = starargs[n:]
-            starargs = starargs[:n]
-
-            if len(starargs) < n:
-                raise ValueError("Insufficient required arguments "
-                                 "supplied to RIME")
-
-            # Extract kwarg (string, type) pairs after
-            # the expected arguments
-            if len(kwargs) % 2 != 0:
-                raise ValueError(f"Invalid keyword argument pairs "
-                                 f"after required arguments "
-                                 f"{kwargs}")
-
-            tstarargs = {k: (vt, i) for i, (k, vt)
-                         in enumerate(zip(expected_args, starargs))}
-            tkwargs = {}
-            it = enumerate(zip(kwargs[::2], kwargs[1::2]))
-
-            for i, (k, vt) in it:
-                if not isinstance(k, types.StringLiteral):
-                    raise ValueError(f"{k} must be a String Literal")
-
-                k = k.literal_value
-
-                if k not in extra_args_set:
-                    raise ValueError(f"{k} is not a "
-                                     f"recognised keyword argument "
-                                     f"to any term in this RIME")
-
-                tkwargs[k] = (vt, 2*i + 1 + n)
-
-            state_factory, pairwise_sample = term_factory(
-                tstarargs, tkwargs, terms)
+            arg_pack = pack_arguments(terms, args[0])
+            state_factory, pairwise_sample = term_factory(arg_pack, terms)
 
             def impl(*args):
                 state = state_factory(args)  # noqa: F841
@@ -132,14 +84,12 @@ class rime_factory:
         schema = {}
 
         for t in self.terms:
-            sig = SignatureAdapter(inspect.signature(t.dask_schema))
-
             try:
-                args = tuple(kwargs[a] for a in sig.args)
+                args = tuple(kwargs[a] for a in t.ARGS)
             except KeyError as e:
                 raise ValueError(f"{str(e)} is a required argument")
 
-            kw = {k: kwargs.get(k, v) for k, v in sig.kwargs.items()}
+            kw = {k: kwargs.get(k, v) for k, v in t.KWARGS.items()}
 
             schema.update(t.dask_schema(*args, **kw))
 

@@ -1,12 +1,10 @@
-import inspect
-
 from numba import njit
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
 from numba.experimental import structref
 
-from africanus.rime.monolothic.terms import SignatureAdapter, StateStructRef
+from africanus.rime.monolothic.terms import StateStructRef
 
 PAIRWISE_BLOCKSIZE = 128
 
@@ -178,63 +176,26 @@ def tuple_adder(typingctx, t1, t2):
     return sig, codegen
 
 
-def term_factory(args, kwargs, terms):
-    outer_args = args
-
-    term_arg_types = []
-    term_arg_index = []
-    term_kw_types = []
-    term_kw_index = []
-
+def term_factory(arg_pack, terms):
     constructors = []
     state_fields = []
 
-    signatures = [inspect.signature(t.fields) for t in terms]
-    wrapped_sigs = [SignatureAdapter(s) for s in signatures]
-
     # Query Terms for fields and their types that should be created
     # on the State object
-    for term, wrapped_sig in zip(terms, wrapped_sigs):
-        arg_types, arg_i = zip(*(args[a] for a in wrapped_sig.args))
-        kw_res = {k: kwargs.get(k, (types.Omitted(d), -1))
-                  for k, d in wrapped_sig.kwargs.items()}
+    for term in terms:
+        arg_types = arg_pack.type_dict(*term.ALL_ARGS)
+        state_fields.extend(term.fields(**arg_types))
 
-        kw_types = {k: v[0] for k, v in kw_res.items()}
-        kw_i = {k: v[1] for k, v in kw_res.items()}
-
-        term_arg_types.append(arg_types)
-        term_arg_index.append(arg_i)
-        term_kw_types.append(kw_types)
-        term_kw_index.append(kw_i)
-
-        state_fields.extend(term.fields(*arg_types, **kw_types))
-
-    arg_fields = [(k, vt) for k, (vt, i) in args.items()]
-
+    # Now define all fields for the State type
+    arg_fields = [(k, vt) for k, (vt, _) in arg_pack.items()
+                  if not isinstance(vt, types.Omitted)]
     state_type = StateStructRef(arg_fields + state_fields)
-    it = zip(terms, signatures, term_arg_types, term_kw_types)
 
-    for term, sig, arg_types, kw_types in it:
-        init_sig = inspect.signature(term.initialiser)
-        params = list(init_sig.parameters.values())
-        stateless_init_sig = init_sig.replace(parameters=params[1:])
-
-        if stateless_init_sig.replace(parameters=params[1:]) != sig:
-            raise ValueError(f"Initialiser signatures don't match "
-                             f"{term.initialiser.__name__}{init_sig} vs "
-                             f"initialiser{sig}")
-
-        sarg_types = (state_type,) + arg_types
-        constructor = term.initialiser(*sarg_types, **kw_types)
-        constructor_sig = inspect.signature(constructor)
-        params = list(constructor_sig.parameters.values())
-        stateless_const_sig = constructor_sig.replace(parameters=params[1:])
-
-        if stateless_const_sig != sig:
-            raise ValueError(f"Constructor signatures don't match "
-                             f"{constructor.__name__}{init_sig} vs "
-                             f"initialiser{sig}")
-
+    for term in terms:
+        arg_types = arg_pack.type_dict(*term.ALL_ARGS)
+        init_types = {"state": state_type, **arg_types}
+        constructor = term.initialiser(**init_types)
+        term.validate_constructor(constructor)
         constructors.append(constructor)
 
     @intrinsic
@@ -260,7 +221,10 @@ def term_factory(args, kwargs, terms):
             U = structref._Utils(context, builder, state_type)
             data_struct = U.get_data_struct(state)
 
-            for arg_name, (arg_type, i) in outer_args.items():
+            for arg_name, (arg_type, i) in arg_pack.items():
+                if isinstance(arg_type, types.Omitted):
+                    continue
+
                 value = builder.extract_value(args[0], i)
                 value_type = signature.args[0][i]
                 field_type = state_type.field_dict[arg_name]
@@ -277,31 +241,25 @@ def term_factory(args, kwargs, terms):
             # Our single argument is a tuple of arguments, but we
             # need to extract those arguments necessary to construct
             # the term StructRef
-            it = zip(terms, term_arg_index, term_arg_types,
-                     term_kw_index, term_kw_types)
-
-            for term, arg_index, arg_types, kw_index, kw_types in it:
+            for term in terms:
                 cargs = [state]
-                cargs.extend(builder.extract_value(args[0], j)
-                             for j in arg_index)
-                ctypes = [state_type] + list(arg_types)
+                ctypes = [state_type]
 
-                pysig = SignatureAdapter(inspect.signature(term.fields))
+                arg_types = arg_pack.types(*term.ALL_ARGS)
+                arg_index = arg_pack.indices(*term.ALL_ARGS)
 
-                for k in pysig.kwargs:
-                    kt = kw_types[k]
-                    ki = kw_index[k]
-
-                    if ki == -1:
-                        assert isinstance(kt, types.Omitted)
-                        value_type = rvt(kt.value)
+                for typ, i in zip(arg_types, arg_index):
+                    if isinstance(typ, types.Omitted):
+                        const_type = rvt(typ.value)
                         const = context.get_constant_generic(
-                            builder, value_type, kt.value)
+                            builder, const_type, typ.value)
                         cargs.append(const)
-                        ctypes.append(value_type)
+                        ctypes.append(const_type)
                     else:
-                        cargs.append(builder.extract_value(args[0], ki))
-                        ctypes.append(kt)
+                        assert not isinstance(typ, types.Omitted)
+                        assert i != -1
+                        cargs.append(builder.extract_value(args[0], i))
+                        ctypes.append(typ)
 
                 constructor_args.append(cargs)
                 constructor_types.append(ctypes)
