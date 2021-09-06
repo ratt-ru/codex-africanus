@@ -26,10 +26,9 @@ def sigcheck_factory(expected_sig):
 
 class TermMetaClass(type):
     """
-    Metaclass the appropriate methods are
-    implemented on any subclass of `Term`
-    and that their signatures agree with each
-    other.
+    Metaclass which checks that the appropriate methods are
+    implemented on any subclass of `Term` and that their
+    signatures agree with each other.
 
     Also sets `ARGS`, `KWARGS` and `ALL_ARGS`
     class members on the subclass based on the above
@@ -130,6 +129,7 @@ class TermMetaClass(type):
 
     @classmethod
     def term_in_bases(cls, bases):
+        """ Is `Term` in bases? """
         for base in bases:
             if base is Term or cls.term_in_bases(base.__bases__):
                 return True
@@ -137,6 +137,8 @@ class TermMetaClass(type):
         return False
 
     def __new__(mcls, name, bases, namespace):
+        # Check methods on any subclasses of Term
+        # and expand the subclass namespace 
         if mcls.term_in_bases(bases):
             namespace = mcls._expand_namespace(name, namespace)
 
@@ -164,6 +166,7 @@ class Term(metaclass=TermMetaClass):
 
     @classmethod
     def validate_sampler(cls, sampler):
+        """ Validate the sampler implementation """
         sampler_sig = inspect.signature(sampler)
         Parameter = inspect.Parameter
         kind = Parameter.POSITIONAL_OR_KEYWORD
