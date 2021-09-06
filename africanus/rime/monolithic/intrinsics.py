@@ -276,6 +276,10 @@ def term_factory(arg_pack, terms):
         return sig, codegen
 
     samplers = [term.sampler() for term in terms]
+
+    for sampler in samplers:
+        term.validate_sampler(sampler)
+
     nterms = len(terms)
 
     def term_sampler(typingctx, state, s, r, t, a1, a2, c):

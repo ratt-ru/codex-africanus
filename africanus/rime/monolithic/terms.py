@@ -25,10 +25,32 @@ def sigcheck_factory(expected_sig):
 
 
 class TermMetaClass(type):
-    REQUIRED = ("fields", "initialiser", "dask_schema")
+    """
+    Metaclass the appropriate methods are
+    implemented on any subclass of `Term`
+    and that their signatures agree with each
+    other.
+
+    Also sets `ARGS`, `KWARGS` and `ALL_ARGS`
+    class members on the subclass based on the above
+    signatures
+    """
+
+    REQUIRED = ("fields", "initialiser", "dask_schema", "sampler")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
+        """
+        Check that the expected implementations are in the namespace.
+
+        Also assign the args and kwargs associated with the implementations
+        into the namespace
+
+        Returns
+        -------
+        dict
+            A copy of `namespace` with args and kwargs assigned
+        """
         methods = []
 
         for method_name in cls.REQUIRED:
@@ -63,9 +85,18 @@ class TermMetaClass(type):
                             f"should be "
                             f"{name}.dask_schema{fields_sig}")
 
+        Parameter = inspect.Parameter
+        sampler_sig = inspect.signature(methods["sampler"])
+        params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
+        expected_sampler_sig = inspect.Signature(parameters=params)
+
+        if sampler_sig != expected_sampler_sig:
+            raise TypeError(f"{name}.sampler{sampler_sig} "
+                            f"should be "
+                            f"{name}.sampler{expected_sampler_sig}")
+
         field_params = list(fields_sig.parameters.values())
         expected_init_params = field_params.copy()
-        Parameter = inspect.Parameter
         state_param = Parameter("state", Parameter.POSITIONAL_OR_KEYWORD)
         expected_init_params.insert(1, state_param)
         expected_init_sig = fields_sig.replace(parameters=expected_init_params)
@@ -97,8 +128,16 @@ class TermMetaClass(type):
 
         return namespace
 
+    @classmethod
+    def term_in_bases(cls, bases):
+        for base in bases:
+            if base is Term or cls.term_in_bases(base.__bases__):
+                return True
+
+        return False
+
     def __new__(mcls, name, bases, namespace):
-        if bases:
+        if mcls.term_in_bases(bases):
             namespace = mcls._expand_namespace(name, namespace)
 
         return super(TermMetaClass, mcls).__new__(mcls, name, bases, namespace)
@@ -122,3 +161,23 @@ class Term(metaclass=TermMetaClass):
                 raise TypeError(f"Unknown type {type(arg)} of argument {arg}")
 
         return numba.typeof(np.result_type(*arg_types)).dtype
+
+    @classmethod
+    def validate_sampler(cls, sampler):
+        sampler_sig = inspect.signature(sampler)
+        Parameter = inspect.Parameter
+        kind = Parameter.POSITIONAL_OR_KEYWORD
+        params = [Parameter("state", kind),
+                  Parameter("s", kind),
+                  Parameter("r", kind),
+                  Parameter("t", kind),
+                  Parameter("a1", kind),
+                  Parameter("a2", kind),
+                  Parameter("c", kind)]
+
+        expected_sig = inspect.Signature(params)
+
+        if sampler_sig != expected_sig:
+            raise TypeError(f"{sampler.__name__}{sampler_sig}"
+                            f"should be "
+                            f"{sampler.__name__}{expected_sig}")
