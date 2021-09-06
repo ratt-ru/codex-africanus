@@ -180,8 +180,8 @@ def term_factory(arg_pack, terms):
     constructors = []
     state_fields = []
 
-    # Query Terms for fields and their types that should be created
-    # on the State object
+    # Query Terms for fields and their associated types
+    # that should be created on the State object
     for term in terms:
         arg_types = arg_pack.type_dict(*term.ALL_ARGS)
         state_fields.extend(term.fields(**arg_types))

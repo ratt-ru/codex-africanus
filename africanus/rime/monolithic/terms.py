@@ -7,6 +7,10 @@ from numba.np.numpy_support import as_dtype
 import numpy as np
 
 
+class InvalidSignature(ValueError):
+    pass
+
+
 @structref.register
 class StateStructRef(types.StructRef):
     def preprocess_fields(self, fields):
@@ -65,35 +69,28 @@ class TermMetaClass(type):
 
         for i, (n, p) in enumerate(fields_sig.parameters.items()):
             if i == 0 and n != "self":
-                raise ValueError(f"{name}.fields{fields_sig} "
-                                 f"should be "
-                                 f"{name}.fields(self, ...)")
+                raise InvalidSignature(f"{name}.fields{fields_sig} "
+                                       f"should be "
+                                       f"{name}.fields(self, ...)")
 
             if p.kind == p.VAR_POSITIONAL:
-                raise NotImplementedError(f"*{n} in fields{fields_sig} "
-                                          f"is not supported")
+                raise InvalidSignature(f"*{n} in "
+                                       f"{name}.fields{fields_sig} "
+                                       f"is not supported")
 
             if p.kind == p.VAR_KEYWORD:
-                raise NotImplementedError(f"**{n} in fields{fields_sig} "
-                                          f"is not supported")
+                raise InvalidSignature(f"**{n} in "
+                                       f"{name}.fields{fields_sig} "
+                                       f"is not supported")
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
 
         if dask_schema_sig != fields_sig:
-            raise TypeError(f"{name}.dask_schema{dask_schema_sig} "
-                            f"should be "
-                            f"{name}.dask_schema{fields_sig}")
+            raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
+                                   f"should be "
+                                   f"{name}.dask_schema{fields_sig}")
 
         Parameter = inspect.Parameter
-        sampler_sig = inspect.signature(methods["sampler"])
-        params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
-        expected_sampler_sig = inspect.Signature(parameters=params)
-
-        if sampler_sig != expected_sampler_sig:
-            raise TypeError(f"{name}.sampler{sampler_sig} "
-                            f"should be "
-                            f"{name}.sampler{expected_sampler_sig}")
-
         field_params = list(fields_sig.parameters.values())
         expected_init_params = field_params.copy()
         state_param = Parameter("state", Parameter.POSITIONAL_OR_KEYWORD)
@@ -103,9 +100,18 @@ class TermMetaClass(type):
         init_sig = inspect.signature(methods["initialiser"])
 
         if expected_init_sig != init_sig:
-            raise ValueError(f"{name}.initialiser{init_sig} "
-                             f"should be "
-                             f"{name}.fields{expected_init_sig}")
+            raise InvalidSignature(f"{name}.initialiser{init_sig} "
+                                   f"should be "
+                                   f"{name}.fields{expected_init_sig}")
+
+        sampler_sig = inspect.signature(methods["sampler"])
+        params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
+        expected_sampler_sig = inspect.Signature(parameters=params)
+
+        if sampler_sig != expected_sampler_sig:
+            raise InvalidSignature(f"{name}.sampler{sampler_sig} "
+                                   f"should be "
+                                   f"{name}.sampler{expected_sampler_sig}")
 
         args = tuple(n for n, p in fields_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
@@ -138,7 +144,7 @@ class TermMetaClass(type):
 
     def __new__(mcls, name, bases, namespace):
         # Check methods on any subclasses of Term
-        # and expand the subclass namespace 
+        # and expand the subclass namespace
         if mcls.term_in_bases(bases):
             namespace = mcls._expand_namespace(name, namespace)
 
@@ -181,6 +187,6 @@ class Term(metaclass=TermMetaClass):
         expected_sig = inspect.Signature(params)
 
         if sampler_sig != expected_sig:
-            raise TypeError(f"{sampler.__name__}{sampler_sig}"
-                            f"should be "
-                            f"{sampler.__name__}{expected_sig}")
+            raise InvalidSignature(f"{sampler.__name__}{sampler_sig}"
+                                   f"should be "
+                                   f"{sampler.__name__}{expected_sig}")
