@@ -1,4 +1,5 @@
 import inspect
+from functools import partial
 
 import numba
 from numba.core import types
@@ -175,15 +176,8 @@ class Term(metaclass=TermMetaClass):
         """ Validate the sampler implementation """
         sampler_sig = inspect.signature(sampler)
         Parameter = inspect.Parameter
-        kind = Parameter.POSITIONAL_OR_KEYWORD
-        params = [Parameter("state", kind),
-                  Parameter("s", kind),
-                  Parameter("r", kind),
-                  Parameter("t", kind),
-                  Parameter("a1", kind),
-                  Parameter("a2", kind),
-                  Parameter("c", kind)]
-
+        P = partial(Parameter, kind=Parameter.POSITIONAL_OR_KEYWORD)
+        params = map(P, ["state", "s", "r", "t", "a1", "a2", "c"])
         expected_sig = inspect.Signature(params)
 
         if sampler_sig != expected_sig:
