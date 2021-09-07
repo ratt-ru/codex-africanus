@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from collections.abc import Mapping
 
 from numba.core import types
@@ -5,7 +6,15 @@ from numba.core import types
 
 class ArgumentPack(Mapping):
     def __init__(self, names, types, index):
-        self.pack = {n: (t, i) for n, t, i in zip(names, types, index)}
+        self.pack = OrderedDict((n, (t, i)) for n, t, i
+                                in zip(names, types, index))
+
+    def copy(self):
+        names, types, index = zip(*((k, t, i) for k, (t, i) in self.pack.items()))
+        return ArgumentPack(names, types, index)
+
+    def pop(self, key):
+        return self.pack.pop(key)
 
     def type(self, key):
         return self.pack[key][0]

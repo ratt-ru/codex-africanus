@@ -1,9 +1,12 @@
+from collections import OrderedDict
+from numpy.lib.arraysetops import isin
 from numba import njit
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
 from numba.core.typed_passes import type_inference_stage
 from numba.experimental import structref
 
+from africanus.rime.monolithic.argpack import ArgumentPack
 from africanus.rime.monolithic.terms import StateStructRef
 
 PAIRWISE_BLOCKSIZE = 128
@@ -176,6 +179,72 @@ def tuple_adder(typingctx, t1, t2):
     return sig, codegen
 
 
+def extend_argpack(arg_pack):
+    names = []
+    arg_types = []
+    index = []
+
+    for j, (name, (typ, i)) in enumerate(arg_pack.items()):
+        names.append(name)        
+        arg_types.append(typ)
+        index.append(j)
+
+    new_argpack = ArgumentPack(names, arg_types, index)
+
+    @intrinsic
+    def impl(typingctx, args):
+        if not isinstance(args, types.BaseTuple):
+            raise errors.TypingError(f"{args} is not a Tuple")
+
+        rvt = typingctx.resolve_value_type_prefer_literal
+        concrete_arg_types = OrderedDict()
+
+        for name, typ in zip(names, arg_types):
+            if isinstance(typ, types.Omitted):
+                concrete_arg_types[name] = (rvt(typ.value), typ.value)
+            else:
+                concrete_arg_types[name] = (typ, None)
+
+        typs = list((v for v, _ in concrete_arg_types.values()))
+        return_type = types.Tuple(typs)
+        sig = return_type(args)
+
+        def codegen(context, builder, signature, args):
+            return_type = signature.return_type
+            llvm_ret_type = context.get_value_type(return_type)
+            ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+            nonlocal new_argpack
+            new_argpack = new_argpack.copy()
+
+            for k, (typ, i) in new_argpack.items():
+                try:
+                    prev_typ, prev_i = arg_pack[k]
+                except KeyError:
+                    _, default = concrete_arg_types[k]
+                    value = context.get_constant_generic(
+                                    builder, typ, default)
+                else:
+                    if isinstance(prev_typ, types.Omitted):
+                        raise errors.TypingError(f"{prev_typ} is Omitted")
+                    value = builder.extract_value(args[0], prev_i)
+
+                builder.insert_value(ret_tuple, value, i)
+
+
+            for k, (typ, i) in new_argpack.items():
+                new_typ, default = concrete_arg_types[k]
+                const = context.get_constant_generic(
+                    builder, new_typ, default)
+                builder.insert_value(ret_tuple, const, i)
+
+            return ret_tuple
+
+        return sig, codegen
+
+    return new_argpack, impl
+
+
 def term_factory(arg_pack, terms):
     constructors = []
     state_fields = []
@@ -187,8 +256,7 @@ def term_factory(arg_pack, terms):
         state_fields.extend(term.fields(**arg_types))
 
     # Now define all fields for the State type
-    arg_fields = [(k, vt) for k, (vt, _) in arg_pack.items()
-                  if not isinstance(vt, types.Omitted)]
+    arg_fields = [(k, vt) for k, (vt, _) in arg_pack.items()]
     state_type = StateStructRef(arg_fields + state_fields)
 
     for term in terms:
@@ -221,10 +289,7 @@ def term_factory(arg_pack, terms):
             U = structref._Utils(context, builder, state_type)
             data_struct = U.get_data_struct(state)
 
-            for arg_name, (arg_type, i) in arg_pack.items():
-                if isinstance(arg_type, types.Omitted):
-                    continue
-
+            for arg_name, (_, i) in arg_pack.items():
                 value = builder.extract_value(args[0], i)
                 value_type = signature.args[0][i]
                 field_type = state_type.field_dict[arg_name]

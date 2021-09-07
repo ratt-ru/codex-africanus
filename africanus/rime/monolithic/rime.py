@@ -3,7 +3,7 @@ from numba import generated_jit, types
 import numpy as np
 
 from africanus.rime.monolithic.argpack import pack_arguments
-from africanus.rime.monolithic.intrinsics import term_factory
+from africanus.rime.monolithic.intrinsics import extend_argpack, term_factory
 from africanus.rime.monolithic.terms import Term
 
 
@@ -37,15 +37,20 @@ class rime_factory:
         except KeyError as e:
             raise ValueError(f"'{str(e)}' is a required argument")
 
-        @generated_jit(nopython=True, nogil=True, cache=True)
-        def rime(*args):
-            if len(args) != 1 or not isinstance(args[0], types.BaseTuple):
-                raise ValueError(f"{args[0]} must be be a Tuple")
+        @generated_jit(nopython=True, nogil=True, cache=False)
+        def rime(*inargs):
+            global extend_argpack
 
-            arg_pack = pack_arguments(terms, args[0])
-            state_factory, pairwise_sample = term_factory(arg_pack, terms)
+            if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
+                raise ValueError(f"{inargs[0]} must be be a Tuple")
 
-            def impl(*args):
+            arg_pack = pack_arguments(terms, inargs[0])
+            new_argpack, extend_argpack_impl = extend_argpack(arg_pack)
+            state_factory, pairwise_sample = term_factory(new_argpack, terms)
+
+            def impl(*inargs):
+                args = extend_argpack_impl(inargs)
+
                 state = state_factory(args)  # noqa: F841
 
                 nsrc, _ = args[lm_i].shape
