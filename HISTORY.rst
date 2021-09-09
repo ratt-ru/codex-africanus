@@ -2,6 +2,10 @@
 History
 =======
 
+0.3.1 (2021-09-09)
+------------------
+* Handle empty spectral indices in WSClean Model (:pr:`258`)
+
 0.3.0 (2021-09-09)
 ------------------
 * Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
