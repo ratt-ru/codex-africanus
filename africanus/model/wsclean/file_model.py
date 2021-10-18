@@ -55,7 +55,12 @@ def arcsec2rad(arcseconds=0.0):
 
 
 def spi_converter(spi):
-    return [float(c) for c in spi.strip("[] ").split(",")]
+    spi = spi.strip("[] ")
+
+    if not spi:
+        return []
+
+    return [float(c) for c in spi.split(",")]
 
 
 _COLUMN_CONVERTERS = {

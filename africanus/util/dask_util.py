@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
+from contextlib import suppress
 from timeit import default_timer
 from threading import Event, Thread, Lock
 import os
@@ -8,7 +9,6 @@ import sys
 
 try:
     from dask.callbacks import Callback
-    from dask.utils import ignoring
 except ImportError as e:
     opt_import_err = e
     Callback = object
@@ -119,7 +119,7 @@ def update_bar(elapsed, prev_completed, prev_estimated, pb):
                 format_time(elapsed),
                 "???" if estimated == 0.0 else format_time(estimated))
 
-    with ignoring(ValueError):
+    with suppress(ValueError):
         pb._file.write(msg)
         pb._file.flush()
 
