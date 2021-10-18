@@ -211,9 +211,9 @@ class Binner(object):
         dw = uvw[row, 2] - uvw[rs, 2]
         dt = time_end - time_start
         half_𝞓𝞇 = (np.sqrt(du**2 + dv**2 + dw**2) *
-                    self.max_chan_freq *
-                    np.sin(np.abs(self.max_lm)) *
-                    np.pi / lightspeed) + 1.0e-8
+                   self.max_chan_freq *
+                   np.sin(np.abs(self.max_lm)) *
+                   np.pi / lightspeed) + 1.0e-8
         bldecorr = np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # fringe rate at the equator
@@ -231,7 +231,8 @@ class Binner(object):
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (bldecorr < np.sinc(self.decorrelation)) or (dt > self.time_bin_secs):
+        if (bldecorr < np.sinc(self.decorrelation) or
+                dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
@@ -408,7 +409,8 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         nbl = ubl.shape[0]
         nchan = chan_width.shape[0]
         if nchan == 0:
-            raise ValueError("Number of channels passed into averager must be at least size 1")
+            raise ValueError("Number of channels passed into "
+                             "averager must be at least size 1")
         nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
 
@@ -485,8 +487,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         # dphi = np.sqrt(6. / np.pi**2 * (1. - decorrelation))
 
         # better approximation
-        asincapprox = lambda x: np.sqrt(3)/np.pi*np.arccos(x)
-        dphi = asincapprox(decorrelation)
+        dphi = np.arccos(decorrelation)*np.sqrt(3)/np.pi
 
         binner = JitBinner(0, 0, max_lm,
                            dphi,
