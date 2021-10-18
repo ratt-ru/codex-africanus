@@ -206,11 +206,14 @@ class Binner(object):
 
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
+        du = uvw[row, 0] - uvw[rs, 0]
+        dv = uvw[row, 1] - uvw[rs, 1]
+        dw = uvw[row, 2] - uvw[rs, 2]
         dt = time_end - time_start
-        half_𝞓𝞇 = np.sqrt(((uvw[row, :] - uvw[rs, :])**2).sum()) * \
-                   (self.max_chan_freq/lightspeed) * \
-                   np.sin(np.abs(self.max_lm)) * \
-                   np.pi + 1.0e-8
+        half_𝞓𝞇 = (np.sqrt(du**2 + dv**2 + dw**2) *
+                    self.max_chan_freq *
+                    np.sin(np.abs(self.max_lm)) *
+                    np.pi / lightspeed) + 1.0e-8
         bldecorr = np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # fringe rate at the equator
