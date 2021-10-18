@@ -227,6 +227,9 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                                     cout[r, f, c1, c2] += blj[s, r, f, c1, c2]
         else:
             def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
+                # TODO(sjperkins): Without this, these loops
+                # produce an incorrect value
+                assert blj.ndim == 4
                 for s in range(blj.shape[0]):
                     for r in range(blj.shape[1]):
                         for f in range(blj.shape[2]):
@@ -479,8 +482,8 @@ def predict_vis(time_index, antenna1, antenna2,
 
         # Apply direction independent effects, if any
         apply_dies_fn(time_index, antenna1, antenna2,
-                    die1_jones, die2_jones,
-                    tmin, out)
+                      die1_jones, die2_jones,
+                      tmin, out)
 
         return out
 
