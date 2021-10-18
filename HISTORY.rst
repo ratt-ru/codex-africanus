@@ -4,6 +4,7 @@ History
 
 0.3.1 (2021-09-09)
 ------------------
+* Fix predict on numba 0.54.0 (:pr:`259`)
 * Handle empty spectral indices in WSClean Model (:pr:`258`)
 
 0.3.0 (2021-09-09)
