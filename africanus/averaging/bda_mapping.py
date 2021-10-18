@@ -570,7 +570,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
         time_ret = np.full(out_row_chans, -1, dtype=time.dtype)
         int_ret = np.full(out_row_chans, -1, dtype=interval.dtype)
-        chan_width_ret = np.full(out_row_chans, -1, dtype=chan_width.dtype)
+        chan_width_ret = np.full(out_row_chans, 0, dtype=chan_width.dtype)
 
         # Construct output flag row, if necessary
         out_flag_row = (None if flag_row is None else
