@@ -771,8 +771,9 @@ def bda(time, interval, antenna1, antenna2,
                                  meta, format=format)
     meta_interval = _bda_getitem_row(meta, 4, interval, ("row",),
                                      meta, format=format)
-    meta_chan_width = _bda_getitem_row(meta, 5, chan_width, ("row",), meta)
-    meta_flag_row = (_bda_getitem_row(meta, 6, flag_row, ("row",),
+    meta_chan_freq = _bda_getitem_row(meta, 5, chan_width, ("row",), meta)                            
+    meta_chan_width = _bda_getitem_row(meta, 6, chan_width, ("row",), meta)
+    meta_flag_row = (_bda_getitem_row(meta, 7, flag_row, ("row",),
                                       meta, format=format)
                      if flag_row is not None else None)
 
@@ -782,6 +783,7 @@ def bda(time, interval, antenna1, antenna2,
                             meta_decorr_cw,
                             meta_time,
                             meta_interval,
+                            meta_chan_freq,
                             meta_chan_width,
                             meta_flag_row,
                             row_data.antenna1,

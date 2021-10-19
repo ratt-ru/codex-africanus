@@ -185,7 +185,7 @@ def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
 
     meta = RowMapOutput(bda_test_map, offsets,
                         chan_width, out_time, out_interval,
-                        None, out_flag_row)
+                        None, None, out_flag_row)
 
     ant1 = np.full(in_row, 0, dtype=np.int32)
     ant2 = np.full(in_row, 1, dtype=np.int32)
@@ -346,6 +346,8 @@ def test_dask_bda_avg(vis_format):
     dsk3 = dict(result2["visibilities"][1].__dask_graph__())
     dsk2_name = result2["visibilities"][0].name
     dsk3_name = result2["visibilities"][1].name
+
+    from pprint import pprint
 
     # For each task, compare the row dictionaries
     for k, v in dsk1.items():

@@ -3,6 +3,7 @@
 from collections import namedtuple
 
 import numpy as np
+from africanus.rime.fast_beam_cubes import freq_grid_interp
 import numba
 from numba.experimental import jitclass
 import numba.types
@@ -335,7 +336,8 @@ class Binner(object):
 
 RowMapOutput = namedtuple("RowMapOutput",
                           ["map", "offsets", "decorr_chan_width",
-                           "time", "interval", "chan_width", "flag_row"])
+                           "time", "interval", "chan_freq", "chan_width",
+                           "flag_row"])
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -571,6 +573,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         time_ret = np.full(out_row_chans, -1, dtype=time.dtype)
         int_ret = np.full(out_row_chans, -1, dtype=interval.dtype)
         chan_width_ret = np.full(out_row_chans, 0, dtype=chan_width.dtype)
+        chan_freq_ret = np.full(out_row_chans, 0, dtype=chan_freq.dtype)
+        freq_const = ((chan_freq[-1] - chan_freq[0]) / (nchan - 1)
+                      if nchan > 1 else 1)
 
         # Construct output flag row, if necessary
         out_flag_row = (None if flag_row is None else
@@ -618,6 +623,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                 time_ret[out_offset] = bin_time
                 int_ret[out_offset] = bin_interval
 
+                # Compute channel frequency for each row
+                chan_freq_ret[out_offset] = chan_freq[0] + c*freq_const
+
                 # Add channel contribution for each row
                 chan_width_ret[out_offset] += chan_width[c]
 
@@ -627,6 +635,8 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         return RowMapOutput(row_chan_map, offsets,
                             decorr_chan_width,
                             time_ret, int_ret,
-                            chan_width_ret, out_flag_row)
+                            chan_freq_ret,
+                            chan_width_ret,
+                            out_flag_row)
 
     return impl
