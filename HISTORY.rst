@@ -7,6 +7,7 @@ History
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
 * Handle empty spectral indices in WSClean Model (:pr:`258`)
 * Support missing data during BDA (:pr:`252`)
+* BDA Time-smearing fixes (:pr:`253`)
 
 0.3.0 (2021-09-09)
 ------------------
