@@ -227,6 +227,9 @@ def sum_coherencies_factory(have_ddes, have_coh, jones_type):
                                     cout[r, f, c1, c2] += blj[s, r, f, c1, c2]
         else:
             def sum_coh_fn(time, ant1, ant2, a1j, blj, a2j, tmin, cout):
+                # TODO(sjperkins): Without this, these loops
+                # produce an incorrect value
+                assert blj.ndim == 4
                 for s in range(blj.shape[0]):
                     for r in range(blj.shape[1]):
                         for f in range(blj.shape[2]):
@@ -293,7 +296,7 @@ def add_coh_factory(have_bvis):
     return njit(nogil=True, inline="always")(add_coh)
 
 
-def apply_dies_factory(have_dies, have_bvis, jones_type):
+def apply_dies_factory(have_dies, jones_type):
     """
     Factory function returning a function that applies
     Direction Independent Effects
@@ -302,7 +305,7 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
     # We always "have visibilities", (the output array)
     jones_mul = jones_mul_factory(have_dies, True, jones_type, False)
 
-    if have_dies and have_bvis:
+    if have_dies:
         def apply_dies(time, ant1, ant2,
                        die1_jones, die2_jones,
                        tmin, dies_out):
@@ -316,22 +319,6 @@ def apply_dies_factory(have_dies, have_bvis, jones_type):
                 for c in range(dies_out.shape[1]):
                     jones_mul(die1_jones[ti, a1, c], dies_out[r, c],
                               die2_jones[ti, a2, c], dies_out[r, c])
-
-    elif have_dies and not have_bvis:
-        def apply_dies(time, ant1, ant2,
-                       die1_jones, die2_jones,
-                       tmin, dies_out):
-            # Iterate over rows
-            for r in range(time.shape[0]):
-                ti = time[r] - tmin
-                a1 = ant1[r]
-                a2 = ant2[r]
-
-                # Iterate over channels
-                for c in range(dies_out.shape[1]):
-                    jones_mul(die1_jones[ti, a1, c], dies_out[r, c],
-                              die2_jones[ti, a2, c],
-                              dies_out[r, c])
     else:
         # noop
         def apply_dies(time, ant1, ant2,
@@ -471,7 +458,7 @@ def predict_vis(time_index, antenna1, antenna2,
     out_fn = output_factory(have_ddes, have_coh,
                             have_dies, have_bvis, out_dtype)
     sum_coh_fn = sum_coherencies_factory(have_ddes, have_coh, jones_type)
-    apply_dies_fn = apply_dies_factory(have_dies, have_bvis, jones_type)
+    apply_dies_fn = apply_dies_factory(have_dies, jones_type)
     add_coh_fn = add_coh_factory(have_bvis)
 
     def _predict_vis_fn(time_index, antenna1, antenna2,
