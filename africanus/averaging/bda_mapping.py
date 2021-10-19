@@ -572,6 +572,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         int_ret = np.full(out_row_chans, -1, dtype=interval.dtype)
         chan_width_ret = np.full(out_row_chans, 0, dtype=chan_width.dtype)
         chan_freq_ret = np.full(out_row_chans, 0, dtype=chan_freq.dtype)
+        freq_diff = chan_freq[-1] - chan_freq[0]
 
         # Construct output flag row, if necessary
         out_flag_row = (None if flag_row is None else
@@ -621,8 +622,9 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
 
                 # Set channel frequency for each row
                 # This matches np.linspace
-                chan_freq_ret[out_offset] = (chan_freq[0] +
-                    c * (chan_freq[-1] - chan_freq[0]) / (nchan - 1))
+                chan_freq_ret[out_offset] = (
+                    chan_freq[0] +
+                    c*freq_diff/(nchan - 1))
 
                 # Add channel contribution for each row
                 chan_width_ret[out_offset] += chan_width[c]
