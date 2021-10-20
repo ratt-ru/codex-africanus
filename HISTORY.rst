@@ -4,6 +4,7 @@ History
 
 0.3.1 (2021-09-09)
 ------------------
+* Expose chan_freq in BDA output (:pr:`260`)
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
 * Handle empty spectral indices in WSClean Model (:pr:`258`)
 * Support missing data during BDA (:pr:`252`)
