@@ -20,7 +20,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         "numpy >= 1.14.0, != 1.15.3",
-        "numba >= 0.53.1, != 0.54.0"
+        "numba >= 0.53.1, < 0.54.0"
     ]
 
 extras_require = {
@@ -89,6 +89,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/ska-sa/codex-africanus",
-    version="0.2.10",
+    version='0.3.1',
     zip_safe=False,
 )
