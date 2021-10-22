@@ -1,6 +1,4 @@
-import pytest
-
-def test_arg_graph():    
+def test_arg_graph():
     class Edge:
         def __init__(self, u, v, arg):
             assert isinstance(arg, str)
@@ -23,15 +21,11 @@ def test_arg_graph():
                             if isinstance(outputs, (list, tuple))
                             else (outputs,))
 
-
         def __str__(self):
             return f"{list(self.inputs)}: {list(self.outputs)}"
 
-        __repr__= __str__
+        __repr__ = __str__
 
-    args = ["radec", "phase_centre", "uvw", "chan_freq", "spi"]
-
-    from collections import defaultdict
     from pprint import pprint
 
     class Term:
@@ -52,7 +46,7 @@ def test_arg_graph():
             return arg in self.args
 
         def __repr__(self):
-            return f"{self.args}"
+            return "ArgPack"
 
         __str__ = __repr__
 
@@ -61,7 +55,11 @@ def test_arg_graph():
             self.inputs = set(inputs) if inputs else set()
             self.outputs = set(outputs) if outputs else set()
 
-    argpack = ArgPack("phase_centre", "radec", "uvw", "chan_freq", "stokes")
+        def __repr__(self):
+            return "Transformer"
+
+    argpack = ArgPack("phase_centre", "radec", "uvw",
+                      "chan_freq", "stokes", "spi")
     terms = [PhaseTerm(), BrightnessTerm()]
     graph = [Edge(argpack, term, a) for term in terms for a in term.ARGS]
 
@@ -69,9 +67,9 @@ def test_arg_graph():
         [["phase_centre", "radec"], ["lm"]],
     ]
 
-    xformers = {i: Transformer(ins, outs) 
-                   for ins, outs in in_outs
-                   for i in ins}
+    xformers = {o: Transformer(ins, outs)
+                for ins, outs in in_outs
+                for o in outs}
 
     graph = []
 
@@ -83,10 +81,13 @@ def test_arg_graph():
                 except KeyError:
                     raise ValueError(f"{a} not in {argpack} "
                                      f"and no transformers available")
-                graph.append(Edge(argpack, xformer, a))
-                graph.append(Edge())
-            else:            
-                graph.append(Edge(argpack, term, a))
-            
 
-    print(graph)
+                for input in xformer.inputs:
+                    graph.append(Edge(argpack, xformer, input))
+
+                for output in xformer.outputs:
+                    graph.append(Edge(xformer, term, output))
+            else:
+                graph.append(Edge(argpack, term, a))
+
+    pprint(graph)
