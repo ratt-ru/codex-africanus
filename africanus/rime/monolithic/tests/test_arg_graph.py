@@ -1,8 +1,62 @@
 from abc import abstractmethod, ABC
 
 
-def test_arg_graph():
 
+def test_numba_intrinsic():
+    from numba.extending import intrinsic
+    from numba.core import cgutils, types
+    from numba import njit
+
+    @intrinsic
+    def none_intrinsic(typingctx, args):
+        sig = types.NoneType("none")(args)
+
+        def codegen(context, builder, signature, args):
+            ret_type = context.get_value_type(signature.return_type)
+            return cgutils.get_null_value(ret_type)
+
+        return sig, codegen
+
+    @njit
+    def test(*args):
+        return none_intrinsic(args)
+
+    print(test(1, 2))
+
+
+    defaults = (1, 2.0, "pants")
+
+    @intrinsic
+    def optional_intrinsic(typingctx, args):
+        assert isinstance(args, types.Tuple)
+        rvt = typingctx.resolve_value_type
+        default_types = tuple(rvt(d) for d in defaults)
+        return_type = types.Tuple(args.types + default_types)
+        sig = return_type(args)
+
+        def codegen(context, builder, signature, args):
+            llvm_ret_type = context.get_value_type(signature.return_type)
+            ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+            for i in range(len(signature.args[0])):
+                data = builder.extract_value(args[0], i)
+                ret_tuple = builder.insert_value(ret_tuple, data, i)
+
+            for d, (typ, default) in enumerate(zip(default_types, defaults)):
+                data = context.get_constant_generic(builder, typ, default)
+                ret_tuple = builder.insert_value(ret_tuple, data, len(signature.args[0]) + d)
+
+            return ret_tuple
+
+        return sig, codegen
+
+    @njit
+    def test(*args):
+        return optional_intrinsic(args)
+
+    print(test(1, "bob", 2.0))
+
+def test_arg_graph():
     class Node(ABC):
         @property
         @abstractmethod
