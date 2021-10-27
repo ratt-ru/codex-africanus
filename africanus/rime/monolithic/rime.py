@@ -29,14 +29,6 @@ class rime_factory:
         extra_args_set = set(k for t in terms for k in t.KWARGS)
         arg_map = {a: i for i, a in enumerate(expected_args)}
 
-        try:
-            lm_i = arg_map["lm"]
-            uvw_i = arg_map["uvw"]
-            chan_freq_i = arg_map["chan_freq"]
-            stokes_i = arg_map["stokes"]
-        except KeyError as e:
-            raise ValueError(f"'{str(e)}' is a required argument")
-
         @generated_jit(nopython=True, nogil=True, cache=False)
         def rime(*inargs):
             global extend_argpack
@@ -48,9 +40,16 @@ class rime_factory:
             new_argpack, extend_argpack_impl = extend_argpack(arg_pack)
             state_factory, pairwise_sample = term_factory(new_argpack, terms)
 
+            try:
+                lm_i = new_argpack.index("lm")
+                uvw_i = new_argpack.index("uvw")
+                chan_freq_i = new_argpack.index("chan_freq")
+                stokes_i = new_argpack.index("stokes")
+            except KeyError as e:
+                raise ValueError(f"'{str(e)}' is a required argument")
+
             def impl(*inargs):
                 args = extend_argpack_impl(inargs)
-
                 state = state_factory(args)  # noqa: F841
 
                 nsrc, _ = args[lm_i].shape

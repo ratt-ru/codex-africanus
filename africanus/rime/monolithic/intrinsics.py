@@ -180,23 +180,29 @@ def tuple_adder(typingctx, t1, t2):
 
 
 def extend_argpack(arg_pack):
+    from numba.core.registry import cpu_target
+    rvt = cpu_target.typing_context.resolve_value_type
+
     names = []
     arg_types = []
     index = []
 
     for j, (name, (typ, i)) in enumerate(arg_pack.items()):
-        names.append(name)        
+        names.append(name)
         arg_types.append(typ)
         index.append(j)
 
-    new_argpack = ArgumentPack(names, arg_types, index)
+    const_arg_types = [rvt(t.value) if isinstance(t, types.Omitted)
+                       else t for t in arg_types]
+
+    new_argpack = ArgumentPack(names, const_arg_types, index)
 
     @intrinsic
     def impl(typingctx, args):
         if not isinstance(args, types.BaseTuple):
             raise errors.TypingError(f"{args} is not a Tuple")
 
-        rvt = typingctx.resolve_value_type_prefer_literal
+        rvt = typingctx.resolve_value_type
         concrete_arg_types = OrderedDict()
 
         for name, typ in zip(names, arg_types):
@@ -205,38 +211,43 @@ def extend_argpack(arg_pack):
             else:
                 concrete_arg_types[name] = (typ, None)
 
-        typs = list((v for v, _ in concrete_arg_types.values()))
+        assert list(concrete_arg_types.keys()) == list(new_argpack.keys())
+        typs = list(typ for typ, _ in concrete_arg_types.values())
         return_type = types.Tuple(typs)
         sig = return_type(args)
 
         def codegen(context, builder, signature, args):
+            nonlocal new_argpack
+            new_argpack = new_argpack.copy()
+
             return_type = signature.return_type
             llvm_ret_type = context.get_value_type(return_type)
             ret_tuple = cgutils.get_null_value(llvm_ret_type)
-
-            nonlocal new_argpack
-            new_argpack = new_argpack.copy()
 
             for k, (typ, i) in new_argpack.items():
                 try:
                     prev_typ, prev_i = arg_pack[k]
                 except KeyError:
-                    _, default = concrete_arg_types[k]
-                    value = context.get_constant_generic(
-                                    builder, typ, default)
+                    missing = True
                 else:
-                    if isinstance(prev_typ, types.Omitted):
-                        raise errors.TypingError(f"{prev_typ} is Omitted")
+                    missing = isinstance(prev_typ, types.Omitted)
+
+                if missing:
+                    default_typ, default = concrete_arg_types[k]
+                    if default is None:
+                        import pdb; pdb.set_trace()
+                        raise errors.TypingError(f"'default' must not be None for Omitted arguments")
+
+                    value = context.get_constant_generic(builder, default_typ, default)
+                else:
+                    if typ is not prev_typ:
+                        import pdb; pdb.set_trace()
+                        raise errors.TypingError(f"{k} '{typ}' != '{prev_typ}")
+
                     value = builder.extract_value(args[0], prev_i)
+                    context.nrt.incref(builder, typ, value)
 
-                builder.insert_value(ret_tuple, value, i)
-
-
-            for k, (typ, i) in new_argpack.items():
-                new_typ, default = concrete_arg_types[k]
-                const = context.get_constant_generic(
-                    builder, new_typ, default)
-                builder.insert_value(ret_tuple, const, i)
+                ret_tuple = builder.insert_value(ret_tuple, value, i)
 
             return ret_tuple
 
@@ -278,7 +289,7 @@ def term_factory(arg_pack, terms):
                 raise errors.TypingError("args must contain a single value")
 
             typingctx = context.typing_context
-            rvt = typingctx.resolve_value_type_prefer_literal
+            rvt = typingctx.resolve_value_type
 
             def make_struct():
                 """ Allocate the structure """
