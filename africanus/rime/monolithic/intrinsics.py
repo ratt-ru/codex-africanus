@@ -180,9 +180,6 @@ def tuple_adder(typingctx, t1, t2):
 
 
 def extend_argpack(arg_pack):
-    from numba.core.registry import cpu_target
-    rvt = cpu_target.typing_context.resolve_value_type
-
     names = []
     arg_types = []
     index = []
@@ -192,10 +189,7 @@ def extend_argpack(arg_pack):
         arg_types.append(typ)
         index.append(j)
 
-    const_arg_types = [rvt(t.value) if isinstance(t, types.Omitted)
-                       else t for t in arg_types]
-
-    new_argpack = ArgumentPack(names, const_arg_types, index)
+    new_argpack = ArgumentPack(names, arg_types, index)
 
     @intrinsic
     def impl(typingctx, args):
@@ -204,15 +198,16 @@ def extend_argpack(arg_pack):
 
         rvt = typingctx.resolve_value_type
         concrete_arg_types = OrderedDict()
+        NO_DEFAULT = object()
 
-        for name, typ in zip(names, arg_types):
+        for name, typ, i in zip(names, arg_types, index):
             if isinstance(typ, types.Omitted):
-                concrete_arg_types[name] = (rvt(typ.value), typ.value)
+                concrete_arg_types[name] = (rvt(typ.value), typ.value, i)
             else:
-                concrete_arg_types[name] = (typ, None)
+                concrete_arg_types[name] = (typ, NO_DEFAULT, i)
 
         assert list(concrete_arg_types.keys()) == list(new_argpack.keys())
-        typs = list(typ for typ, _ in concrete_arg_types.values())
+        typs = list(typ for typ, _, _ in concrete_arg_types.values())
         return_type = types.Tuple(typs)
         sig = return_type(args)
 
@@ -224,7 +219,7 @@ def extend_argpack(arg_pack):
             llvm_ret_type = context.get_value_type(return_type)
             ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
-            for k, (typ, i) in new_argpack.items():
+            for k, (typ, default, i) in concrete_arg_types.items():
                 try:
                     prev_typ, prev_i = arg_pack[k]
                 except KeyError:
@@ -232,18 +227,27 @@ def extend_argpack(arg_pack):
                 else:
                     missing = isinstance(prev_typ, types.Omitted)
 
+                    if missing:
+                        # Sanity check the index and type
+                        if prev_i != -1:
+                            raise errors.TypingError(f"{k} {prev_typ} is Omitted "
+                                                     f"but {prev_i} != -1")
+
+                        default_typ = rvt(prev_typ.value)
+
+                        if default_typ is not typ:
+                            raise errors.TypingError(f"Resolved type default of {prev_typ} "
+                                                     f"produces {default_typ} which does not "
+                                                     f"match {typ}")
+
                 if missing:
-                    default_typ, default = concrete_arg_types[k]
-                    if default is None:
-                        import pdb; pdb.set_trace()
-                        raise errors.TypingError(f"'default' must not be None for Omitted arguments")
+                    default_typ, default, _ = concrete_arg_types[k]
+                    if default is NO_DEFAULT:
+                        raise errors.TypingError(f"'default' wasn't supplied "
+                                                 f"for missing values for {k}")
 
                     value = context.get_constant_generic(builder, default_typ, default)
                 else:
-                    if typ is not prev_typ:
-                        import pdb; pdb.set_trace()
-                        raise errors.TypingError(f"{k} '{typ}' != '{prev_typ}")
-
                     value = builder.extract_value(args[0], prev_i)
                     context.nrt.incref(builder, typ, value)
 
@@ -257,30 +261,32 @@ def extend_argpack(arg_pack):
 
 
 def term_factory(arg_pack, terms):
-    constructors = []
-    state_fields = []
-
-    # Query Terms for fields and their associated types
-    # that should be created on the State object
-    for term in terms:
-        arg_types = arg_pack.type_dict(*term.ALL_ARGS)
-        state_fields.extend(term.fields(**arg_types))
-
-    # Now define all fields for the State type
-    arg_fields = [(k, vt) for k, (vt, _) in arg_pack.items()]
-    state_type = StateStructRef(arg_fields + state_fields)
-
-    for term in terms:
-        arg_types = arg_pack.type_dict(*term.ALL_ARGS)
-        init_types = {"state": state_type, **arg_types}
-        constructor = term.initialiser(**init_types)
-        term.validate_constructor(constructor)
-        constructors.append(constructor)
-
     @intrinsic
     def construct_terms(typingctx, args):
         if not isinstance(args, types.Tuple):
             raise errors.TypingError("args must be a Tuple")
+
+        constructors = []
+        state_fields = []
+
+        # Query Terms for fields and their associated types
+        # that should be created on the State object
+        for term in terms:
+            arg_idx = arg_pack.indices(*term.ALL_ARGS)
+            arg_types = {a: args[i] for a, i in zip(term.ALL_ARGS, arg_idx)}
+            state_fields.extend(term.fields(**arg_types))
+
+        # Now define all fields for the State type
+        arg_fields = [(k, args[i]) for k, (_, i) in arg_pack.items()]
+        state_type = StateStructRef(arg_fields + state_fields)
+
+        for term in terms:
+            arg_idx = arg_pack.indices(*term.ALL_ARGS)
+            arg_types = {a: args[i] for a, i in zip(term.ALL_ARGS, arg_idx)}
+            init_types = {"state": state_type, **arg_types}
+            constructor = term.initialiser(**init_types)
+            term.validate_constructor(constructor)
+            constructors.append(constructor)
 
         sig = state_type(args)
 
@@ -303,6 +309,7 @@ def term_factory(arg_pack, terms):
             for arg_name, (_, i) in arg_pack.items():
                 value = builder.extract_value(args[0], i)
                 value_type = signature.args[0][i]
+                context.nrt.incref(builder, value_type, value)
                 field_type = state_type.field_dict[arg_name]
                 casted = context.cast(builder, value,
                                       value_type, field_type)
@@ -353,18 +360,18 @@ def term_factory(arg_pack, terms):
 
     samplers = [term.sampler() for term in terms]
 
-    for sampler in samplers:
+    for term, sampler in zip(terms, samplers):
         term.validate_sampler(sampler)
 
     nterms = len(terms)
 
     def term_sampler(typingctx, state, s, r, t, a1, a2, c):
         if not isinstance(state, StateStructRef):
-            raise errors.TypingError(f"{state} must be a {state_type}")
+            raise errors.TypingError(f"{state} must be a StateStructRef")
 
         sampler_ir = list(map(compiler.run_frontend, samplers))
         idx_types = (s, r, t, a1, a2, c)
-        ir_args = (state_type,) + idx_types
+        ir_args = (state,) + idx_types
         type_infer = [type_inference_stage(typingctx, ir, ir_args, None)
                       for ir in sampler_ir]
         sampler_return_types = [ti.return_type for ti in type_infer]
@@ -402,6 +409,7 @@ def term_factory(arg_pack, terms):
 
         def codegen(context, builder, signature, args):
             [state, s, r, t, a1, a2, c] = args
+            [state_type, _, _, _, _, _, _] = signature.args
             jones = []
 
             for ti in range(nterms):
