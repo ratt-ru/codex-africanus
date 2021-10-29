@@ -196,7 +196,7 @@ def extend_argpack(arg_pack):
         if not isinstance(args, types.BaseTuple):
             raise errors.TypingError(f"{args} is not a Tuple")
 
-        rvt = typingctx.resolve_value_type
+        rvt = typingctx.resolve_value_type_prefer_literal
         concrete_arg_types = OrderedDict()
         NO_DEFAULT = object()
 
@@ -227,26 +227,25 @@ def extend_argpack(arg_pack):
                 else:
                     missing = isinstance(prev_typ, types.Omitted)
 
-                    if missing:
-                        # Sanity check the index and type
-                        if prev_i != -1:
-                            raise errors.TypingError(f"{k} {prev_typ} is Omitted "
-                                                     f"but {prev_i} != -1")
-
-                        default_typ = rvt(prev_typ.value)
-
-                        if default_typ is not typ:
-                            raise errors.TypingError(f"Resolved type default of {prev_typ} "
-                                                     f"produces {default_typ} which does not "
-                                                     f"match {typ}")
-
                 if missing:
-                    default_typ, default, _ = concrete_arg_types[k]
+                    # Do some sanity checking on indexes, types and defaults
+                    if prev_i != -1:
+                        raise errors.TypingError(f"{k} {prev_typ} is Omitted "
+                                                    f"but {prev_i} != -1")
+
+                    default_typ = rvt(prev_typ.value)
+
+                    if default_typ is not typ:
+                        raise errors.TypingError(f"Resolved type default of {prev_typ} "
+                                                    f"produces {default_typ} which does not "
+                                                    f"match {typ}")
+
                     if default is NO_DEFAULT:
                         raise errors.TypingError(f"'default' wasn't supplied "
                                                  f"for missing values for {k}")
 
-                    value = context.get_constant_generic(builder, default_typ, default)
+                    # Create the constant
+                    value = context.get_constant_generic(builder, typ, default)
                 else:
                     value = builder.extract_value(args[0], prev_i)
                     context.nrt.incref(builder, typ, value)
@@ -295,7 +294,7 @@ def term_factory(arg_pack, terms):
                 raise errors.TypingError("args must contain a single value")
 
             typingctx = context.typing_context
-            rvt = typingctx.resolve_value_type
+            rvt = typingctx.resolve_value_type_prefer_literal
 
             def make_struct():
                 """ Allocate the structure """
