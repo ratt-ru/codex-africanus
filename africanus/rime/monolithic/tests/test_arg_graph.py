@@ -1,47 +1,5 @@
-from abc import abstractmethod, ABC
-
-import pytest
-
-
-def test_numba_intrinsic():
-    from numba.extending import intrinsic
-    from numba.core import cgutils, types
-    from numba import njit
-
-    defaults = (1, 2.0, "pants")
-
-    @intrinsic
-    def optional_intrinsic(typingctx, args):
-        assert isinstance(args, types.Tuple)
-        default_types = tuple(map(typingctx.resolve_value_type, defaults))
-        return_type = types.Tuple(args.types + default_types)
-        sig = return_type(args)
-
-        def codegen(context, builder, signature, args):
-            llvm_ret_type = context.get_value_type(signature.return_type)
-            ret_tuple = cgutils.get_null_value(llvm_ret_type)
-
-            for i in range(len(signature.args[0])):
-                data = builder.extract_value(args[0], i)
-                context.nrt.incref(builder, signature.args[0][i], data)
-                ret_tuple = builder.insert_value(ret_tuple, data, i)
-
-            for d, (typ, default) in enumerate(zip(default_types, defaults)):
-                const = context.get_constant_generic(builder, typ, default)
-                ret_tuple = builder.insert_value(ret_tuple, const, len(signature.args[0]) + d)
-
-            return ret_tuple
-
-        return sig, codegen
-
-    @njit
-    def test2(*args):
-        return optional_intrinsic(args)
-
-    print(test2(1, "bob", 2.0))
-
-
 def test_arg_graph():
+    from abc import abstractmethod, ABC
     class Node(ABC):
         @property
         @abstractmethod
