@@ -4,7 +4,6 @@ from numba.extending import intrinsic
 from numba.core import types, errors
 
 import numpy as np
-import pytest
 
 
 @structref.register

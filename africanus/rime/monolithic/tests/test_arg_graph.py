@@ -1,5 +1,6 @@
 def test_arg_graph():
     from abc import abstractmethod, ABC
+
     class Node(ABC):
         @property
         @abstractmethod
@@ -51,12 +52,11 @@ def test_arg_graph():
         @property
         def outputs(self):
             return self._outputs
-        
+
         def __repr__(self):
             return self.name
 
         __str__ = __repr__
-
 
     terms = [BrightnessTerm(), PhaseTerm()]
     args = {"phase_centre", "radec", "uvw",
@@ -92,7 +92,7 @@ def test_arg_graph():
                         raise ValueError(f"{xformer} needs '{input}' to "
                                          f"produce '{a}' but '{input}' is not "
                                          f"present in the supplied "
-                                          f"arguments")
+                                         f"arguments")
                     else:
                         # Add the transformer as the argument's neighbour
                         arg.add_output(xformer)
@@ -101,7 +101,6 @@ def test_arg_graph():
                 output.add_output(term)
             else:
                 arg.add_output(term)
-
 
     def toposort(graph):
         stack = []
@@ -131,5 +130,3 @@ def test_arg_graph():
 
     order = toposort(variables.values())
     print(order)
-
-

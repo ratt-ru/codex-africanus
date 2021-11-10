@@ -10,7 +10,8 @@ class ArgumentPack(Mapping):
                                 in zip(names, types, index))
 
     def copy(self):
-        names, types, index = zip(*((k, t, i) for k, (t, i) in self.pack.items()))
+        names, types, index = zip(*((k, t, i) for k, (t, i)
+                                    in self.pack.items()))
         return ArgumentPack(names, types, index)
 
     def pop(self, key):

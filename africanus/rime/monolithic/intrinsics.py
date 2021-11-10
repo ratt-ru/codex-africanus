@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from numpy.lib.arraysetops import isin
 from numba import njit
 from numba.core import compiler, cgutils, errors, types
 from numba.extending import intrinsic
@@ -230,13 +229,14 @@ def extend_argpack(arg_pack):
                     # Sanity check the index
                     if missing and prev_i != -1:
                         raise errors.TypingError(f"{k} {prev_typ} is Omitted "
-                                                    f"but {prev_i} != -1")
+                                                 f"but {prev_i} != -1")
 
                     # Sanity check the default_typ
                     if missing and typ is not rvt(prev_typ.value):
-                        raise errors.TypingError(f"Resolved type default of {prev_typ} "
-                                                 f"produces {rvt(prev_typ.value)} which "
-                                                 f"does not match {typ}")
+                        raise errors.TypingError(
+                            f"Resolved type default of {prev_typ} "
+                            f"produces {rvt(prev_typ.value)} which "
+                            f"does not match {typ}")
 
                 if missing:
                     if default is NO_DEFAULT:

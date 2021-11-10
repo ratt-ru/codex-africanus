@@ -7,9 +7,7 @@ from numba.experimental import structref
 from numba.np.numpy_support import as_dtype
 import numpy as np
 
-
-class InvalidSignature(ValueError):
-    pass
+from africanus.rime.monolithic.error import InvalidSignature
 
 
 @structref.register

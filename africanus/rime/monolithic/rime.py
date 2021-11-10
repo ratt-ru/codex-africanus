@@ -3,7 +3,8 @@ from numba import generated_jit, types
 import numpy as np
 
 from africanus.rime.monolithic.argpack import pack_arguments
-from africanus.rime.monolithic.intrinsics import extend_argpack, term_factory
+from africanus.rime.monolithic.intrinsics import (
+    extend_argpack, term_factory)
 from africanus.rime.monolithic.terms import Term
 
 
@@ -31,8 +32,6 @@ class rime_factory:
 
         @generated_jit(nopython=True, nogil=True, cache=False)
         def rime(*inargs):
-            global extend_argpack
-
             if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
                 raise ValueError(f"{inargs[0]} must be be a Tuple")
 

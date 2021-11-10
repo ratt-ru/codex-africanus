@@ -43,6 +43,7 @@ chunks = [
     },
 ]
 
+
 @pytest.mark.parametrize("chunks", chunks)
 def test_monolithic_rime(chunks):
     nsrc = sum(chunks["source"])
