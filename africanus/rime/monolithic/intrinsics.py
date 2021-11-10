@@ -184,7 +184,7 @@ def extend_argpack(arg_pack):
     arg_types = []
     index = []
 
-    for j, (name, (typ, i)) in enumerate(arg_pack.items()):
+    for j, (name, (typ, _)) in enumerate(arg_pack.items()):
         names.append(name)
         arg_types.append(typ)
         index.append(j)
@@ -228,7 +228,7 @@ def extend_argpack(arg_pack):
                     missing = isinstance(prev_typ, types.Omitted)
 
                     # Sanity check the index
-                    if missing and prev_i != 1:
+                    if missing and prev_i != -1:
                         raise errors.TypingError(f"{k} {prev_typ} is Omitted "
                                                     f"but {prev_i} != -1")
 
