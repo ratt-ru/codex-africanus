@@ -3,6 +3,7 @@ import inspect
 
 from numba.core import types, typing
 
+from africanus.rime.monolithic.common import result_type
 from africanus.rime.monolithic.error import InvalidSignature
 
 
@@ -90,6 +91,8 @@ class TransformerMetaClass(type):
 
 
 class Transformer(metaclass=TransformerMetaClass):
+    result_type = staticmethod(result_type)
+
     @abc.abstractmethod
     def dask_schema(self, *args, **kwargs):
         raise NotImplementedError
@@ -111,9 +114,7 @@ class LMTransformer(Transformer):
         if not isinstance(phase_centre, types.Array) or radec.ndim != 1:
             raise ValueError(f"{phase_centre} must be a 1D array")
 
-        ctx = typing.Context()
-        dt = ctx.unify_types(radec.dtype, phase_centre.dtype)
-
+        dt = self.result_type(radec.dtype, phase_centre.dtype)
         return [("lm", types.Array(dt, radec.ndim, radec.layout))]
 
     def transform(self, radec, phase_centre):

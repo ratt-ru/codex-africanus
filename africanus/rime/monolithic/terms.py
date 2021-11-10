@@ -1,12 +1,11 @@
 import inspect
 from functools import partial
 
-import numba
-from numba.core import types
-from numba.experimental import structref
-from numba.np.numpy_support import as_dtype
 import numpy as np
+from numba.experimental import structref
+from numba.core import types
 
+from africanus.rime.monolithic.common import result_type
 from africanus.rime.monolithic.error import InvalidSignature
 
 
@@ -151,23 +150,7 @@ class TermMetaClass(type):
 
 
 class Term(metaclass=TermMetaClass):
-    @staticmethod
-    def result_type(*args):
-        arg_types = []
-
-        for arg in args:
-            if isinstance(arg, types.Type):
-                if isinstance(arg, types.Array):
-                    arg_types.append(as_dtype(arg.dtype))
-                else:
-                    arg_types.append(as_dtype(arg))
-
-            elif isinstance(arg, np.generic):
-                arg_types.append(arg)
-            else:
-                raise TypeError(f"Unknown type {type(arg)} of argument {arg}")
-
-        return numba.typeof(np.result_type(*arg_types)).dtype
+    result_type = staticmethod(result_type)
 
     @classmethod
     def validate_sampler(cls, sampler):
