@@ -1,7 +1,6 @@
 import inspect
 from functools import partial
 
-import numpy as np
 from numba.experimental import structref
 from numba.core import types
 

@@ -1,3 +1,4 @@
+
 def test_arg_graph():
     from abc import abstractmethod, ABC
 
@@ -130,3 +131,48 @@ def test_arg_graph():
 
     order = toposort(variables.values())
     print(order)
+
+
+def test_arg_graph_2():
+    from africanus.rime.monolithic.phase import PhaseTerm
+    from africanus.rime.monolithic.brightness import BrightnessTerm
+    from africanus.rime.monolithic.transformers import LMTransformer
+
+    terms = [PhaseTerm(), BrightnessTerm()]
+    xformers = [LMTransformer()]
+
+    class NO_DEFAULT:
+        def __repr__(self):
+            return "<no default>"
+
+        __str__ = __repr__
+
+    MISSING = NO_DEFAULT()
+    desired = {}
+
+    for term in terms:
+        for a in term.ARGS:
+            desired[a] = MISSING
+
+        for k, d in term.KWARGS.items():
+            desired[k] = d
+
+    print(desired)
+
+    supplied_args = set(("radec", "phase_centre", "uvw",
+                         "chan_freq", "stokes"))
+
+    for arg, default in desired.items():
+        if arg in supplied_args:
+            continue
+
+        if default is not MISSING:
+            continue
+
+        for transformer in xformers:
+            if arg in transformer.OUTPUTS:
+                for a in transformer.ARGS:
+                    if a not in supplied_args:
+                        raise ValueError(f"{a} not supplied")
+            else:
+                raise ValueError(f"{arg} not supplied")

@@ -3,6 +3,7 @@ from numba.core import types
 from numba.np.numpy_support import as_dtype
 import numpy as np
 
+
 def result_type(*args):
     arg_types = []
 

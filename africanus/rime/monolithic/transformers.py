@@ -1,7 +1,7 @@
-import abc
 import inspect
 
-from numba.core import types, typing
+
+from numba.core import types
 
 from africanus.rime.monolithic.common import result_type
 from africanus.rime.monolithic.error import InvalidSignature
@@ -17,7 +17,7 @@ class TransformerMetaClass(type):
     class members on the subclass based on the above
     signatures
     """
-    REQUIRED = ("fields", "transform")
+    REQUIRED = ("dask_schema", "fields", "transform")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
@@ -57,6 +57,26 @@ class TransformerMetaClass(type):
                                    f"should be "
                                    f"{name}.transform{fields_sig}")
 
+        dask_schema_sig = inspect.signature(methods["dask_schema"])
+
+        if fields_sig != dask_schema_sig:
+            raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
+                                   f"should be "
+                                   f"{name}.dask_schema{fields_sig}")
+
+        valid_outputs = "OUTPUTS" in namespace
+        valid_outputs = (valid_outputs and
+                         isinstance(namespace["OUTPUTS"], (tuple, list)))
+        valid_outputs = (valid_outputs and
+                         all(isinstance(o, str) for o in namespace["OUTPUTS"]))
+
+        if not valid_outputs:
+            raise InvalidSignature(f"{name}.OUTPUTS should be a tuple "
+                                   f"of the names of the outputs produced "
+                                   f"by this transformer")
+
+        namespace["OUTPUTS"] = tuple(namespace["OUTPUTS"])
+
         args = tuple(n for n, p in fields_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
                      and p.default is p.empty)
@@ -93,20 +113,10 @@ class TransformerMetaClass(type):
 class Transformer(metaclass=TransformerMetaClass):
     result_type = staticmethod(result_type)
 
-    @abc.abstractmethod
-    def dask_schema(self, *args, **kwargs):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def fields(self, *args, **kwargs):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def transform(self, *args, **kwargs):
-        raise NotImplementedError
-
 
 class LMTransformer(Transformer):
+    OUTPUTS = ["lm"]
+
     def fields(self, radec, phase_centre):
         if not isinstance(radec, types.Array) or radec.ndim != 2:
             raise ValueError(f"{radec} must be a (source, radec) array")
@@ -119,3 +129,7 @@ class LMTransformer(Transformer):
 
     def transform(self, radec, phase_centre):
         pass
+
+    def dask_schema(self, radec, phase_centre):
+        return {"radec": ("source", "radec"),
+                "phase_centre": ("radec",)}
