@@ -2,12 +2,16 @@
 History
 =======
 
-0.3.1 (2021-09-09)
+X.Y.Z (YYYY-MM-DD)
 ------------------
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
+* BDA fix typos in numba wrapper (:pr:`261`)
+* BDA Time-smearing fixes (:pr:`253`)
+
+0.3.1 (2021-09-09)
+------------------
 * Handle empty spectral indices in WSClean Model (:pr:`258`)
 * Support missing data during BDA (:pr:`252`)
-* BDA Time-smearing fixes (:pr:`253`)
 
 0.3.0 (2021-09-09)
 ------------------
