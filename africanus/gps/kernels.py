@@ -45,3 +45,13 @@ def exponential_squared(x, xp, sigmaf, l, pspec=False):  # noqa: E741
     else:
         xxp = abs_diff(x, xp)
         return sigmaf**2*np.exp(-xxp**2/(2*l**2))
+
+
+def matern52(x, xp, sigmaf, l):
+    if pspec:
+        raise NotImplementedError("Sorry!")
+    else:
+        xxp = abs_diff(x, xp)
+        sqrt5 = np.sqrt(5)
+        return sigmaf**2*np.exp(-sqrt5 * xxp/l) * (1 + sqrt5*xxp/l + 5*d**2/(3*l**2))
+
