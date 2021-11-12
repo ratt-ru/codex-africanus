@@ -1,7 +1,7 @@
 from africanus.constants import c as lightspeed
 import numpy as np
 
-from africanus.rime.monolithic.terms import Term
+from africanus.rime.monolithic.terms.core import Term
 
 
 class PhaseTerm(Term):

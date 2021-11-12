@@ -6,7 +6,7 @@ from numba.core.typed_passes import type_inference_stage
 from numba.experimental import structref
 
 from africanus.rime.monolithic.argpack import ArgumentPack
-from africanus.rime.monolithic.terms import StateStructRef
+from africanus.rime.monolithic.terms.core import StateStructRef
 
 PAIRWISE_BLOCKSIZE = 128
 

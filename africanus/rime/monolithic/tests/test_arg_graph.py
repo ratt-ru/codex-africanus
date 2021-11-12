@@ -1,3 +1,5 @@
+import pytest
+
 
 def test_arg_graph():
     from abc import abstractmethod, ABC
@@ -133,10 +135,11 @@ def test_arg_graph():
     print(order)
 
 
+@pytest.mark.xfail
 def test_arg_graph_2():
-    from africanus.rime.monolithic.phase import PhaseTerm
-    from africanus.rime.monolithic.brightness import BrightnessTerm
-    from africanus.rime.monolithic.transformers import LMTransformer
+    from africanus.rime.monolithic.terms.phase import PhaseTerm
+    from africanus.rime.monolithic.terms.brightness import BrightnessTerm
+    from africanus.rime.monolithic.transformers.core import LMTransformer
 
     terms = [PhaseTerm(), BrightnessTerm()]
     xformers = [LMTransformer()]
@@ -157,22 +160,35 @@ def test_arg_graph_2():
         for k, d in term.KWARGS.items():
             desired[k] = d
 
+    for transformer in xformers:
+        for output in transformer.OUTPUTS:
+            if output in desired:
+                continue
+
     print(desired)
 
-    supplied_args = set(("radec", "phase_centre", "uvw",
+    supplied_args = set(("radec", "uvw",
                          "chan_freq", "stokes"))
 
     for arg, default in desired.items():
         if arg in supplied_args:
             continue
 
-        if default is not MISSING:
-            continue
+        missing = False
 
         for transformer in xformers:
+            if missing:
+                break
+
             if arg in transformer.OUTPUTS:
                 for a in transformer.ARGS:
                     if a not in supplied_args:
-                        raise ValueError(f"{a} not supplied")
-            else:
-                raise ValueError(f"{arg} not supplied")
+                        missing = True
+                        break
+
+        if default is MISSING:
+            missing
+
+        if missing:
+            raise ValueError(f"{arg} not supplied or unable "
+                             f"to create it from supplied args")

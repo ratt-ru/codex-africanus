@@ -64,13 +64,10 @@ class TransformerMetaClass(type):
                                    f"should be "
                                    f"{name}.dask_schema{fields_sig}")
 
-        valid_outputs = "OUTPUTS" in namespace
-        valid_outputs = (valid_outputs and
-                         isinstance(namespace["OUTPUTS"], (tuple, list)))
-        valid_outputs = (valid_outputs and
-                         all(isinstance(o, str) for o in namespace["OUTPUTS"]))
+        if not ("OUTPUTS" in namespace and
+                isinstance(namespace["OUTPUTS"], (tuple, list)) and
+                all(isinstance(o, str) for o in namespace["OUTPUTS"])):
 
-        if not valid_outputs:
             raise InvalidSignature(f"{name}.OUTPUTS should be a tuple "
                                    f"of the names of the outputs produced "
                                    f"by this transformer")
