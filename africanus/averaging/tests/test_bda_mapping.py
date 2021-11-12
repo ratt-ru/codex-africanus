@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
 from africanus.averaging.bda_mapping import bda_mapper, Binner
 
 
-@pytest.fixture(scope="session", params=[4096])
+@pytest.fixture(scope="session", params=[16])
 def nchan(request):
     return request.param
 
@@ -205,10 +205,17 @@ def test_bda_mapper(time, synthesized_uvw, interval,
 
     # NUM_CHAN divides number of channels exactly
     num_chan = np.diff(row_meta.offsets)
-    _, remainder = np.divmod(chan_width.shape[0], num_chan)
-    assert np.all(remainder == 0)
+    div, mod = np.divmod(chan_width.shape[0], num_chan)
+    assert np.all(mod == 0)
     decorr_cw = chan_width.sum() / num_chan
     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
+
+    for s, e, d in zip(row_meta.offsets[:-1], row_meta.offsets[1:], div):
+        nchan = chan_freq.shape[0] // d
+        assert e - s == nchan
+        expected = np.linspace(chan_freq[0], chan_freq[-1], nchan)
+        # import pdb; pdb.set_trace()
+        assert_array_almost_equal(row_meta.chan_freq[s:e], expected)
 
 
 def test_bda_binner(time, interval, synthesized_uvw,

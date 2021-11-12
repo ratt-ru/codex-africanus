@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Expose chan_freq in BDA output (:pr:`260`)
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
 * BDA fix typos in numba wrapper (:pr:`261`)
 * BDA Time-smearing fixes (:pr:`253`)
