@@ -192,3 +192,95 @@ def test_arg_graph_2():
         if missing:
             raise ValueError(f"{arg} not supplied or unable "
                              f"to create it from supplied args")
+
+
+@pytest.mark.xfail
+def test_arg_graph_3():
+    import numba
+    from numba import types
+    import numpy as np
+    from collections import defaultdict
+    
+    from africanus.rime.monolithic.terms.phase import PhaseTerm
+    from africanus.rime.monolithic.transformers.lm import LMTransformer
+
+    class rime_factory:
+        def __init__(self):
+            terms = [PhaseTerm()]
+            transformers = [LMTransformer()]
+            desired = defaultdict(list)
+            optional = defaultdict(list)
+            can_create = defaultdict(list)
+
+            for t in terms:
+                for a in t.ARGS:
+                    desired[a].append(t)
+                for k, d in t.KWARGS.items():
+                    optional[k].append((t, d))
+
+            for t in transformers:
+                for o in t.OUTPUTS:
+                    can_create[o].append(t)
+
+            @numba.generated_jit
+            def fn(arg_names, *args):
+                assert len(arg_names) == len(args[0])
+                assert all(isinstance(n, types.Literal) for n in arg_names)
+                assert all(n.literal_type is types.unicode_type for n in arg_names)
+                names = tuple(n.literal_value for n in arg_names)
+                missing = set(desired.keys()) - set(names)
+                attempts = {}
+
+                # Try create missing argument with transformers
+                for arg in list(missing):
+                    try:
+                        transformers = can_create[arg]
+                    except KeyError:
+                        continue
+
+                    for transformer in transformers:
+                        # We didn't have the arguments, make a note of this
+                        if not set(transformer.ARGS).issubset(set(names)):
+                            attempts[arg] = (transformer, list(transformer.ARGS))
+                            continue
+
+                    if arg in attempts:
+                        continue
+
+                    missing.remove(arg)
+
+                for arg in missing:
+                    terms_wanting = desired[arg]
+                    err_msgs = []
+                    err_msgs.append(f"The following terms want {arg}: {terms_wanting}.")
+
+                    try:
+                        transformer, transformer_args = attempts[arg]
+                    except KeyError:
+                        pass
+                    else:
+                        needed = set(transformer_args)
+
+                        err_msgs.append(f"{transformer} can create {arg} "
+                                        f"but needs {needed}, of which "
+                                        f"{needed - set(names)} is missing "
+                                        f"from the input arguments.")
+
+                    raise ValueError("\n".join(err_msgs))
+
+
+                def impl(arg_names, *args):
+                    print(arg_names)
+                    print(args)
+
+                return impl
+
+            self.impl = fn
+
+
+        def __call__(self, **kwargs):
+            keys = tuple(types.literal(k) for k in kwargs.keys())
+            return self.impl(keys, *kwargs.values())
+
+    factory = rime_factory()
+    factory(radec=1, uvw=np.zeros((10, 3)), chan_freq="hi")

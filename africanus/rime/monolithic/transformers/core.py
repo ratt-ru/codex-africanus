@@ -107,3 +107,9 @@ class TransformerMetaClass(type):
 
 class Transformer(metaclass=TransformerMetaClass):
     result_type = staticmethod(result_type)
+
+    def __repr__(self):
+        return self.__class__.__name__
+
+    def __str__(self):
+        return self.__class__.__name__

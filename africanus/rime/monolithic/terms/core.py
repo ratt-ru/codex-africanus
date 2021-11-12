@@ -151,6 +151,9 @@ class TermMetaClass(type):
 class Term(metaclass=TermMetaClass):
     result_type = staticmethod(result_type)
 
+    def __repr__(self):
+        return self.__class__.__name__
+
     @classmethod
     def validate_sampler(cls, sampler):
         """ Validate the sampler implementation """
