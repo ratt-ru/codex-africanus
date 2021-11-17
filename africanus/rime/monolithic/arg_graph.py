@@ -149,6 +149,8 @@ def pack_arguments(arg_names, args, terms, transformers):
             llvm_ret_type = context.get_value_type(return_type)
             ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
+            # Extract supplied arguments from original arg tuple
+            # and insert into the new one
             for i, typ in enumerate(signature.args[0]):
                 value = builder.extract_value(args[0], i)
                 context.nrt.incref(builder, signature.args[0][i], value)
@@ -156,12 +158,16 @@ def pack_arguments(arg_names, args, terms, transformers):
 
             n = len(names)
 
+            # Insert necessary optional defaults (kwargs) into the
+            # new argument tuple
             for i, (_, typ, default) in enumerate(optionals):
                 value = context.get_constant_generic(builder, typ, default)
                 ret_tuple = builder.insert_value(ret_tuple, value, i + n)
 
             n += len(optionals)
 
+            # Apply any argument transforms and insert their results
+            # into the new argument tuple
             for i, (_, transformer) in enumerate(can_create.items()):
                 transform_args = []
                 transform_types = []

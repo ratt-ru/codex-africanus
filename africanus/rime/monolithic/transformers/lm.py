@@ -1,3 +1,4 @@
+import numpy as np
 from numba.core import types
 
 from africanus.rime.monolithic.transformers.core import Transformer
@@ -18,11 +19,7 @@ class LMTransformer(Transformer):
 
     def transform(self):
         def lm(radec, phase_centre):
-            # assert phase_centre.shape == (2,)
-            # assert radec.ndim == 2
-            # assert radec.shape[1] == 2
-
-            return radec.copy()
+            return np.arange(radec.shape[0])
 
         return lm
 
