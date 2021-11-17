@@ -1,9 +1,19 @@
+from functools import partial
 import inspect
+from inspect import Signature, Parameter
 
 
 from africanus.rime.monolithic.common import result_type
 from africanus.rime.monolithic.error import InvalidSignature
 
+def sigcheck_factory(expected_sig):
+    def check_transformer_sig(self, fn):
+        sig = inspect.signature(fn)
+        if sig != expected_sig:
+            raise ValueError(f"{fn.__name__}{sig} should be "
+                             f"{fn.__name__}{expected_sig}")
+
+    return check_transformer_sig
 
 class TransformerMetaClass(type):
     """
@@ -49,11 +59,12 @@ class TransformerMetaClass(type):
                                        f"is not supported")
 
         transform_sig = inspect.signature(methods["transform"])
+        expected = Signature([Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)])
 
-        if fields_sig != transform_sig:
+        if transform_sig != expected:
             raise InvalidSignature(f"{name}.transform{transform_sig} "
                                    f"should be "
-                                   f"{name}.transform{fields_sig}")
+                                   f"{name}.transform{expected}")
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
 
@@ -83,6 +94,7 @@ class TransformerMetaClass(type):
         namespace["ARGS"] = args[1:]
         namespace["KWARGS"] = kw
         namespace["ALL_ARGS"] = tuple(fields_sig.parameters.keys())[1:]
+        namespace["transform_validator"] = sigcheck_factory(transform_sig)
 
         return namespace
 

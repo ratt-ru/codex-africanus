@@ -16,8 +16,15 @@ class LMTransformer(Transformer):
         dt = self.result_type(radec.dtype, phase_centre.dtype)
         return [("lm", types.Array(dt, radec.ndim, radec.layout))]
 
-    def transform(self, radec, phase_centre):
-        pass
+    def transform(self):
+        def lm(radec, phase_centre):
+            # assert phase_centre.shape == (2,)
+            # assert radec.ndim == 2
+            # assert radec.shape[1] == 2
+
+            return radec.copy()
+
+        return lm
 
     def dask_schema(self, radec, phase_centre):
         return {"radec": ("source", "radec"),
