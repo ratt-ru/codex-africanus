@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-from numba import njit
 from numba.core import compiler, cgutils, types
 from numba.core.errors import TypingError
 from numba.core.extending import intrinsic
@@ -486,7 +485,7 @@ class IntrinsicFactory:
 
         return term_state
 
-    def pairwise_sampler_fn(self):
+    def term_sampler_fn(self):
         samplers = [term.sampler() for term in self.terms]
 
         for term, sampler in zip(self.terms, samplers):
@@ -494,7 +493,8 @@ class IntrinsicFactory:
 
         nterms = len(self.terms)
 
-        def _term_sampler(typingctx, state, s, r, t, a1, a2, c):
+        @intrinsic
+        def term_sampler(typingctx, state, s, r, t, a1, a2, c):
             if not isinstance(state, StateStructRef):
                 raise TypingError(f"{state} must be a StateStructRef")
 
@@ -577,102 +577,4 @@ class IntrinsicFactory:
 
             return sig, codegen
 
-        @intrinsic
-        def zero_vis(typingctx, state):
-            # Figure out the jones type by calling _term_sampler
-            sig, _ = _term_sampler(typingctx, state,
-                                   types.int64, types.int64,
-                                   types.int64, types.int64,
-                                   types.int64, types.int64)
-
-            jones_type = sig.return_type
-
-            if not isinstance(jones_type, types.BaseTuple):
-                raise TypingError(f"{jones_type} must be "
-                                  f"a Tuple of numbers")
-
-            if not all(isinstance(typ, types.Number) for typ in jones_type):
-                raise TypingError(f"{jones_type} must be "
-                                  f"a Tuple of numbers")
-
-            sig = jones_type(state)
-
-            def codegen(context, builder, signature, args):
-                jones_type = signature.return_type
-                llvm_ret_type = context.get_value_type(jones_type)
-                ret_tuple = cgutils.get_null_value(llvm_ret_type)
-
-                for i, value_type in enumerate(jones_type):
-                    const = context.get_constant_generic(
-                        builder, value_type, 0)
-                    ret_tuple = builder.insert_value(ret_tuple, const, i)
-
-                return ret_tuple
-
-            return sig, codegen
-
-        term_sampler = intrinsic(_term_sampler)
-
-        @njit(inline="always")
-        def pairwise_sampler(state, nsources, r, t, a1, a2, c):
-            """
-            This code based on https://github.com/numpy/numpy/pull/3685
-            """
-            X = zero_vis(state)
-            stack = [(0, nsources)]
-
-            while len(stack) > 0:
-                start, end = stack.pop(0)
-                nsrc = end - start
-
-                if nsrc < 8:
-                    for s in range(start, end):
-                        Y = term_sampler(state, s, r, t, a1, a2, c)
-                        X = tuple_adder(X, Y)
-
-                elif nsrc <= PAIRWISE_BLOCKSIZE:
-                    o = start
-                    X0 = term_sampler(state, o + 0, r, t, a1, a2, c)
-                    X1 = term_sampler(state, o + 1, r, t, a1, a2, c)
-                    X2 = term_sampler(state, o + 2, r, t, a1, a2, c)
-                    X3 = term_sampler(state, o + 3, r, t, a1, a2, c)
-                    X4 = term_sampler(state, o + 4, r, t, a1, a2, c)
-                    X5 = term_sampler(state, o + 5, r, t, a1, a2, c)
-                    X6 = term_sampler(state, o + 6, r, t, a1, a2, c)
-                    X7 = term_sampler(state, o + 7, r, t, a1, a2, c)
-
-                    for s in range(8, nsrc - (nsrc % 8), 8):
-                        o = start + s
-                        Y0 = term_sampler(state, o + 0, r, t, a1, a2, c)
-                        Y1 = term_sampler(state, o + 1, r, t, a1, a2, c)
-                        Y2 = term_sampler(state, o + 2, r, t, a1, a2, c)
-                        Y3 = term_sampler(state, o + 3, r, t, a1, a2, c)
-                        Y4 = term_sampler(state, o + 4, r, t, a1, a2, c)
-                        Y5 = term_sampler(state, o + 5, r, t, a1, a2, c)
-                        Y6 = term_sampler(state, o + 6, r, t, a1, a2, c)
-                        Y7 = term_sampler(state, o + 7, r, t, a1, a2, c)
-
-                        X0 = tuple_adder(X0, Y0)
-                        X1 = tuple_adder(X1, Y1)
-                        X2 = tuple_adder(X2, Y2)
-                        X3 = tuple_adder(X3, Y3)
-                        X4 = tuple_adder(X4, Y4)
-                        X5 = tuple_adder(X5, Y5)
-                        X6 = tuple_adder(X6, Y6)
-                        X7 = tuple_adder(X7, Y7)
-
-                    Z1 = tuple_adder(tuple_adder(X0, X1), tuple_adder(X2, X3))
-                    Z2 = tuple_adder(tuple_adder(X4, X5), tuple_adder(X6, X7))
-                    X = tuple_adder(X, tuple_adder(Z1, Z2))
-
-                    for o in range(start + s + 8, end):
-                        Y = term_sampler(state, o, r, t, a1, a2, c)
-                        X = tuple_adder(X, Y)
-                else:
-                    ns2 = (nsrc // 2) - (nsrc % 8)
-                    stack.append((start, start + ns2))
-                    stack.append((start + ns2, end))
-
-            return X
-
-        return pairwise_sampler
+        return term_sampler

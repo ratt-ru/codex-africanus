@@ -24,7 +24,7 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        @generated_jit(nopython=True, nogil=True, cache=False)
+        @generated_jit(nopython=True, nogil=True, cache=True)
         def rime(arg_names, *inargs):
             if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
                 raise ValueError(f"{inargs[0]} must be be a Tuple")
@@ -37,7 +37,7 @@ class rime_factory:
             factory = IntrinsicFactory(arg_names, terms, transformers)
             pack_arguments = factory.pack_argument_fn()
             term_state = factory.term_state_fn()
-            pairwise_sample = factory.pairwise_sampler_fn()
+            term_sampler = factory.term_sampler_fn()
 
             try:
                 lm_i = factory.output_names.index("lm")
@@ -57,15 +57,22 @@ class rime_factory:
                 _, ncorr = args[stokes_i].shape
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
+                error = np.zeros_like(vis)  # Kahan summation error
 
-                # it = enumerate(zip(time, antenna1, antenna2))
-                # for r, (t, a1, a2) in it:
-                for r in range(nrow):
-                    for f in range(nchan):
-                        X = pairwise_sample(state, nsrc, r, 0, 0, 0, f)
+                for s in range(nsrc):
+                    # it = enumerate(zip(time, antenna1, antenna2))
+                    # for r, (t, a1, a2) in it:
+                    for r in range(nrow):
+                        for f in range(nchan):
+                            X = term_sampler(state, s, r, 0, 0, 0, f)
 
-                        for c, value in enumerate(numba.literal_unroll(X)):
-                            vis[r, f, c] = value
+                            for c, value in enumerate(numba.literal_unroll(X)):
+                                # Kahan summation
+                                y = value - error[r, f, c]
+                                current = vis[r, f, c]
+                                t = current + y
+                                error[r, f, c] = (t - current) - y
+                                vis[r, f, c] = t
 
                 return vis
 
