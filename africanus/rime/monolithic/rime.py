@@ -57,7 +57,7 @@ class rime_factory:
                 _, ncorr = args[stokes_i].shape
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
-                error = np.zeros_like(vis)  # Kahan summation error
+                compensation = np.zeros_like(vis)  # Kahan summation compensation
 
                 for s in range(nsrc):
                     # it = enumerate(zip(time, antenna1, antenna2))
@@ -68,10 +68,10 @@ class rime_factory:
 
                             for c, value in enumerate(numba.literal_unroll(X)):
                                 # Kahan summation
-                                y = value - error[r, f, c]
+                                y = value - compensation[r, f, c]
                                 current = vis[r, f, c]
                                 t = current + y
-                                error[r, f, c] = (t - current) - y
+                                compensation[r, f, c] = (t - current) - y
                                 vis[r, f, c] = t
 
                 return vis
