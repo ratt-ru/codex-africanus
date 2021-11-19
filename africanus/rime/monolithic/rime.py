@@ -2,17 +2,17 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolithic.argpack import pack_arguments
-from africanus.rime.monolithic.intrinsics import (
-    extend_argpack, term_factory)
+from africanus.rime.monolithic.intrinsics import IntrinsicFactory
 from africanus.rime.monolithic.terms.core import Term
 
 
 class rime_factory:
-    def __init__(self, terms=None):
+    def __init__(self, terms=None, transformers=None):
         from africanus.rime.monolithic.terms.phase import PhaseTerm
         from africanus.rime.monolithic.terms.brightness import BrightnessTerm
+        from africanus.rime.monolithic.transformers.lm import LMTransformer
         terms = terms or [PhaseTerm(), BrightnessTerm()]
+        transformers = transformers or [LMTransformer()]
 
         for t in terms:
             if not isinstance(t, Term):
@@ -24,32 +24,32 @@ class rime_factory:
         if not any(isinstance(t, BrightnessTerm) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
-        expected_args = set(a for t in terms for a in t.ARGS)
-        expected_args = list(sorted(expected_args))
-
-        extra_args_set = set(k for t in terms for k in t.KWARGS)
-        arg_map = {a: i for i, a in enumerate(expected_args)}
-
         @generated_jit(nopython=True, nogil=True, cache=False)
-        def rime(*inargs):
+        def rime(arg_names, *inargs):
             if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
                 raise ValueError(f"{inargs[0]} must be be a Tuple")
 
-            arg_pack = pack_arguments(terms, inargs[0])
-            new_argpack, extend_argpack_impl = extend_argpack(arg_pack)
-            state_factory, pairwise_sample = term_factory(new_argpack, terms)
+            assert len(arg_names) == len(inargs[0])
+            assert all(isinstance(n, types.Literal) for n in arg_names)
+            assert all(n.literal_type is types.unicode_type for n in arg_names)
+            arg_names = tuple(n.literal_value for n in arg_names)
+
+            factory = IntrinsicFactory(arg_names, terms, transformers)
+            pack_arguments = factory.pack_argument_fn()
+            term_state = factory.term_state_fn()
+            pairwise_sample = factory.pairwise_sampler_fn()
 
             try:
-                lm_i = new_argpack.index("lm")
-                uvw_i = new_argpack.index("uvw")
-                chan_freq_i = new_argpack.index("chan_freq")
-                stokes_i = new_argpack.index("stokes")
-            except KeyError as e:
-                raise ValueError(f"'{str(e)}' is a required argument")
+                lm_i = factory.output_names.index("lm")
+                uvw_i = factory.output_names.index("uvw")
+                chan_freq_i = factory.output_names.index("chan_freq")
+                stokes_i = factory.output_names.index("stokes")
+            except ValueError as e:
+                raise ValueError(f"{str(e)} is required")
 
-            def impl(*inargs):
-                args = extend_argpack_impl(inargs)
-                state = state_factory(args)  # noqa: F841
+            def impl(arg_names, *inargs):
+                args = pack_arguments(inargs)
+                state = term_state(args)
 
                 nsrc, _ = args[lm_i].shape
                 nrow, _ = args[uvw_i].shape
@@ -71,85 +71,36 @@ class rime_factory:
 
             return impl
 
-        self.terms = terms
-        self.args = expected_args
-        self.arg_map = arg_map
-        self.term_kwarg_set = extra_args_set
         self.impl = rime
+        self.terms = terms
+        self.transformers = transformers
 
     def __reduce__(self):
-        return (rime_factory, (self.terms,))
+        return (rime_factory, (self.terms, self.transformers))
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
-        import dask.array as da
+        factory = IntrinsicFactory(
+            tuple(kwargs.keys()), self.terms, self.transformers)
+        dask_schema = {}
 
-        schema = {}
+        for term in self.terms:
+            kw = {a: kwargs[a] for a in term.ALL_ARGS if a in kwargs}
+            dask_schema.update(term.dask_schema(**kw))
 
-        for t in self.terms:
-            try:
-                args = tuple(kwargs[a] for a in t.ARGS)
-            except KeyError as e:
-                raise ValueError(f"{str(e)} is a required argument")
+        for _, transformer in factory.can_create.items():
+            kw = {a: kwargs[a] for a in transformer.ALL_ARGS if a in kwargs}
+            dask_schema.update(transformer.dask_schema(**kw))
 
-            kw = {k: kwargs.get(k, v) for k, v in t.KWARGS.items()}
-
-            schema.update(t.dask_schema(*args, **kw))
-
+        names = list(kwargs.keys())
         blockwise_args = []
-        names = []
 
-        for a in self.args:
-            try:
-                arg = kwargs.pop(a)
-                arg_schema = schema[a]
-            except KeyError as e:
-                raise ValueError(f"{str(e)} is a required argument")
-
-            # Do some sanity checks
-            if isinstance(arg, da.Array):
-                if (not isinstance(arg_schema, tuple) or
-                        not len(arg_schema) == arg.ndim):
-
-                    raise ValueError(f"{arg} is a dask array but "
-                                     f"associated schema {arg_schema} "
-                                     f"doesn't match the number of "
-                                     f"dimensions {arg.ndim}")
-            else:
-                if arg_schema is not None:
-                    raise ValueError(f"{arg} is not a dask array but "
-                                     f"associated schema {arg_schema} "
-                                     f"is not None")
-
-            blockwise_args.append(arg)
-            blockwise_args.append(arg_schema)
-
-            names.append(a)
-
-        for k, v in kwargs.items():
-            try:
-                blockwise_args.append(v)
-                blockwise_args.append(schema.get(k, None))
-            except KeyError:
-                raise ValueError(f"Something went wrong "
-                                 f"trying extract kwarg {k}")
-
-            names.append(k)
+        for name in names:
+            blockwise_args.append(kwargs[name])
+            blockwise_args.append(dask_schema.get(name, None))
 
         return names, blockwise_args
 
     def __call__(self, **kwargs):
-        # Call the implementation
-        try:
-            args = tuple(kwargs.pop(a) for a in self.args)
-        except KeyError as e:
-            raise ValueError(f"{str(e)} is a required argument")
-
-        # Pack any kwargs into a
-        # (literal(key1), value1, ... literal(keyn), valuen)
-        # sequence after the required arguments
-        kw = tuple(e for (k, v) in kwargs.items()
-                   if k in self.term_kwarg_set
-                   for e in (types.literal(k), v))
-
-        return self.impl(*args, *kw)
+        keys = tuple(types.literal(k) for k in kwargs.keys())
+        return self.impl(keys, *kwargs.values())

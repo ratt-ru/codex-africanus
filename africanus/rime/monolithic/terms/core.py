@@ -80,12 +80,12 @@ class TermMetaClass(type):
                                        f"{name}.fields{fields_sig} "
                                        f"is not supported")
 
-        dask_schema_sig = inspect.signature(methods["dask_schema"])
+        # dask_schema_sig = inspect.signature(methods["dask_schema"])
 
-        if dask_schema_sig != fields_sig:
-            raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
-                                   f"should be "
-                                   f"{name}.dask_schema{fields_sig}")
+        # if dask_schema_sig != fields_sig:
+        #     raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
+        #                            f"should be "
+        #                            f"{name}.dask_schema{fields_sig}")
 
         Parameter = inspect.Parameter
         field_params = list(fields_sig.parameters.values())

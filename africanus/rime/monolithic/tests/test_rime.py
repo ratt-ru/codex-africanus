@@ -2,6 +2,8 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
+from africanus.coordinates import radec_to_lm
+
 from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
 from africanus.model.coherency import convert
@@ -29,7 +31,7 @@ chunks = [
         "spi": (2,),
         "chan": (2, 2),
         "corr": (4,),
-        "lm": (2,),
+        "radec": (2,),
         "uvw": (3,),
     },
     {
@@ -38,7 +40,7 @@ chunks = [
         "spi": (2,),
         "chan": (2, 2),
         "corr": (4,),
-        "lm": (2,),
+        "radec": (2,),
         "uvw": (3,),
     },
 ]
@@ -52,15 +54,18 @@ def test_monolithic_rime(chunks):
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
 
-    lm = np.random.random(size=(nsrc, 2))*1e-5
+    radec = np.random.random(size=(nsrc, 2))*1e-5
+    phase_centre = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
     ref_freq = np.random.random(size=nsrc)*.856e9
+    lm = radec_to_lm(radec, phase_centre)
 
     rime = rime_factory()
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+    out = rime(radec=radec, phase_centre=phase_centre,
+               uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq,
                convention="casa", spi_base="standard")
     P = phase_delay(lm, uvw, chan_freq, convention="casa")
@@ -97,7 +102,8 @@ def test_monolithic_dask_rime(chunks):
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
 
-    lm = np.random.random(size=(nsrc, 2))*1e-5
+    radec = np.random.random(size=(nsrc, 2))*1e-5
+    phase_centre = np.random.random(size=(2,))*1e-5
     uvw = np.random.random(size=(nrow, 3))*1e5
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
@@ -107,19 +113,22 @@ def test_monolithic_dask_rime(chunks):
     def darray(array, dims):
         return da.from_array(array, tuple(chunks[d] for d in dims))
 
-    dask_lm = darray(lm, ("source", "lm"))
+    dask_radec = darray(radec, ("source", "radec"))
+    dask_phase_centre = darray(phase_centre, ("radec",))
     dask_uvw = darray(uvw, ("row", "uvw"))
     dask_chan_freq = darray(chan_freq, ("chan",))
     dask_stokes = darray(stokes, ("source", "corr"))
     dask_spi = darray(spi, ("source", "spi", "corr"))
     dask_ref_freq = darray(ref_freq, ("source",))
 
-    dask_out = dask_rime(lm=dask_lm, uvw=dask_uvw, stokes=dask_stokes,
+    dask_out = dask_rime(radec=dask_radec, phase_centre=dask_phase_centre,
+                         uvw=dask_uvw, stokes=dask_stokes,
                          spi=dask_spi, chan_freq=dask_chan_freq,
                          ref_freq=dask_ref_freq, convention="casa")
 
     rime = rime_factory()
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+    out = rime(radec=radec, phase_centre=phase_centre,
+               uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="casa")
 
     assert_array_almost_equal(dask_out, out)

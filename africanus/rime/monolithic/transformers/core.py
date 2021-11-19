@@ -1,10 +1,10 @@
-from functools import partial
 import inspect
 from inspect import Signature, Parameter
 
 
 from africanus.rime.monolithic.common import result_type
 from africanus.rime.monolithic.error import InvalidSignature
+
 
 def sigcheck_factory(expected_sig):
     def check_transformer_sig(self, fn):
@@ -14,6 +14,7 @@ def sigcheck_factory(expected_sig):
                              f"{fn.__name__}{expected_sig}")
 
     return check_transformer_sig
+
 
 class TransformerMetaClass(type):
     """
@@ -25,7 +26,7 @@ class TransformerMetaClass(type):
     class members on the subclass based on the above
     signatures
     """
-    REQUIRED = ("dask_schema", "fields", "transform")
+    REQUIRED = ("dask_schema", "outputs", "transform")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
@@ -40,26 +41,27 @@ class TransformerMetaClass(type):
                 methods.append(method)
 
         methods = dict(zip(cls.REQUIRED, methods))
-        fields_sig = inspect.signature(methods["fields"])
+        outputs_sig = inspect.signature(methods["outputs"])
 
-        for i, (n, p) in enumerate(fields_sig.parameters.items()):
+        for i, (n, p) in enumerate(outputs_sig.parameters.items()):
             if i == 0 and n != "self":
-                raise InvalidSignature(f"{name}.fields{fields_sig} "
+                raise InvalidSignature(f"{name}.outputs{outputs_sig} "
                                        f"should be "
-                                       f"{name}.fields(self, ...)")
+                                       f"{name}.outputs(self, ...)")
 
             if p.kind == p.VAR_POSITIONAL:
                 raise InvalidSignature(f"*{n} in "
-                                       f"{name}.fields{fields_sig} "
+                                       f"{name}.outputs{outputs_sig} "
                                        f"is not supported")
 
             if p.kind == p.VAR_KEYWORD:
                 raise InvalidSignature(f"**{n} in "
-                                       f"{name}.fields{fields_sig} "
+                                       f"{name}.outputs{outputs_sig} "
                                        f"is not supported")
 
         transform_sig = inspect.signature(methods["transform"])
-        expected = Signature([Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)])
+        expected = Signature(
+            [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)])
 
         if transform_sig != expected:
             raise InvalidSignature(f"{name}.transform{transform_sig} "
@@ -68,10 +70,10 @@ class TransformerMetaClass(type):
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
 
-        if fields_sig != dask_schema_sig:
+        if outputs_sig != dask_schema_sig:
             raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
                                    f"should be "
-                                   f"{name}.dask_schema{fields_sig}")
+                                   f"{name}.dask_schema{outputs_sig}")
 
         if not ("OUTPUTS" in namespace and
                 isinstance(namespace["OUTPUTS"], (tuple, list)) and
@@ -83,17 +85,17 @@ class TransformerMetaClass(type):
 
         namespace["OUTPUTS"] = tuple(namespace["OUTPUTS"])
 
-        args = tuple(n for n, p in fields_sig.parameters.items()
+        args = tuple(n for n, p in outputs_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
                      and p.default is p.empty)
 
-        kw = {n: p.default for n, p in fields_sig.parameters.items()
+        kw = {n: p.default for n, p in outputs_sig.parameters.items()
               if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
               and p.default is not p.empty}
 
         namespace["ARGS"] = args[1:]
         namespace["KWARGS"] = kw
-        namespace["ALL_ARGS"] = tuple(fields_sig.parameters.keys())[1:]
+        namespace["ALL_ARGS"] = tuple(outputs_sig.parameters.keys())[1:]
         namespace["transform_validator"] = sigcheck_factory(transform_sig)
 
         return namespace
