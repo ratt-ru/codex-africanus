@@ -1,8 +1,10 @@
 from collections import defaultdict
+
 from numba import njit
 from numba.core import compiler, cgutils, types
 from numba.core.errors import TypingError
-from numba.extending import intrinsic
+from numba.core.extending import intrinsic
+from numba.experimental import structref
 from numba.core.typed_passes import type_inference_stage
 
 from africanus.rime.monolithic.argpack import ArgumentPack
@@ -380,9 +382,6 @@ class IntrinsicFactory:
         return pack_arguments
 
     def term_state_fn(self):
-        from africanus.rime.monolithic.terms.core import (
-            StateStructRef, structref)
-
         @intrinsic
         def term_state(typingctx, args):
             if not isinstance(args, types.Tuple):
