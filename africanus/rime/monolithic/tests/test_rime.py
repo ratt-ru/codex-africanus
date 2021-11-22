@@ -54,6 +54,10 @@ def test_monolithic_rime(chunks):
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
 
+    time = np.linspace(0.1, 1.0, nrow)
+    antenna1 = np.zeros(nrow, dtype=np.int32)
+    antenna2 = np.arange(nrow, dtype=np.int32)
+    feed1 = feed2 = antenna1
     radec = np.random.random(size=(nsrc, 2))*1e-5
     phase_centre = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
@@ -64,7 +68,8 @@ def test_monolithic_rime(chunks):
     lm = radec_to_lm(radec, phase_centre)
 
     rime = rime_factory()
-    out = rime(radec=radec, phase_centre=phase_centre,
+    out = rime(time, antenna1, antenna2, feed1, feed2,
+               radec=radec, phase_centre=phase_centre,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq,
                convention="casa", spi_base="standard")
@@ -74,7 +79,8 @@ def test_monolithic_rime(chunks):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+    out = rime(time, antenna1, antenna2, feed1, feed2,
+               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="fourier")
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
@@ -83,7 +89,8 @@ def test_monolithic_rime(chunks):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    out = rime(lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+    out = rime(time, antenna1, antenna2, feed1, feed2,
+               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq)
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")

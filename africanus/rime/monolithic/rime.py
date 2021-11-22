@@ -2,11 +2,16 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolithic.intrinsics import IntrinsicFactory
+from africanus.rime.monolithic.intrinsics import (
+    REQUIRED_ARGS, IntrinsicFactory)
 from africanus.rime.monolithic.terms.core import Term
 
 
 class rime_factory:
+    REQUIRED_ARGS = REQUIRED_ARGS
+    REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
+    REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
+
     def __init__(self, terms=None, transformers=None):
         from africanus.rime.monolithic.terms.phase import PhaseTerm
         from africanus.rime.monolithic.terms.brightness import BrightnessTerm
@@ -25,16 +30,28 @@ class rime_factory:
             raise ValueError("RIME must at least contain a Brightness Term")
 
         @generated_jit(nopython=True, nogil=True, cache=True)
-        def rime(arg_names, *inargs):
+        def rime(names, *inargs):
             if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
-                raise ValueError(f"{inargs[0]} must be be a Tuple")
+                raise TypeError(f"{inargs[0]} must be be a Tuple")
 
-            assert len(arg_names) == len(inargs[0])
-            assert all(isinstance(n, types.Literal) for n in arg_names)
-            assert all(n.literal_type is types.unicode_type for n in arg_names)
-            arg_names = tuple(n.literal_value for n in arg_names)
+            if not isinstance(names, types.BaseTuple):
+                raise TypeError(f"{names} must be a Tuple of strings")
 
-            factory = IntrinsicFactory(arg_names, terms, transformers)
+            if len(names) != len(inargs[0]):
+                raise ValueError(f"len(names): {len(names)} "
+                                 f"!= {len(inargs[0])}")
+
+            if not all(isinstance(n, types.Literal) for n in names):
+                raise TypeError(f"{names} must be a Tuple of strings")
+
+            if not all(n.literal_type is types.unicode_type for n in names):
+                raise TypeError(f"{names} must be a Tuple of strings")
+
+            # Get literal argument names
+            names = tuple(n.literal_value for n in names)
+
+            # Generate intrinsics
+            factory = IntrinsicFactory(names, terms, transformers)
             pack_arguments = factory.pack_argument_fn()
             term_state = factory.term_state_fn()
             term_sampler = factory.term_sampler_fn()
@@ -47,7 +64,7 @@ class rime_factory:
             except ValueError as e:
                 raise ValueError(f"{str(e)} is required")
 
-            def impl(arg_names, *inargs):
+            def impl(names, *inargs):
                 args = pack_arguments(inargs)
                 state = term_state(args)
 
@@ -57,7 +74,8 @@ class rime_factory:
                 _, ncorr = args[stokes_i].shape
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
-                compensation = np.zeros_like(vis)  # Kahan summation compensation
+                # Kahan summation compensation
+                compensation = np.zeros_like(vis)
 
                 for s in range(nsrc):
                     # it = enumerate(zip(time, antenna1, antenna2))
@@ -108,6 +126,8 @@ class rime_factory:
 
         return names, blockwise_args
 
-    def __call__(self, **kwargs):
-        keys = tuple(types.literal(k) for k in kwargs.keys())
-        return self.impl(keys, *kwargs.values())
+    def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
+        keys = (self.REQUIRED_ARGS_LITERAL +
+                tuple(types.literal(k) for k in kwargs.keys()))
+        return self.impl(keys, time, antenna1, antenna2, feed1, feed2,
+                         *kwargs.values())

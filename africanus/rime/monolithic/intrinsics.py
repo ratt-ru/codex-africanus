@@ -9,7 +9,8 @@ from numba.core.typed_passes import type_inference_stage
 from africanus.rime.monolithic.argpack import ArgumentPack
 from africanus.rime.monolithic.terms.core import StateStructRef
 
-PAIRWISE_BLOCKSIZE = 128
+
+REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
 
 
 def scalar_scalar(lhs, rhs):
@@ -180,6 +181,9 @@ def tuple_adder(typingctx, t1, t2):
 
 
 class IntrinsicFactory:
+    KEY_ARGS = ("utime", "time_index", "uantenna",
+                "antenna_index", "ufeed", "feed_index")
+
     def __init__(self, arg_names, terms, transformers):
         self.names = arg_names
         self.terms = terms
@@ -187,7 +191,8 @@ class IntrinsicFactory:
         od, cc = self._resolve_arg_dependencies()
         self.optional_defaults = od
         self.can_create = cc
-        self.output_names = (self.names +
+
+        self.output_names = (self.names +  # self.KEY_ARGS +
                              tuple(self.optional_defaults.keys()) +
                              tuple(self.can_create.keys()))
 
@@ -195,6 +200,10 @@ class IntrinsicFactory:
         desired = defaultdict(list)
         optional = defaultdict(list)
         maybe_create = defaultdict(list)
+
+        if not set(REQUIRED_ARGS).issubset(self.names):
+            missing = set(REQUIRED_ARGS) - set(self.names)
+            raise ValueError(f"Required args {missing} not supplied")
 
         for t in self.terms:
             for a in t.ARGS:
@@ -276,6 +285,17 @@ class IntrinsicFactory:
             assert len(args) == len(self.names)
             it = zip(self.names, args, range(len(self.names)))
             arg_info = {n: (t, i) for n, t, i in it}
+
+            try:
+                key_types = {"utime": arg_info["time"][0],
+                             "uantenna": arg_info["antenna1"][0],
+                             "ufeed": arg_info["feed1"][0]}
+            except KeyError as e:
+                raise TypingError(f"Missing required argument {str(e)}")
+            else:
+                key_types.update({"time_index": types.int32,
+                                  "antenna_index": types.int32,
+                                  "feed_index": types.int32})
 
             rvt = typingctx.resolve_value_type_prefer_literal
             optionals = [(n, rvt(d), d) for n, d

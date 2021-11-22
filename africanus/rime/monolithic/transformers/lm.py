@@ -9,10 +9,12 @@ class LMTransformer(Transformer):
 
     def outputs(self, radec, phase_centre):
         if not isinstance(radec, types.Array) or radec.ndim != 2:
-            raise ValueError(f"{radec} must be a (source, radec) array")
+            raise ValueError(f"radec: {radec} must be "
+                             f"a (source, radec) array")
 
         if not isinstance(phase_centre, types.Array) or radec.ndim != 1:
-            raise ValueError(f"{phase_centre} must be a 1D array")
+            raise ValueError(f"phase_centre: {phase_centre} "
+                             f"must be a (radec,) array")
 
         dt = self.result_type(radec.dtype, phase_centre.dtype)
         return [("lm", types.Array(dt, radec.ndim, radec.layout))]
