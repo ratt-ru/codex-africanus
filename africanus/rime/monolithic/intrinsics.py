@@ -6,6 +6,10 @@ from numba.core.extending import intrinsic
 from numba.experimental import structref
 from numba.core.typed_passes import type_inference_stage
 
+import numpy as np
+
+from africanus.averaging.support import _unique_internal
+
 from africanus.rime.monolithic.argpack import ArgumentPack
 from africanus.rime.monolithic.terms.core import StateStructRef
 
@@ -181,8 +185,9 @@ def tuple_adder(typingctx, t1, t2):
 
 
 class IntrinsicFactory:
-    KEY_ARGS = ("utime", "time_index", "uantenna",
-                "antenna_index", "ufeed", "feed_index")
+    KEY_ARGS = ("utime", "time_index",
+                "uantenna", "antenna_index",
+                "ufeed", "feed_index")
 
     def __init__(self, arg_names, terms, transformers):
         self.names = arg_names
@@ -192,7 +197,7 @@ class IntrinsicFactory:
         self.optional_defaults = od
         self.can_create = cc
 
-        self.output_names = (self.names +  # self.KEY_ARGS +
+        self.output_names = (self.names +  self.KEY_ARGS +
                              tuple(self.optional_defaults.keys()) +
                              tuple(self.can_create.keys()))
 
@@ -286,16 +291,26 @@ class IntrinsicFactory:
             it = zip(self.names, args, range(len(self.names)))
             arg_info = {n: (t, i) for n, t, i in it}
 
-            try:
-                key_types = {"utime": arg_info["time"][0],
-                             "uantenna": arg_info["antenna1"][0],
-                             "ufeed": arg_info["feed1"][0]}
-            except KeyError as e:
-                raise TypingError(f"Missing required argument {str(e)}")
-            else:
-                key_types.update({"time_index": types.int32,
-                                  "antenna_index": types.int32,
-                                  "feed_index": types.int32})
+            key_types = {
+                "utime": arg_info["time"][0],
+                "time_index": types.int64[:],
+                "uantenna": arg_info["antenna1"][0],
+                "antenna_index": types.int64[:],
+                "ufeed": arg_info["feed1"][0],
+                "feed_index": types.int64[:]
+            }
+
+            def _indices(time, antenna1, antenna2, feed1, feed2):
+                ants = np.concatenate((antenna1, antenna2))
+                feeds = np.concatenate((feed1, feed2))
+
+                return (_unique_internal(time)[:2] +
+                        _unique_internal(ants)[:2] +
+                        _unique_internal(feeds)[:2])
+
+
+            _indices_arg_typs = tuple(arg_info[k][0] for k in REQUIRED_ARGS)
+            fn_sig = types.Tuple(list(key_types.values()))(*_indices_arg_typs)
 
             rvt = typingctx.resolve_value_type_prefer_literal
             optionals = [(n, rvt(d), d) for n, d
@@ -330,6 +345,7 @@ class IntrinsicFactory:
                 transform_return_types.append(return_type)
 
             return_type = types.Tuple(args.types +
+                                      tuple(key_types.values()) +
                                       opt_return_types +
                                       tuple(transform_return_types))
             sig = return_type(args)
@@ -347,6 +363,20 @@ class IntrinsicFactory:
                     ret_tuple = builder.insert_value(ret_tuple, value, i)
 
                 n = len(self.names)
+
+                # Compute indexing arguments and insert into
+                # the new tuple
+                fn_args = [builder.extract_value(args[0], arg_info[a][1])
+                           for a in REQUIRED_ARGS]
+
+                index = context.compile_internal(builder, _indices,
+                                                 fn_sig, fn_args)
+
+                for i, (name, value) in enumerate(key_types.items()):
+                    value = builder.extract_value(index, i)
+                    ret_tuple = builder.insert_value(ret_tuple, value, i + n)
+
+                n += len(key_types)
 
                 # Insert necessary optional defaults (kwargs) into the
                 # new argument tuple

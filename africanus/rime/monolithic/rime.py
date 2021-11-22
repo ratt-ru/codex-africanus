@@ -78,11 +78,15 @@ class rime_factory:
                 compensation = np.zeros_like(vis)
 
                 for s in range(nsrc):
-                    # it = enumerate(zip(time, antenna1, antenna2))
-                    # for r, (t, a1, a2) in it:
                     for r in range(nrow):
+                        t = state.time_index[r]
+                        a1 = state.antenna1[r]
+                        a2 = state.antenna2[r]
+                        f1 = state.feed1[r]
+                        f2 = state.feed2[r]
+                        print(r, t, a1, a2, f1, f2)
                         for f in range(nchan):
-                            X = term_sampler(state, s, r, 0, 0, 0, f)
+                            X = term_sampler(state, s, r, t, a1, a2, f)
 
                             for c, value in enumerate(numba.literal_unroll(X)):
                                 # Kahan summation
