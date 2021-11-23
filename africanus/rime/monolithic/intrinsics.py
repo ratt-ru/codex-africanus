@@ -190,6 +190,11 @@ class IntrinsicFactory:
                 "ufeed", "feed_index")
 
     def __init__(self, arg_names, terms, transformers):
+        if not set(REQUIRED_ARGS).issubset(arg_names):
+            raise ValueError(
+                f"{set(REQUIRED_ARGS) - set(arg_names)} "
+                f"missing from arg_names")
+
         self.names = arg_names
         self.terms = terms
         self.transformers = transformers
@@ -220,8 +225,10 @@ class IntrinsicFactory:
             for o in t.OUTPUTS:
                 maybe_create[o].append(t)
 
-        missing = set(desired.keys()) - set(self.names)
-        available_args = set(self.names) | set(optional.keys())
+        # KEY_ARGS will be created
+        supplied_args = set(self.names) | set(self.KEY_ARGS)
+        missing = set(desired.keys()) - supplied_args
+        available_args = set(self.names) | supplied_args
         failed_transforms = defaultdict(list)
         can_create = {}
 
@@ -373,6 +380,10 @@ class IntrinsicFactory:
                                                  fn_sig, fn_args)
 
                 for i, (name, value) in enumerate(key_types.items()):
+                    if name != self.output_names[i + n]:
+                        raise TypingError(
+                            f"{name} != {self.output_names[i + n]}")
+
                     value = builder.extract_value(index, i)
                     ret_tuple = builder.insert_value(ret_tuple, value, i + n)
 

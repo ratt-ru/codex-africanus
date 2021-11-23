@@ -84,7 +84,7 @@ class rime_factory:
                         a2 = state.antenna2[r]
                         f1 = state.feed1[r]
                         f2 = state.feed2[r]
-                        print(r, t, a1, a2, f1, f2)
+
                         for f in range(nchan):
                             X = term_sampler(state, s, r, t, a1, a2, f)
 
@@ -133,5 +133,7 @@ class rime_factory:
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
         keys = (self.REQUIRED_ARGS_LITERAL +
                 tuple(types.literal(k) for k in kwargs.keys()))
-        return self.impl(keys, time, antenna1, antenna2, feed1, feed2,
+        return self.impl(keys, time,
+                         antenna1, antenna2,
+                         feed1, feed2,
                          *kwargs.values())
