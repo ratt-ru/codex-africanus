@@ -154,6 +154,9 @@ class Term(metaclass=TermMetaClass):
     def __repr__(self):
         return self.__class__.__name__
 
+    def __str__(self):
+        return self.__class__.__name__
+
     @classmethod
     def validate_sampler(cls, sampler):
         """ Validate the sampler implementation """
