@@ -82,8 +82,8 @@ class rime_factory:
                         t = state.time_index[r]
                         a1 = state.antenna1[r]
                         a2 = state.antenna2[r]
-                        f1 = state.feed1[r]
-                        f2 = state.feed2[r]
+                        f1 = state.feed1[r]  # noqa
+                        f2 = state.feed2[r]  # noqa
 
                         for f in range(nchan):
                             X = term_sampler(state, s, r, t, a1, a2, f)
@@ -109,30 +109,50 @@ class rime_factory:
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
-        factory = IntrinsicFactory(
-            tuple(kwargs.keys()), self.terms, self.transformers)
-        dask_schema = {}
+        factory = IntrinsicFactory(tuple(kwargs.keys()),
+                                   self.terms, self.transformers)
+        dask_schema = {a: ("row",) for a in REQUIRED_ARGS}
+
+        desired = set(a for term in factory.terms for a in term.ARGS)
+        missing = desired - set(kwargs.keys())
+        ukwargs = kwargs.copy()
+
+        for arg in list(missing):
+            try:
+                transformer = factory.can_create[arg]
+            except KeyError:
+                continue
+
+            try:
+                kw = {a: kwargs[a] for a in transformer.ARGS}
+            except KeyError:
+                pass
+            else:
+                kw.update({a: kwargs.get(a, d) for a, d
+                           in transformer.KWARGS.items()})
+                inputs, outputs = transformer.dask_schema(**kw)
+                dask_schema.update(inputs)
+                ukwargs.update(outputs)
+                missing.remove(arg)
+
+        if missing:
+            raise ValueError(f"The following arguments: {missing} were "
+                             f"not supplied and could not be created from "
+                             f"supplied arguments")
 
         for term in self.terms:
-            kw = {a: kwargs[a] for a in term.ALL_ARGS if a in kwargs}
+            kw = {a: ukwargs[a] for a in term.ALL_ARGS if a in ukwargs}
             dask_schema.update(term.dask_schema(**kw))
 
-        for _, transformer in factory.can_create.items():
-            kw = {a: kwargs[a] for a in transformer.ALL_ARGS if a in kwargs}
-            dask_schema.update(transformer.dask_schema(**kw))
-
         names = list(kwargs.keys())
-        blockwise_args = []
-
-        for name in names:
-            blockwise_args.append(kwargs[name])
-            blockwise_args.append(dask_schema.get(name, None))
+        blockwise_args = [e for n in names
+                          for e in (kwargs[n], dask_schema.get(n, None))]
 
         return names, blockwise_args
 
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
         keys = (self.REQUIRED_ARGS_LITERAL +
-                tuple(types.literal(k) for k in kwargs.keys()))
+                tuple(map(types.literal, kwargs.keys())))
         return self.impl(keys, time,
                          antenna1, antenna2,
                          feed1, feed2,

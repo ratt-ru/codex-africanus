@@ -109,6 +109,10 @@ def test_monolithic_dask_rime(chunks):
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
 
+    time = np.linspace(0.1, 1.0, nrow)
+    antenna1 = np.zeros(nrow, dtype=np.int32)
+    antenna2 = np.arange(nrow, dtype=np.int32)
+    feed1 = feed2 = antenna1
     radec = np.random.random(size=(nsrc, 2))*1e-5
     phase_centre = np.random.random(size=(2,))*1e-5
     uvw = np.random.random(size=(nrow, 3))*1e5
@@ -120,6 +124,11 @@ def test_monolithic_dask_rime(chunks):
     def darray(array, dims):
         return da.from_array(array, tuple(chunks[d] for d in dims))
 
+    dask_time = darray(time, ("row",))
+    dask_antenna1 = darray(antenna1, ("row",))
+    dask_antenna2 = darray(antenna2, ("row",))
+    dask_feed1 = darray(feed1, ("row",))
+    dask_feed2 = darray(feed2, ("row",))
     dask_radec = darray(radec, ("source", "radec"))
     dask_phase_centre = darray(phase_centre, ("radec",))
     dask_uvw = darray(uvw, ("row", "uvw"))
@@ -128,14 +137,19 @@ def test_monolithic_dask_rime(chunks):
     dask_spi = darray(spi, ("source", "spi", "corr"))
     dask_ref_freq = darray(ref_freq, ("source",))
 
-    dask_out = dask_rime(radec=dask_radec, phase_centre=dask_phase_centre,
+    dask_out = dask_rime(dask_time,
+                         dask_antenna1, dask_antenna2,
+                         dask_feed1, dask_feed2,
+                         radec=dask_radec, phase_centre=dask_phase_centre,
                          uvw=dask_uvw, stokes=dask_stokes,
                          spi=dask_spi, chan_freq=dask_chan_freq,
                          ref_freq=dask_ref_freq, convention="casa")
 
     rime = rime_factory()
-    out = rime(radec=radec, phase_centre=phase_centre,
+    out = rime(time, antenna1, antenna2, feed1, feed2,
+               radec=radec, phase_centre=phase_centre,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="casa")
 
-    assert_array_almost_equal(dask_out, out)
+    assert_array_almost_equal(dask_out.compute(
+        scheduler="single-threaded"), out)

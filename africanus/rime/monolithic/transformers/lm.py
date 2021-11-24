@@ -44,5 +44,14 @@ class LMTransformer(Transformer):
         return lm
 
     def dask_schema(self, radec, phase_centre):
-        return {"radec": ("source", "radec"),
-                "phase_centre": ("radec",)}
+        assert radec.ndim == 2
+        assert phase_centre.ndim == 1
+
+        inputs = {
+            "radec": ("source", "radec"),
+            "phase_centre": ("radec",)
+        }
+
+        outputs = {"lm": np.empty((0, 0), dtype=radec.dtype)}
+
+        return inputs, outputs

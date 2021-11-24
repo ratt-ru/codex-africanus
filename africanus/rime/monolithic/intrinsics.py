@@ -186,8 +186,8 @@ def tuple_adder(typingctx, t1, t2):
 
 class IntrinsicFactory:
     KEY_ARGS = ("utime", "time_index",
-                "uantenna", "antenna_index",
-                "ufeed", "feed_index")
+                "uantenna", "antenna1_index", "antenna2_index",
+                "ufeed", "feed1_index", "feed2_index")
 
     def __init__(self, arg_names, terms, transformers):
         if not set(REQUIRED_ARGS).issubset(arg_names):
@@ -202,7 +202,7 @@ class IntrinsicFactory:
         self.optional_defaults = od
         self.can_create = cc
 
-        self.output_names = (self.names +  self.KEY_ARGS +
+        self.output_names = (self.names + self.KEY_ARGS +
                              tuple(self.optional_defaults.keys()) +
                              tuple(self.can_create.keys()))
 
@@ -302,19 +302,29 @@ class IntrinsicFactory:
                 "utime": arg_info["time"][0],
                 "time_index": types.int64[:],
                 "uantenna": arg_info["antenna1"][0],
-                "antenna_index": types.int64[:],
+                "antenna1_index": types.int64[:],
+                "antenna2_index": types.int64[:],
                 "ufeed": arg_info["feed1"][0],
-                "feed_index": types.int64[:]
+                "feed1_index": types.int64[:],
+                "feed2_index": types.int64[:]
             }
 
+            if tuple(key_types.keys()) != self.KEY_ARGS:
+                raise RuntimeError(
+                    f"{tuple(key_types.keys())} != {self.KEY_ARGS}")
+
             def _indices(time, antenna1, antenna2, feed1, feed2):
-                ants = np.concatenate((antenna1, antenna2))
-                feeds = np.concatenate((feed1, feed2))
+                utime, time_index = _unique_internal(time)[:2]
+                uants = np.unique(np.concatenate((antenna1, antenna2)))
+                ufeeds = np.unique(np.concatenate((feed1, feed2)))
+                antenna1_index = np.searchsorted(uants, antenna1)
+                antenna2_index = np.searchsorted(uants, antenna2)
+                feed1_index = np.searchsorted(ufeeds, feed1)
+                feed2_index = np.searchsorted(ufeeds, feed2)
 
-                return (_unique_internal(time)[:2] +
-                        _unique_internal(ants)[:2] +
-                        _unique_internal(feeds)[:2])
-
+                return (utime, time_index,
+                        uants, antenna1_index, antenna2_index,
+                        ufeeds, feed1_index, feed2_index)
 
             _indices_arg_typs = tuple(arg_info[k][0] for k in REQUIRED_ARGS)
             fn_sig = types.Tuple(list(key_types.values()))(*_indices_arg_typs)
