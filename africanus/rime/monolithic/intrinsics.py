@@ -198,6 +198,21 @@ class IntrinsicFactory:
         self.names = arg_names
         self.terms = terms
         self.transformers = transformers
+
+        self.desired = desired = defaultdict(list)
+        self.optional = optional = defaultdict(list)
+        self.maybe_create = maybe_create = defaultdict(list)
+
+        for term in terms:
+            for a in term.ARGS:
+                desired[a].append(term)
+            for k, d in term.KWARGS.items():
+                optional[k].append((term, d))
+
+        for transformer in transformers:
+            for o in transformer.OUTPUTS:
+                maybe_create[o].append(transformer)
+
         od, cc = self._resolve_arg_dependencies()
         self.optional_defaults = od
         self.can_create = cc
@@ -207,27 +222,9 @@ class IntrinsicFactory:
                              tuple(self.can_create.keys()))
 
     def _resolve_arg_dependencies(self):
-        desired = defaultdict(list)
-        optional = defaultdict(list)
-        maybe_create = defaultdict(list)
-
-        if not set(REQUIRED_ARGS).issubset(self.names):
-            missing = set(REQUIRED_ARGS) - set(self.names)
-            raise ValueError(f"Required args {missing} not supplied")
-
-        for t in self.terms:
-            for a in t.ARGS:
-                desired[a].append(t)
-            for k, d in t.KWARGS.items():
-                optional[k].append((t, d))
-
-        for t in self.transformers:
-            for o in t.OUTPUTS:
-                maybe_create[o].append(t)
-
         # KEY_ARGS will be created
         supplied_args = set(self.names) | set(self.KEY_ARGS)
-        missing = set(desired.keys()) - supplied_args
+        missing = set(self.desired.keys()) - supplied_args
         available_args = set(self.names) | supplied_args
         failed_transforms = defaultdict(list)
         can_create = {}
@@ -239,10 +236,10 @@ class IntrinsicFactory:
                 continue
 
             # We don't know how to create
-            if arg not in maybe_create:
+            if arg not in self.maybe_create:
                 continue
 
-            for transformer in maybe_create[arg]:
+            for transformer in self.maybe_create[arg]:
                 # We didn't have the arguments, make a note of this
                 if not set(transformer.ARGS).issubset(available_args):
                     failed_transforms[arg].append(
@@ -256,7 +253,7 @@ class IntrinsicFactory:
 
         # Fail if required arguments are missing
         for arg in missing:
-            terms_wanting = desired[arg]
+            terms_wanting = self.desired[arg]
             err_msgs = []
             err_msgs.append(f"{set(terms_wanting)} need(s) '{arg}'.")
 
@@ -273,9 +270,9 @@ class IntrinsicFactory:
 
         for transformer in can_create.values():
             for k, d in transformer.KWARGS.items():
-                optional[k].append((transformer, d))
+                self.optional[k].append((transformer, d))
 
-        for k, v in optional.items():
+        for k, v in self.optional.items():
             _, defaults = zip(*v)
             defaults = set(defaults)
 

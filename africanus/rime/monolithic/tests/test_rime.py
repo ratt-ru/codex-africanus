@@ -153,3 +153,79 @@ def test_monolithic_dask_rime(chunks):
 
     assert_array_almost_equal(dask_out.compute(
         scheduler="single-threaded"), out)
+
+
+@pytest.mark.parametrize("chunks", chunks)
+def test_rime_wrapper(chunks):
+    nsrc = sum(chunks["source"])
+    nrow = sum(chunks["row"])
+    nspi = sum(chunks["spi"])
+    nchan = sum(chunks["chan"])
+    ncorr = sum(chunks["corr"])
+
+    time = np.linspace(0.1, 1.0, nrow)
+    antenna1 = np.zeros(nrow, dtype=np.int32)
+    antenna2 = np.arange(nrow, dtype=np.int32)
+    feed1 = feed2 = antenna1
+    radec = np.random.random(size=(nsrc, 2))*1e-5
+    phase_centre = np.random.random(size=(2,))*1e-5
+    uvw = np.random.random(size=(nrow, 3))*1e5
+    chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
+    stokes = np.random.random(size=(nsrc, ncorr))
+    spi = np.random.random(size=(nsrc, nspi, ncorr))
+    ref_freq = np.random.random(size=nsrc)*.856e9
+
+    kw = {
+        "time": time,
+        "antenna1": antenna1,
+        "antenna2": antenna2,
+        "feed1": feed1,
+        "feed2": feed2,
+        "radec": radec,
+        "phase_centre": phase_centre,
+        "uvw": uvw,
+        "chan_freq": chan_freq,
+        "stokes": stokes,
+        "spi": spi,
+        "ref_freq": ref_freq
+    }
+
+    def _maybe_convert_xarray_dataset(mapping):
+        try:
+            import xarray as xr
+        except ImportError:
+            return mapping
+
+        return {k: v.data for k, v in mapping.items()}
+
+    def rime(*other, **kwargs):
+        terms = kwargs.pop("terms", None)
+        transformers = kwargs.pop("transformers", None)
+
+        factory = rime_factory(terms=terms, transformers=transformers)
+        from collections.abc import Mapping
+
+        if len(other) == 0:
+            pass
+        elif len(other) == 1:
+            try:
+                k, v = other
+            except (ValueError, TypeError):
+                mapping = other[0]
+
+                if not isinstance(mapping, Mapping):
+                    raise TypeError(f"Singleton *other does not "
+                                    f"contain a mapping, but "
+                                    f"{mapping}")
+
+                mapping = _maybe_convert_xarray_dataset(mapping)
+            else:
+                kwargs[k] = v
+        else:
+            try:
+                for k, v in other:
+                    pass
+            except (ValueError, TypeError):
+                pass
+
+    rime(**kw)

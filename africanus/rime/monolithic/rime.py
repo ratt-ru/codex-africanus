@@ -112,8 +112,7 @@ class rime_factory:
         factory = IntrinsicFactory(tuple(kwargs.keys()),
                                    self.terms, self.transformers)
         dask_schema = {a: ("row",) for a in REQUIRED_ARGS}
-
-        desired = set(a for term in factory.terms for a in term.ARGS)
+        desired = set(factory.desired.keys())
         missing = desired - set(kwargs.keys())
         ukwargs = kwargs.copy()
 
@@ -144,7 +143,7 @@ class rime_factory:
             kw = {a: ukwargs[a] for a in term.ALL_ARGS if a in ukwargs}
             dask_schema.update(term.dask_schema(**kw))
 
-        names = list(kwargs.keys())
+        names = list(sorted(kwargs.keys()))
         blockwise_args = [e for n in names
                           for e in (kwargs[n], dask_schema.get(n, None))]
 

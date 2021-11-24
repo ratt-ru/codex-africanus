@@ -40,7 +40,7 @@ def rime(time, antenna1, antenna2, feed1, feed2, terms=None, **kwargs):
     contract_dims -= set(dims)
     out_dims = dims + tuple(contract_dims)
 
-    # Source and concatentation dimension are reduced to 1 element
+    # Source and concatenation dimension are reduced to 1 element
     adjust_chunks = {"source": 1}
     adjust_chunks.update((d, 1) for d in contract_dims)
 
