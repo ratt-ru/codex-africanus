@@ -101,10 +101,10 @@ class TransformerMetaClass(type):
         return namespace
 
     @classmethod
-    def term_in_bases(cls, bases):
+    def transformer_in_bases(cls, bases):
         """ Is `Transformer` in bases? """
         for base in bases:
-            if base is Transformer or cls.term_in_bases(base.__bases__):
+            if base is Transformer or cls.transformer_in_bases(base.__bases__):
                 return True
 
         return False
@@ -112,7 +112,7 @@ class TransformerMetaClass(type):
     def __new__(mcls, name, bases, namespace):
         # Check methods on any subclasses of Transformer
         # and expand the subclass namespace
-        if mcls.term_in_bases(bases):
+        if mcls.transformer_in_bases(bases):
             namespace = mcls._expand_namespace(name, namespace)
 
         return super(TransformerMetaClass, mcls).__new__(
