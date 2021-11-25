@@ -111,42 +111,25 @@ class rime_factory:
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
         argdeps = ArgumentDependencies(tuple(kwargs.keys()),
-                                       self.terms,
-                                       self.transformers)
+                                       self.terms, self.transformers)
         dask_schema = {a: ("row",) for a in argdeps.REQUIRED_ARGS}
-        desired = set(argdeps.desired.keys())
-        missing = desired - set(kwargs.keys())
-        ukwargs = kwargs.copy()
+        # Holds kwargs + any dummy outputs from transformations
+        dummy_kw = kwargs.copy()
 
-        for arg in list(missing):
-            try:
-                transformer = argdeps.can_create[arg]
-            except KeyError:
-                continue
-
-            try:
-                kw = {a: kwargs[a] for a in transformer.ARGS}
-            except KeyError:
-                pass
-            else:
-                kw.update({a: kwargs.get(a, d) for a, d
-                           in transformer.KWARGS.items()})
-                inputs, outputs = transformer.dask_schema(**kw)
-                dask_schema.update(inputs)
-                ukwargs.update(outputs)
-                missing.remove(arg)
-
-        if missing:
-            raise ValueError(f"The following arguments: {missing} were "
-                             f"not supplied and could not be created from "
-                             f"supplied arguments")
+        for transformer in argdeps.can_create.values():
+            kw = {a: dummy_kw[a] for a in transformer.ARGS}
+            kw.update((a, kwargs.get(a, d)) for a, d
+                      in transformer.KWARGS.items())
+            inputs, outputs = transformer.dask_schema(**kw)
+            dask_schema.update(inputs)
+            dummy_kw.update(outputs)
 
         for term in self.terms:
-            kw = {a: ukwargs[a] for a in term.ALL_ARGS if a in ukwargs}
+            kw = {a: dummy_kw[a] for a in term.ALL_ARGS if a in dummy_kw}
             dask_schema.update(term.dask_schema(**kw))
 
-        names = list(sorted(kwargs.keys()))
-        blockwise_args = [e for n in names
+        names = list(sorted(argdeps.valid_inputs | set(kwargs.keys())))
+        blockwise_args = [e for n in names if n in kwargs
                           for e in (kwargs[n], dask_schema.get(n, None))]
 
         return names, blockwise_args
@@ -154,6 +137,7 @@ class rime_factory:
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
         keys = (self.REQUIRED_ARGS_LITERAL +
                 tuple(map(types.literal, kwargs.keys())))
+
         return self.impl(keys, time,
                          antenna1, antenna2,
                          feed1, feed2,

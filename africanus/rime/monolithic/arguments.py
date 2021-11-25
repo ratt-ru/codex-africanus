@@ -101,11 +101,8 @@ def pack_arguments(terms, args):
     return ArgumentPack(names, arg_types, index)
 
 
-REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
-
-
 class ArgumentDependencies:
-    REQUIRED_ARGS = REQUIRED_ARGS
+    REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
     KEY_ARGS = ("utime", "time_index",
                 "uantenna", "antenna1_index", "antenna2_index",
                 "ufeed", "feed1_index", "feed2_index")
@@ -141,6 +138,17 @@ class ArgumentDependencies:
         self.output_names = (self.names + self.KEY_ARGS +
                              tuple(self.optional_defaults.keys()) +
                              tuple(self.can_create.keys()))
+
+        # Determine a canonical set of valid inputs
+        # We start with the desired and required arguments
+        self.valid_inputs = set(desired.keys()) | set(self.REQUIRED_ARGS)
+
+        # Then, for each argument than can be created
+        # we add the transformer arguments and remove
+        # the arguments to create
+        for arg, transformer in cc.items():
+            self.valid_inputs.update(transformer.ARGS)
+            self.valid_inputs.remove(arg)
 
     def _resolve_arg_dependencies(self):
         # KEY_ARGS will be created
