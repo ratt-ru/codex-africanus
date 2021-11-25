@@ -196,7 +196,10 @@ def test_rime_wrapper(chunks):
         except ImportError:
             return mapping
 
-        return {k: v.data for k, v in mapping.items()}
+        if isinstance(mapping, xr.Dataset):
+            return {k: v.data for k, v in mapping.items()}
+        else:
+            return mapping
 
     def rime(*other, **kwargs):
         terms = kwargs.pop("terms", None)

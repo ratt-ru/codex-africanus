@@ -10,11 +10,8 @@ import numpy as np
 
 from africanus.averaging.support import _unique_internal
 
-from africanus.rime.monolithic.argpack import ArgumentPack
+from africanus.rime.monolithic.arguments import ArgumentPack
 from africanus.rime.monolithic.terms.core import StateStructRef
-
-
-REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
 
 
 def scalar_scalar(lhs, rhs):
@@ -189,43 +186,16 @@ class IntrinsicFactory:
                 "uantenna", "antenna1_index", "antenna2_index",
                 "ufeed", "feed1_index", "feed2_index")
 
-    def __init__(self, arg_names, terms, transformers):
-        if not set(REQUIRED_ARGS).issubset(arg_names):
-            raise ValueError(
-                f"{set(REQUIRED_ARGS) - set(arg_names)} "
-                f"missing from arg_names")
-
-        self.names = arg_names
-        self.terms = terms
-        self.transformers = transformers
-
-        self.desired = desired = defaultdict(list)
-        self.optional = optional = defaultdict(list)
-        self.maybe_create = maybe_create = defaultdict(list)
-
-        for term in terms:
-            for a in term.ARGS:
-                desired[a].append(term)
-            for k, d in term.KWARGS.items():
-                optional[k].append((term, d))
-
-        for transformer in transformers:
-            for o in transformer.OUTPUTS:
-                maybe_create[o].append(transformer)
-
-        od, cc = self._resolve_arg_dependencies()
-        self.optional_defaults = od
-        self.can_create = cc
-
-        self.output_names = (self.names + self.KEY_ARGS +
-                             tuple(self.optional_defaults.keys()) +
-                             tuple(self.can_create.keys()))
+    def __init__(self, arg_dependencies):
+        self.argdeps = arg_dependencies
 
     def _resolve_arg_dependencies(self):
+        argdeps = self.argdeps
+
         # KEY_ARGS will be created
-        supplied_args = set(self.names) | set(self.KEY_ARGS)
-        missing = set(self.desired.keys()) - supplied_args
-        available_args = set(self.names) | supplied_args
+        supplied_args = set(argdeps.names) | set(self.KEY_ARGS)
+        missing = set(argdeps.desired.keys()) - supplied_args
+        available_args = set(argdeps.names) | supplied_args
         failed_transforms = defaultdict(list)
         can_create = {}
 
@@ -236,10 +206,10 @@ class IntrinsicFactory:
                 continue
 
             # We don't know how to create
-            if arg not in self.maybe_create:
+            if arg not in argdeps.maybe_create:
                 continue
 
-            for transformer in self.maybe_create[arg]:
+            for transformer in argdeps.maybe_create[arg]:
                 # We didn't have the arguments, make a note of this
                 if not set(transformer.ARGS).issubset(available_args):
                     failed_transforms[arg].append(
@@ -253,7 +223,7 @@ class IntrinsicFactory:
 
         # Fail if required arguments are missing
         for arg in missing:
-            terms_wanting = self.desired[arg]
+            terms_wanting = argdeps.desired[arg]
             err_msgs = []
             err_msgs.append(f"{set(terms_wanting)} need(s) '{arg}'.")
 
@@ -261,8 +231,8 @@ class IntrinsicFactory:
                 for transformer, needed in failed_transforms[arg]:
                     err_msgs.append(f"{transformer} can create {arg} "
                                     f"but needs {needed}, of which "
-                                    f"{needed - set(self.names)} is missing "
-                                    f"from the input arguments.")
+                                    f"{needed - set(argdeps.names)} is "
+                                    f"missing from the input arguments.")
 
             raise ValueError("\n".join(err_msgs))
 
@@ -270,29 +240,31 @@ class IntrinsicFactory:
 
         for transformer in can_create.values():
             for k, d in transformer.KWARGS.items():
-                self.optional[k].append((transformer, d))
+                argdeps.optional[k].append((transformer, d))
 
-        for k, v in self.optional.items():
+        for k, v in argdeps.optional.items():
             _, defaults = zip(*v)
             defaults = set(defaults)
 
             if len(defaults) != 1:
-                raise ValueError(f"Multiple terms: {self.terms} have "
+                raise ValueError(f"Multiple terms: {argdeps.terms} have "
                                  f"contradicting definitions for "
                                  f"{k}: {defaults}")
 
             opt_defaults[k] = defaults.pop()
 
-        for name in self.names:
+        for name in argdeps.names:
             opt_defaults.pop(name, None)
 
         return opt_defaults, can_create
 
     def pack_argument_fn(self):
+        argdeps = self.argdeps
+
         @intrinsic
         def pack_arguments(typingctx, args):
-            assert len(args) == len(self.names)
-            it = zip(self.names, args, range(len(self.names)))
+            assert len(args) == len(argdeps.names)
+            it = zip(argdeps.names, args, range(len(argdeps.names)))
             arg_info = {n: (t, i) for n, t, i in it}
 
             key_types = {
@@ -306,9 +278,9 @@ class IntrinsicFactory:
                 "feed2_index": types.int64[:]
             }
 
-            if tuple(key_types.keys()) != self.KEY_ARGS:
+            if tuple(key_types.keys()) != argdeps.KEY_ARGS:
                 raise RuntimeError(
-                    f"{tuple(key_types.keys())} != {self.KEY_ARGS}")
+                    f"{tuple(key_types.keys())} != {argdeps.KEY_ARGS}")
 
             def _indices(time, antenna1, antenna2, feed1, feed2):
                 utime, time_index = _unique_internal(time)[:2]
@@ -323,17 +295,18 @@ class IntrinsicFactory:
                         uants, antenna1_index, antenna2_index,
                         ufeeds, feed1_index, feed2_index)
 
-            _indices_arg_typs = tuple(arg_info[k][0] for k in REQUIRED_ARGS)
+            _indices_arg_typs = tuple(arg_info[k][0] for k
+                                      in argdeps.REQUIRED_ARGS)
             fn_sig = types.Tuple(list(key_types.values()))(*_indices_arg_typs)
 
             rvt = typingctx.resolve_value_type_prefer_literal
             optionals = [(n, rvt(d), d) for n, d
-                         in self.optional_defaults.items()]
+                         in argdeps.optional_defaults.items()]
             opt_return_types = tuple(p[1] for p in optionals)
 
             transform_return_types = []
 
-            for name, transformer in self.can_create.items():
+            for name, transformer in argdeps.can_create.items():
                 transform = transformer.transform()
                 ir = compiler.run_frontend(transform)
                 arg_types = tuple(arg_info[a][0] for a in transformer.ARGS)
@@ -376,20 +349,20 @@ class IntrinsicFactory:
                     context.nrt.incref(builder, signature.args[0][i], value)
                     ret_tuple = builder.insert_value(ret_tuple, value, i)
 
-                n = len(self.names)
+                n = len(argdeps.names)
 
                 # Compute indexing arguments and insert into
                 # the new tuple
                 fn_args = [builder.extract_value(args[0], arg_info[a][1])
-                           for a in REQUIRED_ARGS]
+                           for a in argdeps.REQUIRED_ARGS]
 
                 index = context.compile_internal(builder, _indices,
                                                  fn_sig, fn_args)
 
                 for i, (name, value) in enumerate(key_types.items()):
-                    if name != self.output_names[i + n]:
+                    if name != argdeps.output_names[i + n]:
                         raise TypingError(
-                            f"{name} != {self.output_names[i + n]}")
+                            f"{name} != {argdeps.output_names[i + n]}")
 
                     value = builder.extract_value(index, i)
                     ret_tuple = builder.insert_value(ret_tuple, value, i + n)
@@ -399,9 +372,9 @@ class IntrinsicFactory:
                 # Insert necessary optional defaults (kwargs) into the
                 # new argument tuple
                 for i, (name, typ, default) in enumerate(optionals):
-                    if name != self.output_names[i + n]:
+                    if name != argdeps.output_names[i + n]:
                         raise TypingError(
-                            f"{name} != {self.output_names[i + n]}")
+                            f"{name} != {argdeps.output_names[i + n]}")
 
                     value = context.get_constant_generic(builder, typ, default)
                     ret_tuple = builder.insert_value(ret_tuple, value, i + n)
@@ -410,10 +383,11 @@ class IntrinsicFactory:
 
                 # Apply any argument transforms and insert their results
                 # into the new argument tuple
-                for i, (v, transformer) in enumerate(self.can_create.items()):
-                    if v != self.output_names[i + n]:
+                it = enumerate(argdeps.can_create.items())
+                for i, (v, transformer) in it:
+                    if v != argdeps.output_names[i + n]:
                         raise TypingError(
-                            f"{v} != {self.output_names[i + n]}")
+                            f"{v} != {argdeps.output_names[i + n]}")
 
                     transform_args = []
                     transform_types = []
@@ -449,20 +423,22 @@ class IntrinsicFactory:
         return pack_arguments
 
     def term_state_fn(self):
+        argdeps = self.argdeps
+
         @intrinsic
         def term_state(typingctx, args):
             if not isinstance(args, types.Tuple):
                 raise TypingError(f"args must be a Tuple but is {args}")
 
             arg_pack = ArgumentPack(
-                self.output_names, args, tuple(range(len(args))))
+                argdeps.output_names, args, tuple(range(len(args))))
 
             constructors = []
             state_fields = []
 
             # Query Terms for fields and their associated types
             # that should be created on the State object
-            for term in self.terms:
+            for term in argdeps.terms:
                 arg_idx = arg_pack.indices(*term.ALL_ARGS)
                 arg_types = {a: args[i]
                              for a, i in zip(term.ALL_ARGS, arg_idx)}
@@ -472,7 +448,7 @@ class IntrinsicFactory:
             arg_fields = [(k, args[i]) for k, (_, i) in arg_pack.items()]
             state_type = StateStructRef(arg_fields + state_fields)
 
-            for term in self.terms:
+            for term in argdeps.terms:
                 arg_idx = arg_pack.indices(*term.ALL_ARGS)
                 arg_types = {a: args[i]
                              for a, i in zip(term.ALL_ARGS, arg_idx)}
@@ -517,7 +493,7 @@ class IntrinsicFactory:
                 # Our single argument is a tuple of arguments, but we
                 # need to extract those arguments necessary to construct
                 # the term StructRef
-                for term in self.terms:
+                for term in argdeps.terms:
                     cargs = [state]
                     ctypes = [state_type]
 
@@ -540,7 +516,7 @@ class IntrinsicFactory:
                     constructor_args.append(cargs)
                     constructor_types.append(ctypes)
 
-                for ti in range(len(self.terms)):
+                for ti in range(len(argdeps.terms)):
                     constructor_sig = types.none(*constructor_types[ti])
                     context.compile_internal(builder,
                                              constructors[ti],
@@ -554,12 +530,14 @@ class IntrinsicFactory:
         return term_state
 
     def term_sampler_fn(self):
-        samplers = [term.sampler() for term in self.terms]
+        argdeps = self.argdeps
 
-        for term, sampler in zip(self.terms, samplers):
+        samplers = [term.sampler() for term in argdeps.terms]
+
+        for term, sampler in zip(argdeps.terms, samplers):
             term.validate_sampler(sampler)
 
-        nterms = len(self.terms)
+        nterms = len(argdeps.terms)
 
         @intrinsic
         def term_sampler(typingctx, state, s, r, t, a1, a2, c):

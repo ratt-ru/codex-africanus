@@ -2,8 +2,9 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolithic.intrinsics import (
-    REQUIRED_ARGS, IntrinsicFactory)
+from africanus.rime.monolithic.arguments import (
+    REQUIRED_ARGS, ArgumentDependencies)
+from africanus.rime.monolithic.intrinsics import IntrinsicFactory
 from africanus.rime.monolithic.terms.core import Term
 
 
@@ -51,16 +52,17 @@ class rime_factory:
             names = tuple(n.literal_value for n in names)
 
             # Generate intrinsics
-            factory = IntrinsicFactory(names, terms, transformers)
+            argdeps = ArgumentDependencies(names, terms, transformers)
+            factory = IntrinsicFactory(argdeps)
             pack_arguments = factory.pack_argument_fn()
             term_state = factory.term_state_fn()
             term_sampler = factory.term_sampler_fn()
 
             try:
-                lm_i = factory.output_names.index("lm")
-                uvw_i = factory.output_names.index("uvw")
-                chan_freq_i = factory.output_names.index("chan_freq")
-                stokes_i = factory.output_names.index("stokes")
+                lm_i = argdeps.output_names.index("lm")
+                uvw_i = argdeps.output_names.index("uvw")
+                chan_freq_i = argdeps.output_names.index("chan_freq")
+                stokes_i = argdeps.output_names.index("stokes")
             except ValueError as e:
                 raise ValueError(f"{str(e)} is required")
 
@@ -109,16 +111,17 @@ class rime_factory:
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
-        factory = IntrinsicFactory(tuple(kwargs.keys()),
-                                   self.terms, self.transformers)
-        dask_schema = {a: ("row",) for a in REQUIRED_ARGS}
-        desired = set(factory.desired.keys())
+        argdeps = ArgumentDependencies(tuple(kwargs.keys()),
+                                       self.terms,
+                                       self.transformers)
+        dask_schema = {a: ("row",) for a in argdeps.REQUIRED_ARGS}
+        desired = set(argdeps.desired.keys())
         missing = desired - set(kwargs.keys())
         ukwargs = kwargs.copy()
 
         for arg in list(missing):
             try:
-                transformer = factory.can_create[arg]
+                transformer = argdeps.can_create[arg]
             except KeyError:
                 continue
 
