@@ -205,7 +205,7 @@ def test_rime_wrapper(chunks):
         terms = kwargs.pop("terms", None)
         transformers = kwargs.pop("transformers", None)
 
-        factory = rime_factory(terms=terms, transformers=transformers)
+        factory = rime_factory(terms=terms, transformers=transformers)  # noqa
         from collections.abc import Mapping
 
         if len(other) == 0:

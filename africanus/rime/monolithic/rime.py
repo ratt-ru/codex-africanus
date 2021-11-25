@@ -2,14 +2,13 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolithic.arguments import (
-    REQUIRED_ARGS, ArgumentDependencies)
+from africanus.rime.monolithic.arguments import ArgumentDependencies
 from africanus.rime.monolithic.intrinsics import IntrinsicFactory
 from africanus.rime.monolithic.terms.core import Term
 
 
 class rime_factory:
-    REQUIRED_ARGS = REQUIRED_ARGS
+    REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
     REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
 
