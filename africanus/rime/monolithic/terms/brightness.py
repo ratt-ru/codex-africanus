@@ -117,33 +117,10 @@ def conversion_factory(stokes_schema, corr_schema):
 
 
 class BrightnessTerm(Term):
-    def __init__(self, corr_schema="[I,Q,U,V] -> [XX,XY,YX,YY]"):
-        bits = [s.strip() for s in corr_schema.strip().split("->")]
+    def __init__(self, stokes, corrs):
+        self.stokes = stokes
+        self.corrs = corrs
 
-        bad_schema = ValueError("corr_schema must have the following form "
-                                "\"[I,Q,U,V] -> [XX,XY,YX,YY]\"")
-
-        if len(bits) != 2:
-            raise bad_schema
-
-        stokes, corrs = bits
-
-        if not (stokes.startswith("[") and stokes.endswith("]")):
-            raise bad_schema
-
-        if not (corrs.startswith("[") and corrs.endswith("]")):
-            raise bad_schema
-
-        self.stokes = [s.strip().upper() for s in stokes[1:-1].split(",")]
-        self.corrs = [c.strip().upper() for c in corrs[1:-1].split(",")]
-
-        if not all(s in STOKES_TYPES for s in self.stokes):
-            raise ValueError(f"{self.stokes} contains "
-                             f"invalid stokes parameters")
-
-        if not all(c in STOKES_TYPES for c in self.corrs):
-            raise ValueError(f"{self.corrs} contains "
-                             f"invalid correlations")
 
     def dask_schema(self, stokes, spi, ref_freq,
                     chan_freq, spi_base="standard"):

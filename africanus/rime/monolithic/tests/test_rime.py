@@ -8,6 +8,7 @@ from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
 from africanus.model.coherency import convert
 
+from africanus.rime.monolithic.parser import parse_rime
 from africanus.rime.monolithic.rime import rime_factory
 from africanus.rime.monolithic.dask import rime as dask_rime
 
@@ -20,7 +21,7 @@ from africanus.rime.monolithic.dask import rime as dask_rime
 ])
 def test_rime_parser(rime_spec):
     # custom_mapping = {"Kpq": MyCustomPhaseTerm}
-    # print(parse_rime(rime_spec))
+    print(parse_rime(rime_spec))
     pass
 
 
