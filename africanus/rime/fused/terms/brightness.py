@@ -4,7 +4,7 @@ from numba.core import cgutils, types, errors
 from numba.extending import intrinsic
 
 
-from africanus.rime.monolithic.terms.core import Term
+from africanus.rime.fused.terms.core import Term
 
 
 STOKES_CONVERSION = {

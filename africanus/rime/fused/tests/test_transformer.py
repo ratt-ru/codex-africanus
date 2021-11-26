@@ -1,4 +1,4 @@
-from africanus.rime.monolithic.transformers.lm import LMTransformer
+from africanus.rime.fused.transformers.lm import LMTransformer
 
 
 def test_transformers():

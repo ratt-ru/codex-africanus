@@ -1,7 +1,7 @@
 import numpy as np
 from numba.core import types
 
-from africanus.rime.monolithic.transformers.core import Transformer
+from africanus.rime.fused.transformers.core import Transformer
 
 
 class LMTransformer(Transformer):

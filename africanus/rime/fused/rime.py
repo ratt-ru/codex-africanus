@@ -2,10 +2,10 @@ import numba
 from numba import generated_jit, types
 import numpy as np
 
-from africanus.rime.monolithic.arguments import ArgumentDependencies
-from africanus.rime.monolithic.intrinsics import IntrinsicFactory
-from africanus.rime.monolithic.parser import parse_rime
-from africanus.rime.monolithic.terms.core import Term
+from africanus.rime.fused.arguments import ArgumentDependencies
+from africanus.rime.fused.intrinsics import IntrinsicFactory
+from africanus.rime.fused.parser import parse_rime
+from africanus.rime.fused.terms.core import Term
 
 
 class rime_factory:
@@ -15,9 +15,9 @@ class rime_factory:
     DEFAULT_SPEC = "[Gp, (Kpq, Bpq), Gq]: [I, Q, U, V] -> [XX, XY, YX, YY]"
 
     def __init__(self, rime_spec=DEFAULT_SPEC, terms=None, transformers=None):
-        from africanus.rime.monolithic.terms.phase import PhaseTerm
-        from africanus.rime.monolithic.terms.brightness import BrightnessTerm
-        from africanus.rime.monolithic.transformers.lm import LMTransformer
+        from africanus.rime.fused.terms.phase import PhaseTerm
+        from africanus.rime.fused.terms.brightness import BrightnessTerm
+        from africanus.rime.fused.transformers.lm import LMTransformer
         rime_spec = parse_rime(rime_spec or self.DEFAULT_SPEC)
         terms = terms or [
             PhaseTerm(),

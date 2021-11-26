@@ -8,9 +8,9 @@ from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
 from africanus.model.coherency import convert
 
-from africanus.rime.monolithic.parser import parse_rime
-from africanus.rime.monolithic.rime import rime_factory
-from africanus.rime.monolithic.dask import rime as dask_rime
+from africanus.rime.fused.parser import parse_rime
+from africanus.rime.fused.rime import rime_factory
+from africanus.rime.fused.dask import rime as dask_rime
 
 
 @pytest.mark.parametrize("rime_spec", [
@@ -48,7 +48,7 @@ chunks = [
 
 
 @pytest.mark.parametrize("chunks", chunks)
-def test_monolithic_rime(chunks):
+def test_fused_rime(chunks):
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
     nspi = sum(chunks["spi"])
@@ -101,7 +101,7 @@ def test_monolithic_rime(chunks):
 
 
 @pytest.mark.parametrize("chunks", chunks)
-def test_monolithic_dask_rime(chunks):
+def test_fused_dask_rime(chunks):
     da = pytest.importorskip("dask.array")
 
     nsrc = sum(chunks["source"])
