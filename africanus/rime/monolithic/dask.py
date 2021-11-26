@@ -26,7 +26,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 def rime(time, antenna1, antenna2, feed1, feed2, **kwargs):
     terms = kwargs.pop("terms", None)
     transformers = kwargs.pop("transformers", None)
-    
+
     factory = rime_factory(terms=terms, transformers=transformers)
 
     kwargs = {

@@ -4,7 +4,6 @@ from numba.core import cgutils, types, errors
 from numba.extending import intrinsic
 
 
-from africanus.util.casa_types import STOKES_TYPES
 from africanus.rime.monolithic.terms.core import Term
 
 
@@ -120,7 +119,6 @@ class BrightnessTerm(Term):
     def __init__(self, stokes, corrs):
         self.stokes = stokes
         self.corrs = corrs
-
 
     def dask_schema(self, stokes, spi, ref_freq,
                     chan_freq, spi_base="standard"):

@@ -1,6 +1,5 @@
 import ast
 
-from africanus.util.casa_types import STOKES_TYPES
 
 class RimeParseError(ValueError):
     pass
@@ -27,17 +26,19 @@ class ListTransformer(ast.NodeTransformer):
     def visit_Num(self, node):
         return node.n
 
+
 class RimeSpecificationError(ValueError):
     pass
+
 
 class RimeSpecification:
     def __init__(self, equation, stokes, corrs):
         valid_stokes = {"I", "Q", "U", "V"}
-        
+
         if valid_stokes & set(stokes) != valid_stokes:
             raise RimeSpecificationError(
                 f"{stokes} contains invalid stokes parameters. "
-                f"Only {valid_stokes} are accepted") 
+                f"Only {valid_stokes} are accepted")
 
         self.equation = equation
         self.stokes = stokes
@@ -50,10 +51,10 @@ class RimeSpecification:
         circular = {"RR", "RL", "LR", "LL"}
         scorrs = set(corrs)
 
-        if linear & scorrs == linear:
+        if scorrs.issubset(linear):
             return "linear"
-        
-        if circular & scorrs == circular:
+
+        if scorrs.issubset(circular):
             return "circular"
 
         raise RimeSpecificationError(
@@ -67,6 +68,7 @@ class RimeSpecification:
 
     def __str__(self):
         return f"{self.equation}: {self.stokes} -> {self.corrs}"
+
 
 def parse_str_list(str_list):
     return ListTransformer().visit(ast.parse(str_list))
@@ -98,16 +100,14 @@ def parse_rime(rime: str):
     corrs = parse_str_list(corr_bits)
 
     if (not isinstance(stokes, list) or
-        not all(isinstance(s, str) for s in stokes)):
+            not all(isinstance(s, str) for s in stokes)):
 
         raise RimeParseError(
             f"Stokes specification must be of the form "
             f"[I,Q,U,V]. Got {stokes}.")
 
-
-
     if (not isinstance(corrs, list) or
-        not all(isinstance(c, str) for c in corrs)):
+            not all(isinstance(c, str) for c in corrs)):
 
         raise RimeParseError(
             f"Correlation specification must be of the form "

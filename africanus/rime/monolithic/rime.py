@@ -19,7 +19,9 @@ class rime_factory:
         from africanus.rime.monolithic.terms.brightness import BrightnessTerm
         from africanus.rime.monolithic.transformers.lm import LMTransformer
         rime_spec = parse_rime(rime_spec or self.DEFAULT_SPEC)
-        terms = terms or [PhaseTerm(), BrightnessTerm(rime_spec.stokes, rime_spec.corrs)]
+        terms = terms or [
+            PhaseTerm(),
+            BrightnessTerm(rime_spec.stokes, rime_spec.corrs)]
         transformers = transformers or [LMTransformer()]
 
         for t in terms:
