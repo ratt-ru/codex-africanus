@@ -14,13 +14,10 @@ class Gaussian(Term):
                 "chan_freq": ("chan",),
                 "gauss_shape": ("source", "gauss_shape_params")}
 
-    def fields(self, uvw, chan_freq, gauss_shape):
-        unified = self.result_type(uvw, chan_freq, gauss_shape)
-        return [("gauss_uv", unified[:, :, :]),
-                ("scaled_freq", chan_freq)]
-
-    def initialiser(self, state, uvw, chan_freq, gauss_shape):
-        guv_dtype = state.field_dict["gauss_uv"].dtype
+    def init_fields(self, uvw, chan_freq, gauss_shape):
+        guv_dtype = self.result_type(uvw, chan_freq, gauss_shape)
+        fields = [("gauss_uv", guv_dtype[:, :, :]),
+                  ("scaled_freq", chan_freq)]
 
         fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
         fwhminv = 1.0 / fwhm
@@ -47,7 +44,7 @@ class Gaussian(Term):
                     state.gauss_uv[s, r, 0] = (u*em - v*el)*er
                     state.gauss_uv[s, r, 1] = u*el + v*em
 
-        return gaussian_init
+        return fields, gaussian_init
 
     def sampler(self):
         def gaussian_sample(state, s, r, t, a1, a2, c):

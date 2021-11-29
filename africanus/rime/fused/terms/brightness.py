@@ -136,15 +136,11 @@ class Brightness(Term):
             "spi_base": None
         }
 
-    def fields(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
-        return [("spectral_model", stokes.dtype[:, :, :])]
-
     STANDARD = 0
     LOG = 1
     LOG10 = 2
 
-    def initialiser(self, state, stokes, spi, ref_freq,
-                    chan_freq, spi_base="standard"):
+    def init_fields(self, stokes, spi, ref_freq, chan_freq, spi_base="standard"):
         expected_nstokes = len(self.stokes)
 
         def brightness(state, stokes, spi, ref_freq,
@@ -217,7 +213,8 @@ class Brightness(Term):
 
             state.spectral_model = spectral_model
 
-        return brightness
+        return [("spectral_model", stokes.dtype[:, :, :])], brightness
+
 
     def sampler(self):
         converter = conversion_factory(self.stokes, self.corrs)

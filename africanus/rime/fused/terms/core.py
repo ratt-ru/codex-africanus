@@ -36,7 +36,7 @@ class TermMetaClass(type):
     signatures
     """
 
-    REQUIRED = ("fields", "initialiser", "dask_schema", "sampler")
+    REQUIRED = ("init_fields", "dask_schema", "sampler")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
@@ -62,44 +62,37 @@ class TermMetaClass(type):
                 methods.append(method)
 
         methods = dict(zip(cls.REQUIRED, methods))
-        fields_sig = inspect.signature(methods["fields"])
+        init_fields_sig = inspect.signature(methods["init_fields"])
 
-        for i, (n, p) in enumerate(fields_sig.parameters.items()):
+        for i, (n, p) in enumerate(init_fields_sig.parameters.items()):
             if i == 0 and n != "self":
-                raise InvalidSignature(f"{name}.fields{fields_sig} "
+                raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
                                        f"should be "
-                                       f"{name}.fields(self, ...)")
+                                       f"{name}.init_fields(self, ...)")
 
             if p.kind == p.VAR_POSITIONAL:
                 raise InvalidSignature(f"*{n} in "
-                                       f"{name}.fields{fields_sig} "
+                                       f"{name}.init_fields{init_fields_sig} "
                                        f"is not supported")
 
             if p.kind == p.VAR_KEYWORD:
                 raise InvalidSignature(f"**{n} in "
-                                       f"{name}.fields{fields_sig} "
+                                       f"{name}.init_fields{init_fields_sig} "
                                        f"is not supported")
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
 
-        if dask_schema_sig != fields_sig:
+        if dask_schema_sig != init_fields_sig:
             raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
                                    f"should be "
-                                   f"{name}.dask_schema{fields_sig}")
+                                   f"{name}.dask_schema{init_fields_sig}")
 
         Parameter = inspect.Parameter
-        field_params = list(fields_sig.parameters.values())
+        field_params = list(init_fields_sig.parameters.values())
         expected_init_params = field_params.copy()
         state_param = Parameter("state", Parameter.POSITIONAL_OR_KEYWORD)
         expected_init_params.insert(1, state_param)
-        expected_init_sig = fields_sig.replace(parameters=expected_init_params)
-
-        init_sig = inspect.signature(methods["initialiser"])
-
-        if expected_init_sig != init_sig:
-            raise InvalidSignature(f"{name}.initialiser{init_sig} "
-                                   f"should be "
-                                   f"{name}.fields{expected_init_sig}")
+        expected_init_sig = init_fields_sig.replace(parameters=expected_init_params)
 
         sampler_sig = inspect.signature(methods["sampler"])
         params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
@@ -110,22 +103,22 @@ class TermMetaClass(type):
                                    f"should be "
                                    f"{name}.sampler{expected_sampler_sig}")
 
-        args = tuple(n for n, p in fields_sig.parameters.items()
+        args = tuple(n for n, p in init_fields_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
                      and p.default is p.empty)
 
-        kw = {n: p.default for n, p in fields_sig.parameters.items()
+        kw = {n: p.default for n, p in init_fields_sig.parameters.items()
               if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
               and p.default is not p.empty}
 
         expected_init_params.pop(0)
-        expected_init_sig = fields_sig.replace(parameters=expected_init_params)
+        expected_init_sig = init_fields_sig.replace(parameters=expected_init_params)
         validator = sigcheck_factory(expected_init_sig)
 
         namespace = namespace.copy()
         namespace["ARGS"] = args[1:]
         namespace["KWARGS"] = kw
-        namespace["ALL_ARGS"] = tuple(fields_sig.parameters.keys())[1:]
+        namespace["ALL_ARGS"] = tuple(init_fields_sig.parameters.keys())[1:]
         namespace["validate_constructor"] = validator
 
         return namespace

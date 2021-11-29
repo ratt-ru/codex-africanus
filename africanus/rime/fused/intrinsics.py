@@ -433,30 +433,22 @@ class IntrinsicFactory:
             arg_pack = ArgumentPack(
                 argdeps.output_names, args, tuple(range(len(args))))
 
-            constructors = []
             state_fields = []
+            constructors = []
 
             # Query Terms for fields and their associated types
             # that should be created on the State object
             for term in argdeps.terms:
-                arg_idx = arg_pack.indices(*term.ALL_ARGS)
-                arg_types = {a: args[i]
-                             for a, i in zip(term.ALL_ARGS, arg_idx)}
-                state_fields.extend(term.fields(**arg_types))
+                it = zip(term.ALL_ARGS, arg_pack.indices(*term.ALL_ARGS))
+                arg_types = {a: args[i] for a, i in it}
+                fields, constructor = term.init_fields(**arg_types)
+                term.validate_constructor(constructor)
+                state_fields.extend(fields)
+                constructors.append(constructor)
 
             # Now define all fields for the State type
             arg_fields = [(k, args[i]) for k, (_, i) in arg_pack.items()]
             state_type = StateStructRef(arg_fields + state_fields)
-
-            for term in argdeps.terms:
-                arg_idx = arg_pack.indices(*term.ALL_ARGS)
-                arg_types = {a: args[i]
-                             for a, i in zip(term.ALL_ARGS, arg_idx)}
-                init_types = {"state": state_type, **arg_types}
-                constructor = term.initialiser(**init_types)
-                term.validate_constructor(constructor)
-                constructors.append(constructor)
-
             sig = state_type(args)
 
             def codegen(context, builder, signature, args):
