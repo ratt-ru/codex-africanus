@@ -92,7 +92,8 @@ class TermMetaClass(type):
         expected_init_params = field_params.copy()
         state_param = Parameter("state", Parameter.POSITIONAL_OR_KEYWORD)
         expected_init_params.insert(1, state_param)
-        expected_init_sig = init_fields_sig.replace(parameters=expected_init_params)
+        expected_init_sig = init_fields_sig.replace(
+                                parameters=expected_init_params)
 
         sampler_sig = inspect.signature(methods["sampler"])
         params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
@@ -112,7 +113,8 @@ class TermMetaClass(type):
               and p.default is not p.empty}
 
         expected_init_params.pop(0)
-        expected_init_sig = init_fields_sig.replace(parameters=expected_init_params)
+        expected_init_sig = init_fields_sig.replace(
+                                parameters=expected_init_params)
         validator = sigcheck_factory(expected_init_sig)
 
         namespace = namespace.copy()

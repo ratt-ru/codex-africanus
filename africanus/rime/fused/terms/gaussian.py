@@ -27,8 +27,8 @@ class Gaussian(Term):
             nsrc, _ = gauss_shape.shape
             nrow, _ = uvw.shape
 
-            state.gauss_uv = np.empty((nsrc, nrow, 2), dtype=guv_dtype)
-            state.scaled_freq = chan_freq*gauss_scale
+            gauss_uv = np.empty((nsrc, nrow, 2), dtype=guv_dtype)
+            scaled_freq = chan_freq*gauss_scale
 
             for s in range(nsrc):
                 emaj, emin, angle = gauss_shape[s]
@@ -41,8 +41,10 @@ class Gaussian(Term):
                 for r in range(uvw.shape[0]):
                     u, v, w = uvw[r]
 
-                    state.gauss_uv[s, r, 0] = (u*em - v*el)*er
-                    state.gauss_uv[s, r, 1] = u*el + v*em
+                    gauss_uv[s, r, 0] = (u*em - v*el)*er
+                    gauss_uv[s, r, 1] = u*el + v*em
+
+            return gauss_uv, scaled_freq
 
         return fields, gaussian_init
 

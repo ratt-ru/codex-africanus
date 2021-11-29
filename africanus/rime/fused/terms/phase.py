@@ -16,24 +16,24 @@ class Phase(Term):
                 "chan_freq": ("chan",),
                 "convention": None}
 
-
     def init_fields(self, lm, uvw, chan_freq, convention="fourier"):
-        phase_dot = self.result_type(lm, uvw, chan_freq)
+        phase_dt = self.result_type(lm, uvw, chan_freq)
+        fields = [("phase_dot", phase_dt[:, :])]
 
         def phase(state, lm, uvw, chan_freq, convention="fourier"):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape
 
-            state.phase_dot = np.empty((nsrc, nrow), dtype=phase_dot)
+            phase_dot = np.empty((nsrc, nrow), dtype=phase_dt)
 
             zero = lm.dtype.type(0.0)
             one = lm.dtype.type(1.0)
 
             if convention == "fourier":
-                C = phase_dot(-2.0*np.pi/lightspeed)
+                C = phase_dt(-2.0*np.pi/lightspeed)
             elif convention == "casa":
-                C = phase_dot(2.0*np.pi/lightspeed)
+                C = phase_dt(2.0*np.pi/lightspeed)
             else:
                 raise ValueError("convention not in (\"fourier\", \"casa\")")
 
@@ -48,9 +48,11 @@ class Phase(Term):
                     v = uvw[r, 1]
                     w = uvw[r, 2]
 
-                    state.phase_dot[s, r] = C*(l*u + m*v + n*w)
+                    phase_dot[s, r] = C*(l*u + m*v + n*w)
 
-        return [("phase_dot", phase_dot[:, :])], phase
+            return phase_dot
+
+        return fields, phase
 
     def sampler(self):
         def phase_sample(state, s, r, t, a1, a2, c):

@@ -434,6 +434,7 @@ class IntrinsicFactory:
                 argdeps.output_names, args, tuple(range(len(args))))
 
             state_fields = []
+            term_fields = []
             constructors = []
 
             # Query Terms for fields and their associated types
@@ -443,6 +444,7 @@ class IntrinsicFactory:
                 arg_types = {a: args[i] for a, i in it}
                 fields, constructor = term.init_fields(**arg_types)
                 term.validate_constructor(constructor)
+                term_fields.append(fields)
                 state_fields.extend(fields)
                 constructors.append(constructor)
 
@@ -509,11 +511,36 @@ class IntrinsicFactory:
                     constructor_types.append(ctypes)
 
                 for ti in range(len(argdeps.terms)):
-                    constructor_sig = types.none(*constructor_types[ti])
-                    context.compile_internal(builder,
-                                             constructors[ti],
-                                             constructor_sig,
-                                             constructor_args[ti])
+                    fields = term_fields[ti]
+                    nfields = len(fields)
+
+                    if nfields == 0:
+                        return_type = types.none
+                    elif nfields == 1:
+                        return_type = fields[0][1]
+                    else:
+                        return_types = [f[1] for f in fields]
+                        return_type = types.Tuple(return_types)
+
+                    constructor_sig = return_type(*constructor_types[ti])
+                    return_value = context.compile_internal(
+                                    builder, constructors[ti],
+                                    constructor_sig, constructor_args[ti])
+
+                    if nfields == 0:
+                        pass
+                    elif nfields == 1:
+                        arg_name, typ = fields[0]
+                        old_value = getattr(data_struct, arg_name)
+                        context.nrt.decref(builder, typ, old_value)
+                        setattr(data_struct, arg_name, return_value)
+                    else:
+                        for i, (arg_name, typ) in enumerate(fields):
+                            value = builder.extract_value(return_value, i)
+                            context.nrt.incref(builder, typ, value)
+                            old_value = getattr(data_struct, arg_name)
+                            context.nrt.decref(builder, typ, old_value)
+                            setattr(data_struct, arg_name, value)
 
                 return state
 
