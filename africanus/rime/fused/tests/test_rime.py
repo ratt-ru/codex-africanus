@@ -63,17 +63,17 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     antenna2 = np.arange(nrow, dtype=np.int32)
     feed1 = feed2 = antenna1
     radec = np.random.random(size=(nsrc, 2))*1e-5
-    phase_centre = np.random.random(2)*1e-5
+    phase_dir = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
     ref_freq = np.random.random(size=nsrc)*.856e9
-    lm = radec_to_lm(radec, phase_centre)
+    lm = radec_to_lm(radec, phase_dir)
 
     rime = rime_factory()
     out = rime(time, antenna1, antenna2, feed1, feed2,
-               radec=radec, phase_centre=phase_centre,
+               radec=radec, phase_dir=phase_dir,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq,
                convention="casa", spi_base="standard")
@@ -139,7 +139,7 @@ def test_fused_dask_rime(chunks):
     antenna2 = np.arange(nrow, dtype=np.int32)
     feed1 = feed2 = antenna1
     radec = np.random.random(size=(nsrc, 2))*1e-5
-    phase_centre = np.random.random(size=(2,))*1e-5
+    phase_dir = np.random.random(size=(2,))*1e-5
     uvw = np.random.random(size=(nrow, 3))*1e5
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
@@ -155,7 +155,7 @@ def test_fused_dask_rime(chunks):
     dask_feed1 = darray(feed1, ("row",))
     dask_feed2 = darray(feed2, ("row",))
     dask_radec = darray(radec, ("source", "radec"))
-    dask_phase_centre = darray(phase_centre, ("radec",))
+    dask_phase_dir = darray(phase_dir, ("radec",))
     dask_uvw = darray(uvw, ("row", "uvw"))
     dask_chan_freq = darray(chan_freq, ("chan",))
     dask_stokes = darray(stokes, ("source", "corr"))
@@ -165,14 +165,14 @@ def test_fused_dask_rime(chunks):
     dask_out = dask_rime(dask_time,
                          dask_antenna1, dask_antenna2,
                          dask_feed1, dask_feed2,
-                         radec=dask_radec, phase_centre=dask_phase_centre,
+                         radec=dask_radec, phase_dir=dask_phase_dir,
                          uvw=dask_uvw, stokes=dask_stokes,
                          spi=dask_spi, chan_freq=dask_chan_freq,
                          ref_freq=dask_ref_freq, convention="casa")
 
     rime = rime_factory()
     out = rime(time, antenna1, antenna2, feed1, feed2,
-               radec=radec, phase_centre=phase_centre,
+               radec=radec, phase_dir=phase_dir,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
                spi=spi, ref_freq=ref_freq, convention="casa")
 
@@ -193,7 +193,7 @@ def test_rime_wrapper(chunks):
     antenna2 = np.arange(nrow, dtype=np.int32)
     feed1 = feed2 = antenna1
     radec = np.random.random(size=(nsrc, 2))*1e-5
-    phase_centre = np.random.random(size=(2,))*1e-5
+    phase_dir = np.random.random(size=(2,))*1e-5
     uvw = np.random.random(size=(nrow, 3))*1e5
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
@@ -207,7 +207,7 @@ def test_rime_wrapper(chunks):
         "feed1": feed1,
         "feed2": feed2,
         "radec": radec,
-        "phase_centre": phase_centre,
+        "phase_dir": phase_dir,
         "uvw": uvw,
         "chan_freq": chan_freq,
         "stokes": stokes,

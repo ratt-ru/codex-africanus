@@ -7,23 +7,23 @@ from africanus.rime.fused.transformers.core import Transformer
 class LMTransformer(Transformer):
     OUTPUTS = ["lm"]
 
-    def outputs(self, radec, phase_centre):
+    def outputs(self, radec, phase_dir):
         if not isinstance(radec, types.Array) or radec.ndim != 2:
             raise ValueError(f"radec: {radec} must be "
                              f"a (source, radec) array")
 
-        if not isinstance(phase_centre, types.Array) or radec.ndim != 1:
-            raise ValueError(f"phase_centre: {phase_centre} "
+        if not isinstance(phase_dir, types.Array) or radec.ndim != 1:
+            raise ValueError(f"phase_dir: {phase_dir} "
                              f"must be a (radec,) array")
 
-        dt = self.result_type(radec.dtype, phase_centre.dtype)
+        dt = self.result_type(radec.dtype, phase_dir.dtype)
         return [("lm", types.Array(dt, radec.ndim, radec.layout))]
 
     def transform(self):
-        def lm(radec, phase_centre):
+        def lm(radec, phase_dir):
             lm = np.empty_like(radec)
-            pc_ra = phase_centre[0]
-            pc_dec = phase_centre[1]
+            pc_ra = phase_dir[0]
+            pc_dec = phase_dir[1]
 
             sin_pc_dec = np.sin(pc_dec)
             cos_pc_dec = np.cos(pc_dec)
@@ -43,13 +43,13 @@ class LMTransformer(Transformer):
 
         return lm
 
-    def dask_schema(self, radec, phase_centre):
+    def dask_schema(self, radec, phase_dir):
         assert radec.ndim == 2
-        assert phase_centre.ndim == 1
+        assert phase_dir.ndim == 1
 
         inputs = {
             "radec": ("source", "radec"),
-            "phase_centre": ("radec",)
+            "phase_dir": ("radec",)
         }
 
         outputs = {"lm": np.empty((0, 0), dtype=radec.dtype)}
