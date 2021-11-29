@@ -21,7 +21,7 @@ from africanus.rime.fused.dask import rime as dask_rime
     # "[Gp x (Ep x Lp x Kpq x Bpq x Lq x Eq) x Gq] -> [XX, XY, YX, YY]",
 ])
 def test_rime_parser(rime_spec):
-    # custom_mapping = {"Kpq": MyCustomPhaseTerm}
+    # custom_mapping = {"Kpq": MyCustomPhase}
     print(parse_rime(rime_spec))
     pass
 
@@ -102,14 +102,14 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    from africanus.rime.fused.terms.phase import PhaseTerm
-    from africanus.rime.fused.terms.brightness import BrightnessTerm
-    from africanus.rime.fused.terms.gaussian import GaussianTerm
+    from africanus.rime.fused.terms.phase import Phase
+    from africanus.rime.fused.terms.brightness import Brightness
+    from africanus.rime.fused.terms.gaussian import Gaussian
 
     gauss_shape = np.random.random((nsrc, 3))
-    terms = [GaussianTerm(),
-             PhaseTerm(),
-             BrightnessTerm(stokes_schema, corr_schema)]
+    terms = [Gaussian(),
+             Phase(),
+             Brightness(stokes_schema, corr_schema)]
     rime = rime_factory(terms=terms)
     out = rime(time, antenna1, antenna2, feed1, feed2,
                gauss_shape=gauss_shape,

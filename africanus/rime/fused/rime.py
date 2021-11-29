@@ -15,23 +15,23 @@ class rime_factory:
     DEFAULT_SPEC = "[Gp, (Kpq, Bpq), Gq]: [I, Q, U, V] -> [XX, XY, YX, YY]"
 
     def __init__(self, rime_spec=DEFAULT_SPEC, terms=None, transformers=None):
-        from africanus.rime.fused.terms.phase import PhaseTerm
-        from africanus.rime.fused.terms.brightness import BrightnessTerm
+        from africanus.rime.fused.terms.phase import Phase
+        from africanus.rime.fused.terms.brightness import Brightness
         from africanus.rime.fused.transformers.lm import LMTransformer
         rime_spec = parse_rime(rime_spec or self.DEFAULT_SPEC)
         terms = terms or [
-            PhaseTerm(),
-            BrightnessTerm(rime_spec.stokes, rime_spec.corrs)]
+            Phase(),
+            Brightness(rime_spec.stokes, rime_spec.corrs)]
         transformers = transformers or [LMTransformer()]
 
         for t in terms:
             if not isinstance(t, Term):
                 raise TypeError(f"{t} is not of type {Term}")
 
-        if not any(isinstance(t, PhaseTerm) for t in terms):
+        if not any(isinstance(t, Phase) for t in terms):
             raise ValueError("RIME must at least contain a Phase Term")
 
-        if not any(isinstance(t, BrightnessTerm) for t in terms):
+        if not any(isinstance(t, Brightness) for t in terms):
             raise ValueError("RIME must at least contain a Brightness Term")
 
         @generated_jit(nopython=True, nogil=True, cache=True)

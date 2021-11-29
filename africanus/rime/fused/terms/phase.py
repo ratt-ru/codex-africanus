@@ -4,7 +4,7 @@ import numpy as np
 from africanus.rime.fused.terms.core import Term
 
 
-class PhaseTerm(Term):
+class Phase(Term):
     def dask_schema(self, lm, uvw, chan_freq, convention="fourier"):
         assert lm.ndim == 2
         assert uvw.ndim == 2

@@ -4,7 +4,7 @@ import numpy as np
 from africanus.rime.fused.terms.core import Term
 
 
-class GaussianTerm(Term):
+class Gaussian(Term):
     def dask_schema(self, uvw, chan_freq, gauss_shape):
         assert uvw.ndim == 2
         assert chan_freq.ndim == 1

@@ -115,7 +115,7 @@ def conversion_factory(stokes_schema, corr_schema):
     return corr_convert
 
 
-class BrightnessTerm(Term):
+class Brightness(Term):
     def __init__(self, stokes, corrs):
         self.stokes = stokes
         self.corrs = corrs
