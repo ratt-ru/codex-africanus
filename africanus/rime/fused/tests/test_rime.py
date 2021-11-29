@@ -6,6 +6,7 @@ from africanus.coordinates import radec_to_lm
 
 from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
+from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
 from africanus.rime.fused.parser import parse_rime
@@ -48,7 +49,9 @@ chunks = [
 
 
 @pytest.mark.parametrize("chunks", chunks)
-def test_fused_rime(chunks):
+@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
+def test_fused_rime(chunks, stokes_schema, corr_schema):
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
     nspi = sum(chunks["spi"])
@@ -76,7 +79,7 @@ def test_fused_rime(chunks):
                convention="casa", spi_base="standard")
     P = phase_delay(lm, uvw, chan_freq, convention="casa")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
-    B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
+    B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
@@ -86,7 +89,7 @@ def test_fused_rime(chunks):
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
-    B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
+    B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
@@ -95,8 +98,29 @@ def test_fused_rime(chunks):
                spi=spi, ref_freq=ref_freq)
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
-    B = convert(SM, ["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"])
+    B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
+    assert_array_almost_equal(expected, out)
+
+    from africanus.rime.fused.terms.phase import PhaseTerm
+    from africanus.rime.fused.terms.brightness import BrightnessTerm
+    from africanus.rime.fused.terms.gaussian import GaussianTerm
+
+    gauss_shape = np.random.random((nsrc, 3))
+    terms = [GaussianTerm(),
+             PhaseTerm(),
+             BrightnessTerm(stokes_schema, corr_schema)]
+    rime = rime_factory(terms=terms)
+    out = rime(time, antenna1, antenna2, feed1, feed2,
+               gauss_shape=gauss_shape,
+               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
+               spi=spi, ref_freq=ref_freq)
+
+    P = phase_delay(lm, uvw, chan_freq, convention="fourier")
+    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    B = convert(SM, stokes_schema, corr_schema)
+    G = gaussian(uvw, chan_freq, gauss_shape)
+    expected = (G[:, :, :, None]*P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
 
