@@ -9,7 +9,7 @@ from africanus.model.spectral import spectral_model
 from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
-from africanus.rime.fused.parser import RimeSpecification, parse_rime
+from africanus.rime.fused.specification import RimeSpecification, parse_rime
 from africanus.rime.fused.rime import rime_factory
 from africanus.rime.fused.dask import rime as dask_rime
 
@@ -21,7 +21,7 @@ from africanus.rime.fused.dask import rime as dask_rime
     "[Gp, (Ep, Lp, Kpq, Bpq, Lq, Eq), Gq]: [I, Q, U, V] -> [XX, XY, YX, YY]",
     # "[Gp x (Ep x Lp x Kpq x Bpq x Lq x Eq) x Gq] -> [XX, XY, YX, YY]",
 ])
-def test_rime_parser(rime_spec):
+def test_rime_specification(rime_spec):
     # custom_mapping = {"Kpq": MyCustomPhase}
     print(parse_rime(rime_spec))
     pass

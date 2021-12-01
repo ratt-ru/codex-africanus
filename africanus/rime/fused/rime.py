@@ -4,7 +4,7 @@ import numpy as np
 
 from africanus.rime.fused.arguments import ArgumentDependencies
 from africanus.rime.fused.intrinsics import IntrinsicFactory
-from africanus.rime.fused.parser import RimeSpecification
+from africanus.rime.fused.specification import RimeSpecification
 
 
 class rime_factory:
