@@ -4,37 +4,27 @@ import numpy as np
 
 from africanus.rime.fused.arguments import ArgumentDependencies
 from africanus.rime.fused.intrinsics import IntrinsicFactory
-from africanus.rime.fused.parser import parse_rime
-from africanus.rime.fused.terms.core import Term
+from africanus.rime.fused.parser import RimeSpecification
 
 
 class rime_factory:
     REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
     REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
-    DEFAULT_SPEC = "[Gp, (Kpq, Bpq), Gq]: [I, Q, U, V] -> [XX, XY, YX, YY]"
+    DEFAULT_SPEC = "(Kpq, Bpq): [I, Q, U, V] -> [XX, XY, YX, YY]"
 
-    def __init__(self, rime_spec=DEFAULT_SPEC, terms=None, transformers=None):
-        from africanus.rime.fused.terms.phase import Phase
-        from africanus.rime.fused.terms.brightness import Brightness
-        from africanus.rime.fused.transformers.lm import LMTransformer
-        rime_spec = parse_rime(rime_spec or self.DEFAULT_SPEC)
-        terms = terms or [
-            Phase(),
-            Brightness(rime_spec.stokes, rime_spec.corrs)]
-        transformers = transformers or [LMTransformer()]
+    def __reduce__(self):
+        return (rime_factory, (self.terms, self.transformers))
 
-        for t in terms:
-            if not isinstance(t, Term):
-                raise TypeError(f"{t} is not of type {Term}")
+    def __init__(self, rime_spec=DEFAULT_SPEC):
+        if isinstance(rime_spec, str):
+            rime_spec = RimeSpecification(rime_spec)
 
-        if not any(isinstance(t, Phase) for t in terms):
-            raise ValueError("RIME must at least contain a Phase Term")
+        terms = rime_spec.terms
+        transformers = rime_spec.transformers
+        ncorr = len(rime_spec.corrs)
 
-        if not any(isinstance(t, Brightness) for t in terms):
-            raise ValueError("RIME must at least contain a Brightness Term")
-
-        @generated_jit(nopython=True, nogil=True, cache=True)
+        @generated_jit(nopython=True, nogil=True, cache=False)
         def rime(names, *inargs):
             if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
                 raise TypeError(f"{inargs[0]} must be be a Tuple")
@@ -66,7 +56,6 @@ class rime_factory:
                 lm_i = argdeps.output_names.index("lm")
                 uvw_i = argdeps.output_names.index("uvw")
                 chan_freq_i = argdeps.output_names.index("chan_freq")
-                stokes_i = argdeps.output_names.index("stokes")
             except ValueError as e:
                 raise ValueError(f"{str(e)} is required")
 
@@ -77,7 +66,6 @@ class rime_factory:
                 nsrc, _ = args[lm_i].shape
                 nrow, _ = args[uvw_i].shape
                 nchan, = args[chan_freq_i].shape
-                _, ncorr = args[stokes_i].shape
 
                 vis = np.zeros((nrow, nchan, ncorr), np.complex128)
                 # Kahan summation compensation
@@ -109,9 +97,6 @@ class rime_factory:
         self.impl = rime
         self.terms = terms
         self.transformers = transformers
-
-    def __reduce__(self):
-        return (rime_factory, (self.terms, self.transformers))
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """

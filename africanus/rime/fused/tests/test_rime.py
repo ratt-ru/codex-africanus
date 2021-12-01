@@ -9,11 +9,12 @@ from africanus.model.spectral import spectral_model
 from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
-from africanus.rime.fused.parser import parse_rime
+from africanus.rime.fused.parser import RimeSpecification, parse_rime
 from africanus.rime.fused.rime import rime_factory
 from africanus.rime.fused.dask import rime as dask_rime
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("rime_spec", [
     # "G_{p}[E_{stpf}L_{tpf}K_{stpqf}B_{spq}L_{tqf}E_{q}]G_{q}",
     # "Gp[EpLpKpqBpqLqEq]sGq",
@@ -102,15 +103,10 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    from africanus.rime.fused.terms.phase import Phase
-    from africanus.rime.fused.terms.brightness import Brightness
-    from africanus.rime.fused.terms.gaussian import Gaussian
-
     gauss_shape = np.random.random((nsrc, 3))
-    terms = [Gaussian(),
-             Phase(),
-             Brightness(stokes_schema, corr_schema)]
-    rime = rime_factory(terms=terms)
+    spec = RimeSpecification("(Cpq, Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]",
+                             terms={"Cpq": "Gaussian"})
+    rime = rime_factory(rime_spec=spec)
     out = rime(time, antenna1, antenna2, feed1, feed2,
                gauss_shape=gauss_shape,
                lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
@@ -215,22 +211,30 @@ def test_rime_wrapper(chunks):
         "ref_freq": ref_freq
     }
 
-    def _maybe_convert_xarray_dataset(mapping):
+    def _maybe_convert_datasets(mapping):
+        dataset_types = []
+
         try:
             import xarray as xr
         except ImportError:
-            return mapping
+            pass
+        else:
+            dataset_types.append(xr.Dataset)
 
-        if isinstance(mapping, xr.Dataset):
+        try:
+            from daskms.dataset import Dataset
+        except ImportError:
+            pass
+        else:
+            dataset_types.append(Dataset)
+
+        if dataset_types and isinstance(mapping, dataset_types):
             return {k: v.data for k, v in mapping.items()}
         else:
             return mapping
 
-    def rime(*other, **kwargs):
-        terms = kwargs.pop("terms", None)
-        transformers = kwargs.pop("transformers", None)
-
-        factory = rime_factory(terms=terms, transformers=transformers)  # noqa
+    def rime(rime_spec, *other, **kwargs):
+        factory = rime_factory(rime_spec=rime_spec)  # noqa
         from collections.abc import Mapping
 
         if len(other) == 0:
@@ -246,7 +250,7 @@ def test_rime_wrapper(chunks):
                                     f"contain a mapping, but "
                                     f"{mapping}")
 
-                mapping = _maybe_convert_xarray_dataset(mapping)
+                mapping = _maybe_convert_datasets(mapping)
             else:
                 kwargs[k] = v
         else:
@@ -256,4 +260,4 @@ def test_rime_wrapper(chunks):
             except (ValueError, TypeError):
                 pass
 
-    rime(**kw)
+    rime("[Kpq, Bpq]: [I,Q,U,V] -> [XX,XY,YX,YY]", **kw)
