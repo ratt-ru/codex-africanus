@@ -158,7 +158,9 @@ def test_fused_dask_rime(chunks):
     dask_spi = darray(spi, ("source", "spi", "corr"))
     dask_ref_freq = darray(ref_freq, ("source",))
 
-    dask_out = dask_rime(dask_time,
+    rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]")
+
+    dask_out = dask_rime(rime_spec, dask_time,
                          dask_antenna1, dask_antenna2,
                          dask_feed1, dask_feed2,
                          radec=dask_radec, phase_dir=dask_phase_dir,
@@ -166,7 +168,7 @@ def test_fused_dask_rime(chunks):
                          spi=dask_spi, chan_freq=dask_chan_freq,
                          ref_freq=dask_ref_freq, convention="casa")
 
-    rime = rime_factory()
+    rime = rime_factory(rime_spec)
     out = rime(time, antenna1, antenna2, feed1, feed2,
                radec=radec, phase_dir=phase_dir,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,

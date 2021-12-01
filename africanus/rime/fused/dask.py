@@ -23,8 +23,8 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 
 @requires_optional("dask.array", opt_import_err)
-def rime(time, antenna1, antenna2, feed1, feed2, **kwargs):
-    factory = rime_factory()
+def rime(rime_spec, time, antenna1, antenna2, feed1, feed2, **kwargs):
+    factory = rime_factory(rime_spec)
 
     kwargs = {
         **kwargs,

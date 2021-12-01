@@ -147,9 +147,19 @@ class RimeSpecification:
         "Kpq": "Phase",
         "Bpq": "Brightness"}
 
+    def __reduce__(self):
+        return (RimeSpecification, (
+                    self._spec_arg,
+                    self._term_arg,
+                    self._xform_arg))
+
     def __init__(self, specification, terms=None, transformers=None):
         if not isinstance(specification, str):
             raise TypeError(f"specification: {specification} is not a str")
+
+        self._spec_arg = specification
+        self._term_arg = terms
+        self._xform_arg = transformers
 
         equation, stokes, corrs = parse_rime(specification)
 
