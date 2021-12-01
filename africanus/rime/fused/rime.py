@@ -88,7 +88,14 @@ class rime_factory:
     DEFAULT_SPEC = "(Kpq, Bpq): [I, Q, U, V] -> [XX, XY, YX, YY]"
 
     def __reduce__(self):
-        return (rime_factory, (self.rime_spec))
+        return (rime_factory, (self.rime_spec,))
+
+    def __hash__(self):
+        return hash(self.rime_spec)
+
+    def __eq__(self, rhs):
+        return (isinstance(rhs, rime_factory) and
+                self.rime_spec == rhs.rime_spec)
 
     def __init__(self, rime_spec=DEFAULT_SPEC):
         if isinstance(rime_spec, RimeSpecification):
@@ -99,15 +106,16 @@ class rime_factory:
             rime_spec = RimeSpecification(rime_spec)
 
         self.rime_spec = rime_spec
-        self.terms = terms = rime_spec.terms
-        self.transformers = transformers = rime_spec.transformers
-        ncorr = len(rime_spec.corrs)
-        self.impl = rime_impl_factory(terms, transformers, ncorr)
+        self.impl = rime_impl_factory(
+            rime_spec.terms,
+            rime_spec.transformers,
+            len(rime_spec.corrs))
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
         argdeps = ArgumentDependencies(tuple(kwargs.keys()),
-                                       self.terms, self.transformers)
+                                       self.rime_spec.terms,
+                                       self.rime_spec.transformers)
         dask_schema = {a: ("row",) for a in argdeps.REQUIRED_ARGS}
         # Holds kwargs + any dummy outputs from transformations
         dummy_kw = kwargs.copy()
@@ -120,7 +128,7 @@ class rime_factory:
             dask_schema.update(inputs)
             dummy_kw.update(outputs)
 
-        for term in self.terms:
+        for term in self.rime_spec.terms:
             kw = {a: dummy_kw[a] for a in term.ALL_ARGS if a in dummy_kw}
             dask_schema.update(term.dask_schema(**kw))
 

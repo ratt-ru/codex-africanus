@@ -148,22 +148,23 @@ class RimeSpecification:
         "Bpq": "Brightness"}
 
     def __reduce__(self):
-        return (RimeSpecification, (
-                    self._spec_arg,
-                    self._term_arg,
-                    self._xform_arg))
+        return (RimeSpecification, self._saved_args)
+
+    def __hash__(self):
+        return hash(self._saved_args)
+
+    def __eq__(self, rhs):
+        return (isinstance(rhs, RimeSpecification) and
+                self._saved_args == rhs._saved_args)
 
     def __init__(self, specification, terms=None, transformers=None):
         if not isinstance(specification, str):
             raise TypeError(f"specification: {specification} is not a str")
 
-        self._spec_arg = specification
-        self._term_arg = terms
-        self._xform_arg = transformers
-
+        self._saved_args = (specification, terms, transformers)
         equation, stokes, corrs = parse_rime(specification)
 
-        if self.VALID_STOKES & set(stokes) != self.VALID_STOKES:
+        if not set(stokes).issubset(self.VALID_STOKES):
             raise RimeSpecificationError(
                 f"{stokes} contains invalid stokes parameters. "
                 f"Only {self.VALID_STOKES} are accepted")
@@ -226,13 +227,30 @@ class RimeSpecification:
             f"Correlations must be purely linear or circular. "
             f"Got {corrs}")
 
+    @staticmethod
+    def flatten_eqn(equation):
+        if isinstance(equation, (tuple, list)):
+            it = iter(map(RimeSpecification.flatten_eqn, equation))
+            return "".join(("[", ",".join(it), "]"))
+        elif isinstance(equation, str):
+            return equation
+        else:
+            raise TypeError(f"equation: {equation} must "
+                            f"be a string or sequence")
+
+    def equation_bits(self):
+        return self.flatten_eqn(self.equation)
+
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}("
-            f"{self.equation}, {self.stokes}, {self.corrs})")
+        return "".join((self.__class__.__name__, "(\"", str(self), "\")"))
 
     def __str__(self):
-        return f"{self.equation}: {self.stokes} -> {self.corrs}"
+        return "".join((
+            self.equation_bits(),
+            ": ",
+            "".join(("[", ",".join(self.stokes), "]")),
+            " -> ",
+            "".join(("[", ",".join(self.corrs), "]"))))
 
 
 def parse_str_list(str_list):
