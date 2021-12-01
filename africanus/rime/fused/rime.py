@@ -1,10 +1,28 @@
 import numba
 from numba import generated_jit, types
 import numpy as np
+from threading import Lock
+import weakref
 
 from africanus.rime.fused.arguments import ArgumentDependencies
 from africanus.rime.fused.intrinsics import IntrinsicFactory
 from africanus.rime.fused.specification import RimeSpecification
+from africanus.util.hashing import freeze
+
+_factory_cache = weakref.WeakValueDictionary()
+_factory_lock = Lock()
+
+
+class RimeFactoryMetaClass(type):
+    def __call__(cls, *args, **kwargs):
+        key = freeze((args, frozenset(kwargs.items())))
+        with _factory_lock:
+            try:
+                return _factory_cache[key]
+            except KeyError:
+                instance = type.__call__(cls, *args, **kwargs)
+                _factory_cache[key] = instance
+                return instance
 
 
 def rime_impl_factory(terms, transformers, ncorr):
@@ -81,7 +99,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     return rime
 
 
-class RimeFactory:
+class RimeFactory(metaclass=RimeFactoryMetaClass):
     REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
     REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
@@ -113,9 +131,10 @@ class RimeFactory:
 
     def dask_blockwise_args(self, **kwargs):
         """ Get the dask schema """
-        argdeps = ArgumentDependencies(tuple(kwargs.keys()),
-                                       self.rime_spec.terms,
-                                       self.rime_spec.transformers)
+        argdeps = ArgumentDependencies(
+            tuple(kwargs.keys()),
+            self.rime_spec.terms,
+            self.rime_spec.transformers)
         dask_schema = {a: ("row",) for a in argdeps.REQUIRED_ARGS}
         # Holds kwargs + any dummy outputs from transformations
         dummy_kw = kwargs.copy()

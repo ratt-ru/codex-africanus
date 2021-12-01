@@ -161,7 +161,28 @@ class RimeSpecification:
         if not isinstance(specification, str):
             raise TypeError(f"specification: {specification} is not a str")
 
-        self._saved_args = (specification, terms, transformers)
+        if not terms:
+            saved_terms = terms
+        elif isinstance(terms, dict):
+            saved_terms = frozenset(terms.items())
+        elif isinstance(terms, (tuple, list, set, frozenset)):
+            saved_terms = frozenset(terms)
+            terms = dict(saved_terms)
+        else:
+            raise TypeError(
+                f"terms: {terms} must be a dictionary or "
+                f"an iterable of (key, value) pairs")
+
+        if not transformers:
+            saved_transforms = transformers
+        elif isinstance(transformers, (tuple, list, set, frozenset)):
+            saved_transforms = frozenset(transformers)
+        else:
+            raise TypeError(
+                f"transformers: {transformers} must be "
+                f"an iterable of Transformers")
+
+        self._saved_args = (specification, saved_terms, saved_transforms)
         equation, stokes, corrs = parse_rime(specification)
 
         if not set(stokes).issubset(self.VALID_STOKES):
