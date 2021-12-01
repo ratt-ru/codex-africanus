@@ -81,20 +81,20 @@ def rime_impl_factory(terms, transformers, ncorr):
     return rime
 
 
-class rime_factory:
+class RimeFactory:
     REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
     REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
     DEFAULT_SPEC = "(Kpq, Bpq): [I, Q, U, V] -> [XX, XY, YX, YY]"
 
     def __reduce__(self):
-        return (rime_factory, (self.rime_spec,))
+        return (RimeFactory, (self.rime_spec,))
 
     def __hash__(self):
         return hash(self.rime_spec)
 
     def __eq__(self, rhs):
-        return (isinstance(rhs, rime_factory) and
+        return (isinstance(rhs, RimeFactory) and
                 self.rime_spec == rhs.rime_spec)
 
     def __init__(self, rime_spec=DEFAULT_SPEC):

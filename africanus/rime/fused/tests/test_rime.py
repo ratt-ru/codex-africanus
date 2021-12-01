@@ -10,7 +10,7 @@ from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
 from africanus.rime.fused.specification import RimeSpecification, parse_rime
-from africanus.rime.fused.rime import rime_factory
+from africanus.rime.fused.rime import RimeFactory
 from africanus.rime.fused.dask import rime as dask_rime
 
 
@@ -72,7 +72,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     ref_freq = np.random.random(size=nsrc)*.856e9
     lm = radec_to_lm(radec, phase_dir)
 
-    rime = rime_factory()
+    rime = RimeFactory()
     out = rime(time, antenna1, antenna2, feed1, feed2,
                radec=radec, phase_dir=phase_dir,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
@@ -106,7 +106,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     gauss_shape = np.random.random((nsrc, 3))
     spec = RimeSpecification("(Cpq, Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]",
                              terms={"Cpq": "Gaussian"})
-    rime = rime_factory(rime_spec=spec)
+    rime = RimeFactory(rime_spec=spec)
     out = rime(time, antenna1, antenna2, feed1, feed2,
                gauss_shape=gauss_shape,
                lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
@@ -168,7 +168,7 @@ def test_fused_dask_rime(chunks):
                          spi=dask_spi, chan_freq=dask_chan_freq,
                          ref_freq=dask_ref_freq, convention="casa")
 
-    rime = rime_factory(rime_spec)
+    rime = RimeFactory(rime_spec)
     out = rime(time, antenna1, antenna2, feed1, feed2,
                radec=radec, phase_dir=phase_dir,
                uvw=uvw, chan_freq=chan_freq, stokes=stokes,
@@ -236,7 +236,7 @@ def test_rime_wrapper(chunks):
             return mapping
 
     def rime(rime_spec, *other, **kwargs):
-        factory = rime_factory(rime_spec=rime_spec)  # noqa
+        factory = RimeFactory(rime_spec=rime_spec)  # noqa
         from collections.abc import Mapping
 
         if len(other) == 0:
