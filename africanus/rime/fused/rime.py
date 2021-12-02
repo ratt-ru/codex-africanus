@@ -15,14 +15,18 @@ _factory_lock = Lock()
 
 class RimeFactoryMetaClass(type):
     def __call__(cls, *args, **kwargs):
-        key = freeze((args, frozenset(kwargs.items())))
-        with _factory_lock:
-            try:
-                return _factory_cache[key]
-            except KeyError:
-                instance = type.__call__(cls, *args, **kwargs)
-                _factory_cache[key] = instance
-                return instance
+        key = freeze(args + (kwargs,))
+
+        try:
+            return _factory_cache[key]
+        except KeyError:
+            with _factory_lock:
+                try:
+                    return _factory_cache[key]
+                except KeyError:
+                    instance = type.__call__(cls, *args, **kwargs)
+                    _factory_cache[key] = instance
+                    return instance
 
 
 def rime_impl_factory(terms, transformers, ncorr):
