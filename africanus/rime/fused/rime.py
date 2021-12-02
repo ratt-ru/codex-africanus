@@ -1,32 +1,11 @@
 import numba
 from numba import generated_jit, types
 import numpy as np
-from threading import Lock
-import weakref
 
+from africanus.util.patterns import Multiton
 from africanus.rime.fused.arguments import ArgumentDependencies
 from africanus.rime.fused.intrinsics import IntrinsicFactory
 from africanus.rime.fused.specification import RimeSpecification
-from africanus.util.hashing import freeze
-
-_factory_cache = weakref.WeakValueDictionary()
-_factory_lock = Lock()
-
-
-class RimeFactoryMetaClass(type):
-    def __call__(cls, *args, **kwargs):
-        key = freeze(args + (kwargs,))
-
-        try:
-            return _factory_cache[key]
-        except KeyError:
-            with _factory_lock:
-                try:
-                    return _factory_cache[key]
-                except KeyError:
-                    instance = type.__call__(cls, *args, **kwargs)
-                    _factory_cache[key] = instance
-                    return instance
 
 
 def rime_impl_factory(terms, transformers, ncorr):
@@ -103,7 +82,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     return rime
 
 
-class RimeFactory(metaclass=RimeFactoryMetaClass):
+class RimeFactory(metaclass=Multiton):
     REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
     REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
