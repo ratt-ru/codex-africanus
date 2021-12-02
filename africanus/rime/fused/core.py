@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import numba
 from numba import generated_jit, types
 import numpy as np
@@ -148,3 +150,47 @@ class RimeFactory(metaclass=Multiton):
                          antenna1, antenna2,
                          feed1, feed2,
                          *kwargs.values())
+
+
+DATASET_TYPES = set()
+
+try:
+    from daskms.dataset import Dataset as dmsds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.add(dmsds)
+
+try:
+    from xarray import Dataset as xrds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.add(xrds)
+
+
+def rime(rime_spec, *args, **kw):
+    mapping = {}
+    oargs = []
+
+    for element in args:
+        try:
+            key, value = element
+        except (ValueError, TypeError):
+            pass
+        else:
+            mapping[key] = value
+            continue
+
+        if isinstance(element, tuple(DATASET_TYPES)):
+            mapping.update((k.lower(), v.data) for k, v in element.items())
+        elif isinstance(element, Mapping):
+            mapping.update(element)
+        else:
+            oargs.append(element)
+
+    mapping.update(zip(oargs, RimeFactory.REQUIRED_ARGS))
+    mapping.update(kw)
+
+    factory = RimeFactory(rime_spec=rime_spec)
+    return factory(*oargs, **mapping)

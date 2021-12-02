@@ -10,7 +10,7 @@ from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
 from africanus.rime.fused.specification import RimeSpecification, parse_rime
-from africanus.rime.fused.rime import RimeFactory
+from africanus.rime.fused.core import rime
 from africanus.rime.fused.dask import rime as dask_rime
 
 
@@ -59,6 +59,10 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
 
+    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
+                              "] -> [",
+                              ",".join(corr_schema), "]"))
+
     time = np.linspace(0.1, 1.0, nrow)
     antenna1 = np.zeros(nrow, dtype=np.int32)
     antenna2 = np.arange(nrow, dtype=np.int32)
@@ -72,21 +76,31 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     ref_freq = np.random.random(size=nsrc)*.856e9
     lm = radec_to_lm(radec, phase_dir)
 
-    rime = RimeFactory()
-    out = rime(time, antenna1, antenna2, feed1, feed2,
-               radec=radec, phase_dir=phase_dir,
-               uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq,
-               convention="casa", spi_base="standard")
+    dataset = {
+        "time": time,
+        "antenna1": antenna1,
+        "antenna2": antenna2,
+        "feed1": feed1,
+        "feed2": feed2,
+        "radec": radec,
+        "phase_dir": phase_dir,
+        "uvw": uvw,
+        "chan_freq": chan_freq,
+        "stokes": stokes,
+        "spi": spi,
+        "ref_freq": ref_freq,
+    }
+
+    out = rime(f"(Kpq, Bpq): {stokes_to_corr}",
+               dataset, convention="casa", spi_base="standard")
     P = phase_delay(lm, uvw, chan_freq, convention="casa")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    out = rime(time, antenna1, antenna2, feed1, feed2,
-               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq, convention="fourier")
+    out = rime(f"(Kpq, Bpq): {stokes_to_corr}",
+               dataset, convention="fourier")
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
@@ -94,9 +108,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    out = rime(time, antenna1, antenna2, feed1, feed2,
-               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq)
+    out = rime(f"(Kpq, Bpq): {stokes_to_corr}", dataset)
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
     B = convert(SM, stokes_schema, corr_schema)
@@ -104,13 +116,9 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     assert_array_almost_equal(expected, out)
 
     gauss_shape = np.random.random((nsrc, 3))
-    spec = RimeSpecification("(Cpq, Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]",
-                             terms={"Cpq": "Gaussian"})
-    rime = RimeFactory(rime_spec=spec)
-    out = rime(time, antenna1, antenna2, feed1, feed2,
-               gauss_shape=gauss_shape,
-               lm=lm, uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq)
+    rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): {stokes_to_corr}",
+                                  terms={"Cpq": "Gaussian"})
+    out = rime(rime_spec, {**dataset, "gauss_shape": gauss_shape})
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
@@ -121,7 +129,9 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
 
 
 @pytest.mark.parametrize("chunks", chunks)
-def test_fused_dask_rime(chunks):
+@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
+def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     da = pytest.importorskip("dask.array")
 
     nsrc = sum(chunks["source"])
@@ -129,6 +139,10 @@ def test_fused_dask_rime(chunks):
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
+
+    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
+                              "] -> [",
+                              ",".join(corr_schema), "]"))
 
     time = np.linspace(0.1, 1.0, nrow)
     antenna1 = np.zeros(nrow, dtype=np.int32)
@@ -145,63 +159,28 @@ def test_fused_dask_rime(chunks):
     def darray(array, dims):
         return da.from_array(array, tuple(chunks[d] for d in dims))
 
-    dask_time = darray(time, ("row",))
-    dask_antenna1 = darray(antenna1, ("row",))
-    dask_antenna2 = darray(antenna2, ("row",))
-    dask_feed1 = darray(feed1, ("row",))
-    dask_feed2 = darray(feed2, ("row",))
-    dask_radec = darray(radec, ("source", "radec"))
-    dask_phase_dir = darray(phase_dir, ("radec",))
-    dask_uvw = darray(uvw, ("row", "uvw"))
-    dask_chan_freq = darray(chan_freq, ("chan",))
-    dask_stokes = darray(stokes, ("source", "corr"))
-    dask_spi = darray(spi, ("source", "spi", "corr"))
-    dask_ref_freq = darray(ref_freq, ("source",))
+    dask_dataset = {
+        "time": darray(time, ("row",)),
+        "antenna1": darray(antenna1, ("row",)),
+        "antenna2":  darray(antenna2, ("row",)),
+        "feed1": darray(feed1, ("row",)),
+        "feed2": darray(feed2, ("row",)),
+        "radec": darray(radec, ("source", "radec")),
+        "phase_dir": darray(phase_dir, ("radec",)),
+        "uvw": darray(uvw, ("row", "uvw")),
+        "chan_freq": darray(chan_freq, ("chan",)),
+        "stokes": darray(stokes, ("source", "corr")),
+        "spi": darray(spi, ("source", "spi", "corr")),
+        "ref_freq": darray(ref_freq, ("source",)),
+    }
 
-    rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]")
+    rime_spec = RimeSpecification(f"(Kpq, Bpq): {stokes_to_corr}")
+    dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
-    dask_out = dask_rime(rime_spec, dask_time,
-                         dask_antenna1, dask_antenna2,
-                         dask_feed1, dask_feed2,
-                         radec=dask_radec, phase_dir=dask_phase_dir,
-                         uvw=dask_uvw, stokes=dask_stokes,
-                         spi=dask_spi, chan_freq=dask_chan_freq,
-                         ref_freq=dask_ref_freq, convention="casa")
-
-    rime = RimeFactory(rime_spec)
-    out = rime(time, antenna1, antenna2, feed1, feed2,
-               radec=radec, phase_dir=phase_dir,
-               uvw=uvw, chan_freq=chan_freq, stokes=stokes,
-               spi=spi, ref_freq=ref_freq, convention="casa")
-
-    assert_array_almost_equal(dask_out.compute(
-        scheduler="single-threaded"), out)
-
-
-@pytest.mark.parametrize("chunks", chunks)
-def test_rime_wrapper(chunks):
-    nsrc = sum(chunks["source"])
-    nrow = sum(chunks["row"])
-    nspi = sum(chunks["spi"])
-    nchan = sum(chunks["chan"])
-    ncorr = sum(chunks["corr"])
-
-    time = np.linspace(0.1, 1.0, nrow)
-    antenna1 = np.zeros(nrow, dtype=np.int32)
-    antenna2 = np.arange(nrow, dtype=np.int32)
-    feed1 = feed2 = antenna1
-    radec = np.random.random(size=(nsrc, 2))*1e-5
-    phase_dir = np.random.random(size=(2,))*1e-5
-    uvw = np.random.random(size=(nrow, 3))*1e5
-    chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
-    stokes = np.random.random(size=(nsrc, ncorr))
-    spi = np.random.random(size=(nsrc, nspi, ncorr))
-    ref_freq = np.random.random(size=nsrc)*.856e9
-
-    kw = {
+    dataset = {
         "time": time,
         "antenna1": antenna1,
-        "antenna2": antenna2,
+        "antenna2":  antenna2,
         "feed1": feed1,
         "feed2": feed2,
         "radec": radec,
@@ -210,56 +189,10 @@ def test_rime_wrapper(chunks):
         "chan_freq": chan_freq,
         "stokes": stokes,
         "spi": spi,
-        "ref_freq": ref_freq
+        "ref_freq": ref_freq,
     }
 
-    def _maybe_convert_datasets(mapping):
-        dataset_types = []
+    out = rime(rime_spec, dataset, convention="casa")
 
-        try:
-            import xarray as xr
-        except ImportError:
-            pass
-        else:
-            dataset_types.append(xr.Dataset)
-
-        try:
-            from daskms.dataset import Dataset
-        except ImportError:
-            pass
-        else:
-            dataset_types.append(Dataset)
-
-        if dataset_types and isinstance(mapping, dataset_types):
-            return {k: v.data for k, v in mapping.items()}
-        else:
-            return mapping
-
-    def rime(rime_spec, *other, **kwargs):
-        factory = RimeFactory(rime_spec=rime_spec)  # noqa
-        from collections.abc import Mapping
-
-        if len(other) == 0:
-            pass
-        elif len(other) == 1:
-            try:
-                k, v = other
-            except (ValueError, TypeError):
-                mapping = other[0]
-
-                if not isinstance(mapping, Mapping):
-                    raise TypeError(f"Singleton *other does not "
-                                    f"contain a mapping, but "
-                                    f"{mapping}")
-
-                mapping = _maybe_convert_datasets(mapping)
-            else:
-                kwargs[k] = v
-        else:
-            try:
-                for k, v in other:
-                    pass
-            except (ValueError, TypeError):
-                pass
-
-    rime("[Kpq, Bpq]: [I,Q,U,V] -> [XX,XY,YX,YY]", **kw)
+    assert_array_almost_equal(dask_out.compute(
+        scheduler="single-threaded"), out)

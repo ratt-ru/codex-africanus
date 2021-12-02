@@ -1,3 +1,10 @@
+from collections.abc import Mapping
+
+import numpy as np
+
+from africanus.util.requirements import requires_optional
+from africanus.rime.fused.core import RimeFactory
+
 try:
     import dask.array as da
 except ImportError as e:
@@ -5,10 +12,22 @@ except ImportError as e:
 else:
     opt_import_err = None
 
-import numpy as np
 
-from africanus.util.requirements import requires_optional
-from africanus.rime.fused.rime import RimeFactory
+DATASET_TYPES = set()
+
+try:
+    from daskms.dataset import Dataset as dmsds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.add(dmsds)
+
+try:
+    from xarray import Dataset as xrds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.add(xrds)
 
 
 def rime_dask_wrapper(factory, names, nconcat_dims, *args):
@@ -23,7 +42,67 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 
 @requires_optional("dask.array", opt_import_err)
-def rime(rime_spec, time, antenna1, antenna2, feed1, feed2, **kwargs):
+def rime(rime_spec, *args, **kw):
+    mapping = {}
+    oargs = []
+
+    for element in args:
+        try:
+            key, value = element
+        except (ValueError, TypeError):
+            pass
+        else:
+            mapping[key] = value
+            continue
+
+        if isinstance(element, tuple(DATASET_TYPES)):
+            mapping.update((k.lower(), v.data) for k, v in element.items())
+        elif isinstance(element, Mapping):
+            mapping.update(element)
+        else:
+            oargs.append(element)
+
+    mapping.update(zip(oargs, RimeFactory.REQUIRED_ARGS))
+    mapping.update(kw)
+
+    factory = RimeFactory(rime_spec=rime_spec)
+    names, args = factory.dask_blockwise_args(**mapping)
+
+    dims = ("source", "row", "chan", "corr")
+    contract_dims = set(d for ds in args[1::2] if ds is not None for d in ds)
+    contract_dims -= set(dims)
+    out_dims = dims + tuple(contract_dims)
+
+    # Source and concatenation dimension are reduced to 1 element
+    adjust_chunks = {"source": 1}
+    adjust_chunks.update((d, 1) for d in contract_dims)
+
+    # This is needed otherwise, dask will call rime_dask_wrapper
+    # with dummy arugments to infer the output dtype.
+    # This incurs memory allocations within numba, as well as
+    # exceptions, leading to memory leaks as described
+    # in https://github.com/numba/numba/issues/3263
+    meta = np.empty((0,)*len(out_dims), dtype=np.complex128)
+
+    # Construct the wrapper call from given arguments
+    out = da.blockwise(rime_dask_wrapper, out_dims,
+                       factory, None,
+                       names, None,
+                       len(contract_dims), None,
+                       *args,
+                       concatenate=False,
+                       adjust_chunks=adjust_chunks,
+                       meta=meta)
+
+    # Contract over source and concatenation dims
+    axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))
+    return out.sum(axis=axes)
+
+    return factory(*oargs, **mapping)
+
+
+@requires_optional("dask.array", opt_import_err)
+def _rime(rime_spec, time, antenna1, antenna2, feed1, feed2, **kwargs):
     factory = RimeFactory(rime_spec)
 
     kwargs = {
