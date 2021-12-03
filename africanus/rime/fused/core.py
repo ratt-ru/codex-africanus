@@ -10,6 +10,23 @@ from africanus.rime.fused.intrinsics import IntrinsicFactory
 from africanus.rime.fused.specification import RimeSpecification
 
 
+DATASET_TYPES = []
+
+try:
+    from daskms.dataset import Dataset as dmsds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.append(dmsds)
+
+try:
+    from xarray import Dataset as xrds
+except ImportError:
+    pass
+else:
+    DATASET_TYPES.append(xrds)
+
+
 def rime_impl_factory(terms, transformers, ncorr):
     @generated_jit(nopython=True, nogil=True, cache=True)
     def rime(names, *inargs):
@@ -152,24 +169,7 @@ class RimeFactory(metaclass=Multiton):
                          *kwargs.values())
 
 
-DATASET_TYPES = set()
-
-try:
-    from daskms.dataset import Dataset as dmsds
-except ImportError:
-    pass
-else:
-    DATASET_TYPES.add(dmsds)
-
-try:
-    from xarray import Dataset as xrds
-except ImportError:
-    pass
-else:
-    DATASET_TYPES.add(xrds)
-
-
-def rime(rime_spec, *args, **kw):
+def consolidate_args(args, kw):
     mapping = {}
     oargs = []
 
@@ -191,6 +191,10 @@ def rime(rime_spec, *args, **kw):
 
     mapping.update(zip(oargs, RimeFactory.REQUIRED_ARGS))
     mapping.update(kw)
+    return oargs, mapping
 
+
+def rime(rime_spec, *args, **kw):
+    oargs, mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
     return factory(*oargs, **mapping)

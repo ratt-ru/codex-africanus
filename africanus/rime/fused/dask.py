@@ -1,9 +1,7 @@
-from collections.abc import Mapping
-
 import numpy as np
 
 from africanus.util.requirements import requires_optional
-from africanus.rime.fused.core import RimeFactory
+from africanus.rime.fused.core import RimeFactory, consolidate_args
 
 try:
     import dask.array as da
@@ -11,23 +9,6 @@ except ImportError as e:
     opt_import_err = e
 else:
     opt_import_err = None
-
-
-DATASET_TYPES = set()
-
-try:
-    from daskms.dataset import Dataset as dmsds
-except ImportError:
-    pass
-else:
-    DATASET_TYPES.add(dmsds)
-
-try:
-    from xarray import Dataset as xrds
-except ImportError:
-    pass
-else:
-    DATASET_TYPES.add(xrds)
 
 
 def rime_dask_wrapper(factory, names, nconcat_dims, *args):
@@ -43,28 +24,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 @requires_optional("dask.array", opt_import_err)
 def rime(rime_spec, *args, **kw):
-    mapping = {}
-    oargs = []
-
-    for element in args:
-        try:
-            key, value = element
-        except (ValueError, TypeError):
-            pass
-        else:
-            mapping[key] = value
-            continue
-
-        if isinstance(element, tuple(DATASET_TYPES)):
-            mapping.update((k.lower(), v.data) for k, v in element.items())
-        elif isinstance(element, Mapping):
-            mapping.update(element)
-        else:
-            oargs.append(element)
-
-    mapping.update(zip(oargs, RimeFactory.REQUIRED_ARGS))
-    mapping.update(kw)
-
+    oargs, mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
     names, args = factory.dask_blockwise_args(**mapping)
 
@@ -97,8 +57,6 @@ def rime(rime_spec, *args, **kw):
     # Contract over source and concatenation dims
     axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))
     return out.sum(axis=axes)
-
-    return factory(*oargs, **mapping)
 
 
 @requires_optional("dask.array", opt_import_err)
