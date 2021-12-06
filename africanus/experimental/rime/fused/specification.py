@@ -147,6 +147,17 @@ class RimeSpecification:
         "Kpq": "Phase",
         "Bpq": "Brightness"}
 
+    @staticmethod
+    def term_cfg(term):
+        if term.endswith("pq"):
+            return "middle"
+        elif term.endswith("p"):
+            return "left"
+        elif term.endswith("q"):
+            return "right"
+        else:
+            raise ValueError(f"{term} must end with 'pq', 'p' or 'q'")
+
     def __reduce__(self):
         return (RimeSpecification, self._saved_args)
 
@@ -204,18 +215,39 @@ class RimeSpecification:
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
+        import inspect
         terms = []
-        found_phase = found_brightness = False
+        cfgs = [self.term_cfg(t) for t in equation]
+        global_kw = {"corrs": corrs, "stokes": stokes}
 
-        for cls in term_types:
+        for cls, cfg in zip(term_types, cfgs):
             if issubclass(cls, Brightness):
-                terms.append(cls(stokes, corrs))
                 found_brightness = True
             elif issubclass(cls, Phase):
-                terms.append(cls())
                 found_phase = True
-            else:
-                terms.append(cls())
+
+            init_sig = inspect.signature(cls.__init__)
+
+            available_kw = {"configuration": cfg, **global_kw}
+            cls_kw = {}
+
+            for a, p in list(init_sig.parameters.items())[1:]:
+                if p.kind not in {p.POSITIONAL_ONLY,
+                                  p.POSITIONAL_OR_KEYWORD}:
+                    raise RimeSpecification(
+                        f"{cls}.__init__{init_sig} may not contain "
+                        f"*args or **kwargs")
+
+                try:
+                    cls_kw[a] = available_kw[a]
+                except KeyError:
+                    raise RimeSpecificationError(
+                        f"{cls}.__init__{init_sig} wants argument {a} "
+                        f"but it is not available")
+
+            term = cls(**cls_kw)
+            term.configuration
+            terms.append(term)
 
         if not found_phase:
             raise RimeSpecification(

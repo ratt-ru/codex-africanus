@@ -116,7 +116,8 @@ def conversion_factory(stokes_schema, corr_schema):
 
 
 class Brightness(Term):
-    def __init__(self, stokes, corrs):
+    def __init__(self, configuration, stokes, corrs):
+        super().__init__(configuration)
         self.stokes = stokes
         self.corrs = corrs
 

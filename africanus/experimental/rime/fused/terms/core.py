@@ -148,6 +148,12 @@ class TermMetaClass(type):
 
 
 class Term(metaclass=TermMetaClass):
+    def __init__(self, configuration):
+        self._configuration = configuration
+
+    def configuration(self):
+        return self._configuration
+
     def __repr__(self):
         return self.__class__.__name__
 
