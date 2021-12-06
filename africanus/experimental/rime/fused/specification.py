@@ -1,6 +1,7 @@
 import ast
-from pathlib import Path
 from importlib import import_module
+import inspect
+from pathlib import Path
 
 from africanus.experimental.rime.fused.terms.core import Term
 from africanus.experimental.rime.fused.terms.phase import Phase
@@ -215,7 +216,6 @@ class RimeSpecification:
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
-        import inspect
         terms = []
         cfgs = [self.term_cfg(t) for t in equation]
         global_kw = {"corrs": corrs, "stokes": stokes}
