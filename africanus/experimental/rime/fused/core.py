@@ -174,14 +174,6 @@ def consolidate_args(args, kw):
     oargs = []
 
     for element in args:
-        try:
-            key, value = element
-        except (ValueError, TypeError):
-            pass
-        else:
-            mapping[key] = value
-            continue
-
         if isinstance(element, tuple(DATASET_TYPES)):
             mapping.update((k.lower(), v.data) for k, v in element.items())
         elif isinstance(element, Mapping):
