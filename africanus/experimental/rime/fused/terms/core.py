@@ -4,8 +4,8 @@ from functools import partial
 from numba.experimental import structref
 from numba.core import types
 
-from africanus.rime.fused.common import result_type
-from africanus.rime.fused.error import InvalidSignature
+from africanus.experimental.rime.fused.common import result_type
+from africanus.experimental.rime.fused.error import InvalidSignature
 
 
 @structref.register

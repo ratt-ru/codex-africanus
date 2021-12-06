@@ -9,9 +9,10 @@ from africanus.model.spectral import spectral_model
 from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
 
-from africanus.rime.fused.specification import RimeSpecification, parse_rime
-from africanus.rime.fused.core import rime
-from africanus.rime.fused.dask import rime as dask_rime
+from africanus.experimental.rime.fused.specification import (
+    RimeSpecification, parse_rime)
+from africanus.experimental.rime.fused.core import rime
+from africanus.experimental.rime.fused.dask import rime as dask_rime
 
 
 @pytest.mark.skip

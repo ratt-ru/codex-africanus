@@ -1,7 +1,7 @@
 from africanus.constants import c as lightspeed
 import numpy as np
 
-from africanus.rime.fused.terms.core import Term
+from africanus.experimental.rime.fused.terms.core import Term
 
 
 class Phase(Term):

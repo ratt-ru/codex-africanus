@@ -10,8 +10,8 @@ import numpy as np
 
 from africanus.averaging.support import _unique_internal
 
-from africanus.rime.fused.arguments import ArgumentPack
-from africanus.rime.fused.terms.core import StateStructRef
+from africanus.experimental.rime.fused.arguments import ArgumentPack
+from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 
 def scalar_scalar(lhs, rhs):

@@ -2,8 +2,8 @@ import inspect
 from inspect import Signature, Parameter
 
 
-from africanus.rime.fused.common import result_type
-from africanus.rime.fused.error import InvalidSignature
+from africanus.experimental.rime.fused.common import result_type
+from africanus.experimental.rime.fused.error import InvalidSignature
 
 
 def sigcheck_factory(expected_sig):

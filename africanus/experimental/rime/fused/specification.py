@@ -2,12 +2,12 @@ import ast
 from pathlib import Path
 from importlib import import_module
 
-from africanus.rime.fused.terms.core import Term
-from africanus.rime.fused.terms.phase import Phase
-from africanus.rime.fused.terms.brightness import Brightness
-from africanus.rime.fused import terms as term_mod
-from africanus.rime.fused.transformers.core import Transformer
-from africanus.rime.fused import transformers as transformer_mod
+from africanus.experimental.rime.fused.terms.core import Term
+from africanus.experimental.rime.fused.terms.phase import Phase
+from africanus.experimental.rime.fused.terms.brightness import Brightness
+from africanus.experimental.rime.fused import terms as term_mod
+from africanus.experimental.rime.fused.transformers.core import Transformer
+from africanus.experimental.rime.fused import transformers as transformer_mod
 
 
 class RimeParseError(ValueError):

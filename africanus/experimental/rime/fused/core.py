@@ -5,9 +5,9 @@ from numba import generated_jit, types
 import numpy as np
 
 from africanus.util.patterns import Multiton
-from africanus.rime.fused.arguments import ArgumentDependencies
-from africanus.rime.fused.intrinsics import IntrinsicFactory
-from africanus.rime.fused.specification import RimeSpecification
+from africanus.experimental.rime.fused.arguments import ArgumentDependencies
+from africanus.experimental.rime.fused.intrinsics import IntrinsicFactory
+from africanus.experimental.rime.fused.specification import RimeSpecification
 
 
 DATASET_TYPES = []

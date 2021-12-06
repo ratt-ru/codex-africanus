@@ -1,7 +1,8 @@
 import numpy as np
 
 from africanus.util.requirements import requires_optional
-from africanus.rime.fused.core import RimeFactory, consolidate_args
+from africanus.experimental.rime.fused.core import (
+    RimeFactory, consolidate_args)
 
 try:
     import dask.array as da
