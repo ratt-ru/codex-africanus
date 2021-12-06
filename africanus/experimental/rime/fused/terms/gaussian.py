@@ -14,8 +14,11 @@ class Gaussian(Term):
                 "chan_freq": ("chan",),
                 "gauss_shape": ("source", "gauss_shape_params")}
 
-    def init_fields(self, uvw, chan_freq, gauss_shape):
-        guv_dtype = self.result_type(uvw, chan_freq, gauss_shape)
+    def init_fields(self, typingctx, uvw, chan_freq, gauss_shape):
+        guv_dtype = typingctx.unify_types(
+                        uvw.dtype,
+                        chan_freq.dtype,
+                        gauss_shape.dtype)
         fields = [("gauss_uv", guv_dtype[:, :, :]),
                   ("scaled_freq", chan_freq)]
 
@@ -23,7 +26,7 @@ class Gaussian(Term):
         fwhminv = 1.0 / fwhm
         gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
-        def gaussian_init(state, uvw, chan_freq, gauss_shape):
+        def gaussian_init(uvw, chan_freq, gauss_shape):
             nsrc, _ = gauss_shape.shape
             nrow, _ = uvw.shape
 

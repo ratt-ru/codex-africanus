@@ -16,11 +16,11 @@ class Phase(Term):
                 "chan_freq": ("chan",),
                 "convention": None}
 
-    def init_fields(self, lm, uvw, chan_freq, convention="fourier"):
-        phase_dt = self.result_type(lm, uvw, chan_freq)
+    def init_fields(self, typingctx, lm, uvw, chan_freq, convention="fourier"):
+        phase_dt = typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)
         fields = [("phase_dot", phase_dt[:, :])]
 
-        def phase(state, lm, uvw, chan_freq, convention="fourier"):
+        def phase(lm, uvw, chan_freq, convention="fourier"):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
             nchan, = chan_freq.shape

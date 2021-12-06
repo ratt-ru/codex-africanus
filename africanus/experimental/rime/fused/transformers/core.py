@@ -2,7 +2,6 @@ import inspect
 from inspect import Signature, Parameter
 
 
-from africanus.experimental.rime.fused.common import result_type
 from africanus.experimental.rime.fused.error import InvalidSignature
 
 
@@ -120,8 +119,6 @@ class TransformerMetaClass(type):
 
 
 class Transformer(metaclass=TransformerMetaClass):
-    result_type = staticmethod(result_type)
-
     def __repr__(self):
         return self.__class__.__name__
 

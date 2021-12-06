@@ -4,7 +4,6 @@ from functools import partial
 from numba.experimental import structref
 from numba.core import types
 
-from africanus.experimental.rime.fused.common import result_type
 from africanus.experimental.rime.fused.error import InvalidSignature
 
 
@@ -63,13 +62,22 @@ class TermMetaClass(type):
 
         methods = dict(zip(cls.REQUIRED, methods))
         init_fields_sig = inspect.signature(methods["init_fields"])
+        field_params = list(init_fields_sig.parameters.values())
 
-        for i, (n, p) in enumerate(init_fields_sig.parameters.items()):
-            if i == 0 and n != "self":
-                raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
-                                       f"should be "
-                                       f"{name}.init_fields(self, ...)")
+        if len(init_fields_sig.parameters) < 2:
+            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
+                                   f"should be "
+                                   f"{name}.init_fields(self, typingctx, ...)")
 
+        it = iter(init_fields_sig.parameters.items())
+        first, second = next(it), next(it)
+
+        if first[0] != "self" or second[0] != "typingctx":
+            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
+                                   f"should be "
+                                   f"{name}.init_fields(self, typingctx, ...)")
+
+        for i, (n, p) in enumerate(it):
             if p.kind == p.VAR_POSITIONAL:
                 raise InvalidSignature(f"*{n} in "
                                        f"{name}.init_fields{init_fields_sig} "
@@ -81,19 +89,20 @@ class TermMetaClass(type):
                                        f"is not supported")
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
+        expected_dask_params = field_params[0:1] + field_params[2:]
+        expected_dask_sig = init_fields_sig.replace(
+            parameters=expected_dask_params)
 
-        if dask_schema_sig != init_fields_sig:
+        if dask_schema_sig != expected_dask_sig:
             raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
                                    f"should be "
-                                   f"{name}.dask_schema{init_fields_sig}")
+                                   f"{name}.dask_schema{expected_dask_sig}")
 
         Parameter = inspect.Parameter
-        field_params = list(init_fields_sig.parameters.values())
-        expected_init_params = field_params.copy()
-        state_param = Parameter("state", Parameter.POSITIONAL_OR_KEYWORD)
-        expected_init_params.insert(1, state_param)
+        # Elide self and typingctx
         expected_init_sig = init_fields_sig.replace(
-                                parameters=expected_init_params)
+                                parameters=field_params[2:])
+        validator = sigcheck_factory(expected_init_sig)
 
         sampler_sig = inspect.signature(methods["sampler"])
         params = [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)]
@@ -112,15 +121,10 @@ class TermMetaClass(type):
               if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
               and p.default is not p.empty}
 
-        expected_init_params.pop(0)
-        expected_init_sig = init_fields_sig.replace(
-                                parameters=expected_init_params)
-        validator = sigcheck_factory(expected_init_sig)
-
         namespace = namespace.copy()
-        namespace["ARGS"] = args[1:]
+        namespace["ARGS"] = args[2:]  # Elide self and typingctx
         namespace["KWARGS"] = kw
-        namespace["ALL_ARGS"] = tuple(init_fields_sig.parameters.keys())[1:]
+        namespace["ALL_ARGS"] = tuple(init_fields_sig.parameters.keys())[2:]
         namespace["validate_constructor"] = validator
 
         return namespace
@@ -144,8 +148,6 @@ class TermMetaClass(type):
 
 
 class Term(metaclass=TermMetaClass):
-    result_type = staticmethod(result_type)
-
     def __repr__(self):
         return self.__class__.__name__
 

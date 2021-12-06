@@ -442,7 +442,7 @@ class IntrinsicFactory:
             for term in argdeps.terms:
                 it = zip(term.ALL_ARGS, arg_pack.indices(*term.ALL_ARGS))
                 arg_types = {a: args[i] for a, i in it}
-                fields, constructor = term.init_fields(**arg_types)
+                fields, constructor = term.init_fields(typingctx, **arg_types)
                 term.validate_constructor(constructor)
                 term_fields.append(fields)
                 state_fields.extend(fields)
@@ -488,8 +488,8 @@ class IntrinsicFactory:
                 # need to extract those arguments necessary to construct
                 # the term StructRef
                 for term in argdeps.terms:
-                    cargs = [state]
-                    ctypes = [state_type]
+                    cargs = []
+                    ctypes = []
 
                     arg_types = arg_pack.types(*term.ALL_ARGS)
                     arg_index = arg_pack.indices(*term.ALL_ARGS)
