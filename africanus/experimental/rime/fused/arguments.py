@@ -126,13 +126,13 @@ class ArgumentDependencies:
         for arg in missing:
             terms_wanting = self.desired[arg]
             err_msgs = []
-            err_msgs.append(f"{set(terms_wanting)} need(s) '{arg}'.")
+            err_msgs.append(f"{terms_wanting} need(s) '{arg}'.")
 
             if arg in failed_transforms:
                 for transformer, needed in failed_transforms[arg]:
                     err_msgs.append(f"{transformer} can create {arg} "
                                     f"but needs {needed}, of which "
-                                    f"{needed - set(self.names)} is missing "
+                                    f"{needed - supplied_args} is missing "
                                     f"from the input arguments.")
 
             raise ValueError("\n".join(err_msgs))

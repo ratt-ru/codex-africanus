@@ -1,5 +1,4 @@
 import numpy as np
-from numba.core import types
 
 from africanus.experimental.rime.fused.transformers.core import Transformer
 
@@ -7,19 +6,10 @@ from africanus.experimental.rime.fused.transformers.core import Transformer
 class LMTransformer(Transformer):
     OUTPUTS = ["lm"]
 
-    def outputs(self, radec, phase_dir):
-        if not isinstance(radec, types.Array) or radec.ndim != 2:
-            raise ValueError(f"radec: {radec} must be "
-                             f"a (source, radec) array")
+    def init_fields(self, typingctx, radec, phase_dir):
+        dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
+        fields = [("lm", dt[:, :])]
 
-        if not isinstance(phase_dir, types.Array) or radec.ndim != 1:
-            raise ValueError(f"phase_dir: {phase_dir} "
-                             f"must be a (radec,) array")
-
-        dt = self.result_type(radec.dtype, phase_dir.dtype)
-        return [("lm", types.Array(dt, radec.ndim, radec.layout))]
-
-    def transform(self):
         def lm(radec, phase_dir):
             lm = np.empty_like(radec)
             pc_ra = phase_dir[0]
@@ -41,7 +31,7 @@ class LMTransformer(Transformer):
 
             return lm
 
-        return lm
+        return fields, lm
 
     def dask_schema(self, radec, phase_dir):
         assert radec.ndim == 2

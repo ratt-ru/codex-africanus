@@ -1,7 +1,9 @@
 import ast
 from importlib import import_module
 import inspect
+from itertools import groupby  # noqa
 from pathlib import Path
+import re
 
 from africanus.experimental.rime.fused.terms.core import Term
 from africanus.experimental.rime.fused.terms.phase import Phase
@@ -9,6 +11,9 @@ from africanus.experimental.rime.fused.terms.brightness import Brightness
 from africanus.experimental.rime.fused import terms as term_mod
 from africanus.experimental.rime.fused.transformers.core import Transformer
 from africanus.experimental.rime.fused import transformers as transformer_mod
+
+
+TERM_STRING_REGEX = re.compile("([A-Z])(pq|p|q)")
 
 
 class RimeParseError(ValueError):
@@ -142,22 +147,21 @@ def search_types(module, typ, exclude=("__init__.py", "core.py")):
     return typs
 
 
+def _decompose_term_str(term_str):
+    match = TERM_STRING_REGEX.match(term_str)
+
+    if not match:
+        raise RimeSpecificationError(
+            f"{term_str} does not match {TERM_STRING_REGEX.pattern}")
+
+    return tuple(match.groups())
+
+
 class RimeSpecification:
     VALID_STOKES = {"I", "Q", "U", "V"}
     TERM_MAP = {
-        "Kpq": "Phase",
-        "Bpq": "Brightness"}
-
-    @staticmethod
-    def term_cfg(term):
-        if term.endswith("pq"):
-            return "middle"
-        elif term.endswith("p"):
-            return "left"
-        elif term.endswith("q"):
-            return "right"
-        else:
-            raise ValueError(f"{term} must end with 'pq', 'p' or 'q'")
+        "K": "Phase",
+        "B": "Brightness"}
 
     def __reduce__(self):
         return (RimeSpecification, self._saved_args)
@@ -170,6 +174,7 @@ class RimeSpecification:
                 self._saved_args == rhs._saved_args)
 
     def __init__(self, specification, terms=None, transformers=None):
+        # Argument Handling
         if not isinstance(specification, str):
             raise TypeError(f"specification: {specification} is not a str")
 
@@ -194,7 +199,7 @@ class RimeSpecification:
                 f"transformers: {transformers} must be "
                 f"an iterable of Transformers")
 
-        self._saved_args = (specification, saved_terms, saved_transforms)
+        # Parse the specification
         equation, stokes, corrs = parse_rime(specification)
 
         if not set(stokes).issubset(self.VALID_STOKES):
@@ -202,12 +207,20 @@ class RimeSpecification:
                 f"{stokes} contains invalid stokes parameters. "
                 f"Only {self.VALID_STOKES} are accepted")
 
+        self._saved_args = (specification, saved_terms, saved_transforms)
+        self.equation = equation
+        self.stokes = stokes
+        self.corrs = corrs
+        self.feed_type = feed_type = self._feed_type(corrs)
+
+        # Determine term types
         term_map = {**self.TERM_MAP, **terms} if terms else self.TERM_MAP
         term_types = search_types(term_mod, Term)
         transformer_types = search_types(transformer_mod, Transformer)
+        term_char, term_cfgs = zip(*(_decompose_term_str(t) for t in equation))
 
         try:
-            terms_wanted = tuple(term_map[t] for t in equation)
+            terms_wanted = tuple(term_map[t] for t in term_char)
         except KeyError as e:
             raise RimeSpecificationError(f"Unknown term {str(e)}")
 
@@ -216,20 +229,20 @@ class RimeSpecification:
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
+        # Create the terms
         terms = []
-        cfgs = [self.term_cfg(t) for t in equation]
-        global_kw = {"corrs": corrs, "stokes": stokes}
+        global_kw = {"corrs": corrs, "stokes": stokes, "feed_type": feed_type}
 
-        for cls, cfg in zip(term_types, cfgs):
-            if issubclass(cls, Brightness):
-                found_brightness = True
-            elif issubclass(cls, Phase):
-                found_phase = True
-
+        for cls, cfg in zip(term_types, term_cfgs):
             init_sig = inspect.signature(cls.__init__)
-
             available_kw = {"configuration": cfg, **global_kw}
             cls_kw = {}
+
+            if "configuration" not in init_sig.parameters:
+                raise RimeSpecification(
+                    f"{cls}.__init__{init_sig} must take a "
+                    f"'configuration' argument and call "
+                    f"super().__init__(configuration)")
 
             for a, p in list(init_sig.parameters.items())[1:]:
                 if p.kind not in {p.POSITIONAL_ONLY,
@@ -246,23 +259,20 @@ class RimeSpecification:
                         f"but it is not available")
 
             term = cls(**cls_kw)
-            term.configuration
             terms.append(term)
 
-        if not found_phase:
+        term_type_set = set(term_types)
+
+        if Phase not in term_type_set:
             raise RimeSpecification(
                 "RIME must at least contain a Phase term")
 
-        if not found_brightness:
+        if Brightness not in term_type_set:
             raise RimeSpecification(
                 "RIME must at least contain a Brightness term")
 
         self.terms = terms
         self.transformers = [cls() for cls in transformer_types.values()]
-        self.equation = equation
-        self.stokes = stokes
-        self.corrs = corrs
-        self.feed_type = self._feed_type(corrs)
 
     @staticmethod
     def _feed_type(corrs):

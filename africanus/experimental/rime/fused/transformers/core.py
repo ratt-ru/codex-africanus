@@ -1,5 +1,4 @@
 import inspect
-from inspect import Signature, Parameter
 
 
 from africanus.experimental.rime.fused.error import InvalidSignature
@@ -25,7 +24,7 @@ class TransformerMetaClass(type):
     class members on the subclass based on the above
     signatures
     """
-    REQUIRED = ("dask_schema", "outputs", "transform")
+    REQUIRED = ("dask_schema", "init_fields")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
@@ -40,39 +39,42 @@ class TransformerMetaClass(type):
                 methods.append(method)
 
         methods = dict(zip(cls.REQUIRED, methods))
-        outputs_sig = inspect.signature(methods["outputs"])
+        init_fields_sig = inspect.signature(methods["init_fields"])
+        field_params = list(init_fields_sig.parameters.values())
 
-        for i, (n, p) in enumerate(outputs_sig.parameters.items()):
-            if i == 0 and n != "self":
-                raise InvalidSignature(f"{name}.outputs{outputs_sig} "
-                                       f"should be "
-                                       f"{name}.outputs(self, ...)")
+        if len(init_fields_sig.parameters) < 2:
+            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
+                                   f"should be "
+                                   f"{name}.init_fields(self, typingctx, ...)")
 
+        it = iter(init_fields_sig.parameters.items())
+        first, second = next(it), next(it)
+
+        if first[0] != "self" or second[0] != "typingctx":
+            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
+                                   f"should be "
+                                   f"{name}.init_fields(self, typingctx, ...)")
+
+        for n, p in it:
             if p.kind == p.VAR_POSITIONAL:
                 raise InvalidSignature(f"*{n} in "
-                                       f"{name}.outputs{outputs_sig} "
+                                       f"{name}.init_fields{init_fields_sig} "
                                        f"is not supported")
 
             if p.kind == p.VAR_KEYWORD:
                 raise InvalidSignature(f"**{n} in "
-                                       f"{name}.outputs{outputs_sig} "
+                                       f"{name}.init_fields{init_fields_sig} "
                                        f"is not supported")
 
-        transform_sig = inspect.signature(methods["transform"])
-        expected = Signature(
-            [Parameter("self", kind=Parameter.POSITIONAL_OR_KEYWORD)])
-
-        if transform_sig != expected:
-            raise InvalidSignature(f"{name}.transform{transform_sig} "
-                                   f"should be "
-                                   f"{name}.transform{expected}")
-
         dask_schema_sig = inspect.signature(methods["dask_schema"])
+        expected_dask_params = field_params[0:1] + field_params[2:]
+        expected_dask_sig = init_fields_sig.replace(
+            parameters=expected_dask_params)
 
-        if outputs_sig != dask_schema_sig:
+        if dask_schema_sig != expected_dask_sig:
             raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
                                    f"should be "
-                                   f"{name}.dask_schema{outputs_sig}")
+                                   f"{name}.dask_schema{expected_dask_sig}")
 
         if not ("OUTPUTS" in namespace and
                 isinstance(namespace["OUTPUTS"], (tuple, list)) and
@@ -82,19 +84,24 @@ class TransformerMetaClass(type):
                                    f"of the names of the outputs produced "
                                    f"by this transformer")
 
+        transform_sig = init_fields_sig.replace(parameters=field_params[2:])
+
         namespace["OUTPUTS"] = tuple(namespace["OUTPUTS"])
 
-        args = tuple(n for n, p in outputs_sig.parameters.items()
+        args = tuple(n for n, p in init_fields_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
+                     and n not in {"self", "typingctx"}
                      and p.default is p.empty)
 
-        kw = {n: p.default for n, p in outputs_sig.parameters.items()
+        kw = ((n, p.default) for n, p in init_fields_sig.parameters.items()
               if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
-              and p.default is not p.empty}
+              and n not in {"self", "typingctx"}
+              and p.default is not p.empty)
 
-        namespace["ARGS"] = args[1:]
-        namespace["KWARGS"] = kw
-        namespace["ALL_ARGS"] = tuple(outputs_sig.parameters.keys())[1:]
+        namespace = namespace.copy()
+        namespace["ARGS"] = args
+        namespace["KWARGS"] = dict(kw)
+        namespace["ALL_ARGS"] = args + tuple(k for k, _ in kw)
         namespace["transform_validator"] = sigcheck_factory(transform_sig)
 
         return namespace

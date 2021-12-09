@@ -52,8 +52,9 @@ def rime_impl_factory(terms, transformers, ncorr):
         # Generate intrinsics
         argdeps = ArgumentDependencies(names, terms, transformers)
         factory = IntrinsicFactory(argdeps)
-        pack_arguments = factory.pack_argument_fn()
-        term_state = factory.term_state_fn()
+        out_names, pack_opts_indices = factory.pack_optionals_and_indices_fn()
+        out_names, pack_transformed = factory.pack_transformed_fn(out_names)
+        term_state = factory.term_state_fn(out_names)
         term_sampler = factory.term_sampler_fn()
 
         try:
@@ -64,7 +65,8 @@ def rime_impl_factory(terms, transformers, ncorr):
             raise ValueError(f"{str(e)} is required")
 
         def impl(names, *inargs):
-            args = pack_arguments(inargs)
+            args_opt_idx = pack_opts_indices(inargs)
+            args = pack_transformed(args_opt_idx)
             state = term_state(args)
 
             nsrc, _ = args[lm_i].shape

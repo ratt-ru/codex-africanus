@@ -77,7 +77,7 @@ class TermMetaClass(type):
                                    f"should be "
                                    f"{name}.init_fields(self, typingctx, ...)")
 
-        for i, (n, p) in enumerate(it):
+        for n, p in it:
             if p.kind == p.VAR_POSITIONAL:
                 raise InvalidSignature(f"*{n} in "
                                        f"{name}.init_fields{init_fields_sig} "
@@ -99,7 +99,6 @@ class TermMetaClass(type):
                                    f"{name}.dask_schema{expected_dask_sig}")
 
         Parameter = inspect.Parameter
-        # Elide self and typingctx
         expected_init_sig = init_fields_sig.replace(
                                 parameters=field_params[2:])
         validator = sigcheck_factory(expected_init_sig)
@@ -115,16 +114,18 @@ class TermMetaClass(type):
 
         args = tuple(n for n, p in init_fields_sig.parameters.items()
                      if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
+                     and n not in {"self", "typingctx"}
                      and p.default is p.empty)
 
-        kw = {n: p.default for n, p in init_fields_sig.parameters.items()
+        kw = [(n, p.default) for n, p in init_fields_sig.parameters.items()
               if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
-              and p.default is not p.empty}
+              and n not in {"self", "typingctx"}
+              and p.default is not p.empty]
 
         namespace = namespace.copy()
-        namespace["ARGS"] = args[2:]  # Elide self and typingctx
-        namespace["KWARGS"] = kw
-        namespace["ALL_ARGS"] = tuple(init_fields_sig.parameters.keys())[2:]
+        namespace["ARGS"] = args
+        namespace["KWARGS"] = dict(kw)
+        namespace["ALL_ARGS"] = args + tuple(k for k, _ in kw)
         namespace["validate_constructor"] = validator
 
         return namespace
@@ -151,8 +152,13 @@ class Term(metaclass=TermMetaClass):
     def __init__(self, configuration):
         self._configuration = configuration
 
+    @property
     def configuration(self):
         return self._configuration
+
+    def __eq__(self, rhs):
+        return (isinstance(rhs, Term) and
+                self._configuration == rhs._configuration)
 
     def __repr__(self):
         return self.__class__.__name__

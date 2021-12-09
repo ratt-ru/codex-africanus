@@ -258,11 +258,14 @@ class IntrinsicFactory:
 
         return opt_defaults, can_create
 
-    def pack_argument_fn(self):
+    def pack_optionals_and_indices_fn(self):
         argdeps = self.argdeps
+        out_names = (argdeps.names +
+                     tuple(argdeps.optional_defaults.keys()) +
+                     tuple(argdeps.KEY_ARGS))
 
         @intrinsic
-        def pack_arguments(typingctx, args):
+        def pack_index(typingctx, args):
             assert len(args) == len(argdeps.names)
             it = zip(argdeps.names, args, range(len(argdeps.names)))
             arg_info = {n: (t, i) for n, t, i in it}
@@ -282,59 +285,13 @@ class IntrinsicFactory:
                 raise RuntimeError(
                     f"{tuple(key_types.keys())} != {argdeps.KEY_ARGS}")
 
-            def _indices(time, antenna1, antenna2, feed1, feed2):
-                utime, time_index = _unique_internal(time)[:2]
-                uants = np.unique(np.concatenate((antenna1, antenna2)))
-                ufeeds = np.unique(np.concatenate((feed1, feed2)))
-                antenna1_index = np.searchsorted(uants, antenna1)
-                antenna2_index = np.searchsorted(uants, antenna2)
-                feed1_index = np.searchsorted(ufeeds, feed1)
-                feed2_index = np.searchsorted(ufeeds, feed2)
-
-                return (utime, time_index,
-                        uants, antenna1_index, antenna2_index,
-                        ufeeds, feed1_index, feed2_index)
-
-            _indices_arg_typs = tuple(arg_info[k][0] for k
-                                      in argdeps.REQUIRED_ARGS)
-            fn_sig = types.Tuple(list(key_types.values()))(*_indices_arg_typs)
-
             rvt = typingctx.resolve_value_type_prefer_literal
             optionals = [(n, rvt(d), d) for n, d
                          in argdeps.optional_defaults.items()]
-            opt_return_types = tuple(p[1] for p in optionals)
+            optional_types = tuple(p[1] for p in optionals)
 
-            transform_return_types = []
-
-            for name, transformer in argdeps.can_create.items():
-                transform = transformer.transform()
-                ir = compiler.run_frontend(transform)
-                arg_types = tuple(arg_info[a][0] for a in transformer.ARGS)
-                type_infer = type_inference_stage(
-                    typingctx, ir, arg_types, None)
-                return_type = type_infer.return_type
-
-                if len(transformer.OUTPUTS) == 0:
-                    raise TypingError(f"{transformer} produces no outputs")
-                elif len(transformer.OUTPUTS) > 1:
-                    if not isinstance(return_type, types.Tuple):
-                        raise TypingError(
-                            f"{transformer} produces {transformer.OUTPUTS} "
-                            f"but {transformer}.transform does not return "
-                            f"a tuple of these ouputs, but {return_type}")
-
-                    if len(transformer.OUTPUTS) != len(return_type):
-                        raise TypingError(
-                            f"{transformer} produces {transformer.OUTPUTS} "
-                            f"but {transformer}.transform does not return "
-                            f"a tuple of the same length, but {return_type}")
-
-                transform_return_types.append(return_type)
-
-            return_type = types.Tuple(args.types +
-                                      tuple(key_types.values()) +
-                                      opt_return_types +
-                                      tuple(transform_return_types))
+            return_type = types.Tuple(args.types + optional_types +
+                                      tuple(key_types.values()))
             sig = return_type(args)
 
             def codegen(context, builder, signature, args):
@@ -349,49 +306,112 @@ class IntrinsicFactory:
                     context.nrt.incref(builder, signature.args[0][i], value)
                     ret_tuple = builder.insert_value(ret_tuple, value, i)
 
-                n = len(argdeps.names)
+                n = len(signature.args[0])
+
+                # Insert necessary optional defaults (kwargs) into the
+                # new argument tuple
+                for i, (name, typ, default) in enumerate(optionals):
+                    if name != out_names[i + n]:
+                        raise TypingError(f"{name} != {out_names[i + n]}")
+                    value = context.get_constant_generic(builder, typ, default)
+                    ret_tuple = builder.insert_value(ret_tuple, value, i + n)
 
                 # Compute indexing arguments and insert into
                 # the new tuple
                 fn_args = [builder.extract_value(args[0], arg_info[a][1])
                            for a in argdeps.REQUIRED_ARGS]
+                fn_arg_types = tuple(arg_info[k][0] for k
+                                     in argdeps.REQUIRED_ARGS)
+                fn_sig = types.Tuple(list(key_types.values()))(*fn_arg_types)
+
+                def _indices(time, antenna1, antenna2, feed1, feed2):
+                    utime, time_index = _unique_internal(time)[:2]
+                    uants = np.unique(np.concatenate((antenna1, antenna2)))
+                    ufeeds = np.unique(np.concatenate((feed1, feed2)))
+                    antenna1_index = np.searchsorted(uants, antenna1)
+                    antenna2_index = np.searchsorted(uants, antenna2)
+                    feed1_index = np.searchsorted(ufeeds, feed1)
+                    feed2_index = np.searchsorted(ufeeds, feed2)
+
+                    return (utime, time_index,
+                            uants, antenna1_index, antenna2_index,
+                            ufeeds, feed1_index, feed2_index)
 
                 index = context.compile_internal(builder, _indices,
                                                  fn_sig, fn_args)
 
+                n += len(optionals)
+
                 for i, (name, value) in enumerate(key_types.items()):
-                    if name != argdeps.output_names[i + n]:
-                        raise TypingError(
-                            f"{name} != {argdeps.output_names[i + n]}")
+                    if name != out_names[i + n]:
+                        raise TypingError(f"{name} != {out_names[i + n]}")
 
                     value = builder.extract_value(index, i)
                     ret_tuple = builder.insert_value(ret_tuple, value, i + n)
 
-                n += len(key_types)
+                return ret_tuple
 
-                # Insert necessary optional defaults (kwargs) into the
-                # new argument tuple
-                for i, (name, typ, default) in enumerate(optionals):
-                    if name != argdeps.output_names[i + n]:
+            return sig, codegen
+
+        return out_names, pack_index
+
+    def pack_transformed_fn(self, arg_names):
+        argdeps = self.argdeps
+        out_names = arg_names + tuple(argdeps.can_create.keys())
+
+        @intrinsic
+        def pack_transformed(typingctx, args):
+            assert len(args) == len(arg_names)
+            it = zip(arg_names, args, range(len(arg_names)))
+            arg_info = {n: (t, i) for n, t, i in it}
+
+            transform_return_types = []
+            transform_output_fields = []
+
+            for _, transformer in argdeps.can_create.items():
+                arg_types = tuple(arg_info[a][0] for a in transformer.ARGS)
+                fields, _ = transformer.init_fields(typingctx, *arg_types)
+
+                if len(transformer.OUTPUTS) == 0:
+                    raise TypingError(f"{transformer} produces no outputs")
+                elif len(transformer.OUTPUTS) > 1:
+                    if len(transformer.OUTPUTS) != len(fields):
                         raise TypingError(
-                            f"{name} != {argdeps.output_names[i + n]}")
+                            f"{transformer} produces {transformer.OUTPUTS} "
+                            f"but {transformer}.init_fields does not return "
+                            f"a tuple of the same length, but {fields}")
 
-                    value = context.get_constant_generic(builder, typ, default)
-                    ret_tuple = builder.insert_value(ret_tuple, value, i + n)
+                typs = [t for _, t in fields]
+                transform_return_types.append(types.Tuple(typs))
+                transform_output_fields.extend(typs)
 
-                n += len(optionals)
+            return_type = types.Tuple(args.types +
+                                      tuple(transform_output_fields))
+            sig = return_type(args)
+
+            def codegen(context, builder, signature, args):
+                return_type = signature.return_type
+                llvm_ret_type = context.get_value_type(return_type)
+                ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+                # Extract supplied arguments from original arg tuple
+                # and insert into the new one
+                for i, typ in enumerate(signature.args[0]):
+                    value = builder.extract_value(args[0], i)
+                    context.nrt.incref(builder, signature.args[0][i], value)
+                    ret_tuple = builder.insert_value(ret_tuple, value, i)
+
+                n = len(signature.args[0])
 
                 # Apply any argument transforms and insert their results
                 # into the new argument tuple
                 it = enumerate(argdeps.can_create.items())
                 for i, (v, transformer) in it:
-                    if v != argdeps.output_names[i + n]:
-                        raise TypingError(
-                            f"{v} != {argdeps.output_names[i + n]}")
+                    if v != out_names[i + n]:
+                        raise TypingError(f"{v} != {out_names[i + n]}")
 
                     transform_args = []
                     transform_types = []
-                    transform_fn = transformer.transform()
 
                     for name in transformer.ARGS:
                         try:
@@ -406,9 +426,16 @@ class IntrinsicFactory:
                         transform_args.append(value)
                         transform_types.append(typ)
 
-                    ret_type = transform_return_types[i]
-                    transform_sig = ret_type(*transform_types)
+                    transform_fields, transform_fn = transformer.init_fields(
+                        typingctx, *transform_types)
 
+                    if len(transform_fields) == 1:
+                        ret_type = transform_fields[0][1]
+                    else:
+                        typs = [t for _, t in transform_fields]
+                        ret_type = types.Tuple(typs)
+
+                    transform_sig = ret_type(*transform_types)
                     value = context.compile_internal(builder,  # noqa
                                                      transform_fn,
                                                      transform_sig,
@@ -420,9 +447,9 @@ class IntrinsicFactory:
 
             return sig, codegen
 
-        return pack_arguments
+        return out_names, pack_transformed
 
-    def term_state_fn(self):
+    def term_state_fn(self, arg_names):
         argdeps = self.argdeps
 
         @intrinsic
@@ -430,8 +457,11 @@ class IntrinsicFactory:
             if not isinstance(args, types.Tuple):
                 raise TypingError(f"args must be a Tuple but is {args}")
 
-            arg_pack = ArgumentPack(
-                argdeps.output_names, args, tuple(range(len(args))))
+            if len(arg_names) != len(args):
+                raise TypingError(f"len(arg_names): {len(arg_names)} != "
+                                  f"len(args): {len(args)}")
+
+            arg_pack = ArgumentPack(arg_names, args, tuple(range(len(args))))
 
             state_fields = []
             term_fields = []

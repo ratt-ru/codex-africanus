@@ -1,3 +1,4 @@
+from numba import objmode
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
@@ -118,7 +119,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
 
     gauss_shape = np.random.random((nsrc, 3))
     rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): {stokes_to_corr}",
-                                  terms={"Cpq": "Gaussian"})
+                                  terms={"C": "Gaussian"})
     out = rime(rime_spec, {**dataset, "gauss_shape": gauss_shape})
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
@@ -197,3 +198,38 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
 
     assert_array_almost_equal(dask_out.compute(
         scheduler="single-threaded"), out)
+
+
+def test_objmode_in_intrinsic():
+    from numba import njit
+    from numba.extending import intrinsic
+    from numba.core import types
+
+    def py_func(arg):
+        print(f"The arg is {arg}")
+
+    @njit(inline='never')
+    def objmode_fn(arg):
+        with objmode():
+            py_func(arg)
+
+    @intrinsic
+    def intrinsic_fn(typingctx, arg):
+        sig = types.none(arg)
+
+        def stub(arg):
+            return objmode_fn(arg)
+
+        def codegen(context, builder, signature, args):
+            stub_sig = signature.return_type(*signature.args)
+            ret_value = context.compile_internal(builder, stub,
+                                                 stub_sig, args)
+            return ret_value
+
+        return sig, codegen
+
+    @njit
+    def outer_fn(arg):
+        return intrinsic_fn(arg)
+
+    print(outer_fn(2))
