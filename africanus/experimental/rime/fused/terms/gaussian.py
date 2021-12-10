@@ -42,7 +42,8 @@ class Gaussian(Term):
                 er = emin / (1.0 if emaj == 0.0 else emaj)
 
                 for r in range(uvw.shape[0]):
-                    u, v, w = uvw[r]
+                    u = uvw[r, 0]
+                    v = uvw[r, 1]
 
                     gauss_uv[s, r, 0] = (u*em - v*el)*er
                     gauss_uv[s, r, 1] = u*el + v*em
