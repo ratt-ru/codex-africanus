@@ -92,9 +92,9 @@ def rime_impl_factory(terms, transformers, ncorr):
                             # Kahan summation
                             y = value - compensation[r, f, c]
                             current = vis[r, f, c]
-                            t = current + y
-                            compensation[r, f, c] = (t - current) - y
-                            vis[r, f, c] = t
+                            x = current + y
+                            compensation[r, f, c] = (x - current) - y
+                            vis[r, f, c] = x
 
             return vis
 
