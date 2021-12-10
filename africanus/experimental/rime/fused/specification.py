@@ -161,7 +161,8 @@ class RimeSpecification:
     VALID_STOKES = {"I", "Q", "U", "V"}
     TERM_MAP = {
         "K": "Phase",
-        "B": "Brightness"}
+        "B": "Brightness",
+        "L": "FeedRotation"}
 
     def __reduce__(self):
         return (RimeSpecification, self._saved_args)
@@ -234,6 +235,15 @@ class RimeSpecification:
         global_kw = {"corrs": corrs, "stokes": stokes, "feed_type": feed_type}
 
         for cls, cfg in zip(term_types, term_cfgs):
+            if cfg == "pq":
+                cfg = "middle"
+            elif cfg == "p":
+                cfg = "left"
+            elif cfg == "q":
+                cfg = "right"
+            else:
+                raise ValueError(f"Illegal configuration {cfg}")
+
             init_sig = inspect.signature(cls.__init__)
             available_kw = {"configuration": cfg, **global_kw}
             cls_kw = {}

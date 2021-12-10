@@ -9,7 +9,7 @@ class FeedRotation(Term):
     def init_fields(self, typingctx, parangle_sin_cos):
         def dummy(parangle_sin_cos):
             pass
-        
+
         return [], dummy
 
     def dask_schema(self, parangle_sin_cos):
@@ -26,14 +26,12 @@ class FeedRotation(Term):
             def feed_rotation(state, s, r, t, a1, a2, c):
                 sin = state.parangle_sin_cos[t, a1 if left else a2, 0]
                 cos = state.parangle_sin_cos[t, a1 if left else a2, 1]
-
                 return sin, cos, -sin, cos
         elif self.feed_type == "circular":
             def feed_rotation(state, s, r, t, a1, a2, c):
                 sin = state.parangle_sin_cos[t, a1 if left else a2, 0]
                 cos = state.parangle_sin_cos[t, a1 if left else a2, 1]
-
-                return cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j  
+                return cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j
         else:
             raise ValueError(f"Invalid feed_type {self.feed_type}")
 
