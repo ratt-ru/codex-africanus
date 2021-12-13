@@ -7,13 +7,13 @@ from africanus.experimental.rime.fused.transformers.core import Transformer
 
 
 class ParallacticTransformer(Transformer):
-    OUTPUTS = ["parangle_sin_cos"]
+    OUTPUTS = ["parangle_sincos"]
 
     def init_fields(self, typingctx, utime, antenna_position, phase_dir):
         dt = typingctx.unify_types(utime.dtype,
                                    antenna_position.dtype,
                                    phase_dir.dtype)
-        fields = [("parangle_sin_cos", dt[:, :, :])]
+        fields = [("parangle_sincos", dt[:, :, :])]
         parangle_dt = types.Array(types.float64, 2, "C")
 
         @njit(inline="never")
@@ -41,5 +41,5 @@ class ParallacticTransformer(Transformer):
         dt = np.result_type(utime, antenna_position, phase_dir)
         inputs = {"antenna_position": ("antenna", "ant-comp"),
                   "phase_dir": ("phase-dir-comp",)}
-        outputs = {"parangle_sin_cos": np.empty((0,)*3, dt)}
+        outputs = {"parangle_sincos": np.empty((0,)*3, dt)}
         return inputs, outputs
