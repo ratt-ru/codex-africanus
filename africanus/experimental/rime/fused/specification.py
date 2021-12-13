@@ -162,7 +162,8 @@ class RimeSpecification:
     TERM_MAP = {
         "K": "Phase",
         "B": "Brightness",
-        "L": "FeedRotation"}
+        "L": "FeedRotation",
+        "E": "BeamCubeDDE"}
 
     def __reduce__(self):
         return (RimeSpecification, self._saved_args)
@@ -266,7 +267,8 @@ class RimeSpecification:
                 except KeyError:
                     raise RimeSpecificationError(
                         f"{cls}.__init__{init_sig} wants argument {a} "
-                        f"but it is not available")
+                        f"but it is not available. "
+                        f"Available args: {available_kw}")
 
             term = cls(**cls_kw)
             terms.append(term)
