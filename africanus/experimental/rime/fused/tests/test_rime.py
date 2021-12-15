@@ -38,6 +38,9 @@ chunks = [
         "corr": (4,),
         "radec": (2,),
         "uvw": (3,),
+        "lw": (10,),
+        "mh": (10,),
+        "nud": (10,),
     },
     {
         "source": (5,),
@@ -47,6 +50,9 @@ chunks = [
         "corr": (4,),
         "radec": (2,),
         "uvw": (3,),
+        "lw": (10,),
+        "mh": (10,),
+        "nud": (10,),
     },
 ]
 
@@ -60,6 +66,9 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
+    lw = sum(chunks["lw"])
+    mh = sum(chunks["mh"])
+    nud = sum(chunks["nud"])
 
     stokes_to_corr = "".join(("[", ",".join(stokes_schema),
                               "] -> [",
@@ -117,18 +126,6 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
-    gauss_shape = np.random.random((nsrc, 3))
-    rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): {stokes_to_corr}",
-                                  terms={"C": "Gaussian"})
-    out = rime(rime_spec, {**dataset, "gauss_shape": gauss_shape})
-
-    P = phase_delay(lm, uvw, chan_freq, convention="fourier")
-    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
-    B = convert(SM, stokes_schema, corr_schema)
-    G = gaussian(uvw, chan_freq, gauss_shape)
-    expected = (G[:, :, :, None]*P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
-    assert_array_almost_equal(expected, out)
-
 
 @pytest.mark.parametrize("chunks", chunks)
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
@@ -141,6 +138,9 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
+    lw = sum(chunks["lw"])
+    mh = sum(chunks["mh"])
+    nud = sum(chunks["nud"])
 
     stokes_to_corr = "".join(("[", ",".join(stokes_schema),
                               "] -> [",
@@ -157,9 +157,18 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
     ref_freq = np.random.random(size=nsrc)*.856e9
+    beam = np.random.random(size=(lw, mh, nud, ncorr))
+    beam_lm_extents = np.array([[-0.5, 0.5], [-0.5, 0.5]])
+    beam_freq_map = np.random.uniform(
+        low=chan_freq[0], high=chan_freq[-1], size=nud)
+    beam_freq_map.sort()
+    gauss_shape = np.random.random((nsrc, 3))
+
+    uant = np.unique([antenna1, antenna2])
+    antenna_position = np.random.random(size=(uant.size, 3))
 
     def darray(array, dims):
-        return da.from_array(array, tuple(chunks[d] for d in dims))
+        return da.from_array(array, tuple(chunks.get(d, d) for d in dims))
 
     dask_dataset = {
         "time": darray(time, ("row",)),
@@ -174,9 +183,16 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "stokes": darray(stokes, ("source", "corr")),
         "spi": darray(spi, ("source", "spi", "corr")),
         "ref_freq": darray(ref_freq, ("source",)),
+        "antenna_position": darray(antenna_position, antenna_position.shape),
+        "beam": darray(beam, ("lw", "mh", "nud", "corr")),
+        "beam_lm_extents": darray(beam_lm_extents, (2, 2)),
+        "beam_freq_map": darray(beam_freq_map, ("nud",)),
+        "gauss_shape": darray(gauss_shape, ("source", 3))
     }
 
-    rime_spec = RimeSpecification(f"(Kpq, Bpq): {stokes_to_corr}")
+    rime_spec = RimeSpecification(f"(Ep, Lp, Cpq, Kpq, Bpq, Lq, Eq): "
+                                  f"{stokes_to_corr}",
+                                  terms={"C": "Gaussian"})
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
     dataset = {
@@ -192,44 +208,13 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "stokes": stokes,
         "spi": spi,
         "ref_freq": ref_freq,
+        "antenna_position": antenna_position,
+        "beam": beam,
+        "beam_lm_extents": beam_lm_extents,
+        "beam_freq_map": beam_freq_map,
+        "gauss_shape": gauss_shape,
     }
 
     out = rime(rime_spec, dataset, convention="casa")
 
-    assert_array_almost_equal(dask_out.compute(
-        scheduler="single-threaded"), out)
-
-
-def test_objmode_in_intrinsic():
-    from numba import njit
-    from numba.extending import intrinsic
-    from numba.core import types
-
-    def py_func(arg):
-        print(f"The arg is {arg}")
-
-    @njit(inline='never')
-    def objmode_fn(arg):
-        with objmode():
-            py_func(arg)
-
-    @intrinsic
-    def intrinsic_fn(typingctx, arg):
-        sig = types.none(arg)
-
-        def stub(arg):
-            return objmode_fn(arg)
-
-        def codegen(context, builder, signature, args):
-            stub_sig = signature.return_type(*signature.args)
-            ret_value = context.compile_internal(builder, stub,
-                                                 stub_sig, args)
-            return ret_value
-
-        return sig, codegen
-
-    @njit
-    def outer_fn(arg):
-        return intrinsic_fn(arg)
-
-    print(outer_fn(2))
+    assert_array_almost_equal(dask_out, out)

@@ -107,7 +107,6 @@ def rime_impl_factory(terms, transformers, ncorr):
 class RimeFactory(metaclass=Multiton):
     REQUIRED_ARGS = ArgumentDependencies.REQUIRED_ARGS
     REQUIRED_ARGS_LITERAL = tuple(types.literal(n) for n in REQUIRED_ARGS)
-    REQUIRED_DASK_SCHEMA = {n: ("row",) for n in REQUIRED_ARGS}
     DEFAULT_SPEC = "(Kpq, Bpq): [I, Q, U, V] -> [XX, XY, YX, YY]"
 
     def __reduce__(self):
@@ -148,7 +147,7 @@ class RimeFactory(metaclass=Multiton):
             dask_schema[a].append(("internal", ("row",)))
 
         for transformer in argdeps.can_create.values():
-            kw = {a: dummy_kw[a] for a in transformer.ARGS}
+            kw = {a: dummy_kw.get(a, None) for a in transformer.ARGS}
             kw.update((a, kwargs.get(a, d)) for a, d
                       in transformer.KWARGS.items())
             inputs, outputs = transformer.dask_schema(**kw)
@@ -171,13 +170,15 @@ class RimeFactory(metaclass=Multiton):
             if len(dims) != 1:
                 raise ValueError(
                     f"Multiple candidates provided conflicting "
-                    f"dimension definitions for {a}: {candidates}")
+                    f"dimension definitions for {a}: {candidates}.")
 
             merged_schema[a] = dims.pop()
 
-        names = list(sorted(argdeps.valid_inputs | set(kwargs.keys())))
-        blockwise_args = [e for n in names if n in kwargs
+        names = list(sorted(argdeps.valid_inputs & set(kwargs.keys())))
+        blockwise_args = [e for n in names
                           for e in (kwargs[n], merged_schema.get(n, None))]
+
+        assert 2 * len(names) == len(blockwise_args)
 
         return names, blockwise_args
 

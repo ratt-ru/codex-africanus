@@ -51,7 +51,7 @@ class BeamCubeDDE(Term):
             "beam": ("beam_lw", "beam_mh", "beam_nud", "corr"),
             "beam_lm_extents": ("lm_ext", "lm_ext_comp"),
             "beam_freq_map": ("beam_nud",),
-            "lm": ("source", "lm-comp"),
+            "lm": ("source", "lm"),
             "chan_freq": ("chan",),
         }
 

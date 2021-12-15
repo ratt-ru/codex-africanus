@@ -18,7 +18,7 @@ class FeedRotation(Term):
         return [], dummy
 
     def dask_schema(self, parangle_sincos):
-        return {}, {}
+        return {}
 
     def sampler(self):
         left = self.configuration == "left"

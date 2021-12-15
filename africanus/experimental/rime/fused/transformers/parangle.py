@@ -40,6 +40,6 @@ class ParallacticTransformer(Transformer):
     def dask_schema(self, utime, antenna_position, phase_dir):
         dt = np.result_type(utime, antenna_position, phase_dir)
         inputs = {"antenna_position": ("antenna", "ant-comp"),
-                  "phase_dir": ("phase-dir-comp",)}
+                  "phase_dir": ("radec",)}
         outputs = {"parangle_sincos": np.empty((0,)*3, dt)}
         return inputs, outputs
