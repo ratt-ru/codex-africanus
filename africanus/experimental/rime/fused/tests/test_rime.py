@@ -1,4 +1,3 @@
-from numba import objmode
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
@@ -7,8 +6,8 @@ from africanus.coordinates import radec_to_lm
 
 from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
-from africanus.model.shape.gaussian_shape import gaussian
 from africanus.model.coherency import convert
+from africanus.model.shape import gaussian
 
 from africanus.experimental.rime.fused.specification import (
     RimeSpecification, parse_rime)
@@ -66,9 +65,6 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
     ncorr = sum(chunks["corr"])
-    lw = sum(chunks["lw"])
-    mh = sum(chunks["mh"])
-    nud = sum(chunks["nud"])
 
     stokes_to_corr = "".join(("[", ",".join(stokes_schema),
                               "] -> [",
@@ -126,6 +122,20 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
 
+    gauss_shape = np.random.random((nsrc, 3))
+    gauss_shape[:, :2] *= 1e-5
+
+    rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): {stokes_to_corr}",
+                                  terms={"C": "Gaussian"})
+    out = rime(rime_spec,
+               {**dataset, "gauss_shape": gauss_shape})
+    P = phase_delay(lm, uvw, chan_freq, convention="fourier")
+    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    B = convert(SM, stokes_schema, corr_schema)
+    G = gaussian(uvw, chan_freq, gauss_shape)
+    expected = (G[:, :, :, None]*P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
+    assert_array_almost_equal(expected, out)
+
 
 @pytest.mark.parametrize("chunks", chunks)
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
@@ -156,16 +166,19 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
     stokes = np.random.random(size=(nsrc, ncorr))
     spi = np.random.random(size=(nsrc, nspi, ncorr))
-    ref_freq = np.random.random(size=nsrc)*.856e9
+    ref_freq = np.random.random(size=nsrc)*.856e9 + .856e9
     beam = np.random.random(size=(lw, mh, nud, ncorr))
-    beam_lm_extents = np.array([[-0.5, 0.5], [-0.5, 0.5]])
+    beam_lm_extents = np.array([[-1.0, 1.0], [-1.0, 1.0]])
     beam_freq_map = np.random.uniform(
         low=chan_freq[0], high=chan_freq[-1], size=nud)
     beam_freq_map.sort()
     gauss_shape = np.random.random((nsrc, 3))
+    gauss_shape[:, :2] *= 1e-5
 
     uant = np.unique([antenna1, antenna2])
-    antenna_position = np.random.random(size=(uant.size, 3))
+    antenna_position = np.random.random(size=(uant.size, 3)) * 1000
+    ufeed = np.unique([feed1, feed2])
+    receptor_angle = np.random.random((ufeed.shape[0], 2))
 
     def darray(array, dims):
         return da.from_array(array, tuple(chunks.get(d, d) for d in dims))
@@ -187,10 +200,11 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "beam": darray(beam, ("lw", "mh", "nud", "corr")),
         "beam_lm_extents": darray(beam_lm_extents, (2, 2)),
         "beam_freq_map": darray(beam_freq_map, ("nud",)),
-        "gauss_shape": darray(gauss_shape, ("source", 3))
+        "gauss_shape": darray(gauss_shape, ("source", 3)),
+        "receptor_angle": darray(receptor_angle, receptor_angle.shape),
     }
 
-    rime_spec = RimeSpecification(f"(Ep, Lp, Cpq, Kpq, Bpq, Lq, Eq): "
+    rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): "
                                   f"{stokes_to_corr}",
                                   terms={"C": "Gaussian"})
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
@@ -213,8 +227,8 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "beam_lm_extents": beam_lm_extents,
         "beam_freq_map": beam_freq_map,
         "gauss_shape": gauss_shape,
+        "receptor_angle": receptor_angle,
     }
 
     out = rime(rime_spec, dataset, convention="casa")
-
     assert_array_almost_equal(dask_out, out)

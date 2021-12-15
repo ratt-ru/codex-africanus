@@ -29,7 +29,7 @@ else:
 
 
 def rime_impl_factory(terms, transformers, ncorr):
-    @generated_jit(nopython=True, nogil=True, cache=True)
+    @generated_jit(nopython=True, nogil=True, cache=False)
     def rime(names, *inargs):
         if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
             raise TypeError(f"{inargs[0]} must be be a Tuple")
@@ -83,19 +83,19 @@ def rime_impl_factory(terms, transformers, ncorr):
                     t = state.time_index[r]
                     a1 = state.antenna1[r]
                     a2 = state.antenna2[r]
-                    f1 = state.feed1[r]  # noqa
-                    f2 = state.feed2[r]  # noqa
+                    f1 = state.feed1[r]
+                    f2 = state.feed2[r]
 
-                    for f in range(nchan):
-                        X = term_sampler(state, s, r, t, a1, a2, f)
+                    for ch in range(nchan):
+                        X = term_sampler(state, s, r, t, f1, f2, a1, a2, ch)
 
                         for c, value in enumerate(numba.literal_unroll(X)):
                             # Kahan summation
-                            y = value - compensation[r, f, c]
-                            current = vis[r, f, c]
+                            y = value - compensation[r, ch, c]
+                            current = vis[r, ch, c]
                             x = current + y
-                            compensation[r, f, c] = (x - current) - y
-                            vis[r, f, c] = x
+                            compensation[r, ch, c] = (x - current) - y
+                            vis[r, ch, c] = x
 
             return vis
 
@@ -146,10 +146,18 @@ class RimeFactory(metaclass=Multiton):
         for a in argdeps.REQUIRED_ARGS:
             dask_schema[a].append(("internal", ("row",)))
 
+        POISON = object()
+
         for transformer in argdeps.can_create.values():
-            kw = {a: dummy_kw.get(a, None) for a in transformer.ARGS}
-            kw.update((a, kwargs.get(a, d)) for a, d
-                      in transformer.KWARGS.items())
+            kw = {}
+
+            for a in transformer.ARGS:
+                v = dummy_kw.get(a, None if a in argdeps.KEY_ARGS else POISON)
+                kw[a] = v
+
+            for a, d in transformer.KWARGS.items():
+                kw[a] = dummy_kw.get(a, d)
+
             inputs, outputs = transformer.dask_schema(**kw)
 
             for k, schema in inputs.items():
@@ -179,7 +187,6 @@ class RimeFactory(metaclass=Multiton):
                           for e in (kwargs[n], merged_schema.get(n, None))]
 
         assert 2 * len(names) == len(blockwise_args)
-
         return names, blockwise_args
 
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):

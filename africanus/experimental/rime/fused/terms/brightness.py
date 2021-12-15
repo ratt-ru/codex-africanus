@@ -221,7 +221,7 @@ class Brightness(Term):
     def sampler(self):
         converter = conversion_factory(self.stokes, self.corrs)
 
-        def brightness_sampler(state, s, r, t, a1, a2, c):
+        def brightness_sampler(state, s, r, t, f1, f2, a1, a2, c):
             return converter(state.spectral_model, s, c)
 
         return brightness_sampler

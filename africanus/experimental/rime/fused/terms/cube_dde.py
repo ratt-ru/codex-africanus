@@ -146,10 +146,12 @@ class BeamCubeDDE(Term):
         ncorr = len(self.corrs)
         zero_vis = zero_vis_factory(ncorr)
 
-        def cube_dde(state, s, r, t, a1, a2, c):
+        def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
-            sin_pa = state.parangle_sincos[t, a, 0]
-            cos_pa = state.parangle_sincos[t, a, 1]
+            feed = f1 if left else f2
+            ra = 0 if left else 1
+            sin_pa = state.parangle_sincos[t, feed, a, ra, 0]
+            cos_pa = state.parangle_sincos[t, feed, a, ra, 1]
 
             l = state.lm[s, 0]  # noqa
             m = state.lm[s, 1]

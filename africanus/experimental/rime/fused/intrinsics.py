@@ -365,12 +365,24 @@ class IntrinsicFactory:
             it = zip(arg_names, args, range(len(arg_names)))
             arg_info = {n: (t, i) for n, t, i in it}
 
+            rvt = typingctx.resolve_value_type_prefer_literal
+
             transform_return_types = []
             transform_output_fields = []
 
             for _, transformer in argdeps.can_create.items():
-                arg_types = tuple(arg_info[a][0] for a in transformer.ARGS)
-                fields, _ = transformer.init_fields(typingctx, *arg_types)
+                kw = {}
+
+                for a in transformer.ARGS:
+                    kw[a] = arg_info[a][0]
+
+                for a, d in transformer.KWARGS.items():
+                    try:
+                        kw[a] = arg_info[a][0]
+                    except KeyError:
+                        kw[a] = rvt(d)
+
+                fields, _ = transformer.init_fields(typingctx, **kw)
 
                 if len(transformer.OUTPUTS) == 0:
                     raise TypingError(f"{transformer} produces no outputs")
@@ -425,6 +437,16 @@ class IntrinsicFactory:
 
                         transform_args.append(value)
                         transform_types.append(typ)
+
+                    for name, default in transformer.KWARGS.items():
+                        default_typ = rvt(default)
+                        default_value = context.get_constant_generic(
+                                                builder,
+                                                default_typ,
+                                                default)
+
+                        transform_types.append(default_typ)
+                        transform_args.append(default_value)
 
                     transform_fields, transform_fn = transformer.init_fields(
                         typingctx, *transform_types)
@@ -589,13 +611,12 @@ class IntrinsicFactory:
         nterms = len(argdeps.terms)
 
         @intrinsic
-        def term_sampler(typingctx, state, s, r, t, a1, a2, c):
+        def term_sampler(typingctx, state, s, r, t, f1, f2, a1, a2, c):
             if not isinstance(state, StateStructRef):
                 raise TypingError(f"{state} must be a StateStructRef")
 
             sampler_ir = list(map(compiler.run_frontend, samplers))
-            idx_types = (s, r, t, a1, a2, c)
-            ir_args = (state,) + idx_types
+            ir_args = (state, s, r, t, f1, f2, a1, a2, c)
             type_infer = [type_inference_stage(typingctx, ir, ir_args, None)
                           for ir in sampler_ir]
             sampler_return_types = [ti.return_type for ti in type_infer]
@@ -629,11 +650,11 @@ class IntrinsicFactory:
                 sampler_ret_type = unify_jones_terms(typingctx,
                                                      sampler_ret_type, typ)
 
-            sig = sampler_ret_type(state, s, r, t, a1, a2, c)
+            sig = sampler_ret_type(state, s, r, t, f1, f2, a1, a2, c)
 
             def codegen(context, builder, signature, args):
-                [state, s, r, t, a1, a2, c] = args
-                [state_type, _, _, _, _, _, _] = signature.args
+                [state, s, r, t, f1, f2, a1, a2, c] = args
+                [state_type, _, _, _, _, _, _, _, _] = signature.args
                 jones = []
 
                 for ti in range(nterms):
@@ -645,7 +666,7 @@ class IntrinsicFactory:
                     sampler_sig = ret_type(*sampler_arg_types)
 
                     # Build LLVM arguments for the sampling function
-                    sampler_args = [state, s, r, t, a1, a2, c]
+                    sampler_args = [state, s, r, t, f1, f2, a1, a2, c]
 
                     # Call the sampling function
                     data = context.compile_internal(builder,  # noqa

@@ -172,7 +172,7 @@ class Term(metaclass=TermMetaClass):
         sampler_sig = inspect.signature(sampler)
         Parameter = inspect.Parameter
         P = partial(Parameter, kind=Parameter.POSITIONAL_OR_KEYWORD)
-        params = map(P, ["state", "s", "r", "t", "a1", "a2", "c"])
+        params = map(P, ["state", "s", "r", "t", "f1", "f2", "a1", "a2", "c"])
         expected_sig = inspect.Signature(params)
 
         if sampler_sig != expected_sig:

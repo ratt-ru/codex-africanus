@@ -55,7 +55,7 @@ class Phase(Term):
         return fields, phase
 
     def sampler(self):
-        def phase_sample(state, s, r, t, a1, a2, c):
+        def phase_sample(state, s, r, t, f1, f2, a1, a2, c):
             p = state.phase_dot[s, r] * state.chan_freq[c]
             return np.cos(p) + np.sin(p)*1j
 

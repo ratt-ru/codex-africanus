@@ -53,7 +53,7 @@ class Gaussian(Term):
         return fields, gaussian_init
 
     def sampler(self):
-        def gaussian_sample(state, s, r, t, a1, a2, c):
+        def gaussian_sample(state, s, r, t, f1, f2, a1, a2, c):
             fu1 = state.gauss_uv[s, r, 0] * state.scaled_freq[c]
             fv1 = state.gauss_uv[s, r, 1] * state.scaled_freq[c]
             return np.exp(-(fu1*fu1 + fv1*fv1))
