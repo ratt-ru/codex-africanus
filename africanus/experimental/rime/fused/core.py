@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from collections import defaultdict
 
 import numba
 from numba import generated_jit, types
@@ -139,25 +140,44 @@ class RimeFactory(metaclass=Multiton):
             tuple(kwargs.keys()),
             self.rime_spec.terms,
             self.rime_spec.transformers)
-        dask_schema = {a: ("row",) for a in argdeps.REQUIRED_ARGS}
         # Holds kwargs + any dummy outputs from transformations
         dummy_kw = kwargs.copy()
+
+        dask_schema = defaultdict(list)
+        for a in argdeps.REQUIRED_ARGS:
+            dask_schema[a].append(("internal", ("row",)))
 
         for transformer in argdeps.can_create.values():
             kw = {a: dummy_kw[a] for a in transformer.ARGS}
             kw.update((a, kwargs.get(a, d)) for a, d
                       in transformer.KWARGS.items())
             inputs, outputs = transformer.dask_schema(**kw)
-            dask_schema.update(inputs)
+
+            for k, schema in inputs.items():
+                dask_schema[k].append((transformer, schema))
+
             dummy_kw.update(outputs)
 
         for term in self.rime_spec.terms:
             kw = {a: dummy_kw[a] for a in term.ALL_ARGS if a in dummy_kw}
-            dask_schema.update(term.dask_schema(**kw))
+
+            for k, v in term.dask_schema(**kw).items():
+                dask_schema[k].append((term, v))
+
+        merged_schema = {}
+
+        for a, candidates in dask_schema.items():
+            dims = set(pair[1] for pair in candidates)
+            if len(dims) != 1:
+                raise ValueError(
+                    f"Multiple candidates provided conflicting "
+                    f"dimension definitions for {a}: {candidates}")
+
+            merged_schema[a] = dims.pop()
 
         names = list(sorted(argdeps.valid_inputs | set(kwargs.keys())))
         blockwise_args = [e for n in names if n in kwargs
-                          for e in (kwargs[n], dask_schema.get(n, None))]
+                          for e in (kwargs[n], merged_schema.get(n, None))]
 
         return names, blockwise_args
 

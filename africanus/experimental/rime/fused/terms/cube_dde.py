@@ -47,7 +47,13 @@ class BeamCubeDDE(Term):
                     lm, parangle_sincos, chan_freq,
                     beam_point_errors=None,
                     beam_antenna_scaling=None):
-        pass
+        return {
+            "beam": ("beam_lw", "beam_mh", "beam_nud", "corr"),
+            "beam_lm_extents": ("lm_ext", "lm_ext_comp"),
+            "beam_freq_map": ("beam_nud",),
+            "lm": ("source", "lm-comp"),
+            "chan_freq": ("chan",),
+        }
 
     def init_fields(self, typingctx,
                     beam, beam_lm_extents, beam_freq_map,
@@ -278,13 +284,12 @@ class BeamCubeDDE(Term):
 
             for co in range(ncorr):
                 div = np.abs(corr_sum[co])
+                value = corr_sum[co]*absc_sum[co]
 
-                if div == 0.0:
-                    corr_sum = tuple_setitem(corr_sum, co,
-                                             corr_sum[co]*absc_sum[co])
-                else:
-                    corr_sum = tuple_setitem(corr_sum, co,
-                                             corr_sum[co]*absc_sum[co]/div)
+                if div != 0.0:
+                    value /= div
+
+                corr_sum = tuple_setitem(corr_sum, co, value)
 
             return corr_sum
 
