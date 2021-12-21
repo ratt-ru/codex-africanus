@@ -213,10 +213,11 @@ def consolidate_args(args, kw):
 
     mapping.update(zip(oargs, RimeFactory.REQUIRED_ARGS))
     mapping.update(kw)
-    return oargs, mapping
+
+    return mapping
 
 
 def rime(rime_spec, *args, **kw):
-    oargs, mapping = consolidate_args(args, kw)
+    mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
-    return factory(*oargs, **mapping)
+    return factory(**mapping)

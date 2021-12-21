@@ -25,10 +25,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 @requires_optional("dask.array", opt_import_err)
 def rime(rime_spec, *args, **kw):
-    oargs, mapping = consolidate_args(args, kw)
-    mapping = {**dict(zip(RimeFactory.REQUIRED_ARGS, oargs)),
-               **mapping}
-
+    mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
     names, args = factory.dask_blockwise_args(**mapping)
 
