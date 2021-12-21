@@ -29,7 +29,7 @@ else:
 
 
 def rime_impl_factory(terms, transformers, ncorr):
-    @generated_jit(nopython=True, nogil=True, cache=False)
+    @generated_jit(nopython=True, nogil=True, cache=True)
     def rime(names, *inargs):
         if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
             raise TypeError(f"{inargs[0]} must be be a Tuple")

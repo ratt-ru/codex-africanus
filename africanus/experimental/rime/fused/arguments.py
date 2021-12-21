@@ -83,7 +83,9 @@ class ArgumentDependencies:
 
         # Determine a canonical set of valid inputs
         # We start with the desired and required arguments
-        self.valid_inputs = set(desired.keys()) | set(self.REQUIRED_ARGS)
+        self.valid_inputs = (set(desired.keys()) |
+                             set(self.REQUIRED_ARGS) |
+                             set(optional.keys()))
 
         # Then, for each argument than can be created
         # we add the transformer arguments and remove
@@ -154,7 +156,7 @@ class ArgumentDependencies:
 
             opt_defaults[k] = defaults.pop()
 
-        for name in self.names:
+        for name in supplied_args:
             opt_defaults.pop(name, None)
 
         return opt_defaults, can_create
