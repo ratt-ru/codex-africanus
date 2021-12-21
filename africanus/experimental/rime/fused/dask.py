@@ -25,9 +25,8 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 @requires_optional("dask.array", opt_import_err)
 def rime(rime_spec, *args, **kw):
-    mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
-    names, args = factory.dask_blockwise_args(**mapping)
+    names, args = factory.dask_blockwise_args(**consolidate_args(args, kw))
 
     dims = ("source", "row", "chan", "corr")
     contract_dims = set(d for ds in args[1::2] if ds is not None for d in ds)
