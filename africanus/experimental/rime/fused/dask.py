@@ -34,8 +34,7 @@ def rime(rime_spec, *args, **kw):
     out_dims = dims + tuple(contract_dims)
 
     # Source and concatenation dimension are reduced to 1 element
-    adjust_chunks = {"source": 1}
-    adjust_chunks.update((d, 1) for d in contract_dims)
+    adjust_chunks = {"source": 1, **{d: 1 for d in contract_dims}}
 
     # This is needed otherwise, dask will call rime_dask_wrapper
     # with dummy arugments to infer the output dtype.
