@@ -227,7 +227,8 @@ class RimeSpecification:
             raise RimeSpecificationError(f"Unknown term {str(e)}")
 
         try:
-            term_types = tuple(term_types[t] for t in terms_wanted)
+            term_types = tuple(t if isinstance(t, type) and issubclass(t, Term)
+                               else term_types[t] for t in terms_wanted)
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
@@ -276,11 +277,11 @@ class RimeSpecification:
         term_type_set = set(term_types)
 
         if Phase not in term_type_set:
-            raise RimeSpecification(
+            raise RimeSpecificationError(
                 "RIME must at least contain a Phase term")
 
         if Brightness not in term_type_set:
-            raise RimeSpecification(
+            raise RimeSpecificationError(
                 "RIME must at least contain a Brightness term")
 
         self.terms = terms
