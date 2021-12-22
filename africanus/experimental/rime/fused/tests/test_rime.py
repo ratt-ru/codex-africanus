@@ -156,7 +156,11 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
                               "] -> [",
                               ",".join(corr_schema), "]"))
 
-    time = np.linspace(0.1, 1.0, nrow)
+
+    from africanus.rime.tests.test_parangles import _observation_endpoints
+
+    start, end = _observation_endpoints(2021, 10, 9, 8)
+    time = np.linspace(start, end, nrow)
     antenna1 = np.zeros(nrow, dtype=np.int32)
     antenna2 = np.arange(nrow, dtype=np.int32)
     feed1 = feed2 = antenna1
@@ -204,9 +208,35 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "receptor_angle": darray(receptor_angle, receptor_angle.shape),
     }
 
-    rime_spec = RimeSpecification(f"(Cpq, Kpq, Bpq): "
+
+    from africanus.experimental.rime.fused.terms.core import Term
+
+    class DummyTerm(Term):
+        def __init__(self, configuration):
+            super().__init__(configuration)
+
+        def init_fields(self, typingctx):
+            def dummy():
+                pass
+
+            return [], dummy
+
+        def sampler(self):
+            left = self.configuration == "left"
+
+            def dummy(state, s, r, t, f1, f2, a1, a2, c):
+                XX = YY = 0.5 if left else 0.3
+                XY = YX = 0.1 if left else 0.2
+                return XX, XY, YX, YY
+
+            return dummy
+
+        def dask_schema(self):
+            return {}
+
+    rime_spec = RimeSpecification(f"(Lp, Kpq, Bpq, Lq): "
                                   f"{stokes_to_corr}",
-                                  terms={"C": "Gaussian"})
+                                  terms={"L": DummyTerm})
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
     dataset = {
