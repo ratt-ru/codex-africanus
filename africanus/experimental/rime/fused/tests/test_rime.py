@@ -105,6 +105,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
+    assert np.count_nonzero(out) > .8 * out.size
 
     out = rime(f"(Kpq, Bpq): {stokes_to_corr}",
                dataset, convention="fourier")
@@ -114,6 +115,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
+    assert np.count_nonzero(out) > .8 * out.size
 
     out = rime(f"(Kpq, Bpq): {stokes_to_corr}", dataset)
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
@@ -121,6 +123,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
+    assert np.count_nonzero(out) > .8 * out.size
 
     gauss_shape = np.random.random((nsrc, 3))
     gauss_shape[:, :2] *= 1e-5
@@ -135,6 +138,7 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     G = gaussian(uvw, chan_freq, gauss_shape)
     expected = (G[:, :, :, None]*P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
+    assert np.count_nonzero(out) > .8 * out.size
 
 
 @pytest.mark.parametrize("chunks", chunks)
@@ -234,3 +238,4 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     out = rime(rime_spec, dataset, convention="casa")
     dout = dask_out.compute()
     assert_array_almost_equal(dout, out)
+    assert np.count_nonzero(out) > .8 * out.size
