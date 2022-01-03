@@ -43,7 +43,11 @@ def diag_full(lhs, rhs):
 
 
 def full_scalar(lhs, rhs):
-    return lhs[0]*rhs, lhs[1]*rhs, lhs[2]*rhs, lhs[3]*rhs
+    return (
+        lhs[0]*rhs,
+        lhs[1]*rhs,
+        lhs[2]*rhs,
+        lhs[3]*rhs)
 
 
 def full_diag(lhs, rhs):
@@ -129,6 +133,22 @@ def term_mul(lhs, rhs):
     except KeyError:
         raise TypingError(f"No known multiplication "
                           f"function for {lhs} and {rhs}")
+
+
+_hermitian_map = {
+    "scalar": hermitian_scalar,
+    "diag": hermitian_diag,
+    "full": hermitian_full}
+
+
+def hermitian(jones):
+    jones_type = classify_arg(jones)
+
+    try:
+        return _hermitian_map[jones_type]
+    except KeyError:
+        raise TypingError(f"No known hermitian function "
+                          f"for {jones}: {jones_type}.")
 
 
 def unify_jones_terms(typingctx, lhs, rhs):
@@ -617,13 +637,14 @@ class IntrinsicFactory:
 
     def term_sampler_fn(self):
         argdeps = self.argdeps
+        terms = argdeps.terms
 
-        samplers = [term.sampler() for term in argdeps.terms]
+        samplers = [term.sampler() for term in terms]
 
-        for term, sampler in zip(argdeps.terms, samplers):
+        for term, sampler in zip(terms, samplers):
             term.validate_sampler(sampler)
 
-        nterms = len(argdeps.terms)
+        nterms = len(terms)
 
         @intrinsic
         def term_sampler(typingctx, state, s, r, t, f1, f2, a1, a2, c):
@@ -688,6 +709,14 @@ class IntrinsicFactory:
                                                     sampling_fn,
                                                     sampler_sig,
                                                     sampler_args)
+
+                    # Apply hermitian transform if this is a right term
+                    if terms[ti].configuration == "right":
+                        data = context.compile_internal(builder,  # noqa
+                                                        hermitian(ret_type),
+                                                        ret_type(ret_type),
+                                                        [data])
+
                     jones.append(data)
 
                 prev = jones[0]
