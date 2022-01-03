@@ -10,7 +10,7 @@ class ParallacticTransformer(Transformer):
     OUTPUTS = ["parangle_sincos"]
 
     def init_fields(self, typingctx,
-                    utime, ufeed,
+                    utime, ufeed, uantenna,
                     antenna_position, phase_dir,
                     receptor_angle=None):
         dt = typingctx.unify_types(utime.dtype, ufeed.dtype,
@@ -31,18 +31,27 @@ class ParallacticTransformer(Transformer):
 
             return out
 
-        def parangles(utime, ufeed,
+        def parangles(utime, ufeed, uantenna,
                       antenna_position, phase_dir,
                       receptor_angle=None):
-            parangles = parangle_stub(utime, antenna_position, phase_dir)
-            ntime, nant = parangles.shape
+
+            ntime, = utime.shape
+            nant, = uantenna.shape
             nfeed, = ufeed.shape
-            # (unique time, unique feed, unique ant, receptor angle, sin/cos)
+
+            # Select out the antennae we're interested in
+            antenna_position = antenna_position[uantenna]
+
+            parangles = parangle_stub(utime, antenna_position, phase_dir)
             result = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
 
-            if have_ra and receptor_angle.shape[1] != 2:
-                raise ValueError("Only 2 receptor angles "
-                                 "supported at present")
+            if have_ra:
+                if receptor_angle.shape[1] != 2:
+                    raise ValueError("Only 2 receptor angles "
+                                     "currently supported")
+
+                # Select out the feeds we're interested in
+                receptor_angle = receptor_angle[ufeed, :]
 
             for t in range(ntime):
                 for f in range(nfeed):
@@ -62,7 +71,7 @@ class ParallacticTransformer(Transformer):
 
         return fields, parangles
 
-    def dask_schema(self, utime, ufeed,
+    def dask_schema(self, utime, ufeed, uantenna,
                     antenna_position, phase_dir,
                     receptor_angle=None):
         dt = np.result_type(utime, ufeed, antenna_position,

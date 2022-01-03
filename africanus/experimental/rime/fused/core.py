@@ -81,10 +81,10 @@ def rime_impl_factory(terms, transformers, ncorr):
             for s in range(nsrc):
                 for r in range(nrow):
                     t = state.time_index[r]
-                    a1 = state.antenna1[r]
-                    a2 = state.antenna2[r]
-                    f1 = state.feed1[r]
-                    f2 = state.feed2[r]
+                    a1 = state.antenna1_index[r]
+                    a2 = state.antenna2_index[r]
+                    f1 = state.feed1_index[r]
+                    f2 = state.feed2_index[r]
 
                     for ch in range(nchan):
                         X = term_sampler(state, s, r, t, f1, f2, a1, a2, ch)

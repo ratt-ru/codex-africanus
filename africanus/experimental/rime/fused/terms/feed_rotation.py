@@ -22,23 +22,22 @@ class FeedRotation(Term):
 
     def sampler(self):
         left = self.configuration == "left"
+        ra = 0 if left else 1
 
         if self.feed_type == "linear":
             def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
                 a = a1 if left else a2
                 f = f1 if left else f2
-                ra = 0 if left else 1
-                sin = state.parangle_sincos[t, a, f, ra, 0]
-                cos = state.parangle_sincos[t, a, f, ra, 1]
+                sin = state.parangle_sincos[t, f, a, ra, 0]
+                cos = state.parangle_sincos[t, f, a, ra, 1]
 
                 return sin, cos, -sin, cos
         elif self.feed_type == "circular":
             def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
                 a = a1 if left else a2
                 f = f1 if left else f2
-                ra = 0 if left else 1
-                sin = state.parangle_sincos[t, a, f, ra, 0]
-                cos = state.parangle_sincos[t, a, f, ra, 1]
+                sin = state.parangle_sincos[t, f, a, ra, 0]
+                cos = state.parangle_sincos[t, f, a, ra, 1]
 
                 return cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j
         else:
