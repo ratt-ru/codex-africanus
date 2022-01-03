@@ -62,6 +62,21 @@ def full_full(lhs, rhs):
         lhs[2]*rhs[1] + lhs[3]*rhs[3])
 
 
+def hermitian_scalar(jones):
+    return np.conj(jones)
+
+
+def hermitian_diag(jones):
+    return (np.conj(jones[0]), np.conj(jones[1]))
+
+
+def hermitian_full(jones):
+    return (np.conj(jones[0]),
+            np.conj(jones[2]),
+            np.conj(jones[1]),
+            np.conj(jones[3]))
+
+
 _jones_typ_map = {
     ("scalar", "scalar"): scalar_scalar,
     ("scalar", "diag"): scalar_diag,

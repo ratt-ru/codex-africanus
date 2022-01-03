@@ -143,13 +143,13 @@ class BeamCubeDDE(Term):
 
     def sampler(self):
         left = self.configuration == "left"
+        ra = 0 if left else 1
         ncorr = len(self.corrs)
         zero_vis = zero_vis_factory(ncorr)
 
         def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
             feed = f1 if left else f2
-            ra = 0 if left else 1
             sin_pa = state.parangle_sincos[t, feed, a, ra, 0]
             cos_pa = state.parangle_sincos[t, feed, a, ra, 1]
 
