@@ -211,7 +211,7 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "receptor_angle": darray(receptor_angle, receptor_angle.shape),
     }
 
-    rime_spec = RimeSpecification(f"(Kpq, Bpq, Lq): {stokes_to_corr}")
+    rime_spec = RimeSpecification(f"(Ep, Lp, Kpq, Bpq, Lq, Eq): {stokes_to_corr}")
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
     dataset = {
