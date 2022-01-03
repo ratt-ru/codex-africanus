@@ -8,6 +8,11 @@ class FeedRotation(Term):
                              f"be either 'left' or 'right'. "
                              f"Got {configuration}")
 
+        if feed_type not in {"linear", "circular"}:
+            raise ValueError(f"FeedRotation feed_type must be "
+                             f"either 'linear' or 'circular'. "
+                             f"Got {feed_type}")
+
         super().__init__(configuration)
         self.feed_type = feed_type
 
@@ -23,24 +28,15 @@ class FeedRotation(Term):
     def sampler(self):
         left = self.configuration == "left"
         ra = 0 if left else 1
+        linear = self.feed_type == "linear"
 
-        if self.feed_type == "linear":
-            def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
-                a = a1 if left else a2
-                f = f1 if left else f2
-                sin = state.parangle_sincos[t, f, a, ra, 0]
-                cos = state.parangle_sincos[t, f, a, ra, 1]
+        def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
+            a = a1 if left else a2
+            f = f1 if left else f2
+            sin = state.parangle_sincos[t, f, a, ra, 0]
+            cos = state.parangle_sincos[t, f, a, ra, 1]
 
-                return sin, cos, -sin, cos
-        elif self.feed_type == "circular":
-            def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
-                a = a1 if left else a2
-                f = f1 if left else f2
-                sin = state.parangle_sincos[t, f, a, ra, 0]
-                cos = state.parangle_sincos[t, f, a, ra, 1]
-
-                return cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j
-        else:
-            raise ValueError(f"Invalid feed_type {self.feed_type}")
+            return ((sin, cos, -sin, cos) if linear else
+                    (cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j))
 
         return feed_rotation
