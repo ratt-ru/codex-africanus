@@ -37,20 +37,20 @@ class FeedRotation(Term):
             sin_1 = state.parangle_sincos[t, f, a, 1, 0]
             cos_1 = state.parangle_sincos[t, f, a, 1, 1]
 
+            # https://github.com/ska-sa/codex-africanus/issues/191#issuecomment-963089540
             if linear:
                 return (cos_0, -sin_0, sin_1, cos_1)
             else:
                 # e^{ix} = cos(x) + i.sin(x)
-                # https://github.com/ska-sa/codex-africanus/issues/191#issuecomment-963089540
-                cos_0 *= 0.5
-                sin_0 *= 0.5
-                cos_1 *= 0.5
-                sin_1 *= 0.5
+                cos_0 = 0.5 * cos_0
+                sin_0j = 0.5 * sin_0*1j
+                cos_1 = 0.5 * cos_1
+                sin_1j = 0.5 * sin_1*1j
 
                 return (
-                    cos_0 + sin_0*1j + cos_1 + sin_1*1j,
-                    -cos_0 - sin_0*1j - (-cos_1 - sin_1*1j),
-                    cos_0 + sin_0*1j - (cos_1 + sin_1*1j),
-                    -cos_0 - sin_0*1j + (-cos_1 - sin_1*1j))
+                    cos_0 + sin_0j + cos_1 + sin_1j,
+                    -cos_0 - sin_0j - (-cos_1 - sin_1j),
+                    cos_0 + sin_0j - (cos_1 + sin_1j),
+                    -cos_0 - sin_0j + (-cos_1 - sin_1j))
 
         return feed_rotation
