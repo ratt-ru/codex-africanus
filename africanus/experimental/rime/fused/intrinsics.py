@@ -138,7 +138,8 @@ def term_mul(lhs, rhs):
 _hermitian_map = {
     "scalar": hermitian_scalar,
     "diag": hermitian_diag,
-    "full": hermitian_full}
+    "full": hermitian_full
+}
 
 
 def hermitian(jones):
@@ -360,7 +361,7 @@ class IntrinsicFactory:
                 fn_sig = types.Tuple(list(key_types.values()))(*fn_arg_types)
 
                 def _indices(time, antenna1, antenna2, feed1, feed2):
-                    utime, time_index = _unique_internal(time)[:2]
+                    utime, _, time_index, _ = _unique_internal(time)
                     uants = np.unique(np.concatenate((antenna1, antenna2)))
                     ufeeds = np.unique(np.concatenate((feed1, feed2)))
                     antenna1_index = np.searchsorted(uants, antenna1)
