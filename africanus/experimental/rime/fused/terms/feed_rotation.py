@@ -27,16 +27,30 @@ class FeedRotation(Term):
 
     def sampler(self):
         left = self.configuration == "left"
-        ra = 0 if left else 1
         linear = self.feed_type == "linear"
 
         def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
             f = f1 if left else f2
-            sin = state.parangle_sincos[t, f, a, ra, 0]
-            cos = state.parangle_sincos[t, f, a, ra, 1]
+            sin_0 = state.parangle_sincos[t, f, a, 0, 0]
+            cos_0 = state.parangle_sincos[t, f, a, 0, 1]
+            sin_1 = state.parangle_sincos[t, f, a, 1, 0]
+            cos_1 = state.parangle_sincos[t, f, a, 1, 1]
 
-            return ((sin, cos, -sin, cos) if linear else
-                    (cos - sin*1j, 0 + 0*1j, 0 + 0*1j, cos + sin*1j))
+            if linear:
+                return (cos_0, -sin_0, sin_1, cos_1)
+            else:
+                # e^{ix} = cos(x) + i.sin(x)
+                # https://github.com/ska-sa/codex-africanus/issues/191#issuecomment-963089540
+                cos_0 *= 0.5
+                sin_0 *= 0.5
+                cos_1 *= 0.5
+                sin_1 *= 0.5
+
+                return (
+                    cos_0 + sin_0*1j + cos_1 + sin_1*1j,
+                    -cos_0 - sin_0*1j - (-cos_1 - sin_1*1j),
+                    cos_0 + sin_0*1j - (cos_1 + sin_1*1j),
+                    -cos_0 - sin_0*1j + (-cos_1 - sin_1*1j))
 
         return feed_rotation

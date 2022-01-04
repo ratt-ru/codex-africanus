@@ -143,7 +143,10 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
 
 @pytest.mark.parametrize("chunks", chunks)
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
-@pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [
+    ["XX", "XY", "YX", "YY"],
+    ["RR", "RL", "LR", "LL"]
+], ids=str)
 def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     da = pytest.importorskip("dask.array")
 
