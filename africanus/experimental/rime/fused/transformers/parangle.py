@@ -46,6 +46,9 @@ class ParallacticTransformer(Transformer):
             result = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
 
             if have_ra:
+                if receptor_angle.ndim != 2:
+                    raise ValueError("receptor_angle.ndim != 2")
+
                 if receptor_angle.shape[1] != 2:
                     raise ValueError("Only 2 receptor angles "
                                      "currently supported")
@@ -78,5 +81,11 @@ class ParallacticTransformer(Transformer):
                             phase_dir, receptor_angle)
         inputs = {"antenna_position": ("antenna", "ant-comp"),
                   "phase_dir": ("radec",)}
+
+        if receptor_angle is not None:
+            inputs["receptor_angle"] = ("feed", "receptor_angle")
+        else:
+            input["receptor_angle"] = None
+
         outputs = {"parangle_sincos": np.empty((0,)*3, dt)}
         return inputs, outputs
