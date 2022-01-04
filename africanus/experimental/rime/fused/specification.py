@@ -181,7 +181,7 @@ class RimeSpecification:
             raise TypeError(f"specification: {specification} is not a str")
 
         if not terms:
-            saved_terms = terms
+            saved_terms = None
         elif isinstance(terms, dict):
             saved_terms = frozenset(terms.items())
         elif isinstance(terms, (tuple, list, set, frozenset)):
