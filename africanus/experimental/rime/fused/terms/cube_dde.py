@@ -44,7 +44,7 @@ class BeamCubeDDE(Term):
         self.corrs = corrs
 
     def dask_schema(self, beam, beam_lm_extents, beam_freq_map,
-                    lm, parangle_sincos, chan_freq,
+                    lm, beam_parangle, chan_freq,
                     beam_point_errors=None,
                     beam_antenna_scaling=None):
         return {
@@ -57,7 +57,7 @@ class BeamCubeDDE(Term):
 
     def init_fields(self, typingctx,
                     beam, beam_lm_extents, beam_freq_map,
-                    lm, parangle_sincos, chan_freq,
+                    lm, beam_parangle, chan_freq,
                     beam_point_errors=None,
                     beam_antenna_scaling=None):
 
@@ -70,7 +70,7 @@ class BeamCubeDDE(Term):
                   ("beam_info", beam_info_type)]
 
         def beam(beam, beam_lm_extents, beam_freq_map,
-                 lm, parangle_sincos, chan_freq,
+                 lm, beam_parangle, chan_freq,
                  beam_point_errors=None,
                  beam_antenna_scaling=None):
 
@@ -143,15 +143,14 @@ class BeamCubeDDE(Term):
 
     def sampler(self):
         left = self.configuration == "left"
-        ra = 0 if left else 1
         ncorr = len(self.corrs)
         zero_vis = zero_vis_factory(ncorr)
 
         def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
             feed = f1 if left else f2
-            sin_pa = state.parangle_sincos[t, feed, a, ra, 0]
-            cos_pa = state.parangle_sincos[t, feed, a, ra, 1]
+            sin_pa = state.beam_parangle[t, feed, a, 0]
+            cos_pa = state.beam_parangle[t, feed, a, 1]
 
             l = state.lm[s, 0]  # noqa
             m = state.lm[s, 1]

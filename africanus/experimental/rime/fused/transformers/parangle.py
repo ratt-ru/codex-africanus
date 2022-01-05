@@ -7,7 +7,7 @@ from africanus.experimental.rime.fused.transformers.core import Transformer
 
 
 class ParallacticTransformer(Transformer):
-    OUTPUTS = ["parangle_sincos"]
+    OUTPUTS = ["feed_parangle", "beam_parangle"]
 
     def init_fields(self, typingctx,
                     utime, ufeed, uantenna,
@@ -16,7 +16,9 @@ class ParallacticTransformer(Transformer):
         dt = typingctx.unify_types(utime.dtype, ufeed.dtype,
                                    antenna_position.dtype,
                                    phase_dir.dtype)
-        fields = [("parangle_sincos", dt[:, :, :, :, :])]
+        fields = [
+            ("feed_parangle", dt[:, :, :, :, :]),
+            ("beam_parangle", dt[:, :, :, :])]
         parangle_dt = types.Array(types.float64, 2, "C")
         have_ra = not cgutils.is_nonelike(receptor_angle)
 
@@ -43,7 +45,8 @@ class ParallacticTransformer(Transformer):
             antenna_position = antenna_position[uantenna]
 
             parangles = parangle_stub(utime, antenna_position, phase_dir)
-            result = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
+            feed_pa = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
+            beam_pa = np.empty((ntime, nfeed, nant, 2), parangles.dtype)
 
             if have_ra:
                 if receptor_angle.ndim != 2:
@@ -62,15 +65,21 @@ class ParallacticTransformer(Transformer):
                     ra2 = receptor_angle[f, 1] if have_ra else dt(0)
 
                     for a in range(nant):
-                        pa1 = parangles[t, a] + ra1
-                        pa2 = parangles[t, a] + ra2
+                        pa1 = parangles[t, a]
+                        pa2 = parangles[t, a]
 
-                        result[t, f, a, 0, 0] = np.sin(pa1)
-                        result[t, f, a, 0, 1] = np.cos(pa1)
-                        result[t, f, a, 1, 0] = np.sin(pa2)
-                        result[t, f, a, 1, 1] = np.cos(pa2)
+                        beam_pa[t, f, a, 0] = np.sin(pa1)
+                        beam_pa[t, f, a, 1] = np.cos(pa1)
 
-            return result
+                        pa1 += ra1
+                        pa2 += ra2
+
+                        feed_pa[t, f, a, 0, 0] = np.sin(pa1)
+                        feed_pa[t, f, a, 0, 1] = np.cos(pa1)
+                        feed_pa[t, f, a, 1, 0] = np.sin(pa2)
+                        feed_pa[t, f, a, 1, 1] = np.cos(pa2)
+
+            return feed_pa, beam_pa
 
         return fields, parangles
 
@@ -87,5 +96,9 @@ class ParallacticTransformer(Transformer):
         else:
             input["receptor_angle"] = None
 
-        outputs = {"parangle_sincos": np.empty((0,)*3, dt)}
+        outputs = {
+            "feed_parangle": np.empty((0,)*5, dt),
+            "beam_parangle": np.empty((0,)*4, dt)
+        }
+
         return inputs, outputs

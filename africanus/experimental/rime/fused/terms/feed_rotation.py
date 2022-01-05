@@ -16,13 +16,13 @@ class FeedRotation(Term):
         super().__init__(configuration)
         self.feed_type = feed_type
 
-    def init_fields(self, typingctx, parangle_sincos):
-        def dummy(parangle_sincos):
+    def init_fields(self, typingctx, feed_parangle):
+        def dummy(feed_parangle):
             pass
 
         return [], dummy
 
-    def dask_schema(self, parangle_sincos):
+    def dask_schema(self, feed_parangle):
         return {}
 
     def sampler(self):
@@ -32,20 +32,20 @@ class FeedRotation(Term):
         def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
             f = f1 if left else f2
-            sin_0 = state.parangle_sincos[t, f, a, 0, 0]
-            cos_0 = state.parangle_sincos[t, f, a, 0, 1]
-            sin_1 = state.parangle_sincos[t, f, a, 1, 0]
-            cos_1 = state.parangle_sincos[t, f, a, 1, 1]
+            sin_0 = state.feed_parangle[t, f, a, 0, 0]
+            cos_0 = state.feed_parangle[t, f, a, 0, 1]
+            sin_1 = state.feed_parangle[t, f, a, 1, 0]
+            cos_1 = state.feed_parangle[t, f, a, 1, 1]
 
             # https://github.com/ska-sa/codex-africanus/issues/191#issuecomment-963089540
             if linear:
                 return (cos_0, -sin_0, sin_1, cos_1)
             else:
                 # e^{ix} = cos(x) + i.sin(x)
-                cos_0 = 0.5 * cos_0
-                sin_0j = 0.5 * sin_0*1j
-                cos_1 = 0.5 * cos_1
-                sin_1j = 0.5 * sin_1*1j
+                cos_0 = 0.5*cos_0
+                sin_0j = 0.5*sin_0*1j
+                cos_1 = 0.5*cos_1
+                sin_1j = 0.5*sin_1*1j
 
                 return (
                     cos_0 + sin_0j + cos_1 + sin_1j,

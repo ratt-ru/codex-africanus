@@ -393,7 +393,9 @@ class IntrinsicFactory:
 
     def pack_transformed_fn(self, arg_names):
         argdeps = self.argdeps
-        out_names = arg_names + tuple(argdeps.can_create.keys())
+        transformers = list(set(t for _, t in argdeps.can_create.items()))
+        out_names = arg_names + tuple(o for t in transformers
+                                      for o in t.OUTPUTS)
 
         @intrinsic
         def pack_transformed(typingctx, args):
@@ -402,11 +404,9 @@ class IntrinsicFactory:
             arg_info = {n: (t, i) for n, t, i in it}
 
             rvt = typingctx.resolve_value_type_prefer_literal
+            transform_output_types = []
 
-            transform_return_types = []
-            transform_output_fields = []
-
-            for _, transformer in argdeps.can_create.items():
+            for transformer in transformers:
                 kw = {}
 
                 for a in transformer.ARGS:
@@ -429,12 +429,15 @@ class IntrinsicFactory:
                             f"but {transformer}.init_fields does not return "
                             f"a tuple of the same length, but {fields}")
 
-                typs = [t for _, t in fields]
-                transform_return_types.append(types.Tuple(typs))
-                transform_output_fields.extend(typs)
+                transform_output_types.extend(t for _, t in fields)
 
             return_type = types.Tuple(args.types +
-                                      tuple(transform_output_fields))
+                                      tuple(transform_output_types))
+
+            if len(return_type) != len(out_names):
+                raise TypingError(f"len(return_type): {len(return_type)} != "
+                                  f"len(out_names): {len(out_names)}")
+
             sig = return_type(args)
 
             def codegen(context, builder, signature, args):
@@ -453,11 +456,9 @@ class IntrinsicFactory:
 
                 # Apply any argument transforms and insert their results
                 # into the new argument tuple
-                it = enumerate(argdeps.can_create.items())
-                for i, (v, transformer) in it:
-                    if v != out_names[i + n]:
-                        raise TypingError(f"{v} != {out_names[i + n]}")
+                i = 0
 
+                for transformer in transformers:
                     transform_args = []
                     transform_types = []
 
@@ -499,7 +500,24 @@ class IntrinsicFactory:
                                                      transform_sig,
                                                      transform_args)
 
-                    ret_tuple = builder.insert_value(ret_tuple, value, i + n)
+                    if len(transform_fields) == 1:
+                        o = transformer.OUTPUTS[0]
+                        if o != out_names[i + n]:
+                            raise TypingError(f"{o} != {out_names[i + n]}")
+
+                        ret_tuple = builder.insert_value(ret_tuple, value,
+                                                         i + n)
+                        i += 1
+                    else:
+                        for j, o in enumerate(transformer.OUTPUTS):
+                            if o != out_names[i + n]:
+                                raise TypingError(f"{o} != {out_names[i + n]}")
+
+                            element = builder.extract_value(value, j)
+                            ret_tuple = builder.insert_value(ret_tuple,
+                                                             element,
+                                                             i + n)
+                            i += 1
 
                 return ret_tuple
 
