@@ -452,10 +452,9 @@ class IntrinsicFactory:
                     context.nrt.incref(builder, signature.args[0][i], value)
                     ret_tuple = builder.insert_value(ret_tuple, value, i)
 
-                n = len(signature.args[0])
-
                 # Apply any argument transforms and insert their results
                 # into the new argument tuple
+                n = len(signature.args[0])
                 i = 0
 
                 for transformer in transformers:
@@ -500,19 +499,17 @@ class IntrinsicFactory:
                                                      transform_sig,
                                                      transform_args)
 
-                    if len(transform_fields) == 1:
-                        o = transformer.OUTPUTS[0]
+                    # Check that outputs line up with output names
+                    for j, o in enumerate(transformer.OUTPUTS):
                         if o != out_names[i + n]:
                             raise TypingError(f"{o} != {out_names[i + n]}")
 
+                    if len(transform_fields) == 1:
                         ret_tuple = builder.insert_value(ret_tuple, value,
                                                          i + n)
                         i += 1
                     else:
                         for j, o in enumerate(transformer.OUTPUTS):
-                            if o != out_names[i + n]:
-                                raise TypingError(f"{o} != {out_names[i + n]}")
-
                             element = builder.extract_value(value, j)
                             ret_tuple = builder.insert_value(ret_tuple,
                                                              element,
