@@ -59,9 +59,9 @@ def rime_impl_factory(terms, transformers, ncorr):
         term_sampler = factory.term_sampler_fn()
 
         try:
-            lm_i = argdeps.output_names.index("lm")
-            uvw_i = argdeps.output_names.index("uvw")
-            chan_freq_i = argdeps.output_names.index("chan_freq")
+            lm_i = out_names.index("lm")
+            uvw_i = out_names.index("uvw")
+            chan_freq_i = out_names.index("chan_freq")
         except ValueError as e:
             raise ValueError(f"{str(e)} is required")
 

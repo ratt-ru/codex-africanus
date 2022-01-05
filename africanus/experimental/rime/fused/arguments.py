@@ -77,10 +77,6 @@ class ArgumentDependencies:
         self.optional_defaults = od
         self.can_create = cc
 
-        self.output_names = (self.names + self.KEY_ARGS +
-                             tuple(self.optional_defaults.keys()) +
-                             tuple(self.can_create.keys()))
-
         # Determine a canonical set of valid inputs
         # We start with the desired and required arguments
         self.valid_inputs = (set(desired.keys()) |
