@@ -501,8 +501,8 @@ class IntrinsicFactory:
 
                     # Check that outputs line up with output names
                     for j, o in enumerate(transformer.OUTPUTS):
-                        if o != out_names[i + n]:
-                            raise TypingError(f"{o} != {out_names[i + n]}")
+                        if o != out_names[i + j + n]:
+                            raise TypingError(f"{o} != {out_names[i + j + n]}")
 
                     if len(transform_fields) == 1:
                         ret_tuple = builder.insert_value(ret_tuple, value,
