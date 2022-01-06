@@ -32,25 +32,20 @@ class FeedRotation(Term):
         def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
             a = a1 if left else a2
             f = f1 if left else f2
-            sin_0 = state.feed_parangle[t, f, a, 0, 0]
-            cos_0 = state.feed_parangle[t, f, a, 0, 1]
-            sin_1 = state.feed_parangle[t, f, a, 1, 0]
-            cos_1 = state.feed_parangle[t, f, a, 1, 1]
+            sin_a = state.feed_parangle[t, f, a, 0, 0]
+            cos_a = state.feed_parangle[t, f, a, 0, 1]
+            sin_b = state.feed_parangle[t, f, a, 1, 0]
+            cos_b = state.feed_parangle[t, f, a, 1, 1]
 
-            # https://github.com/ska-sa/codex-africanus/issues/191#issuecomment-963089540
+            # https://casa.nrao.edu/aips2_docs/notes/185/node6.html
             if linear:
-                return (cos_0, -sin_0, sin_1, cos_1)
+                return (cos_a, sin_a, -sin_b, cos_b)
             else:
                 # e^{ix} = cos(x) + i.sin(x)
-                cos_0 = 0.5*cos_0
-                sin_0j = 0.5*sin_0*1j
-                cos_1 = 0.5*cos_1
-                sin_1j = 0.5*sin_1*1j
-
                 return (
-                    cos_0 + sin_0j + cos_1 + sin_1j,
-                    -cos_0 - sin_0j - (-cos_1 - sin_1j),
-                    cos_0 + sin_0j - (cos_1 + sin_1j),
-                    -cos_0 - sin_0j + (-cos_1 - sin_1j))
+                    0.5*((cos_a + cos_b) + (sin_a + sin_b)*1j),
+                    0.5*((cos_a - cos_b) - (sin_a - sin_b)*1j),
+                    0.5*((cos_a - cos_b) + (sin_a - sin_b)*1j),
+                    0.5*((cos_a + cos_b) - (sin_a + sin_b)*1j))
 
         return feed_rotation
