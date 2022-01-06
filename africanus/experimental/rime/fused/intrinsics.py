@@ -407,6 +407,7 @@ class IntrinsicFactory:
             transform_output_types = []
 
             for transformer in transformers:
+                # Figure out argument types for calling init_fields
                 kw = {}
 
                 for a in transformer.ARGS:
@@ -431,9 +432,12 @@ class IntrinsicFactory:
 
                 transform_output_types.extend(t for _, t in fields)
 
+            # Create a return tuple containing the existing arguments
+            # with the transformed outputs added to the end
             return_type = types.Tuple(args.types +
                                       tuple(transform_output_types))
 
+            # Sanity check
             if len(return_type) != len(out_names):
                 raise TypingError(f"len(return_type): {len(return_type)} != "
                                   f"len(out_names): {len(out_names)}")
@@ -458,9 +462,15 @@ class IntrinsicFactory:
                 i = 0
 
                 for transformer in transformers:
+                    # Check that outputs line up with output names
+                    for j, o in enumerate(transformer.OUTPUTS):
+                        if o != out_names[i + j + n]:
+                            raise TypingError(f"{o} != {out_names[i + j + n]}")
+
                     transform_args = []
                     transform_types = []
 
+                    # Get required arguments out of the argument pack
                     for name in transformer.ARGS:
                         try:
                             typ, j = arg_info[name]
@@ -469,11 +479,10 @@ class IntrinsicFactory:
                                 f"{name} is not present in arg_types")
 
                         value = builder.extract_value(args[0], j)
-                        context.nrt.incref(builder, typ, value)
-
                         transform_args.append(value)
                         transform_types.append(typ)
 
+                    # Generate defaults
                     for name, default in transformer.KWARGS.items():
                         default_typ = rvt(default)
                         default_value = context.get_constant_generic(
@@ -484,27 +493,29 @@ class IntrinsicFactory:
                         transform_types.append(default_typ)
                         transform_args.append(default_value)
 
+                    # Get the transformer fields and function
                     transform_fields, transform_fn = transformer.init_fields(
                         typingctx, *transform_types)
 
-                    if len(transform_fields) == 1:
+                    single_return = len(transform_fields) == 1
+
+                    # Handle singleton vs tuple return types
+                    if single_return:
                         ret_type = transform_fields[0][1]
                     else:
                         typs = [t for _, t in transform_fields]
                         ret_type = types.Tuple(typs)
 
+                    # Call the transform function
                     transform_sig = ret_type(*transform_types)
                     value = context.compile_internal(builder,  # noqa
                                                      transform_fn,
                                                      transform_sig,
                                                      transform_args)
 
-                    # Check that outputs line up with output names
-                    for j, o in enumerate(transformer.OUTPUTS):
-                        if o != out_names[i + j + n]:
-                            raise TypingError(f"{o} != {out_names[i + j + n]}")
-
-                    if len(transform_fields) == 1:
+                    # Unpack the returned value and insert into
+                    # return_tuple
+                    if single_return:
                         ret_tuple = builder.insert_value(ret_tuple, value,
                                                          i + n)
                         i += 1
