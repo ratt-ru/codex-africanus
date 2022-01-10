@@ -3,6 +3,7 @@ from numpy.testing import assert_array_almost_equal
 import pytest
 
 from africanus.coordinates import radec_to_lm
+from africanus.rime.tests.test_parangles import _observation_endpoints
 
 from africanus.rime.phase import phase_delay
 from africanus.model.spectral import spectral_model
@@ -54,6 +55,79 @@ chunks = [
         "nud": (10,),
     },
 ]
+
+
+@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
+def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
+    start, end = _observation_endpoints(2021, 10, 9, 8)
+    time = np.linspace(start, end, 2)
+    antenna1 = np.array([0, 0])
+    antenna2 = np.array([1, 2])
+    antenna_position = np.array([[1, 1, 1],
+                                 [1, 1, 1],
+                                 [1, 1, 1]])
+    antenna_position = np.random.random((3, 3))
+    feed1 = feed2 = np.array([0, 0])
+    radec = np.zeros((1, 2))
+    phase_dir = np.zeros(2)
+    uvw = np.zeros((time.shape[0], 3))
+    chan_freq = np.array([1.0])
+    spi = np.array([[[0, 0, 0, 0]]])
+    ref_freq = np.array([1.0])
+    stokes = np.array([[1, 0, 0, 0]])
+
+    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
+                              "] -> [",
+                              ",".join(corr_schema), "]"))
+
+    dataset = {
+        "time": time,
+        "antenna1": antenna1,
+        "antenna2": antenna2,
+        "feed1": feed1,
+        "feed2": feed2,
+        "radec": radec,
+        "phase_dir": phase_dir,
+        "uvw": uvw,
+        "chan_freq": chan_freq,
+        "stokes": stokes,
+        "spi": spi,
+        "ref_freq": ref_freq,
+        "antenna_position": antenna_position,
+    }
+
+    utime = np.unique(time)
+    time_inv = np.searchsorted(utime, time)
+
+    from africanus.rime.parangles_casa import casa_parallactic_angles
+    pa = casa_parallactic_angles(utime, antenna_position, phase_dir)
+
+    def feed_rotation(left):
+        nonlocal time_inv
+
+        row_pa = pa[time_inv, antenna1 if left else antenna2]
+        pa_sin = np.sin(row_pa)
+        pa_cos = np.cos(row_pa)
+
+        linear_fr = np.stack((pa_cos, pa_sin, -pa_sin, pa_cos), axis=1)
+        linear_fr = linear_fr.reshape(-1, 2, 2)
+        return linear_fr if left else linear_fr.transpose(0, 2, 1).conj()
+
+    FL, FR = (feed_rotation(v) for v in (True, False))
+    lm = radec_to_lm(radec, phase_dir)
+    P = phase_delay(lm, uvw, chan_freq, convention="casa")
+    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    B = convert(SM, stokes_schema, corr_schema)
+    B = B.reshape(B.shape[:2] + (2, 2))
+
+    result = np.einsum("rij,srf,sfjk,rkl->srfij", FL, P, B, FR).sum(axis=0)
+    expected = result.reshape(result.shape[:2] + (4,))
+
+    out = rime(f"(Lp, Kpq, Bpq, Lq): {stokes_to_corr}",
+               dataset, convention="casa", spi_base="standard")
+
+    assert_array_almost_equal(expected, out)
 
 
 @pytest.mark.parametrize("chunks", chunks)
@@ -162,8 +236,6 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     stokes_to_corr = "".join(("[", ",".join(stokes_schema),
                               "] -> [",
                               ",".join(corr_schema), "]"))
-
-    from africanus.rime.tests.test_parangles import _observation_endpoints
 
     start, end = _observation_endpoints(2021, 10, 9, 8)
     time = np.linspace(start, end, nrow)
