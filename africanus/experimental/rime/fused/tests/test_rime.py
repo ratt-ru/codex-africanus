@@ -58,7 +58,10 @@ chunks = [
 
 
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
-@pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [
+    ["XX", "XY", "YX", "YY"],
+    ["RR", "RL", "LR", "LL"]
+], ids=str)
 def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     start, end = _observation_endpoints(2021, 10, 9, 8)
     time = np.linspace(start, end, 2)
@@ -104,15 +107,22 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     pa = casa_parallactic_angles(utime, antenna_position, phase_dir)
 
     def feed_rotation(left):
-        nonlocal time_inv
-
         row_pa = pa[time_inv, antenna1 if left else antenna2]
         pa_sin = np.sin(row_pa)
         pa_cos = np.cos(row_pa)
 
-        linear_fr = np.stack((pa_cos, pa_sin, -pa_sin, pa_cos), axis=1)
-        linear_fr = linear_fr.reshape(-1, 2, 2)
-        return linear_fr if left else linear_fr.transpose(0, 2, 1).conj()
+        if "XX" in corr_schema:
+            feed_rot = np.stack((pa_cos, pa_sin, -pa_sin, pa_cos), axis=1)
+        elif "RR" in corr_schema:
+            RR = pa_cos + pa_sin*1j
+            LL = pa_cos - pa_sin*1j
+            zeros = np.zeros_like(RR)
+            feed_rot = np.stack((RR, zeros, zeros, LL), axis=1)
+        else:
+            raise ValueError("Couldn't identify linear or circular")
+
+        feed_rot = feed_rot.reshape(-1, 2, 2)
+        return feed_rot if left else feed_rot.transpose(0, 2, 1).conj()
 
     FL, FR = (feed_rotation(v) for v in (True, False))
     lm = radec_to_lm(radec, phase_dir)
@@ -121,7 +131,7 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     B = convert(SM, stokes_schema, corr_schema)
     B = B.reshape(B.shape[:2] + (2, 2))
 
-    result = np.einsum("rij,srf,sfjk,rkl->srfij", FL, P, B, FR).sum(axis=0)
+    result = np.einsum("rij,srf,sfjk,rkl->srfil", FL, P, B, FR).sum(axis=0)
     expected = result.reshape(result.shape[:2] + (4,))
 
     out = rime(f"(Lp, Kpq, Bpq, Lq): {stokes_to_corr}",
