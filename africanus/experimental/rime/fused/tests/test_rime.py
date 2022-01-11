@@ -57,12 +57,8 @@ chunks = [
 ]
 
 
-@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
-@pytest.mark.parametrize("corr_schema", [
-    ["XX", "XY", "YX", "YY"],
-    ["RR", "RL", "LR", "LL"]
-], ids=str)
-def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
+@pytest.fixture
+def unity_vis_dataset(request, stokes_schema, corr_schema):
     start, end = _observation_endpoints(2021, 10, 9, 8)
     time = np.linspace(start, end, 2)
     antenna1 = np.array([0, 0])
@@ -80,11 +76,7 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     ref_freq = np.array([1.0])
     stokes = np.array([[1, 0, 0, 0]])
 
-    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
-                              "] -> [",
-                              ",".join(corr_schema), "]"))
-
-    dataset = {
+    return {
         "time": time,
         "antenna1": antenna1,
         "antenna2": antenna2,
@@ -100,15 +92,28 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
         "antenna_position": antenna_position,
     }
 
-    utime = np.unique(time)
-    time_inv = np.searchsorted(utime, time)
+
+@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [
+    ["XX", "XY", "YX", "YY"],
+    ["RR", "RL", "LR", "LL"]
+], ids=str)
+def test_fused_rime_feed_rotation(unity_vis_dataset,
+                                  stokes_schema,
+                                  corr_schema):
+    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
+                              "] -> [",
+                              ",".join(corr_schema), "]"))
+    ds = unity_vis_dataset.copy()
+    utime, time_inv = np.unique(ds["time"], return_inverse=True)
 
     from africanus.rime.parangles_casa import casa_parallactic_angles
     from africanus.rime.feeds import feed_rotation
-    pa = casa_parallactic_angles(utime, antenna_position, phase_dir)
+    pa = casa_parallactic_angles(
+        utime, ds["antenna_position"], ds["phase_dir"])
 
     def pa_feed_rotation(left):
-        row_pa = pa[time_inv, antenna1 if left else antenna2]
+        row_pa = pa[time_inv, ds["antenna1"] if left else ds["antenna2"]]
 
         if "XX" in corr_schema:
             feed_rot = feed_rotation(row_pa, "linear")
@@ -120,9 +125,10 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
         return feed_rot if left else feed_rot.transpose(0, 2, 1).conj()
 
     FL, FR = (pa_feed_rotation(v) for v in (True, False))
-    lm = radec_to_lm(radec, phase_dir)
-    P = phase_delay(lm, uvw, chan_freq, convention="casa")
-    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    lm = radec_to_lm(ds["radec"], ds["phase_dir"])
+    P = phase_delay(lm, ds["uvw"], ds["chan_freq"], convention="casa")
+    SM = spectral_model(ds["stokes"], ds["spi"],
+                        ds["ref_freq"], ds["chan_freq"], base="std")
     B = convert(SM, stokes_schema, corr_schema)
     B = B.reshape(B.shape[:2] + (2, 2))
 
@@ -130,7 +136,70 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     expected = result.reshape(result.shape[:2] + (4,))
 
     out = rime(f"(Lp, Kpq, Bpq, Lq): {stokes_to_corr}",
-               dataset, convention="casa", spi_base="standard")
+               ds, convention="casa", spi_base="standard")
+
+    assert_array_almost_equal(expected, out)
+
+
+@pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
+@pytest.mark.parametrize("corr_schema", [
+    ["XX", "XY", "YX", "YY"],
+    ["RR", "RL", "LR", "LL"]
+], ids=str)
+def test_fused_rime_cube_dde(unity_vis_dataset, stokes_schema, corr_schema):
+    stokes_to_corr = "".join(("[", ",".join(stokes_schema),
+                              "] -> [",
+                              ",".join(corr_schema), "]"))
+
+    lw = mh = nud = 10
+
+    chan_freq = np.array([.856e9, 2*.856e9])
+    beam = np.random.random(size=(lw, mh, nud, len(corr_schema)))
+    beam_lm_extents = np.array([[-1.0, 1.0], [-1.0, 1.0]])
+    beam_freq_map = np.random.uniform(
+        low=chan_freq[0], high=chan_freq[-1], size=nud)
+    beam_freq_map.sort()
+
+    ds = {**unity_vis_dataset,
+          "chan_freq": chan_freq,
+          "beam": beam,
+          "beam_lm_extents": beam_lm_extents,
+          "beam_freq_map": beam_freq_map}
+
+    utime, time_inv = np.unique(ds["time"], return_inverse=True)
+    nchan, = chan_freq.shape
+
+    lm = radec_to_lm(ds["radec"], ds["phase_dir"])
+    P = phase_delay(lm, ds["uvw"], ds["chan_freq"], convention="casa")
+    SM = spectral_model(ds["stokes"], ds["spi"],
+                        ds["ref_freq"], ds["chan_freq"], base="std")
+    B = convert(SM, stokes_schema, corr_schema)
+    B = B.reshape(B.shape[:2] + (2, 2))
+
+    from africanus.rime.parangles_casa import casa_parallactic_angles
+    from africanus.rime.fast_beam_cubes import beam_cube_dde
+
+    beam_pa = casa_parallactic_angles(
+        utime, ds["antenna_position"], ds["phase_dir"])
+
+    def dde(left):
+        ntime, na = beam_pa.shape
+        point_errors = np.zeros((ntime, na, nchan, 2))
+        ant_scale = np.zeros((na, nchan, 2))
+
+        ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map, lm, beam_pa,
+                             point_errors, ant_scale, chan_freq)
+        ant_inv = ds["antenna1"] if left else ds["antenna2"]
+        row_ddes = ddes[:, time_inv, ant_inv, :, :]
+        row_ddes = row_ddes.reshape(row_ddes.shape[:3] + (2, 2))
+        return row_ddes if left else row_ddes.transpose(0, 1, 2, 4, 3).conj()
+
+    EL, ER = (dde(v) for v in (True, False))
+    result = np.einsum("srfij,srf,sfjk,srfkl->srfil", EL, P, B, ER).sum(axis=0)
+    expected = result.reshape(result.shape[:2] + (4,))
+
+    out = rime(f"(Ep, Kpq, Bpq, Eq): {stokes_to_corr}",
+               ds, convention="casa", spi_base="standard")
 
     assert_array_almost_equal(expected, out)
 
