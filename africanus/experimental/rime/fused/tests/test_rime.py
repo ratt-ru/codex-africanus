@@ -104,27 +104,22 @@ def test_fused_rime_feed_rotation(stokes_schema, corr_schema):
     time_inv = np.searchsorted(utime, time)
 
     from africanus.rime.parangles_casa import casa_parallactic_angles
+    from africanus.rime.feeds import feed_rotation
     pa = casa_parallactic_angles(utime, antenna_position, phase_dir)
 
-    def feed_rotation(left):
+    def pa_feed_rotation(left):
         row_pa = pa[time_inv, antenna1 if left else antenna2]
-        pa_sin = np.sin(row_pa)
-        pa_cos = np.cos(row_pa)
 
         if "XX" in corr_schema:
-            feed_rot = np.stack((pa_cos, pa_sin, -pa_sin, pa_cos), axis=1)
+            feed_rot = feed_rotation(row_pa, "linear")
         elif "RR" in corr_schema:
-            RR = pa_cos + pa_sin*1j
-            LL = pa_cos - pa_sin*1j
-            zeros = np.zeros_like(RR)
-            feed_rot = np.stack((RR, zeros, zeros, LL), axis=1)
+            feed_rot = feed_rotation(row_pa, "circular")
         else:
-            raise ValueError("Couldn't identify linear or circular")
+            raise ValueError(f"Unhandled {corr_schema}")
 
-        feed_rot = feed_rot.reshape(-1, 2, 2)
         return feed_rot if left else feed_rot.transpose(0, 2, 1).conj()
 
-    FL, FR = (feed_rotation(v) for v in (True, False))
+    FL, FR = (pa_feed_rotation(v) for v in (True, False))
     lm = radec_to_lm(radec, phase_dir)
     P = phase_delay(lm, uvw, chan_freq, convention="casa")
     SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
