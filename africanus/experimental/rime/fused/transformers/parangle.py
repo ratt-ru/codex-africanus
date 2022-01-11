@@ -94,7 +94,7 @@ class ParallacticTransformer(Transformer):
         if receptor_angle is not None:
             inputs["receptor_angle"] = ("feed", "receptor_angle")
         else:
-            input["receptor_angle"] = None
+            inputs["receptor_angle"] = None
 
         outputs = {
             "feed_parangle": np.empty((0,)*5, dt),
