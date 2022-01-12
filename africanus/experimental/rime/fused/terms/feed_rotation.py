@@ -37,7 +37,9 @@ class FeedRotation(Term):
             sin_b = state.feed_parangle[t, f, a, 1, 0]
             cos_b = state.feed_parangle[t, f, a, 1, 1]
 
+            # The following code implements the sign inverse of this math
             # https://casa.nrao.edu/aips2_docs/notes/185/node6.html
+            # as it lines up with MeqTrees
             if linear:
                 return cos_a, sin_a, -sin_b, cos_b
             else:
