@@ -2,8 +2,9 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.2 (2022-13-01)
 ------------------
+* Support numba >= 0.54 (:pr:`264`)
 * Fused RIME (:pr:`239`)
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
 * BDA fix typos in numba wrapper (:pr:`261`)
