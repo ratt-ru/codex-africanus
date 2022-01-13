@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.2 (2021-13-01)
 ------------------
 * Support numba >= 0.54 (:pr:`264`)
 * Fused RIME (:pr:`239`)
