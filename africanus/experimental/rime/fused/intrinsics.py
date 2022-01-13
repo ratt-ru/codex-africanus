@@ -1,5 +1,8 @@
 from collections import defaultdict
+from distutils.version import LooseVersion
+from functools import partial
 
+import numba
 from numba.core import compiler, cgutils, types
 from numba.core.errors import TypingError
 from numba.core.extending import intrinsic
@@ -12,6 +15,9 @@ from africanus.averaging.support import _unique_internal
 
 from africanus.experimental.rime.fused.arguments import ArgumentPack
 from africanus.experimental.rime.fused.terms.core import StateStructRef
+
+
+NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
 
 
 def scalar_scalar(lhs, rhs):
@@ -680,8 +686,32 @@ class IntrinsicFactory:
 
             sampler_ir = list(map(compiler.run_frontend, samplers))
             ir_args = (state, s, r, t, f1, f2, a1, a2, c)
-            type_infer = [type_inference_stage(typingctx, ir, ir_args, None)
-                          for ir in sampler_ir]
+
+            if NUMBA_MAJOR > 0 or NUMBA_MINOR >= 54:
+                # NOTE(sjperkins)
+                # numba 0.54 wants a targetctx for type_inference_stage
+                # Assume we're dealing with a CPU Target  in order to derive
+                # the targetctx. This is a fair assumption given that we're
+                # writing CPU intrinsics. Note that numba is also assuming
+                # CPU Targets in their code base in 0.54, at least. Look for
+                # the ability to figure out the current target context manager
+                # in future releases in order to find a better solution here.
+                from numba.core.registry import cpu_target
+                if cpu_target.typing_context != typingctx:
+                    raise TypingError("typingctx's don't match")
+
+                tis = partial(type_inference_stage,
+                              typingctx=typingctx,
+                              targetctx=cpu_target.target_context,
+                              args=ir_args,
+                              return_type=None)
+            else:
+                tis = partial(type_inference_stage,
+                              typingctx=typingctx,
+                              args=ir_args,
+                              return_type=None)
+
+            type_infer = [tis(interp=ir) for ir in sampler_ir]
             sampler_return_types = [ti.return_type for ti in type_infer]
 
             # Sanity check the sampler return types

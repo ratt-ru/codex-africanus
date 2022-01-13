@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Support numba >= 0.54 (:pr:`264`)
 * Fused RIME (:pr:`239`)
 * Restrict numba version to <= 0.54.0 (:pr:`259`)
 * BDA fix typos in numba wrapper (:pr:`261`)
