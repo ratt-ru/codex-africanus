@@ -1,4 +1,62 @@
-from africanus.util.patterns import Multiton
+import pickle
+
+import pytest
+
+from africanus.util.patterns import (
+    Multiton, LazyProxy, LazyProxyMultiton)
+
+class DummyResource:
+    def __init__(self, arg, tracker, kw=None):
+        self.arg = arg
+        self.tracker = tracker
+        self.kw = kw
+        self.value = None
+
+    def set(self, value):
+        self.value = value
+
+    def close(self):
+        self.tracker.closed = True
+
+class Tracker:
+    def __init__(self):
+        self.closed = False
+
+    def __eq__(self, other):
+        return True
+
+    def __hash__(self):
+        return 0
+
+
+@pytest.mark.parametrize("finalise", [True, False])
+@pytest.mark.parametrize("cls", [LazyProxyMultiton, LazyProxy])
+def test_lazy(cls, finalise):
+    def _inner(tracker):
+        if finalise:
+            fn = (DummyResource, DummyResource.close)
+        else:
+            fn = DummyResource
+
+        obj = cls(fn, "test.txt", tracker, kw="w")
+        obj.set(5)
+
+        assert obj.arg == "test.txt"
+        assert obj.kw == "w"
+        assert obj.value == 5
+
+        obj2 = pickle.loads(pickle.dumps(obj))
+        assert obj2 == obj
+
+        if cls is LazyProxyMultiton:
+            assert obj is obj2
+        else:
+            assert obj is not obj2
+
+    tracker = Tracker()
+    assert tracker.closed is False
+    _inner(tracker)
+    assert tracker.closed is finalise
 
 
 def test_multiton():
