@@ -1,7 +1,7 @@
 import ast
 from importlib import import_module
 import inspect
-from itertools import groupby  # noqa
+import multiprocessing
 from pathlib import Path
 import re
 
@@ -11,6 +11,7 @@ from africanus.experimental.rime.fused.terms.brightness import Brightness
 from africanus.experimental.rime.fused import terms as term_mod
 from africanus.experimental.rime.fused.transformers.core import Transformer
 from africanus.experimental.rime.fused import transformers as transformer_mod
+from africanus.util.patterns import LazyProxy
 
 
 TERM_STRING_REGEX = re.compile("([A-Z])(pq|p|q)")
@@ -232,9 +233,17 @@ class RimeSpecification:
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
+        Pool = multiprocessing.get_context("spawn").Pool
+        pool = LazyProxy((Pool, RimeSpecification._finalise_pool), 4)
+
         # Create the terms
         terms = []
-        global_kw = {"corrs": corrs, "stokes": stokes, "feed_type": feed_type}
+        global_kw = {
+            "corrs": corrs,
+            "stokes": stokes,
+            "feed_type": feed_type,
+            "process_pool": pool
+        }
 
         for cls, cfg in zip(term_types, term_cfgs):
             if cfg == "pq":
@@ -284,8 +293,36 @@ class RimeSpecification:
             raise RimeSpecificationError(
                 "RIME must at least contain a Brightness term")
 
+        transformers = []
+
+        for cls in transformer_types.values():
+            init_sig = inspect.signature(cls.__init__)
+            cls_kw = {}
+
+            for a, p in list(init_sig.parameters.items())[1:]:
+                if p.kind not in {p.POSITIONAL_ONLY,
+                                  p.POSITIONAL_OR_KEYWORD}:
+                    raise RimeSpecification(
+                        f"{cls}.__init__{init_sig} may not contain "
+                        f"*args or **kwargs")
+
+                try:
+                    cls_kw[a] = available_kw[a]
+                except KeyError:
+                    raise RimeSpecificationError(
+                        f"{cls}.__init__{init_sig} wants argument {a} "
+                        f"but it is not available. "
+                        f"Available args: {available_kw}")
+
+            transformer = cls(**cls_kw)
+            transformers.append(transformer)
+
         self.terms = terms
-        self.transformers = [cls() for cls in transformer_types.values()]
+        self.transformers = transformers
+
+    @staticmethod
+    def _finalise_pool(pool):
+        pool.terminate()
 
     @staticmethod
     def _feed_type(corrs):

@@ -9,6 +9,9 @@ from africanus.experimental.rime.fused.transformers.core import Transformer
 class ParallacticTransformer(Transformer):
     OUTPUTS = ["feed_parangle", "beam_parangle"]
 
+    def __init__(self, process_pool):
+        self.pool = process_pool
+
     def init_fields(self, typingctx,
                     utime, ufeed, uantenna,
                     antenna_position, phase_dir,
@@ -29,7 +32,8 @@ class ParallacticTransformer(Transformer):
         @njit(inline="never")
         def parangle_stub(time, antenna, phase_dir):
             with objmode(out=parangle_dt):
-                out = casa_parallactic_angles(time, antenna, phase_dir)
+                out = self.pool.apply(casa_parallactic_angles,
+                                      (time, antenna, phase_dir))
 
             return out
 
