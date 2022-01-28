@@ -5,6 +5,7 @@ import pytest
 from africanus.util.patterns import (
     Multiton, LazyProxy, LazyProxyMultiton)
 
+
 class DummyResource:
     def __init__(self, arg, tracker, kw=None):
         self.arg = arg
@@ -17,6 +18,7 @@ class DummyResource:
 
     def close(self):
         self.tracker.closed = True
+
 
 class Tracker:
     def __init__(self):
