@@ -48,7 +48,8 @@ def test_lazy(cls, finalise):
         assert obj.value == 5
 
         obj2 = pickle.loads(pickle.dumps(obj))
-        assert obj2 == obj
+        assert obj.__lazy_eq__(obj2)
+        assert obj.__lazy_hash__() == obj2.__lazy_hash__()
 
         if cls is LazyProxyMultiton:
             assert obj is obj2

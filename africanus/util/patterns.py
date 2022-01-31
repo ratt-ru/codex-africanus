@@ -82,19 +82,14 @@ class LazyProxy:
         "__weakref__"
     )
 
-    SLOTS = set(__slots__)
+    __lazy_members__ = set(__slots__)
 
     def __init__(self, fn, *args, **kwargs):
         ex = ValueError("fn must be a callable or a tuple of two callables")
 
         if isinstance(fn, tuple):
-            if len(fn) != 2:
-                raise ex
-
-            if not callable(fn[0]):
-                raise ex
-
-            if fn[1] is not None and not callable(fn[1]):
+            if (len(fn) != 2 or not callable(fn[0])
+                    or (fn[1] and not callable(fn[1]))):
                 raise ex
 
             self.__lazy_fn__, self.__lazy_finaliser__ = fn
@@ -107,7 +102,7 @@ class LazyProxy:
         self.__lazy_kwargs__ = kwargs
         self.__lazy_lock__ = Lock()
 
-    def __eq__(self, other):
+    def __lazy_eq__(self, other):
         return (
             isinstance(other, LazyProxy) and
             self.__lazy_fn__ == other.__lazy_fn__ and
@@ -115,18 +110,34 @@ class LazyProxy:
             self.__lazy_args__ == other.__lazy_args__ and
             self.__lazy_kwargs__ == other.__lazy_kwargs__)
 
+    def __lazy_hash__(self):
+        return (
+            self.__lazy_fn__,
+            self.__lazy_finaliser__,
+            self.__lazy_args__,
+            frozenset(self.__lazy_kwargs__.items())
+        ).__hash__()
+
     @classmethod
-    def from_args(cls, fn, args, kwargs):
+    def __lazy_from_args__(cls, fn, args, kwargs):
         return cls(fn, *args, **kwargs)
 
     def __reduce__(self):
-        return (self.from_args,
+        return (self.__lazy_from_args__,
                 (((self.__lazy_fn__, self.__lazy_finaliser__)
                  if self.__lazy_finaliser__ else self.__lazy_fn__),
                  self.__lazy_args__, self.__lazy_kwargs__))
 
     def __getattr__(self, name):
         if name == "__lazy_object__":
+            # getattr_static returns a descriptor for __slots__
+            descriptor = getattr_static(self, "__lazy_object__")
+
+            try:
+                return descriptor.__get__(self)
+            except AttributeError:
+                pass
+
             # The __lazy_object__ has not been created at this point,
             # acquire the creation lock
             with self.__lazy_lock__:
@@ -151,15 +162,14 @@ class LazyProxy:
                 return lazy_obj
 
         # Proxy attribute on the __lazy_object__
-        obj = self if name in self.SLOTS else self.__lazy_object__
-        return object.__getattribute__(obj, name)
+        return object.__getattribute__(self.__lazy_object__, name)
 
     def __setattr__(self, name, value):
-        obj = self if name in self.SLOTS else self.__lazy_object__
+        obj = self if name in self.__lazy_members__ else self.__lazy_object__
         return object.__setattr__(obj, name, value)
 
     def __delattr__(self, name):
-        if name in self.SLOTS:
+        if name in self.__lazy_members__:
             raise ValueError(f"{name} may not be deleted")
 
         return object.__delattr__(self.__lazy_object__, name)
