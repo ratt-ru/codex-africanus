@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import inspect
 from inspect import getattr_static
 from threading import Lock
 from warnings import warn
@@ -67,6 +68,27 @@ class Multiton(type):
                     return instance
 
 
+INVALID_LAZY_CONTEXTS = set()
+
+try:
+    import dask.blockwise as db
+except ImportError:
+    pass
+else:
+    INVALID_LAZY_CONTEXTS.add(db.blockwise.__code__)
+
+try:
+    import dask.array as da
+except ImportError:
+    pass
+else:
+    INVALID_LAZY_CONTEXTS.add(da.blockwise.__code__)
+
+
+class InvalidLazyContext(ValueError):
+    pass
+
+
 class LazyProxy:
     """
 
@@ -122,47 +144,76 @@ class LazyProxy:
     def __lazy_from_args__(cls, fn, args, kwargs):
         return cls(fn, *args, **kwargs)
 
-    def __reduce__(self):
-        return (self.__lazy_from_args__,
-                (((self.__lazy_fn__, self.__lazy_finaliser__)
-                 if self.__lazy_finaliser__ else self.__lazy_fn__),
-                 self.__lazy_args__, self.__lazy_kwargs__))
+    @classmethod
+    def __lazy_in_valid_frame__(cls, frame, depth=10):
+        """
+        Check that we're not trying to create the lazy object
+        in an invalid call frame. We do this to prevent
+        frameworks like dask inadvertently creating the
+        LazyProxy via dunder method calls. Once the lazy object
+        is created, this should no longer be called.
 
-    def __getattr__(self, name):
-        if name == "__lazy_object__":
+        Raises
+        ------
+        InvalidLazyContext:
+            Raised if the call stack contains a call to a
+            problematic function (like `dask.array.blockwise`)
+        """
+        while frame and depth > 0:
+            if frame.f_code in INVALID_LAZY_CONTEXTS:
+                raise InvalidLazyContext(
+                    f"Attempted to create a LazyObject within a call "
+                    f"to {frame.f_code.co_name}")
+
+            depth -= 1
+            frame = frame.f_back
+
+    @classmethod
+    def __lazy_obj_from_args__(cls, self):
+        # Check that we're in a valid call frame
+        cls.__lazy_in_valid_frame__(inspect.currentframe())
+
+        # getattr_static returns a descriptor for __slots__
+        descriptor = getattr_static(self, "__lazy_object__")
+
+        # Double-locking pattern follows, perhaps __lazy_object__
+        # has been created, in which case, return it
+        try:
+            return descriptor.__get__(self)
+        except AttributeError:
+            pass
+
+        # Acquire the creation lock
+        with self.__lazy_lock__:
             # getattr_static returns a descriptor for __slots__
             descriptor = getattr_static(self, "__lazy_object__")
 
             try:
+                # __lazy_object__ may have been created prior to
+                # lock acquisition, attempt to return it again
                 return descriptor.__get__(self)
             except AttributeError:
-                pass
+                # Create __lazy_object__
+                lazy_obj = self.__lazy_fn__(*self.__lazy_args__,
+                                            **self.__lazy_kwargs__)
+                self.__lazy_object__ = lazy_obj
 
-            # The __lazy_object__ has not been created at this point,
-            # acquire the creation lock
-            with self.__lazy_lock__:
-                # getattr_static returns a descriptor for __slots__
-                descriptor = getattr_static(self, "__lazy_object__")
+                # Create finaliser if provided
+                if self.__lazy_finaliser__:
+                    weakref.finalize(self,
+                                     self.__lazy_finaliser__,
+                                     lazy_obj)
 
-                try:
-                    # __lazy_object__ may have been created prior to
-                    # lock acquisition, try to return it
-                    return descriptor.__get__(self)
-                except AttributeError:
-                    # Create __lazy_object__
-                    lazy_obj = self.__lazy_fn__(*self.__lazy_args__,
-                                                **self.__lazy_kwargs__)
-                    self.__lazy_object__ = lazy_obj
+            return lazy_obj
 
-                    # Create finaliser if provided
-                    if self.__lazy_finaliser__:
-                        weakref.finalize(self, self.__lazy_finaliser__,
-                                         lazy_obj)
+    def __getattr__(self, name):
+        if name == "__lazy_object__":
+            return LazyProxy.__lazy_obj_from_args__(self)
 
-                return lazy_obj
-
-        # Proxy attribute on the __lazy_object__
-        return object.__getattribute__(self.__lazy_object__, name)
+        try:
+            return object.__getattribute__(self.__lazy_object__, name)
+        except InvalidLazyContext as e:
+            raise AttributeError(name) from e
 
     def __setattr__(self, name, value):
         obj = self if name in self.__lazy_members__ else self.__lazy_object__
@@ -173,6 +224,12 @@ class LazyProxy:
             raise ValueError(f"{name} may not be deleted")
 
         return object.__delattr__(self.__lazy_object__, name)
+
+    def __reduce__(self):
+        return (self.__lazy_from_args__,
+                (((self.__lazy_fn__, self.__lazy_finaliser__)
+                 if self.__lazy_finaliser__ else self.__lazy_fn__),
+                 self.__lazy_args__, self.__lazy_kwargs__))
 
 
 class LazyProxyMultiton(LazyProxy, metaclass=Multiton):
