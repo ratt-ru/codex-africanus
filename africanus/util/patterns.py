@@ -29,19 +29,31 @@ def freeze(arg):
 class Multiton(type):
     """General Multiton metaclass
 
-    Implementation of the `Multiton`_ pattern which controls the creation
-    of instances of a class.
+    Implementation of the `Multiton`_ pattern, which always returns a
+    unique object for a unique set of arguments provided to a class
+    constructor. For example, in the following, only a single instance
+    of `A` with argument `1` is ever created.
 
-    ```python
-    class A(metaclass=Multiton):
-        def __init__(self, *args, **kw):
-            self.args = args
-            self.kw = kw
+    .. code-block:: python
 
-    assert A(1) is A(1)
-    assert A(1, "bob") is not A(1)
+        class A(metaclass=Multiton):
+            def __init__(self, *args, **kw):
+                self.args = args
+                self.kw = kw
+
+        assert A(1) is A(1)
+        assert A(1, "bob") is not A(1)
+
+    This is useful for ensuring that only a single instance of a
+    heavy-weight resource such as files, sockets, thread/process pools
+    or database connections is created in a single process,
+    for a unique set of arguments.
 
     .. _Multiton: https://en.wikipedia.org/wiki/Multiton_pattern
+
+    Notes
+    -----
+    Instantiation of instances of the Multiton is thread-safe
 
     """
     MISSING = object()
@@ -51,20 +63,20 @@ class Multiton(type):
         self.__cache = weakref.WeakValueDictionary()
         self.__lock = Lock()
 
-    def __call__(self, *args, **kwargs):
-        key = freeze(args + (kwargs if kwargs else self.MISSING,))
+    def __call__(cls, *args, **kwargs):
+        key = freeze(args + (kwargs if kwargs else cls.MISSING,))
 
         # Double-checked locking
         # https://en.wikipedia.org/wiki/Double-checked_locking
         try:
-            return self.__cache[key]
+            return cls.__cache[key]
         except KeyError:
-            with self.__lock:
+            with cls.__lock:
                 try:
-                    return self.__cache[key]
+                    return cls.__cache[key]
                 except KeyError:
-                    instance = type.__call__(self, *args, **kwargs)
-                    self.__cache[key] = instance
+                    instance = type.__call__(cls, *args, **kwargs)
+                    cls.__cache[key] = instance
                     return instance
 
 
@@ -90,8 +102,77 @@ class InvalidLazyContext(ValueError):
 
 
 class LazyProxy:
-    """
+    """Lazy instantiation of a proxied object.
 
+    A LazyProxy proxies an object which is lazily instantiated on first use.
+    It is primarily useful for embedding references to heavy-weight resources
+    in a dask graph, so they can be pickled and sent to other workers
+    without immediately instantiating those resources.
+
+    To this end, the proxy takes as arguments:
+
+    1. a class or factory function that instantiates the desired resource.
+    2. `*args` and `**kwargs` that should be supplied to the instantiator.
+
+    .. code-block:: python
+        :caption: The function and arguments for creating a file are
+            wrapped in a LazyProxy. It is only instantiated when `f.write`
+            is called.
+
+        f = LazyProxy(open, "test.txt", mode="r")
+        f.write("Hello World!")
+        f.close()
+
+    In addition to the class/factory function, it is possible to specifiy a
+    `Finaliser`_ supplied to :class:`weakref.finalize` that is called to cleanup
+    the resource when the LazyProxy is garbage collected.
+    In this case, the first argument should be a tuple of two elements:
+    the factory and the finaliser.
+
+    .. code-block:: python
+
+        # LazyProxy defined with factory function and finaliser function
+        def finalise_file(file):
+            file.close()
+
+        f2 = LazyProxy((open, finalise_file), "test.txt", mode="r")
+
+        # LazyProxy defined with class
+        class WrappedFile:
+            def __init__(self, *args, **kwargs):
+                self.handle = open(*args, **kwargs)
+
+            def close(self):
+                self.handle.close()
+
+        f1 = LazyProxy((WrappedFile, WrappedFile.close), "test.txt", mode="r")
+
+    Parameters
+    ----------
+    fn : class or callable or tuple
+        A callable object that used to create the proxied object.
+        In tuple form, this should consist of two callables.
+        The first should create the proxied object and the second
+        should be a finaliser that performs cleanup on the proxied object
+        when the LazyProxy is garbage collected: it is passed directly
+        to :class:`weakref.finalize`.
+    *args : tuple
+        Positional arguments passed to the callable object
+        specified in `fn` that will create the proxied object.
+        The contents of `*args` should be pickleable.
+    **kwargs : dict
+        Keyword arguments passed to the callable object
+        specified in `fn` that will create the proxied object.
+        The contents of `**kwargs` should be pickleable.
+
+    Notes
+    -----
+    - Instantiation of the contained instances of the LazyProxy is thread-safe
+    - LazyProxy's are configured to never instantiate within :func:`dask.array.blockwise`
+      and :func:`dask.blockwise.blockwise` calls.
+
+
+    .. _Finaliser: https://en.wikipedia.org/wiki/Finalizer
     """
 
     __slots__ = (
@@ -150,8 +231,17 @@ class LazyProxy:
         Check that we're not trying to create the lazy object
         in an invalid call frame. We do this to prevent
         frameworks like dask inadvertently creating the
-        LazyProxy via dunder method calls. Once the lazy object
-        is created, this should no longer be called.
+        proxed object via dunder method calls.
+        Once the project object is created,
+        this is no longer be called.
+
+        Parameters
+        ----------
+        frame : :class:`inspect.FrameInfo`
+            The calling frame
+
+        depth : int
+            Number of frames to search
 
         Raises
         ------
@@ -233,4 +323,18 @@ class LazyProxy:
 
 
 class LazyProxyMultiton(LazyProxy, metaclass=Multiton):
-    pass
+    """Combination of a :class:`LazyProxy` with a :class:`Multiton`
+
+    Ensures that only a single :class:`LazyProxy` is ever created
+    for the given constructor arguments.
+
+    .. code-block:: python
+
+        class A:
+            def __init__(self, value):
+                self.value = value
+
+        assert LazyProxyMultiton("foo") is LazyProxyMultiton("foo")
+
+    See :class:`LazyProxy` and :class:`Multiton` for further details
+    """
