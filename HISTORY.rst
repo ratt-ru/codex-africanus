@@ -2,6 +2,11 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
+
+
 0.3.2 (2022-13-01)
 ------------------
 * Support numba >= 0.54 (:pr:`264`)
