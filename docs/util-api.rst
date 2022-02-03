@@ -96,5 +96,6 @@ Patterns
     LazyProxyMultiton
 
 .. autoclass:: Multiton
+    :exclude-members: __call__, mro
 .. autoclass:: LazyProxy
 .. autoclass:: LazyProxyMultiton

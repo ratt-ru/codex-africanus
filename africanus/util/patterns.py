@@ -53,7 +53,7 @@ class Multiton(type):
 
     Notes
     -----
-    Instantiation of instances of the Multiton is thread-safe
+    Instantiation of object instances is thread-safe.
 
     """
     MISSING = object()
@@ -64,20 +64,37 @@ class Multiton(type):
         self.__lock = Lock()
 
     def __call__(cls, *args, **kwargs):
-        key = freeze(args + (kwargs if kwargs else cls.MISSING,))
+        signature = inspect.signature(cls.__init__)
+        positional_in_kwargs = [p.name for p in signature.parameters.values()
+                                if p.kind == p.POSITIONAL_OR_KEYWORD
+                                and p.default == p.empty
+                                and p.name in kwargs]
+
+        if positional_in_kwargs:
+            warn(f"Positional arguments {positional_in_kwargs} were "
+                 f"supplied as keyword arguments to "
+                 f"{cls.__init__}{signature}. "
+                 f"This may create separate Multiton instances "
+                 f"for what is intended to be a unique set of "
+                 f"arguments.")
+
+
+        key = freeze(args + (kwargs if kwargs else Multiton.MISSING,))
 
         # Double-checked locking
         # https://en.wikipedia.org/wiki/Double-checked_locking
         try:
             return cls.__cache[key]
         except KeyError:
-            with cls.__lock:
-                try:
-                    return cls.__cache[key]
-                except KeyError:
-                    instance = type.__call__(cls, *args, **kwargs)
-                    cls.__cache[key] = instance
-                    return instance
+            pass
+
+        with cls.__lock:
+            try:
+                return cls.__cache[key]
+            except KeyError:
+                instance = type.__call__(cls, *args, **kwargs)
+                cls.__cache[key] = instance
+                return instance
 
 
 INVALID_LAZY_CONTEXTS = set()
@@ -124,8 +141,8 @@ class LazyProxy:
         f.close()
 
     In addition to the class/factory function, it is possible to specifiy a
-    `Finaliser`_ supplied to :class:`weakref.finalize` that is called to cleanup
-    the resource when the LazyProxy is garbage collected.
+    `Finaliser`_ supplied to :class:`weakref.finalize` that is called to
+    cleanup the resource when the LazyProxy is garbage collected.
     In this case, the first argument should be a tuple of two elements:
     the factory and the finaliser.
 
@@ -137,7 +154,6 @@ class LazyProxy:
 
         f2 = LazyProxy((open, finalise_file), "test.txt", mode="r")
 
-        # LazyProxy defined with class
         class WrappedFile:
             def __init__(self, *args, **kwargs):
                 self.handle = open(*args, **kwargs)
@@ -145,7 +161,41 @@ class LazyProxy:
             def close(self):
                 self.handle.close()
 
+        # LazyProxy defined with class
         f1 = LazyProxy((WrappedFile, WrappedFile.close), "test.txt", mode="r")
+
+    LazyProxy objects are designed to be embedded in
+    :func:`dask.array.blockwise` calls.
+    For example:
+
+    .. code-block:: python
+
+        # Specify the start and length of each range
+        file_ranges = np.array([[0, 5], [5, 10], [15, 5] [20, 10]])
+        # Chunk each range individually
+        da_file_ranges = dask.array(file_ranges, chunks=(1, 2))
+        # Reference a binary file
+        file_proxy = LazyProxy(open, "data.dat", "rb")
+
+        def _read(file_proxy, file_range):
+            # Seek to range start and read the length of data
+            start, length = file_range
+            file_proxy.seek(start)
+            return np.asarray(file_proxy.read(length), np.uint8)
+
+        data = da.blockwise(_read, "x",
+                            # Embed the file_proxy in the graph
+                            file_proxy, None,
+                            # Pass each file range to the _read
+                            da_file_ranges, "xy",
+                            # output chunks should have the length
+                            # of each range
+                            adjust_chunks={"x": tuple(file_ranges[:, 1])},
+                            concatenate=True)
+
+        print(data.compute(processes=True))
+
+
 
     Parameters
     ----------
@@ -167,10 +217,10 @@ class LazyProxy:
 
     Notes
     -----
-    - Instantiation of the contained instances of the LazyProxy is thread-safe
-    - LazyProxy's are configured to never instantiate within :func:`dask.array.blockwise`
-      and :func:`dask.blockwise.blockwise` calls.
-
+    - Instantiation of the proxied object is thread-safe.
+    - LazyProxy's are configured to never instantiate within
+      :func:`dask.array.blockwise` and
+      :func:`dask.blockwise.blockwise` calls.
 
     .. _Finaliser: https://en.wikipedia.org/wiki/Finalizer
     """
@@ -226,14 +276,15 @@ class LazyProxy:
         return cls(fn, *args, **kwargs)
 
     @classmethod
-    def __lazy_in_valid_frame__(cls, frame, depth=10):
+    def __lazy_raise_on_invalid_frames__(cls, frame, depth=10):
         """
-        Check that we're not trying to create the lazy object
-        in an invalid call frame. We do this to prevent
-        frameworks like dask inadvertently creating the
-        proxed object via dunder method calls.
-        Once the project object is created,
-        this is no longer be called.
+        Check that we're not trying to create the proxied object
+        in function that inadvertently create it via the use
+        of duck-typing.
+
+        Should only be called from :meth:`LazyProxy.__lazy_obj_from_args__`
+        and as such, should never be called again once the
+        proxied object is created.
 
         Parameters
         ----------
@@ -247,8 +298,7 @@ class LazyProxy:
         ------
         InvalidLazyContext:
             Raised if the call stack contains a call to a
-            problematic function (like `dask.array.blockwise`)
-        """
+            problematic function (like `dask.array.blockwise`)        """
         while frame and depth > 0:
             if frame.f_code in INVALID_LAZY_CONTEXTS:
                 raise InvalidLazyContext(
@@ -260,15 +310,14 @@ class LazyProxy:
 
     @classmethod
     def __lazy_obj_from_args__(cls, self):
-        # Check that we're in a valid call frame
-        cls.__lazy_in_valid_frame__(inspect.currentframe())
+        # Double-checked locking
+        # https://en.wikipedia.org/wiki/Double-checked_locking
 
         # getattr_static returns a descriptor for __slots__
         descriptor = getattr_static(self, "__lazy_object__")
 
-        # Double-locking pattern follows, perhaps __lazy_object__
-        # has been created, in which case, return it
         try:
+            # __lazy_object__ may exist, attempt to return it
             return descriptor.__get__(self)
         except AttributeError:
             pass
@@ -283,6 +332,9 @@ class LazyProxy:
                 # lock acquisition, attempt to return it again
                 return descriptor.__get__(self)
             except AttributeError:
+                # Raise exceptions if we're in an invalid call frame
+                cls.__lazy_raise_on_invalid_frames__(inspect.currentframe())
+
                 # Create __lazy_object__
                 lazy_obj = self.__lazy_fn__(*self.__lazy_args__,
                                             **self.__lazy_kwargs__)
