@@ -78,7 +78,6 @@ class Multiton(type):
                  f"for what is intended to be a unique set of "
                  f"arguments.")
 
-
         key = freeze(args + (kwargs if kwargs else Multiton.MISSING,))
 
         # Double-checked locking
@@ -309,41 +308,41 @@ class LazyProxy:
             frame = frame.f_back
 
     @classmethod
-    def __lazy_obj_from_args__(cls, self):
+    def __lazy_obj_from_args__(cls, proxy):
         # Double-checked locking
         # https://en.wikipedia.org/wiki/Double-checked_locking
 
         # getattr_static returns a descriptor for __slots__
-        descriptor = getattr_static(self, "__lazy_object__")
+        descriptor = getattr_static(proxy, "__lazy_object__")
 
         try:
             # __lazy_object__ may exist, attempt to return it
-            return descriptor.__get__(self)
+            return descriptor.__get__(proxy)
         except AttributeError:
             pass
 
         # Acquire the creation lock
-        with self.__lazy_lock__:
+        with proxy.__lazy_lock__:
             # getattr_static returns a descriptor for __slots__
-            descriptor = getattr_static(self, "__lazy_object__")
+            descriptor = getattr_static(proxy, "__lazy_object__")
 
             try:
                 # __lazy_object__ may have been created prior to
                 # lock acquisition, attempt to return it again
-                return descriptor.__get__(self)
+                return descriptor.__get__(proxy)
             except AttributeError:
                 # Raise exceptions if we're in an invalid call frame
                 cls.__lazy_raise_on_invalid_frames__(inspect.currentframe())
 
                 # Create __lazy_object__
-                lazy_obj = self.__lazy_fn__(*self.__lazy_args__,
-                                            **self.__lazy_kwargs__)
-                self.__lazy_object__ = lazy_obj
+                lazy_obj = proxy.__lazy_fn__(*proxy.__lazy_args__,
+                                             **proxy.__lazy_kwargs__)
+                proxy.__lazy_object__ = lazy_obj
 
                 # Create finaliser if provided
-                if self.__lazy_finaliser__:
-                    weakref.finalize(self,
-                                     self.__lazy_finaliser__,
+                if proxy.__lazy_finaliser__:
+                    weakref.finalize(proxy,
+                                     proxy.__lazy_finaliser__,
                                      lazy_obj)
 
             return lazy_obj
