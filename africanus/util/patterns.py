@@ -1,3 +1,5 @@
+"""Keep this file in sync with the dask-ms version"""
+
 from collections import OrderedDict
 import inspect
 from inspect import getattr_static

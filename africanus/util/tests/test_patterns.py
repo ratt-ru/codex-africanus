@@ -1,3 +1,5 @@
+"""Keep this file in sync with the dask-ms version"""
+
 import pickle
 
 import pytest
