@@ -209,7 +209,7 @@ intersphinx_mapping = {
     'cupy': ('https://docs-cupy.chainer.org/en/latest/', None),
     'dask': ('https://dask.pydata.org/en/latest/', None),
     'numba': ('https://numba.pydata.org/numba-doc/dev/', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
     'python': ('https://docs.python.org/3/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/reference/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
 }
