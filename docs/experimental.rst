@@ -70,16 +70,38 @@ an optimal unit of execution.
 
 .. _experimental-fused-rime-example-anchor:
 
-A Simple example
+A Simple Example
 ~~~~~~~~~~~~~~~~
 
 In the following example, we will define a simple RIME using the
 Fused RIME API to define terms for computing:
 
-1. the phase delay
-2. the brightness matrix
+1. the Phase Delay
+2. the Brightness Matrix
 
-Within the RIME, each term is *sampled* at individual
+The RIME Specification
+++++++++++++++++++++++
+
+The specification for this RIME is as follows:
+
+.. code-block:: python
+
+    rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V]->[XX,XY,YX,YY]",
+                                  terms={"K": Phase})
+
+``(Kpq, Bpq)`` specifies the onion including the Phase Delay and
+Brightness more formally defined
+:ref:`here <experimental-fused-rime-api-anchor>`, while the
+the ``pq`` in both terms signifies that they are calculated per-baseline.
+``[I,Q,U,V]->[XX,XY,YX,YY]`` defines the stokes to correlation conversion
+within the RIME and also identifies whether the RIME is handling linear
+or circular feeds. Finally :code:`terms={"K": Phase}` indicates that the
+K term is implemented via a custom Phase term, described in the next section.
+
+Custom Phase Term
++++++++++++++++++
+
+Within the RIME, each term is *sampled* at an individual
 source, row and channel.
 
 Therefore each term must provide a sampling function that will
@@ -195,14 +217,27 @@ in ``init_fields`` to compute a complex exponential.
 API
 ~~~
 
-Terms
-+++++
+.. currentmodule:: africanus.experimental.rime.fused.specification
+
+.. autoclass:: RimeSpecification
+    :exclude-members: equation_bits, flatten_eqn
 
 .. currentmodule:: africanus.experimental.rime.fused.terms.core
 
 .. py:class:: Term
 
-    Base class for Fused RIME terms.
+    Base class for Terms which describe parts of the Fused RIME.
+    Implementors of a RIME Term should inherit from it.
+
+    A Term is an object that defines how a term in the RIME should
+    be sampled to produces the Jones Terms that make up the RIME.
+    It therefore defines a sampling function, which in turn
+    depends on arbitrary inputs for performing the sampling.
+
+    A high degree of flexibility and leeway is afforded when
+    implementing a Term. It might be implemented by merely indexing
+    an array of Jones Matrices, or by implementing some computational
+    model describing the Jones Terms.
 
     .. code-block:: python
 
@@ -214,11 +249,11 @@ Terms
                                     kwarg1=None, ..., kwargn=None)
 
         Requests inputs to the RIME term, ensuring that they are
-        stored on the ``state`` object used by the sampling function
+        stored on a ``state`` object supplied to the sampling function
         and allows for new fields to be initialised and stored on the
         ``state`` object.
 
-        Requested inputs :code`:arg1...argn` are required to be passed
+        Requested inputs :code:`arg1...argn` are required to be passed
         to the Fused RIME by the caller and are supplied to ``init_fields``
         as Numba types. :code:`kwarg1...kwargn` are optional -- if omitted
         by the caller, their default types (and values)  will be supplied.

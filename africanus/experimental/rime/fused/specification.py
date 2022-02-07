@@ -159,6 +159,31 @@ def _decompose_term_str(term_str):
 
 
 class RimeSpecification:
+    """
+    Defines a unique Radio Interferometer Measurement Equation (RIME)
+
+    The RIME is composed of a number of Jones Terms, which are multiplied
+    together and combined to produce model visibilities.
+
+    The ``RimeSpecification`` object the order of these Jones Terms and can,
+    in further detail, define how they are produced.
+
+    One of the simplest RIME's that can be expressed involve a ``Phase`` (Kpq)
+    and a ``Brightness`` (Bpq) term. The specification for this RIME is as follows:
+
+    .. code-block:: python
+
+        rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V]->[XX,XY,YX,YY]")
+
+    ``(Kpq, Bpq)`` specifies the onion more formally defined
+    :ref:`here <experimental-fused-rime-api-anchor>`, while the
+    the ``pq`` in both terms signifies that they are calculated per-baseline.
+    ``[I,Q,U,V]->[XX,XY,YX,YY]`` defines the stokes to correlation conversion
+    within the RIME and also identifies whether the RIME is handling linear
+    or circular feeds.
+
+    """
+
     VALID_STOKES = {"I", "Q", "U", "V"}
     TERM_MAP = {
         "K": "Phase",
