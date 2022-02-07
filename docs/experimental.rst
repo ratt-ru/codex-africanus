@@ -68,6 +68,8 @@ The Fused RIME therefore implements a "RIME Compiler" using
 a RIME Specification defined by a number of `Terms` into
 an optimal unit of execution.
 
+.. _experimental-fused-rime-example-anchor:
+
 A Simple example
 ~~~~~~~~~~~~~~~~
 
@@ -142,19 +144,28 @@ defined on the `Phase` term, called `init_fields`.
             # the function for creating it
             return fields, real_phase
 
-The purpose of `init_fields` is two-fold:
+``init_fields`` serves multiple purposes:
 
-1. It acts as a request from the term for inputs.
-   The above definition of `init_fields` signifies
-   that the Phase term desires the `lm`, `uvw` and
-   `chan_freq` arrays.
-   Additionally, these arrays will be stored on the `state`
+1. It requests input for the Phase term.
+   The above definition of ``init_fields`` signifies
+   that the Phase term desires the ``lm``, ``uvw`` and
+   ``chan_freq`` arrays.
+   Additionally, these arrays will be stored on the ``state``
    object provided to the sampling function.
 
-2. It allows the user to define new fields, as
+2. It supports Numba typing. The ``lm``, ``uvw`` and ``chan_freq``
+   arguments contain the Numba types of the variables supplied
+   to the RIME, while the ``typingctx`` argument contains a Numba
+   Typing Context which can be useful for reasoning about
+   these types. For example
+   :code:`typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)`
+   returns a type with sufficient precision, given the input types,
+   similar to :func:`numpy.result_type`.
+
+3. It allows the user to define new fields, as
    well as a function for defining those fields
-   on the `state` object.
-   The above definition of `init_fields` returns
+   on the ``state`` object.
+   The above definition of ``init_fields`` returns
    a list of :code:`(name, type)` tuples defining
    the new field names and their types, while
    :code:`real_phase` defines the creation of
@@ -165,6 +176,21 @@ The purpose of `init_fields` is two-fold:
    compute the real phase for each source, row and
    channel.
 
+Returning to our definition of the Phase Term sampling function,
+we can see that it uses the new field ``real_phase`` defined in
+``init_fields``, as well as the ``chan_freq`` array requested
+in ``init_fields`` to compute a complex exponential.
+
+.. code-block:: python
+
+    class Phase(Term):
+        def sampler(self):
+            def phase_sample(state, s, r, t, f1, f2, a1, a2, c):
+                p = state.real_phase[s, r] * state.chan_freq[c]
+                return np.cos(p) + np.sin(p)*1j
+
+            return phase_sample
+
 
 API
 ~~~
@@ -174,7 +200,70 @@ Terms
 
 .. currentmodule:: africanus.experimental.rime.fused.terms.core
 
-.. autoclass:: Term
+.. py:class:: Term
+
+    Base class for Fused RIME terms.
+
+    .. code-block:: python
+
+        class Phase(Term):
+            def __init__(self, configuration):
+                super().__init__(configuration)
+
+    .. py:method:: Term.init_fields(self, typing_ctx, arg1, ..., argn, \
+                                    kwarg1=None, ..., kwargn=None)
+
+        Requests inputs to the RIME term, ensuring that they are
+        stored on the ``state`` object used by the sampling function
+        and allows for new fields to be initialised and stored on the
+        ``state`` object.
+
+        Requested inputs :code`:arg1...argn` are required to be passed
+        to the Fused RIME by the caller and are supplied to ``init_fields``
+        as Numba types. :code:`kwarg1...kwargn` are optional -- if omitted
+        by the caller, their default types (and values)  will be supplied.
+
+        ``init_fields`` should return a :code:`(fields, function)` tuple.
+        ``fields`` should be a list of the form :code:`[(name, numba_type)]`, while
+        ``function`` should be a function of the form
+        :code:`fn(arg1, ..., argn, kwarg1=None, .., kwargn=None)`
+        and should return the variables of the type defined
+        in ``fields``. Note that it's signature therefore matches
+        that of ``init_fields`` from after the ``typingctx``
+        argument. See the
+        :ref:`Simple Example <experimental-fused-rime-example-anchor>`.
+
+        :param typingctx: A Numba typing context.
+        :param arg1...argn: Required RIME inputs for this Term.
+        :param kwarg1...kwargn: Optional RIEM inputs for this Term.
+
+        :rtype: A :code:`(fields, function)` tuple.
+
+    .. py:method:: Term.sampler(self)
+
+        Return a sampling function of the following form:
+
+        .. code-block:: python
+
+            def sampler(self):
+                def sample(state, s, r, t, f1, f2, a1, a2, c):
+                    ...
+
+            return sample
+
+        :param state: A state object containing the inputs requested by
+                      all ``Term`` objects in the RIME, as well as any
+                      fields created by ``Term.init_fields``.
+        :param s: Source index.
+        :param r: Row index.
+        :param t: Time index.
+        :param f1: Feed 1 index.
+        :param f2: Feed 2 index.
+        :param a1: Antenna 1 index.
+        :param a2: Antenna2 index.
+        :param c: Channel index.
+
+        :rtype: a scalar or a tuple of two scalars or a tuple of four scalars.
 
 Numpy
 ~~~~~
