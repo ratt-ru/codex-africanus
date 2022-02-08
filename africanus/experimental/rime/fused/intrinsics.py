@@ -20,7 +20,7 @@ from africanus.experimental.rime.fused.terms.core import StateStructRef
 try:
     NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
 except AttributeError as e:
-    if on_rtd:
+    if on_rtd():
         # Readthedocs
         NUMBA_MAJOR, NUMBA_MINOR = 0, 0
 
