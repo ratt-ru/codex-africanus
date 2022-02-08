@@ -1,2 +1,2 @@
-numpydoc==0.7.0
-sphinx==1.8.5
+numpydoc==1.2
+sphinx==2.5
