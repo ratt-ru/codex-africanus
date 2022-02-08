@@ -165,8 +165,8 @@ class RimeSpecification:
     The RIME is composed of a number of Jones Terms, which are multiplied
     together and combined to produce model visibilities.
 
-    The ``RimeSpecification`` object the order of these Jones Terms and can,
-    in further detail, define how they are produced.
+    The ``RimeSpecification`` specifies the order of these Jones Terms and
+    supports custom Jones terms specified by the user.
 
     One of the simplest RIME's that can be expressed involve a ``Phase`` (Kpq)
     and a ``Brightness`` (Bpq) term. The specification for this RIME is as follows:
@@ -185,8 +185,36 @@ class RimeSpecification:
     **Term Configuration**
 
     The ``pq`` in Kpq and Bpq signifies that their values are calculated per-baseline.
-    ``(Kp, Bpq, Kq)`` specifies a RIME where the Phase Term is separated into a
-    left and right term associated with ANTENNA1 and ANTENNA2, respectively.
+    It is possible to specify per-antenna terms: ``Kp`` and ``Kq`` for example which
+    represent left (ANTENNA1) and right (ANTENNA2) terms respectively.
+    Not that the hermitian transpose of the right term is automatically performed
+    and does not need to be implemented in the Term itself.
+    Thus, for example, ``(Kp, Bpq, Kq)`` specifies a RIME where the Phase Term is
+    separated into left and right terms, while the Brightness Matrix is calculated
+    per-baseline.
+
+    **Stokes to Correlation Mapping**
+
+    ``[I,Q,U,V] -> [XX,XY,YX,YY]`` specifies a mapping from four stokes parameters
+    to four correlations. Both linear ``[XX,XY,YX,YY]`` and circular ``[RR,RL,LR,LL]``
+    feed types are supported. A variety of mappings are possibles:
+
+    .. code-block:: python
+
+        [I,Q,U,V] -> [XX,XY,YX,YY]
+        [I,Q] -> [XX,YY]
+        [I,Q] -> [RR,LL]
+
+    **Custom Terms**
+
+    Custom Term classes implemented by a user can be added to the RIME as follows:
+
+    .. code-block:: python
+
+        class CustomJones(Term):
+            ...
+
+        spec = RimeSpecification("(Apq,Kpq,Bpq)", terms={"A": CustomJones})
 
     Parameters
     ----------

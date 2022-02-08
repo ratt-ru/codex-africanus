@@ -175,11 +175,14 @@ defined on the `Phase` term, called `init_fields`.
    Additionally, these arrays will be stored on the ``state``
    object provided to the sampling function.
 
-2. It supports Numba typing. The ``lm``, ``uvw`` and ``chan_freq``
+2. It supports reasoning about Numba types in a manner
+   similar to :func:`numba.generated_jit`.
+   The ``lm``, ``uvw`` and ``chan_freq``
    arguments contain the Numba types of the variables supplied
    to the RIME, while the ``typingctx`` argument contains a Numba
    Typing Context which can be useful for reasoning about
-   these types. For example
+   these types.
+   For example
    :code:`typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)`
    returns a type with sufficient precision, given the input types,
    similar to :func:`numpy.result_type`.
@@ -213,6 +216,25 @@ in ``init_fields`` to compute a complex exponential.
 
             return phase_sample
 
+We then invoke the RIME by passing in the :class:`RimeSpecification`, as
+well as a dataset containing the required arguments:
+
+.. code-block:: python
+
+    from africanus.experimental.rime.fused.core import rime
+    import numpy as np
+
+    dataset = {
+        "lm": np.random.random((10, 2))*1e-5,
+        "uvw": np.random.random((100, 3))*1e5,
+        "chan_freq:" np.linspace(.856e9, 2*.856e9, 16),
+        ...,
+        "stokes": np.random.random((10, 4)),
+        # other required data
+    }
+
+    rime_spec = RimeSpecification("(Kpq, Bpq)", terms={"K": Phase})
+    model_visibilities = rime(rime_spec, dataset)
 
 API
 ~~~
