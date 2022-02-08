@@ -86,17 +86,17 @@ The specification for this RIME is as follows:
 
 .. code-block:: python
 
-    rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V]->[XX,XY,YX,YY]",
+    rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]",
                                   terms={"K": Phase})
 
 ``(Kpq, Bpq)`` specifies the onion including the Phase Delay and
 Brightness more formally defined
 :ref:`here <experimental-fused-rime-api-anchor>`, while the
 the ``pq`` in both terms signifies that they are calculated per-baseline.
-``[I,Q,U,V]->[XX,XY,YX,YY]`` defines the stokes to correlation conversion
+``[I,Q,U,V] -> [XX,XY,YX,YY]`` defines the stokes to correlation conversion
 within the RIME and also identifies whether the RIME is handling linear
 or circular feeds. Finally :code:`terms={"K": Phase}` indicates that the
-K term is implemented via a custom Phase term, described in the next section.
+K term is implemented as a custom Phase term, described in the next section.
 
 Custom Phase Term
 +++++++++++++++++
@@ -222,6 +222,7 @@ API
 .. autoclass:: RimeSpecification
     :exclude-members: equation_bits, flatten_eqn
 
+
 .. currentmodule:: africanus.experimental.rime.fused.terms.core
 
 .. py:class:: Term
@@ -270,7 +271,10 @@ API
 
         :param typingctx: A Numba typing context.
         :param arg1...argn: Required RIME inputs for this Term.
-        :param kwarg1...kwargn: Optional RIEM inputs for this Term.
+        :param kwarg1...kwargn: Optional RIME inputs for this Term. \
+            Types here should be simple: ints, floats, complex numbers
+            and strings are ideal.
+
 
         :rtype: A :code:`(fields, function)` tuple.
 
@@ -299,6 +303,10 @@ API
         :param c: Channel index.
 
         :rtype: a scalar or a tuple of two scalars or a tuple of four scalars.
+
+.. currentmodule:: africanus.experimental.rime.fused.transformers.core
+
+.. py:class:: Transformer
 
 Numpy
 ~~~~~

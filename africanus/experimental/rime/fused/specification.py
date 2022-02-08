@@ -173,14 +173,38 @@ class RimeSpecification:
 
     .. code-block:: python
 
-        rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V]->[XX,XY,YX,YY]")
+        rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]")
 
     ``(Kpq, Bpq)`` specifies the onion more formally defined
-    :ref:`here <experimental-fused-rime-api-anchor>`, while the
-    the ``pq`` in both terms signifies that they are calculated per-baseline.
-    ``[I,Q,U,V]->[XX,XY,YX,YY]`` defines the stokes to correlation conversion
-    within the RIME and also identifies whether the RIME is handling linear
+    :ref:`here <experimental-fused-rime-api-anchor>`, while
+    ``[I,Q,U,V] -> [XX,XY,YX,YY]`` defines the stokes to correlation conversion
+    within the RIME.
+    It also identifies whether the RIME is handling linear
     or circular feeds.
+
+    **Term Configuration**
+
+    The ``pq`` in Kpq and Bpq signifies that their values are calculated per-baseline.
+    ``(Kp, Bpq, Kq)`` specifies a RIME where the Phase Term is separated into a
+    left and right term associated with ANTENNA1 and ANTENNA2, respectively.
+
+    Parameters
+    ----------
+    specification : str
+        A string specifying the terms in the RIME and the stokes
+        to correlation conversion.
+    terms : dict of str or Terms
+        A map describing custom
+        :class:`~africanus.experimental.rime.fused.terms.core.Term`
+        implementations.
+        If one has defined a custom Gaussian Term class,
+        for use in RIME ``(Cpq, Kpq, Bpq)``, this should be
+        supplied as :code:`terms={"C": Gaussian}`.
+        strings can be supplied for predefined RIME classes.
+    transformers : list of Transformers
+        A list of
+        :class:`~africanus.experimental.rime.fused.transformers.core.Transformer`
+        classes.
 
     """
 
