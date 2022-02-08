@@ -44,7 +44,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.extlinks',
               'numpydoc']
 
-autodoc_mock_imports = ['numba']
+autodoc_mock_imports = ['numpy', 'numba']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
