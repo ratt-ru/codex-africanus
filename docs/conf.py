@@ -41,7 +41,7 @@ class Mock(MagicMock):
 
 
 MOCK_MODULES = {}
-_MOCK_MODULES = ['numba', 'numpy']
+_MOCK_MODULES = ['numba', 'numba.experimental', 'numpy']
 
 # Don't mock if we can import it.
 # This allows us to build locally without
