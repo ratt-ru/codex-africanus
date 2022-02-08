@@ -25,36 +25,6 @@ import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import Mock as MagicMock
-
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-            obj = MagicMock()
-            obj.__name__ = "name"
-            obj.__doc__ = "doc"
-            return obj
-
-
-MOCK_MODULES = {}
-_MOCK_MODULES = ['numba', 'numba.experimental', 'numpy']
-
-# Don't mock if we can import it.
-# This allows us to build locally without
-# Mocks interfering with other imports.
-# e.g. np.__version__ getting tested by dask/scipy/astropy
-for m in _MOCK_MODULES:
-    try:
-        importlib.import_module(m)
-    except ImportError:
-        MOCK_MODULES[m] = Mock()
-
-sys.modules.update((k, v) for k, v in MOCK_MODULES.items())
-
 import sphinx_rtd_theme
 import africanus
 
@@ -73,6 +43,8 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.intersphinx',
               'sphinx.ext.extlinks',
               'numpydoc']
+
+autodoc_mock_imports = ['numba']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

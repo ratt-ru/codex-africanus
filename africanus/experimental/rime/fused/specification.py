@@ -197,7 +197,7 @@ class RimeSpecification:
 
     ``[I,Q,U,V] -> [XX,XY,YX,YY]`` specifies a mapping from four stokes parameters
     to four correlations. Both linear ``[XX,XY,YX,YY]`` and circular ``[RR,RL,LR,LL]``
-    feed types are supported. A variety of mappings are possibles:
+    feed types are supported. A variety of mappings are possible:
 
     .. code-block:: python
 

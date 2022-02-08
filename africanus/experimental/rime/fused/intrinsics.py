@@ -12,12 +12,19 @@ from numba.core.typed_passes import type_inference_stage
 import numpy as np
 
 from africanus.averaging.support import _unique_internal
+from africanus.util.docs import on_rtd
 
 from africanus.experimental.rime.fused.arguments import ArgumentPack
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
+try:
+    NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
+except AttributeError as e:
+    if on_rtd:
+        # Readthedocs
+        NUMBA_MAJOR, NUMBA_MINOR = 0, 0
 
-NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
+    raise e
 
 
 def scalar_scalar(lhs, rhs):

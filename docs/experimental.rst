@@ -66,7 +66,7 @@ but not at the cost of the previous two constraints.
 The Fused RIME therefore implements a "RIME Compiler" using
 `Numba <https://numba.pydata.org/_>`_ for speed, which compiles
 a RIME Specification defined by a number of `Terms` into
-an optimal unit of execution.
+a single, optimal unit of execution.
 
 .. _experimental-fused-rime-example-anchor:
 
@@ -76,8 +76,8 @@ A Simple Example
 In the following example, we will define a simple RIME using the
 Fused RIME API to define terms for computing:
 
-1. the Phase Delay
-2. the Brightness Matrix
+1. the Phase Delay.
+2. the Brightness Matrix.
 
 The RIME Specification
 ++++++++++++++++++++++
@@ -297,8 +297,13 @@ API
             Types here should be simple: ints, floats, complex numbers
             and strings are ideal.
 
-
         :rtype: A :code:`(fields, function)` tuple.
+
+        .. warning::
+
+            The ``function`` returned by ``init_fields`` must be compileable
+            in Numba's
+            `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
 
     .. py:method:: Term.sampler(self)
 
@@ -325,6 +330,13 @@ API
         :param c: Channel index.
 
         :rtype: a scalar or a tuple of two scalars or a tuple of four scalars.
+
+        .. warning::
+
+            The sampling function returned by ``sampler`` must be compileable
+            in Numba's
+            `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
+
 
 .. currentmodule:: africanus.experimental.rime.fused.transformers.core
 
