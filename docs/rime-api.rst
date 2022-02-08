@@ -18,19 +18,19 @@ It describes the response of an interferometer to a sky model.
 
 where for antenna :math:`p` and :math:`q`, and source :math:`s`:
 
-- :math:`G_{p}` represents direction-independent effects.
-- :math:`E_{ps}` represents direction-dependent effects.
-- :math:`L_{p}` represents the feed rotation.
-- :math:`K_{ps}` represents the phase delay term.
-- :math:`B_{s}` represents the brightness matrix.
+* :math:`G_{p}` represents direction-independent effects.
+* :math:`E_{ps}` represents direction-dependent effects.
+* :math:`L_{p}` represents the feed rotation.
+* :math:`K_{ps}` represents the phase delay term.
+* :math:`B_{s}` represents the brightness matrix.
 
 
 The RIME is more formally described in the following four papers:
 
-- `I. A full-sky Jones formalism <rime_paper_i_>`_
-- `II. Calibration and direction-dependent effects <rime_paper_ii_>`_
-- `III. Addressing direction-dependent effects in 21cm WSRT observations of 3C147 <rime_paper_iii_>`_
-- `IV. A generalized tensor formalism <rime_paper_iv_>`_
+* `I. A full-sky Jones formalism <rime_paper_i_>`_
+* `II. Calibration and direction-dependent effects <rime_paper_ii_>`_
+* `III. Addressing direction-dependent effects in 21cm WSRT observations of 3C147 <rime_paper_iii_>`_
+* `IV. A generalized tensor formalism <rime_paper_iv_>`_
 
 .. _rime_paper_i: https://arxiv.org/abs/1101.1764
 .. _rime_paper_ii: https://arxiv.org/abs/1101.1765
