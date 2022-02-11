@@ -334,6 +334,10 @@ Therefore, :code:`Phase.dask_schema` could be implemented as follows:
 
     class Phase(Term):
         def dask_schema(self, lm, uvw, chan_freq):
+            assert lm.ndim == 2
+            assert uvw.ndim == 2
+            assert chan_freq.ndim == 1
+
             return {
                 "lm": ("source", "lm-component"),
                 "uvw": ("row", "uvw-component"),
@@ -344,6 +348,7 @@ The :code:`dask_schema` for a :code:`Transformer` is slightly different as,
 in addition a schema for the inputs, it must also provide an ``array_like``
 variable describing the number of dimensions and data type of the output
 arrays.
+The ``array_like`` variables are in turn passed into :class:`Term.dask_schema`.
 Thus, :code:`LMTransformer.dask_schema` could be implemented as follows;
 
 .. code-block:: python
