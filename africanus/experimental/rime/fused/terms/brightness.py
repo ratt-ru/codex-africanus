@@ -116,6 +116,7 @@ def conversion_factory(stokes_schema, corr_schema):
 
 
 class Brightness(Term):
+    """Brightness Matrix Term"""
     def __init__(self, configuration, stokes, corrs):
         super().__init__(configuration)
         self.stokes = stokes

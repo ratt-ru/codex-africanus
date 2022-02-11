@@ -8,14 +8,14 @@ from africanus.util.numba import generated_jit, jit
 from africanus.model.wsclean.spec_model import spectra
 
 
-fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
-fwhminv = 1.0 / fwhm
-gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
-
-
 @jit(nopython=True, nogil=True, cache=True)
 def wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
                          frequency, spectrum, dtype):
+
+    fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    fwhminv = 1.0 / fwhm
+    gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
+
     nrow = uvw.shape[0]
     nchan = frequency.shape[0]
     ncorr = 1

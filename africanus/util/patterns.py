@@ -299,7 +299,8 @@ class LazyProxy:
         ------
         InvalidLazyContext:
             Raised if the call stack contains a call to a
-            problematic function (like `dask.array.blockwise`)        """
+            problematic function (like `dask.array.blockwise`)
+        """
         while frame and depth > 0:
             if frame.f_code in INVALID_LAZY_CONTEXTS:
                 raise InvalidLazyContext(

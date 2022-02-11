@@ -161,7 +161,7 @@ use of the eidos_ package.
 .. _eidos: https://github.com/kmbasad/eidos/
 
 Parameters
----------------
+----------
 coords : :class:`numpy.ndarray`
    Float coordinates at which to evaluate the zernike polynomials.
    Has shape :code:`(3, source, time, ant, chan)`. The three components in
@@ -191,7 +191,7 @@ pointing_errors : :class:`numpy.ndarray`
   Has shape :code:`(time, ant, chan, 2)`.
 
 Returns
-----------
+-------
 dde : :class:`numpy.ndarray`
    complex values with shape
    :code:`(source, time, ant, chan, corr_1, ..., corr_n)`

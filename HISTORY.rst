@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Document Fused RIME (:pr:`270`)
 * Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
 
 

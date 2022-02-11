@@ -218,6 +218,11 @@ def consolidate_args(args, kw):
 
 
 def rime(rime_spec, *args, **kw):
+    """
+    Evaluates the Radio Interferometer Measurement Equation (RIME), given
+    the Specification of the RIME :code:`rime_spec`, as well as the
+    inputs to the RIME given in :code:`*args` and :code:`**kwargs`.
+    """
     mapping = consolidate_args(args, kw)
     factory = RimeFactory(rime_spec=rime_spec)
     return factory(**mapping)

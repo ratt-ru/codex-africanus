@@ -16,8 +16,11 @@ from africanus.averaging.support import _unique_internal
 from africanus.experimental.rime.fused.arguments import ArgumentPack
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
-
-NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
+try:
+    NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
+except AttributeError:
+    # Readthedocs
+    NUMBA_MAJOR, NUMBA_MINOR = 0, 0
 
 
 def scalar_scalar(lhs, rhs):
@@ -592,12 +595,18 @@ class IntrinsicFactory:
                 for arg_name, (_, i) in arg_pack.items():
                     value = builder.extract_value(args[0], i)
                     value_type = signature.args[0][i]
+                    # We increment the reference count here
+                    # as we're taking a reference from data in
+                    # the args tuple and placing it on the structref
                     context.nrt.incref(builder, value_type, value)
                     field_type = state_type.field_dict[arg_name]
                     casted = context.cast(builder, value,
                                           value_type, field_type)
-                    old_value = getattr(data_struct, arg_name)
                     context.nrt.incref(builder, value_type, casted)
+
+                    # The old value on the structref is being replaced,
+                    # decrease it's reference count
+                    old_value = getattr(data_struct, arg_name)
                     context.nrt.decref(builder, value_type, old_value)
                     setattr(data_struct, arg_name, casted)
 

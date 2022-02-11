@@ -159,6 +159,88 @@ def _decompose_term_str(term_str):
 
 
 class RimeSpecification:
+    """
+    Defines a unique Radio Interferometer Measurement Equation (RIME)
+
+    The RIME is composed of a number of Jones Terms, which are multiplied
+    together and combined to produce model visibilities.
+
+    The ``RimeSpecification`` specifies the order of these Jones Terms and
+    supports custom Jones terms specified by the user.
+
+    One of the simplest RIME's that can be expressed involve a ``Phase`` (Kpq)
+    and a ``Brightness`` (Bpq) term.
+    The specification for this RIME is as follows:
+
+    .. code-block:: python
+
+        rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]")
+
+    ``(Kpq, Bpq)`` specifies the onion more formally defined
+    :ref:`here <experimental-fused-rime-api-anchor>`, while
+    ``[I,Q,U,V] -> [XX,XY,YX,YY]`` defines the stokes to correlation conversion
+    within the RIME.
+    It also identifies whether the RIME is handling linear
+    or circular feeds.
+
+    **Term Configuration**
+
+    The ``pq`` in Kpq and Bpq signifies that their values are calculated
+    per-baseline.
+    It is possible to specify per-antenna terms: ``Kp`` and ``Kq``
+    for example which
+    represent left (ANTENNA1) and right (ANTENNA2) terms respectively.
+    Not that the hermitian transpose of the right term is automatically
+    performed and does not need to be implemented in the Term itself.
+    Thus, for example, ``(Kp, Bpq, Kq)`` specifies a RIME where the
+    Phase Term is separated into left and right terms, while the
+    Brightness Matrix is calculated per-baseline.
+
+    **Stokes to Correlation Mapping**
+
+    ``[I,Q,U,V] -> [XX,XY,YX,YY]`` specifies a mapping from
+    four stokes parameters to four correlations.
+    Both linear ``[XX,XY,YX,YY]`` and circular ``[RR,RL,LR,LL]``
+    feed types are supported. A variety of mappings are possible:
+
+    .. code-block:: python
+
+        [I,Q,U,V] -> [XX,XY,YX,YY]
+        [I,Q] -> [XX,YY]
+        [I,Q] -> [RR,LL]
+
+    **Custom Terms**
+
+    Custom Term classes implemented by a user can be added to
+    the RIME as follows:
+
+    .. code-block:: python
+
+        class CustomJones(Term):
+            ...
+
+        spec = RimeSpecification("(Apq,Kpq,Bpq)", terms={"A": CustomJones})
+
+    Parameters
+    ----------
+    specification : str
+        A string specifying the terms in the RIME and the stokes
+        to correlation conversion.
+    terms : dict of str or Terms
+        A map describing custom
+        :class:`~africanus.experimental.rime.fused.terms.core.Term`
+        implementations.
+        If one has defined a custom Gaussian Term class,
+        for use in RIME ``(Cpq, Kpq, Bpq)``, this should be
+        supplied as :code:`terms={"C": Gaussian}`.
+        strings can be supplied for predefined RIME classes.
+    transformers : list of Transformers
+        A list of
+        :class:`~africanus.experimental.rime.fused.transformers.core.Transformer`
+        classes.
+
+    """
+
     VALID_STOKES = {"I", "Q", "U", "V"}
     TERM_MAP = {
         "K": "Phase",
