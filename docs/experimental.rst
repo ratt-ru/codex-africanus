@@ -301,6 +301,98 @@ well as a dataset containing the required arguments:
     model_visibilities = rime(rime_spec, dataset)
 
 
+Dask Support
+++++++++++++
+
+Dask wrappers are provided for the
+:func:`africanus.experimental.rime.fused.core.rime` function.
+In order to support this, both :class:`Term` and :class:`Transformer`
+classes need to supply a ``dask_schema`` function which is used to
+define the ``schema`` for each supplied argument, which in turn
+is supplied to a :func:`dask.array.blockwise` call.
+
+The ``schema`` should be a tuple of dimension string names.
+In particular, the ``rime`` function assigns special meaning to
+``source``, ``row``, ``chan`` and ``corr`` -- These names are
+are associated with individual sources (fields) and Measurement Set
+rows, channels and correlations, respectively.
+Dask Array chunking is supported along these dimensions in the sense
+that the ``rime`` will be computed for each chunk along these dimensions.
+
+.. note::
+
+    Chunks in dimensions other than ``source``, ``row``, ``chan`` and
+    ``corr`` will be contracted into a single array within the
+    ``rime`` function.
+    It is recommended that other dimensions contain a single chunk,
+    or contain small quantities of data relative to the special dimensions.
+
+
+Therefore, :code:`Phase.dask_schema` could be implemented as follows:
+
+.. code-block:: python
+
+    class Phase(Term):
+        def dask_schema(self, lm, uvw, chan_freq):
+            return {
+                "lm": ("source", "lm-component"),
+                "uvw": ("row", "uvw-component"),
+                "chan_freq": ("chan",),
+            }
+
+The :code:`dask_schema` for a :code:`Transformer` is slightly different as,
+in addition a schema for the inputs, it must also provide an ``array_like``
+variable describing the number of dimensions and data type of the output
+arrays.
+Thus, :code:`LMTransformer.dask_schema` could be implemented as follows;
+
+.. code-block:: python
+
+    class LMTransformer(Transformer):
+        OUTPUTS = ["lm"]
+
+        def dask_schema(self, phase_dir, radec):
+            dt = np.result_type(phase_dir.dtype, radec.dtype)
+            return ({
+                "phase_dir": ("radec-component",),
+                "radec": ("source", "radec-component",),
+            },
+            {
+                "lm": np.empty((0,0), dtype=dt)
+            })
+
+
+Then, in a paradigm very similar to the non-dask case, we create
+a :class:`RimeSpecification` and supply it,
+along with a dictionary or dataset of dask arrays, to the
+:func:`rime` function.
+This will produce a dask array representing the model
+visibilities.
+
+.. code-block:: python
+
+    from africanus.experimental.rime.fused.dask import rime
+    import dask.array as da
+    import numpy as np
+
+    dataset = {
+        "radec": da.random.random((10, 2), chunks=(2, 2))*1e-5,
+        "phase_dir": da.random.random((2,), chunks=(2,))*1e-5,
+        "uvw": da.random.random((100, 3), chunks=(10, 3))*1e5,
+        "chan_freq:" da.linspace(.856e9, 2*.856e9, 16, chunks=(4,)),
+        ...,
+        "stokes": da.random.random((10, 4), chunks=(2, 4)),
+        # other required data
+    }
+
+    rime_spec = RimeSpecification("(Kpq, Bpq)",
+                                  terms={"K": Phase},
+                                  transformers=LMTransformer)
+    model_visibilities = rime(rime_spec, dataset)
+    model_visibilities.compute()
+
+
+
 API
 ~~~
 
@@ -362,7 +454,8 @@ API
             Types here should be simple: ints, floats, complex numbers
             and strings are ideal.
 
-        :rtype: A :code:`(fields, function)` tuple.
+        :rtype: tuple
+        :returns: A :code:`(fields, function)` tuple.
 
         .. warning::
 
@@ -395,7 +488,8 @@ API
         :param a2: Antenna2 index.
         :param c: Channel index.
 
-        :rtype: a scalar or a tuple of two scalars or a tuple of four scalars.
+        :rtype: scalar or a tuple
+        :returns: a scalar or a tuple of two scalars or a tuple of four scalars.
 
         .. warning::
 
@@ -403,10 +497,76 @@ API
             in Numba's
             `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
 
+    .. py:method:: dask_schema(self, arg1, ..., argn, \
+                kwargs1=None, ..., kwargn=None)
+
+        :param arg1...argn: Required RIME inputs for this Transformer.
+        :param kwarg1...kwargn: Optional RIME inputs for this Transformer. \
+            Types here should be simple: ints, floats, complex numbers
+            and strings are ideal.
+
+        :rtype: dict
+        :returns: A dictionary of the form :code:`{name: schema}` defining
+                  the :func:`~dask.array.blockwise` dimension schema of each
+                  supplied argument and keyword argument.
 
 .. currentmodule:: africanus.experimental.rime.fused.transformers.core
 
 .. py:class:: Transformer
+
+    Base class for precomputing data for consumption by
+    :class:`~africanus.experimental.rime.fused.terms.core.Term`'s.
+
+    .. py:attribute:: OUTPUTS
+
+        This class attributes should contain names of the outputs produced
+        by the Transformer class.
+        This should correspond to the fields produced by
+        :meth:`Transformer.init_fields`.
+
+    .. py:method:: Transformer.init_fields(self, typing_ctx, arg1, ..., argn, \
+                                    kwarg1=None, ..., kwargn=None)
+
+        Requests inputs to the Transformer, and specifies new fields and
+        the function for creating them on the ``state`` object.
+        Functionally, this method behaves exactly the same as the
+        :meth:`~africanus.experimental.rime.fused.terms.core.Term.init_fields`
+        method, the difference being that the outputs are available to all
+        Terms.
+
+        :rtype: tuple
+        :returns: A :code:`(fields, function)` tuple.
+
+        .. warning::
+
+            The ``function`` returned by ``init_fields`` must be compileable
+            in Numba's
+            `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
+
+    .. py:method:: dask_schema(self, arg1, ..., argn, \
+                        kwargs1=None, ..., kwargn=None)
+
+
+
+        :rtype: tuple
+        :returns: A :code:`(inputs, outputs)` tuple.
+
+                ``inputs`` should
+                be a dictionary of the form :code:`{name: schema}`
+                where ``schema`` is a dimension schema suitable for use
+                in :func:`dask.array.blockwise`. A suitable schema for
+                visibility data would be :code:`(row, chan, corr)`,
+                while a uvw coordinate schema could be
+                :code:`(row, uvw-component)`.
+
+                ``outputs`` should be a dictionary of the form
+                :code:`{name: array_like}`, where ``array_like``
+                is an object with ``dtype`` and ``ndim`` attributes.
+                A suitable array_like for lm data could be
+                :code:`np.empty((0,0), dtype=np.float64)`.
+
+
+
 
 Predefined Terms
 ++++++++++++++++

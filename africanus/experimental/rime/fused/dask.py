@@ -25,6 +25,8 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
 
 @requires_optional("dask.array", opt_import_err)
 def rime(rime_spec, *args, **kw):
+    """Like :func:`~africanus.experimental.rime.fused.core.rime`, but for
+    a dask paradigm"""
     factory = RimeFactory(rime_spec)
     names, args = factory.dask_blockwise_args(**consolidate_args(args, kw))
 
