@@ -5,6 +5,7 @@ from africanus.experimental.rime.fused.terms.core import Term
 
 
 class Gaussian(Term):
+    """Gaussian Amplitude Term"""
     def dask_schema(self, uvw, chan_freq, gauss_shape):
         assert uvw.ndim == 2
         assert chan_freq.ndim == 1

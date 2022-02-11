@@ -87,7 +87,8 @@ The specification for this RIME is as follows:
 .. code-block:: python
 
     rime_spec = RimeSpecification("(Kpq, Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]",
-                                  terms={"K": Phase})
+                                  terms={"K": Phase},
+                                  transformers=[LMTransformer])
 
 ``(Kpq, Bpq)`` specifies the onion including the Phase Delay and
 Brightness more formally defined
@@ -95,8 +96,10 @@ Brightness more formally defined
 the ``pq`` in both terms signifies that they are calculated per-baseline.
 ``[I,Q,U,V] -> [XX,XY,YX,YY]`` defines the stokes to correlation conversion
 within the RIME and also identifies whether the RIME is handling linear
-or circular feeds. Finally :code:`terms={"K": Phase}` indicates that the
+or circular feeds. :code:`terms={"K": Phase}` indicates that the
 K term is implemented as a custom Phase term, described in the next section.
+Finally, :code:`LMTransformer` is a Transformer that precomputes lm coordinates
+for use by all terms.
 
 Custom Phase Term
 +++++++++++++++++
@@ -216,6 +219,64 @@ in ``init_fields`` to compute a complex exponential.
 
             return phase_sample
 
+Transformers
+++++++++++++
+
+Using :meth:`Term.init_fields`, we can precompute data for use in
+sampling functions, within a single Term.
+However, sometimes we wish to precompute data for use by multiple
+Terms.
+This can be achieved through the use of ``Transformers``.
+A good example of data that it is useful to precompute for multiple
+Terms are ``lm`` coordinates, which are in turn, derived from
+``phase_dir`` and ``radec`` which are the phase centre of an
+observation and the position of a source, respectively.
+In the following code snippet, ``LMTransformer.init_fields``
+
+.. code-block:: python
+
+    from africanus.experimental.rime.fused.transformers import Transformer
+
+    class LMTransformer(Transformer):
+        # Must specify list of outputs produced by this transformer on the
+        # OUTPUTS class attribute
+        OUTPUTS = ["lm"]
+
+        def init_fields(self, typingctx, radec, phase_dir):
+            # Type and provide method for initialising the lm output
+            dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
+            fields = [("lm", dt[:, :])]
+
+            def lm(radec, phase_dir):
+                lm = np.empty_like(radec)
+                pc_ra = phase_dir[0]
+                pc_dec = phase_dir[1]
+
+                sin_pc_dec = np.sin(pc_dec)
+                cos_pc_dec = np.cos(pc_dec)
+
+                for s in range(radec.shape[0]):
+                    da = radec[s, 0] - pc_ra
+                    sin_ra_delta = np.sin(da)
+                    cos_ra_delta = np.cos(da)
+
+                    sin_dec = np.sin(radec[s, 1])
+                    cos_dec = np.cos(radec[s, 1])
+
+                    lm[s, 0] = cos_dec*sin_ra_delta
+                    lm[s, 1] = sin_dec*cos_pc_dec - cos_dec*sin_pc_dec*cos_ra_delta
+
+                return lm
+
+            return fields, lm
+
+The ``lm`` array will be available on the ``state`` object and as a valid input
+for :meth:`Term.init_fields`.
+
+
+Invoking the RIME
++++++++++++++++++
+
 We then invoke the RIME by passing in the :class:`RimeSpecification`, as
 well as a dataset containing the required arguments:
 
@@ -225,7 +286,8 @@ well as a dataset containing the required arguments:
     import numpy as np
 
     dataset = {
-        "lm": np.random.random((10, 2))*1e-5,
+        "radec": np.random.random((10, 2))*1e-5,
+        "phase_dir": np.random.random((2,))*1e-5,
         "uvw": np.random.random((100, 3))*1e5,
         "chan_freq:" np.linspace(.856e9, 2*.856e9, 16),
         ...,
@@ -233,8 +295,11 @@ well as a dataset containing the required arguments:
         # other required data
     }
 
-    rime_spec = RimeSpecification("(Kpq, Bpq)", terms={"K": Phase})
+    rime_spec = RimeSpecification("(Kpq, Bpq)",
+                                  terms={"K": Phase},
+                                  transformers=LMTransformer)
     model_visibilities = rime(rime_spec, dataset)
+
 
 API
 ~~~
@@ -305,6 +370,7 @@ API
             in Numba's
             `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
 
+
     .. py:method:: Term.sampler(self)
 
         Return a sampling function of the following form:
@@ -341,6 +407,28 @@ API
 .. currentmodule:: africanus.experimental.rime.fused.transformers.core
 
 .. py:class:: Transformer
+
+Predefined Terms
+++++++++++++++++
+
+.. autoclass:: africanus.experimental.rime.fused.terms.phase.Phase
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, validate_sampler
+.. autoclass:: africanus.experimental.rime.fused.terms.brightness.Brightness
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, validate_sampler
+.. autoclass:: africanus.experimental.rime.fused.terms.gaussian.Gaussian
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, validate_sampler
+.. autoclass:: africanus.experimental.rime.fused.terms.feed_rotation.FeedRotation
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, validate_sampler
+.. autoclass:: africanus.experimental.rime.fused.terms.cube_dde.BeamCubeDDE
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, validate_sampler
+
+Predefined Transformers
++++++++++++++++++++++++
+
+.. autoclass:: africanus.experimental.rime.fused.transformers.lm.LMTransformer
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, transform_validator
+.. autoclass:: africanus.experimental.rime.fused.transformers.parangle.ParallacticTransformer
+    :exclude-members: init_fields, dask_schema, sampler, validate_constructor, transform_validator
 
 Numpy
 ~~~~~
