@@ -84,7 +84,7 @@ setup(
     keywords="codex-africanus",
     name="codex-africanus",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
