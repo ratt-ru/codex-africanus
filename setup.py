@@ -35,6 +35,7 @@ extras_require = {
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:
+    f.write("# flake8: noqa")
     f.write("extras_require = {\n")
     for k, v in extras_require.items():
         f.write("   '%s': %s,\n" % (k, v))
