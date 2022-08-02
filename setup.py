@@ -31,10 +31,11 @@ extras_require = {
     "astropy": ["astropy >= 4.0"],
     "python-casacore": ["python-casacore >= 3.4.0"],
     "ducc0": ["ducc0 >= 0.9.0"],
-    "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6"],
+    "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6", "flake8 >= 4.0.0, < 5.0.0"],
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:
+    f.write("# flake8: noqa")
     f.write("extras_require = {\n")
     for k, v in extras_require.items():
         f.write("   '%s': %s,\n" % (k, v))
