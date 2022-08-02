@@ -10,5 +10,5 @@
 import africanus.util.jax_init  # noqa
 
 __author__ = """Simon Perkins"""
-__email__ = 'sperkins@ska.ac.za'
-__version__ = '0.2.10'
+__email__ = "sperkins@ska.ac.za"
+__version__ = "0.3.2"

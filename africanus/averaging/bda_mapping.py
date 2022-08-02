@@ -85,10 +85,11 @@ def inv_sinc(sinc_x, tol=1e-12):
 
 @njit(nogil=True, cache=True, inline='always')
 def factors(n):
+    assert n >= 1
     result = []
     i = 1
 
-    while i*i < n:
+    while i*i <= n:
         quot, rem = divmod(n, i)
 
         if rem == 0:
@@ -205,23 +206,33 @@ class Binner(object):
 
         # Evaluate the degree of decorrelation
         # the sample would add to existing bin
-        dt = time_end - time_start
         du = uvw[row, 0] - uvw[rs, 0]
         dv = uvw[row, 1] - uvw[rs, 1]
         dw = uvw[row, 2] - uvw[rs, 2]
+        dt = time_end - time_start
+        half_𝞓𝞇 = (np.sqrt(du**2 + dv**2 + dw**2) *
+                   self.max_chan_freq *
+                   np.sin(np.abs(self.max_lm)) *
+                   np.pi / lightspeed) + 1.0e-8
+        bldecorr = np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
+        # fringe rate at the equator
+        # du = uvw[row, 0] - uvw[rs, 0]
+        # dv = uvw[row, 1] - uvw[rs, 1]
+        # dw = uvw[row, 2] - uvw[rs, 2]
         # max delta phase occurs when duvw lines up with lmn-1.
         # So assume we have an lmn vector such
         # that ||(l,m)||=l_max, n_max=|sqrt(1-l_max^2)-1|;
         # the max phase change will be ||(du,dv)||*l_max+|dw|*n_max
-        duvw = np.sqrt(du**2 + dv**2)
-        half_𝞓𝞇 = (2 * np.pi * (self.max_chan_freq/lightspeed) *
-                   (duvw * self.max_lm + np.abs(dw) * self.n_max))
-
+        # duvw = np.sqrt(du**2 + dv**2)
+        # half_𝞓𝞇 = (2 * np.pi * (self.max_chan_freq/lightspeed) *
+        #           (duvw * self.max_lm + np.abs(dw) * self.n_max)) + 1.0e-8
+        # bldecorr = np.sin(half_𝞓𝞇) / half_𝞓𝞇
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (half_𝞓𝞇 >= self.decorrelation) or (dt > self.time_bin_secs):
+        if (bldecorr < np.sinc(self.decorrelation) or
+                dt > self.time_bin_secs):
             return False
 
         # Add the row by making it the end of the bin
@@ -291,14 +302,14 @@ class Binner(object):
 
             # The following is copied from DDFacet. Variables names could
             # be changed but wanted to keep the correspondence clear.
-
+            # BH: I strongly suspect this is wrong: see eq. 18-19 in SI II
             delta_nu = ((lightspeed / (2*np.pi)) *
                         (self.decorrelation / max_abs_dist))
 
             fracsizeChanBlock = delta_nu / chan_width
 
             fracsizeChanBlockMin = max(fracsizeChanBlock.min(), 1)
-
+            assert fracsizeChanBlockMin >= 1
             nchan = np.ceil(chan_width.size/fracsizeChanBlockMin)
 
             # Now find the next highest integer factorisation
@@ -310,6 +321,7 @@ class Binner(object):
         time_end = time[re] + (interval[re] / 2.0)
 
         # Finalise bin values for return
+        assert self.bin_count >= 1
         out = FinaliseOutput(self.tbin,
                              (time_start + time_end) / 2.0,
                              time_end - time_start,
@@ -396,12 +408,16 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         ntime = utime.shape[0]
         nbl = ubl.shape[0]
         nchan = chan_width.shape[0]
+        if nchan == 0:
+            raise ValueError("Number of channels passed into "
+                             "averager must be at least size 1")
         nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
 
         if min_nchan is None:
             min_nchan = 1
         else:
+            min_nchan = min(min_nchan, nchan)
             s = np.searchsorted(nchan_factors, min_nchan, side='left')
             min_nchan = max(min_nchan, nchan_factors[s])
 
@@ -439,9 +455,11 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
             interval_lookup[bl, tbin] = finalised.interval
             bin_flagged[bl, tbin] = finalised.flag
             nchan = max(finalised.nchan, min_nchan)
-            bin_nchan = chan_width.shape[0] // nchan
+            assert nchan >= 1
+            assert finalised.nchan >= 1
+            bin_nchan = max(chan_width.shape[0] // nchan, 1)
             bin_chan_width[bl, tbin] = bandwidth / finalised.nchan
-
+            assert bin_nchan >= 1
             # Construct the channel map
             for c in range(chan_width.shape[0]):
                 bin_chan_map[bl, tbin, c] = c // bin_nchan
@@ -466,7 +484,10 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
 
         # This derived from Synthesis & Imaging II (18-31)
         # Converts decrease in amplitude into change in phase
-        dphi = np.sqrt(6. * (1. - decorrelation))
+        # dphi = np.sqrt(6. / np.pi**2 * (1. - decorrelation))
+
+        # better approximation
+        dphi = np.arccos(decorrelation)*np.sqrt(3)/np.pi
 
         binner = JitBinner(0, 0, max_lm,
                            dphi,
@@ -490,6 +511,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                 # Start a new bin
                 if binner.empty:
                     binner.start_bin(r, time, interval, flag_row)
+
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
                 elif not binner.add_row(r, auto_corr,
@@ -548,7 +570,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         row_chan_map = np.full((nrow, nchan), -1, dtype=np.int32)
         time_ret = np.full(out_row_chans, -1, dtype=time.dtype)
         int_ret = np.full(out_row_chans, -1, dtype=interval.dtype)
-        chan_width_ret = np.full(out_row_chans, -1, dtype=chan_width.dtype)
+        chan_width_ret = np.full(out_row_chans, 0, dtype=chan_width.dtype)
 
         # Construct output flag row, if necessary
         out_flag_row = (None if flag_row is None else

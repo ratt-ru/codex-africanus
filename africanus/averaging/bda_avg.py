@@ -535,7 +535,6 @@ def bda(time, interval, antenna1, antenna2,
         decorrelation=0.98,
         time_bin_secs=None,
         min_nchan=1):
-
     def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,
              uvw=None, weight=None, sigma=None,
@@ -547,7 +546,6 @@ def bda(time, interval, antenna1, antenna2,
              decorrelation=0.98,
              time_bin_secs=None,
              min_nchan=1):
-
         # Merge flag_row and flag arrays
         flag_row = merge_flags(flag_row, flag)
 
@@ -590,7 +588,7 @@ def bda(time, interval, antenna1, antenna2,
                              # None,  # chan_data.chan_width,
                              # None,  # chan_data.effective_bw,
                              # None,  # chan_data.resolution,
-                             row_chan_avg.visibilites,
+                             row_chan_avg.visibilities,
                              row_chan_avg.flag,
                              row_chan_avg.weight_spectrum,
                              row_chan_avg.sigma_spectrum)

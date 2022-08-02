@@ -2,12 +2,32 @@
 History
 =======
 
-0.2.11 (YYYY-MM-DD)
--------------------
+X.Y.Z (YYYY-MM-DD)
+------------------
 * Support missing data during BDA (:pr:`252`)
+* Document Fused RIME (:pr:`270`)
+* Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
+
+0.3.2 (2022-13-01)
+------------------
+* Support numba >= 0.54 (:pr:`264`)
+* Fused RIME (:pr:`239`)
+* Restrict numba version to <= 0.54.0 (:pr:`259`)
+* BDA fix typos in numba wrapper (:pr:`261`)
+* BDA Time-smearing fixes (:pr:`253`)
+
+0.3.1 (2021-09-09)
+------------------
+* Handle empty spectral indices in WSClean Model (:pr:`258`)
+* Support missing data during BDA (:pr:`252`)
+
+0.3.0 (2021-09-09)
+------------------
+* Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
+* Using `contextlib.suppress` instead of deprecated `dask.util.ignoring` in EstimatingProgressBar (:pr:`256`)
+* Disallow numba 0.54.0 (:pr:`254`)
 * Upgrade to CuPy 9.0 and fix template encoding (:pr:`251`)
 * Parse and zero spectral models containing 'nan' and 'inf' in wsclean model files (:pr:`250`)
-* Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
 * Clarify _wrapper names (:pr:`247`)
 * Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
 
