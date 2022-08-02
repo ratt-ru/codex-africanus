@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
 * Pin flake8 to >= 4.0.0 and < 5.0.0 (:pr:`272`)
 * Document Fused RIME (:pr:`270`)
 * Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
