@@ -303,8 +303,8 @@ class Binner(object):
             # The following is copied from DDFacet. Variables names could
             # be changed but wanted to keep the correspondence clear.
             # BH: I strongly suspect this is wrong: see eq. 18-19 in SI II
-            delta_nu = (lightspeed / (2*np.pi)) * \
-                       (self.decorrelation / max_abs_dist)
+            delta_nu = ((lightspeed / (2*np.pi)) *
+                        (self.decorrelation / max_abs_dist))
 
             fracsizeChanBlock = delta_nu / chan_width
 

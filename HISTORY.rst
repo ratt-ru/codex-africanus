@@ -4,9 +4,9 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Support missing data during BDA (:pr:`252`)
 * Document Fused RIME (:pr:`270`)
 * Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
-
 
 0.3.2 (2022-13-01)
 ------------------
