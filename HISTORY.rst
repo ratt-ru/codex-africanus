@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.3 (2022-08-03)
 ------------------
 * Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
 * Pin flake8 to >= 4.0.0 and < 5.0.0 (:pr:`272`)
