@@ -35,7 +35,6 @@ chunks = [
         "row": (2, 2, 2, 2),
         "spi": (2,),
         "chan": (2, 2),
-        "corr": (4,),
         "radec": (2,),
         "uvw": (3,),
         "lw": (10,),
@@ -47,7 +46,6 @@ chunks = [
         "row": (2, 2, 2, 2),
         "spi": (2,),
         "chan": (2, 2),
-        "corr": (4,),
         "radec": (2,),
         "uvw": (3,),
         "lw": (10,),
@@ -208,11 +206,14 @@ def test_fused_rime_cube_dde(unity_vis_dataset, stokes_schema, corr_schema):
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
 @pytest.mark.parametrize("corr_schema", [["XX", "XY", "YX", "YY"]], ids=str)
 def test_fused_rime(chunks, stokes_schema, corr_schema):
+    chunks = {**chunks,
+              "stokes": (len(stokes_schema),),
+              "corr": (len(corr_schema),)}
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
-    ncorr = sum(chunks["corr"])
+    nstokes = sum(chunks["stokes"])
 
     stokes_to_corr = "".join(("[", ",".join(stokes_schema),
                               "] -> [",
@@ -226,8 +227,8 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     phase_dir = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
-    stokes = np.random.random(size=(nsrc, ncorr))
-    spi = np.random.random(size=(nsrc, nspi, ncorr))
+    stokes = np.random.random(size=(nsrc, nstokes))
+    spi = np.random.random(size=(nsrc, nspi, nstokes))
     ref_freq = np.random.random(size=nsrc)*.856e9
     lm = radec_to_lm(radec, phase_dir)
 
@@ -293,15 +294,20 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
 @pytest.mark.parametrize("stokes_schema", [["I", "Q", "U", "V"]], ids=str)
 @pytest.mark.parametrize("corr_schema", [
     ["XX", "XY", "YX", "YY"],
-    ["RR", "RL", "LR", "LL"]
+    ["RR", "RL", "LR", "LL"],
+    ["RR", "LL"]
 ], ids=str)
 def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     da = pytest.importorskip("dask.array")
 
+    chunks = {**chunks,
+              "stokes": (len(stokes_schema),),
+              "corr": (len(corr_schema),)}
     nsrc = sum(chunks["source"])
     nrow = sum(chunks["row"])
     nspi = sum(chunks["spi"])
     nchan = sum(chunks["chan"])
+    nstokes = sum(chunks["stokes"])
     ncorr = sum(chunks["corr"])
     lw = sum(chunks["lw"])
     mh = sum(chunks["mh"])
@@ -320,8 +326,8 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     phase_dir = np.random.random(size=(2,))*1e-5
     uvw = np.random.random(size=(nrow, 3))*1e5
     chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
-    stokes = np.random.random(size=(nsrc, ncorr))
-    spi = np.random.random(size=(nsrc, nspi, ncorr))
+    stokes = np.random.random(size=(nsrc, nstokes))
+    spi = np.random.random(size=(nsrc, nspi, nstokes))
     ref_freq = np.random.random(size=nsrc)*.856e9 + .856e9
     beam = np.random.random(size=(lw, mh, nud, ncorr))
     beam_lm_extents = np.array([[-1.0, 1.0], [-1.0, 1.0]])
@@ -349,8 +355,8 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "phase_dir": darray(phase_dir, ("radec",)),
         "uvw": darray(uvw, ("row", "uvw")),
         "chan_freq": darray(chan_freq, ("chan",)),
-        "stokes": darray(stokes, ("source", "corr")),
-        "spi": darray(spi, ("source", "spi", "corr")),
+        "stokes": darray(stokes, ("source", "stokes")),
+        "spi": darray(spi, ("source", "spi", "stokes")),
         "ref_freq": darray(ref_freq, ("source",)),
         "antenna_position": darray(antenna_position, antenna_position.shape),
         "beam": darray(beam, ("lw", "mh", "nud", "corr")),
@@ -360,8 +366,11 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
         "receptor_angle": darray(receptor_angle, receptor_angle.shape),
     }
 
-    rime_spec = RimeSpecification(f"(Ep, Lp, Kpq, Bpq, Lq, Eq): "
-                                  f"{stokes_to_corr}")
+    # Feed rotations only make sense if we have four correlations
+    equation_str = (f"(Lp, Ep, Kpq, Bpq, Eq, Lq)"
+                    if ncorr == 4
+                    else f"(Ep, Kpq, Bpq, Eq)")
+    rime_spec = RimeSpecification(f"{equation_str}: {stokes_to_corr}")
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
     dataset = {
