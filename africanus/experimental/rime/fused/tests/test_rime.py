@@ -367,9 +367,9 @@ def test_fused_dask_rime(chunks, stokes_schema, corr_schema):
     }
 
     # Feed rotations only make sense if we have four correlations
-    equation_str = (f"(Lp, Ep, Kpq, Bpq, Eq, Lq)"
+    equation_str = ("(Lp, Ep, Kpq, Bpq, Eq, Lq)"
                     if ncorr == 4
-                    else f"(Ep, Kpq, Bpq, Eq)")
+                    else "(Ep, Kpq, Bpq, Eq)")
     rime_spec = RimeSpecification(f"{equation_str}: {stokes_to_corr}")
     dask_out = dask_rime(rime_spec, dask_dataset, convention="casa")
 
