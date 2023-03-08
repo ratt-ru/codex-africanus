@@ -2,6 +2,11 @@
 History
 =======
 
+0.3.4 (2023-03-08)
+------------------
+* Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
+* Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
+
 0.3.3 (2022-08-03)
 ------------------
 * Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
