@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Update trove hash (:pr:`274`)
+
 0.3.3 (2022-08-03)
 ------------------
 * Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
