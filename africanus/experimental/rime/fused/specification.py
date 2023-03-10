@@ -50,6 +50,32 @@ class RimeSpecificationError(ValueError):
     pass
 
 
+def parse_stokes(stokes_string):
+    stokes = parse_str_list(stokes_string)
+
+    if (not isinstance(stokes, list) or
+            not all(isinstance(s, str) for s in stokes)):
+
+        raise RimeParseError(
+            f"Stokes specification must be of the form "
+            f"[I,Q,U,V]. Got {stokes}.")
+
+    return [s.upper() for s in stokes]
+
+
+def parse_corrs(corrs_string):
+    corrs = parse_str_list(corrs_string)
+
+    if (not isinstance(corrs, list) or
+            not all(isinstance(c, str) for c in corrs)):
+
+        raise RimeParseError(
+            f"Correlation specification must be of the form "
+            f"[XX,XY,YX,YY]. Got {corrs}.")
+
+    return [c.upper() for c in corrs]
+
+
 def parse_rime(rime: str):
     bits = [s.strip() for s in rime.split(":")]
 
@@ -72,26 +98,8 @@ def parse_rime(rime: str):
 
     stokes_bits, corr_bits = bits
 
-    stokes = parse_str_list(stokes_bits)
-    corrs = parse_str_list(corr_bits)
-
-    if (not isinstance(stokes, list) or
-            not all(isinstance(s, str) for s in stokes)):
-
-        raise RimeParseError(
-            f"Stokes specification must be of the form "
-            f"[I,Q,U,V]. Got {stokes}.")
-
-    if (not isinstance(corrs, list) or
-            not all(isinstance(c, str) for c in corrs)):
-
-        raise RimeParseError(
-            f"Correlation specification must be of the form "
-            f"[XX,XY,YX,YY]. Got {corrs}.")
-
-    stokes = [s.upper() for s in stokes]
-    corrs = [c.upper() for c in corrs]
-
+    stokes = parse_stokes(stokes_bits)
+    corrs = parse_corrs(corr_bits)
     equation = parse_str_list(rime_bits)
 
     if (not isinstance(equation, (tuple, list)) or

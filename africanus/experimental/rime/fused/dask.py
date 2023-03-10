@@ -17,7 +17,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
     assert len(names) == len(args)
     out = factory(**dict(zip(names, args)))
     # (1) Reintroduce source dimension,
-    # (2) slice the existing dimes
+    # (2) slice the existing dimensions
     # (3) expand by the contraction dims which will
     #     be removed in the later dask reduction
     return out[(None,) + (slice(None),)*out.ndim + (None,)*nconcat_dims]
@@ -37,9 +37,10 @@ def rime(rime_spec, *args, **kw):
 
     # Source and concatenation dimension are reduced to 1 element
     adjust_chunks = {"source": 1, **{d: 1 for d in contract_dims}}
+    new_axes = {"corr": len(factory.rime_spec.corrs)}
 
     # This is needed otherwise, dask will call rime_dask_wrapper
-    # with dummy arugments to infer the output dtype.
+    # with dummy arguments to infer the output dtype.
     # This incurs memory allocations within numba, as well as
     # exceptions, leading to memory leaks as described
     # in https://github.com/numba/numba/issues/3263
@@ -53,6 +54,7 @@ def rime(rime_spec, *args, **kw):
                        *args,
                        concatenate=False,
                        adjust_chunks=adjust_chunks,
+                       new_axes=new_axes,
                        meta=meta)
 
     # Contract over source and concatenation dims

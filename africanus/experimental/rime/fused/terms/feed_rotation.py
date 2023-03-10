@@ -3,7 +3,7 @@ from africanus.experimental.rime.fused.terms.core import Term
 
 class FeedRotation(Term):
     """Feed Rotation Term"""
-    def __init__(self, configuration, feed_type):
+    def __init__(self, configuration, feed_type, corrs):
         if configuration not in {"left", "right"}:
             raise ValueError(f"FeedRotation configuration must "
                              f"be either 'left' or 'right'. "
@@ -13,6 +13,11 @@ class FeedRotation(Term):
             raise ValueError(f"FeedRotation feed_type must be "
                              f"either 'linear' or 'circular'. "
                              f"Got {feed_type}")
+
+        if len(corrs) != 4:
+            raise ValueError(f"Four correlations required for "
+                             f"feed rotation but {corrs} were "
+                             f"specified")
 
         super().__init__(configuration)
         self.feed_type = feed_type

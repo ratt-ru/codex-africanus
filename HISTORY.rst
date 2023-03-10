@@ -4,6 +4,8 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
+* Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
 * Update trove hash (:pr:`274`)
 
 0.3.3 (2022-08-03)

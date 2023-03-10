@@ -131,8 +131,8 @@ class Brightness(Term):
         assert isinstance(spi_base, str)
 
         return {
-            "stokes": ("source", "corr"),
-            "spi": ("source", "spi", "corr"),
+            "stokes": ("source", "stokes"),
+            "spi": ("source", "spi", "stokes"),
             "ref_freq": ("source",),
             "chan_freq": ("chan",),
             "spi_base": None
