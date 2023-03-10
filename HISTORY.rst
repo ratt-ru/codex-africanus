@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.4 (2023-10-03)
 ------------------
 * Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
 * Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
@@ -16,7 +16,7 @@ X.Y.Z (YYYY-MM-DD)
 * Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
 
 
-0.3.2 (2022-13-01)
+0.3.2 (2022-01-13)
 ------------------
 * Support numba >= 0.54 (:pr:`264`)
 * Fused RIME (:pr:`239`)
