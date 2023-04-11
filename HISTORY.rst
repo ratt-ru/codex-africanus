@@ -2,9 +2,13 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Adjust SPI code to handle negative/zero Stokes components (:pr:`276`, :pr:`277`)
+
+
 0.3.4 (2023-10-03)
 ------------------
-* Adjust SPI code to handle negative/zero Stokes components (:pr:`276`)
 * Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
 * Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
 * Update trove hash (:pr:`274`)
