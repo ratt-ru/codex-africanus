@@ -227,7 +227,9 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     phase_dir = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
     chan_freq = np.linspace(.856e9, 2*.856e9, nchan)
-    stokes = np.random.random(size=(nsrc, nstokes))
+    # Make perfect stokes paramters i.e. I**2 = Q**2 + U**2 + V**2.
+    stokes = np.random.normal(size=(nsrc, nstokes))
+    stokes[:, 0] = np.sqrt((stokes[:, 1:] ** 2).sum(axis=-1))
     spi = np.random.random(size=(nsrc, nspi, nstokes))
     ref_freq = np.random.uniform(low=.5*.856e9, high=4*.856e9, size=nsrc)
     lm = radec_to_lm(radec, phase_dir)

@@ -197,8 +197,9 @@ class Brightness(Term):
                                 term = spi[s, si, p] * freq_ratio**(si + 1)
                                 spec_model += term
 
-                            spectral_model[s, f, p] = \
+                            spectral_model[s, f, p] = (
                                 stokes[s, p] * np.exp(spec_model)
+                            )
                 elif b == "log10":
                     for s in range(nsrc):
                         rf = ref_freq[s]
@@ -211,8 +212,9 @@ class Brightness(Term):
                                 term = spi[s, si, p] * freq_ratio**(si + 1)
                                 spec_model += term
 
-                            spectral_model[s, f, p] = \
+                            spectral_model[s, f, p] = (
                                 stokes[s, p] * 10**spec_model
+                            )
                 else:
                     raise ValueError(
                         "spi_base not in (\"standard\", \"log\", \"log10\")")

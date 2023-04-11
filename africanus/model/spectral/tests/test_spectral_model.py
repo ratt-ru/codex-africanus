@@ -12,7 +12,7 @@ from africanus.model.spectral.spec_model import (spectral_model,
 @pytest.fixture
 def flux():
     def impl(nsrc):
-        return np.random.random(nsrc)
+        return np.random.normal(size=nsrc)
 
     return impl
 
