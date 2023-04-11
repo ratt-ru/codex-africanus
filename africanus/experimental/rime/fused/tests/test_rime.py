@@ -226,10 +226,10 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     radec = np.random.random(size=(nsrc, 2))*1e-5
     phase_dir = np.random.random(2)*1e-5
     uvw = np.random.random(size=(nrow, 3))
-    chan_freq = np.linspace(.856e9, 2*.859e9, nchan)
+    chan_freq = np.linspace(.856e9, 2*.856e9, nchan)
     stokes = np.random.random(size=(nsrc, nstokes))
     spi = np.random.random(size=(nsrc, nspi, nstokes))
-    ref_freq = np.random.random(size=nsrc)*.856e9
+    ref_freq = np.random.uniform(low=.5*.856e9, high=4*.856e9, size=nsrc)
     lm = radec_to_lm(radec, phase_dir)
 
     dataset = {
@@ -257,18 +257,18 @@ def test_fused_rime(chunks, stokes_schema, corr_schema):
     assert np.count_nonzero(out) > .8 * out.size
 
     out = rime(f"(Kpq, Bpq): {stokes_to_corr}",
-               dataset, convention="fourier")
+               dataset, convention="fourier", spi_base="log")
 
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
-    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="log")
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
     assert np.count_nonzero(out) > .8 * out.size
 
-    out = rime(f"(Kpq, Bpq): {stokes_to_corr}", dataset)
+    out = rime(f"(Kpq, Bpq): {stokes_to_corr}", dataset, spi_base="log10")
     P = phase_delay(lm, uvw, chan_freq, convention="fourier")
-    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="std")
+    SM = spectral_model(stokes, spi, ref_freq, chan_freq, base="log10")
     B = convert(SM, stokes_schema, corr_schema)
     expected = (P[:, :, :, None]*B[:, None, :, :]).sum(axis=0)
     assert_array_almost_equal(expected, out)
