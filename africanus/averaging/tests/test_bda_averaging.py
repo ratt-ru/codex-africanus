@@ -54,7 +54,7 @@ def bda_test_map(request):
       [0, 0, 0, 0]],
      {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
 
-    # Inhomogenous flags per input bin, so we have partial contributions to output bins
+    # Heterogenous flags per input bin, so we have partial contributions to output bins
     ([[1, 1, 0, 0],
       [1, 0, 0, 1],
       [1, 0, 0, 1],
