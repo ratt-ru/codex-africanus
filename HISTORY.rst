@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Update trove hash (:pr:`279`)
 * Adjust SPI code to handle negative/zero Stokes components (:pr:`276`, :pr:`277`)
 
 
