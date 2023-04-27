@@ -46,7 +46,8 @@ def bda_test_map(request):
       [0, 0, 0, 0]],
      {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
 
-    # Homogenous flags per input bin, so we still have full contributions to output bins
+    # Homogenous flags per input bin,
+    # so we still have full contributions to output bins
     ([[1, 1, 0, 0],
       [1, 1, 0, 0],
       [1, 0, 0, 1],
@@ -54,7 +55,8 @@ def bda_test_map(request):
       [0, 0, 0, 0]],
      {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
 
-    # Heterogenous flags per input bin, so we have partial contributions to output bins
+    # Heterogenous flags per input bin,
+    # so we have partial contributions to output bins
     ([[1, 1, 0, 0],
       [1, 0, 0, 1],
       [1, 0, 0, 1],
@@ -63,11 +65,16 @@ def bda_test_map(request):
      {0: False, 1: False, 2: True, 3: True, 4: True, 5: False}),
 
 ])
-def test_bda_full_bin_contribution(inv_bda_test_map, bda_test_flags, full_bin_contribution):
+def test_bda_bin_contribution(inv_bda_test_map,
+                              bda_test_flags,
+                              full_bin_contribution):
     bda_test_flags = np.asarray(bda_test_flags)
 
+    # Test homogeneity of flags in input samples which
+    # contribute to output samples
     for out_row_id, (rows, chans) in inv_bda_test_map.items():
-        mixed_flags = len(set(bda_test_flags[r, c] for r, c in zip(rows, chans))) > 1
+        mixed_flags = len(set(bda_test_flags[r, c]
+                              for r, c in zip(rows, chans))) > 1
         assert full_bin_contribution[out_row_id] is not mixed_flags
 
 
@@ -155,7 +162,8 @@ def _effective_rowchan_map(flags, inv_bda_test_map):
             # Pass through all row-channels if the entire bin is flagged
             emap.append((rows, chans))
         else:
-            # Pass through only unflagged row-channels if some of the bin is flagged
+            # Pass through only unflagged row-channels if some of the
+            # bin is flagged
             it = ((r, c) for r, c in zip(rows, chans) if flags[r, c] == 0)
             emap.append(tuple(map(list, zip(*it))))
 
