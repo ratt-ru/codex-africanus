@@ -29,14 +29,25 @@ def bda_test_map(request):
     return np.asarray(request.param)
 
 
-@pytest.mark.parametrize("bda_test_flags, full_bin_contribution", [
+@pytest.mark.parametrize("bda_test_flags, out_flag_bins", [
+    # This fixture is related to the bda_test_map.
+    # bda_test_map defines a (in_row, in_chan) -> (out_rowchan)
+    # or a 2D mapping to a flattened 1D row channel output
+
+    # There are two cases
+    # (1) all input bins have a homogenous flag values, therefore the output bin
+    # should be assigned this flag value
+    # (2) If the input bins have heterogenous flag values, the output bin should
+    # be unflagged as there will always be a valid sample to contribute
+    # to the output bin
+
     # Everything flagged, input bins contribute fully to output bins
     ([[1, 1, 1, 1],
       [1, 1, 1, 1],
       [1, 1, 1, 1],
       [1, 1, 1, 1],
       [1, 1, 1, 1]],
-     {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
+      [True, True, True, True, True, True]),
 
     # Everything unflagged, input bins contribute fully to output bins
     ([[0, 0, 0, 0],
@@ -44,7 +55,7 @@ def bda_test_map(request):
       [0, 0, 0, 0],
       [0, 0, 0, 0],
       [0, 0, 0, 0]],
-     {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
+      [True, True, True, True, True, True]),
 
     # Homogenous flags per input bin,
     # so we still have full contributions to output bins
@@ -53,7 +64,7 @@ def bda_test_map(request):
       [1, 0, 0, 1],
       [1, 0, 0, 1],
       [0, 0, 0, 0]],
-     {0: True, 1: True, 2: True, 3: True, 4: True, 5: True}),
+      [True, True, True, True, True, True]),
 
     # Heterogenous flags per input bin,
     # so we have partial contributions to output bins
@@ -62,21 +73,53 @@ def bda_test_map(request):
       [1, 0, 0, 1],
       [1, 0, 0, 1],
       [0, 0, 1, 0]],
-     {0: False, 1: False, 2: True, 3: True, 4: True, 5: False}),
-
+      [False, False, True, True, True, False]),
 ])
-def test_bda_bin_contribution(inv_bda_test_map,
+def test_bda_bin_contribution(bda_test_map,
+                              inv_bda_test_map,
                               bda_test_flags,
-                              full_bin_contribution):
+                              out_flag_bins):
     bda_test_flags = np.asarray(bda_test_flags)
+    out_chan = np.array([np.unique(rows).size for rows
+                         in np.unique(bda_test_map, axis=0)])
+
+    # Number of output rows is sum of row channels
+    out_row = out_chan.sum()
+    assert out_row == bda_test_map.max() + 1
+    offsets = np.append([0], np.cumsum(out_chan))
+
+    # Dummy values, only out_chan and out_row need to be correct
+    chan_width = np.repeat(.856e9 / out_chan, out_chan)
+    out_time = np.ones(out_row)
+    out_interval = np.ones(out_row)
+
+    meta = RowMapOutput(bda_test_map, offsets,
+                        chan_width, out_time, out_interval,
+                        None, None)
+
+    # Get flags, after introducing a single correlation dimension
+    avg = row_chan_average(meta, flag=bda_test_flags[:,:,None])
+    flags = avg.flag.squeeze()
+    assert flags.shape == (out_row,)
 
     # Test homogeneity of flags in input samples which
     # contribute to output samples
     for out_row_id, (rows, chans) in inv_bda_test_map.items():
-        mixed_flags = len(set(bda_test_flags[r, c]
-                              for r, c in zip(rows, chans))) > 1
-        assert full_bin_contribution[out_row_id] is not mixed_flags
+        # All flag combinations that contribute to the output row
+        row_flags = set(bda_test_flags[r, c]
+                        for r, c
+                        in zip(rows, chans))
 
+        if len(row_flags) == 1:
+            # There's only one flag value in the input rows
+            # Check that the flag produced by row_chan_averge
+            # matches this single flag value
+            assert flags[out_row_id] == next(iter(row_flags))
+            assert out_flag_bins[out_row_id] is True
+        else:
+            # Multiple flag values in input rows, hence output row is unflagged
+            assert flags[out_row_id] == 0
+            assert out_flag_bins[out_row_id] is False
 
 @pytest.fixture(params=[
     # No flags
