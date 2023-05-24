@@ -1,5 +1,5 @@
 from collections import defaultdict
-from distutils.version import LooseVersion
+from packaging.version import Version
 from functools import partial
 
 import numba
@@ -17,7 +17,7 @@ from africanus.experimental.rime.fused.arguments import ArgumentPack
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 try:
-    NUMBA_MAJOR, NUMBA_MINOR, _ = LooseVersion(numba.__version__).version
+    NUMBA_MAJOR, NUMBA_MINOR, _ = Version(numba.__version__).version
 except AttributeError:
     # Readthedocs
     NUMBA_MAJOR, NUMBA_MINOR = 0, 0
