@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Pin numba to less than 0.59 in anticipation of @generated_jit deprecation (:pr:`284`)
 * Update trove hash (:pr:`279`)
 * Adjust SPI code to handle negative/zero Stokes components (:pr:`276`, :pr:`277`)
 
