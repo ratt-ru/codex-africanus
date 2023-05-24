@@ -17,10 +17,10 @@ from africanus.experimental.rime.fused.arguments import ArgumentPack
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 try:
-    NUMBA_MAJOR, NUMBA_MINOR, _ = Version(numba.__version__).version
+    NUMBA_VERSION = Version(numba.__version__)
 except AttributeError:
     # Readthedocs
-    NUMBA_MAJOR, NUMBA_MINOR = 0, 0
+    NUMBA_VERSION = Version("0.0.0")
 
 
 def scalar_scalar(lhs, rhs):
@@ -696,7 +696,7 @@ class IntrinsicFactory:
             sampler_ir = list(map(compiler.run_frontend, samplers))
             ir_args = (state, s, r, t, f1, f2, a1, a2, c)
 
-            if NUMBA_MAJOR > 0 or NUMBA_MINOR >= 54:
+            if NUMBA_VERSION.major > 0 or NUMBA_VERSION.minor >= 54:
                 # NOTE(sjperkins)
                 # numba 0.54 wants a targetctx for type_inference_stage
                 # Assume we're dealing with a CPU Target  in order to derive
