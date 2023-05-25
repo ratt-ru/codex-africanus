@@ -11,6 +11,7 @@ from africanus.util.testing import mark_in_pytest
 NUMBA_NRT_STATS_ENABLED = (
     os.environ.get("NUMBA_NRT_STATS", "false").lower() in {"true", "1"})
 
+
 @pytest.fixture(scope="function", autouse=NUMBA_NRT_STATS_ENABLED)
 def check_allocations():
     """ Check allocations match frees """
