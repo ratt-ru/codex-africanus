@@ -368,21 +368,6 @@ def test_dask_bda_avg(vis_format):
             raise ValueError(f"Invalid vis_format: {vis_format}")
 
 
-@pytest.fixture
-def check_leaks():
-    import gc
-    from numba.core.runtime import rtsys
-
-    try:
-        yield None
-    finally:
-        gc.collect()
-
-    stats = rtsys.get_allocation_stats()
-    assert stats.alloc == stats.free
-    assert stats.mi_alloc == stats.mi_free
-
-
 @pytest.mark.parametrize("dtype", [np.complex64])
 def test_bda_output_arrays(dtype, check_leaks):
     from africanus.averaging.bda_avg import vis_output_arrays
