@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
+import os
+
 from numba.core.runtime import rtsys
 import pytest
 
 from africanus.util.testing import mark_in_pytest
 
 
-@pytest.fixture(scope="function", autouse=True)
+NUMBA_NRT_STATS_ENABLED = (
+    os.environ.get("NUMBA_NRT_STATS", "false").lower() in {"true", "1"})
+
+@pytest.fixture(scope="function", autouse=NUMBA_NRT_STATS_ENABLED)
 def check_allocations():
     """ Check allocations match frees """
     try:
