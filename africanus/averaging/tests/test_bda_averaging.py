@@ -369,7 +369,7 @@ def test_dask_bda_avg(vis_format):
 
 
 @pytest.mark.parametrize("dtype", [np.complex64])
-def test_bda_output_arrays(dtype, check_leaks):
+def test_bda_output_arrays(dtype):
     from africanus.averaging.bda_avg import vis_output_arrays
     from numba import njit
 
