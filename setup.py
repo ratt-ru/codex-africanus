@@ -20,7 +20,8 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         "numpy >= 1.14.0, != 1.15.3",
-        "numba >= 0.53.1, < 0.54.0"
+        # https://github.com/ratt-ru/codex-africanus/issues/283
+        "numba >= 0.53.1, < 0.59"
     ]
 
 extras_require = {
@@ -29,12 +30,13 @@ extras_require = {
     "jax": ["jax >= 0.2.11", "jaxlib >= 0.1.65"],
     "scipy": ["scipy >= 1.4.0"],
     "astropy": ["astropy >= 4.0"],
-    "python-casacore": ["python-casacore >= 3.4.0"],
+    "python-casacore": ["python-casacore >= 3.4.0, != 3.5.0"],
     "ducc0": ["ducc0 >= 0.9.0"],
-    "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6"],
+    "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6", "flake8 >= 4.0.0, < 5.0.0"],
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:
+    f.write("# flake8: noqa")
     f.write("extras_require = {\n")
     for k, v in extras_require.items():
         f.write("   '%s': %s,\n" % (k, v))
@@ -84,11 +86,11 @@ setup(
     keywords="codex-africanus",
     name="codex-africanus",
     packages=find_packages(),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/ska-sa/codex-africanus",
-    version='0.3.1',
+    version="0.3.4",
     zip_safe=False,
 )

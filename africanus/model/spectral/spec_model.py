@@ -41,14 +41,16 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
             freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
             term = freq_ratio[:, None, :]**spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
-            spectral_model[:, :, p] = (np.exp(np.log(stokes[:, p, None]) +
-                                              term.sum(axis=1)))
+            spectral_model[:, :, p] = (
+                stokes[:, p, None] * np.exp(term.sum(axis=1))
+            )
         elif b in ("log10", 2):
             freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
             term = freq_ratio[:, None, :]**spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
-            spectral_model[:, :, p] = (10**(np.log10(stokes[:, p, None]) +
-                                            term.sum(axis=1)))
+            spectral_model[:, :, p] = (
+                stokes[:, p, None] * 10**(term.sum(axis=1))
+            )
         else:
             raise ValueError("Invalid base %s" % base)
 
@@ -182,13 +184,15 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
-                        spec_model = np.log(estokes[s, p])
+                        spec_model = 0
 
                         for si in range(0, nspi):
                             term = espi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, p] = np.exp(spec_model)
+                        spectral_model[s, f, p] = (
+                            estokes[s, p] * np.exp(spec_model)
+                        )
 
             elif is_log10(b):
                 for s in range(nsrc):
@@ -196,13 +200,15 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
-                        spec_model = np.log10(estokes[s, p])
+                        spec_model = 0
 
                         for si in range(0, nspi):
                             term = espi[s, si, p] * freq_ratio**(si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, p] = 10**spec_model
+                        spectral_model[s, f, p] = (
+                            estokes[s, p] * 10**spec_model
+                        )
 
             else:
                 raise ValueError("Invalid base")

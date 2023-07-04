@@ -19,7 +19,7 @@ from africanus.util.files import sha_hash_file
 
 _trove_dir = pjoin(include_dir, "trove")
 _trove_url = 'https://github.com/bryancatanzaro/trove/archive/master.zip'
-_trove_sha_hash = '183c9ce229b3c0b2afeb808a9f4b07c9d9b9035d'
+_trove_sha_hash = 'f0bfdfb347fdfe5aca20b0357360dc793ad30cd3'
 _trove_version_str = 'Current release: v1.8.0 (02/16/2018)'
 _trove_version = "master"
 _trove_zip_dir = 'trove-' + _trove_version

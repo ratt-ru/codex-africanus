@@ -12,6 +12,7 @@ from africanus.util.type_inference import infer_complex_dtype
 def phase_delay(lm, uvw, frequency, convention='fourier'):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
+    zero = lm.dtype(0.0)
     neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
@@ -29,7 +30,8 @@ def phase_delay(lm, uvw, frequency, convention='fourier'):
         # For each source
         for source in range(lm.shape[0]):
             l, m = lm[source]
-            n = np.sqrt(one - l**2 - m**2) - one
+            n = one - l**2 - m**2
+            n = np.sqrt(zero if n < zero else n) - one
 
             # For each uvw coordinate
             for row in range(uvw.shape[0]):

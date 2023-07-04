@@ -18,14 +18,12 @@ def ordinary_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
 
 def log_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
     """ Numpy logarithmic polynomial implementation """
-    # No negative flux
-    I = np.where(log_poly == False, 1.0, I)  # noqa: E741, E712
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = np.log(freq[None, :, None] / ref_freq[:, None, None])
     term = term**coeffs_idx[None, None, :]
     term = coeffs[:, None, :]*term
-    return np.exp(np.log(I)[:, None] + term.sum(axis=2))
+    return I[:, None] * np.exp(term.sum(axis=2))
 
 
 @generated_jit(nopython=True, nogil=True, cache=True)
@@ -84,19 +82,14 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
                 for f in range(frequency.shape[0]):
                     nu = frequency[f]
 
-                    flux = I[s]
-
-                    if flux <= 0.0:
-                        raise ValueError("log polynomial flux must be > 0")
-
                     # Initialise with base polynomial value
-                    spectral_model[s, f] = np.log(flux)
+                    spectral_model[s, f] = 0
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c] * np.log(nu/rf)**(c + 1)
                         spectral_model[s, f] += term
 
-                    spectral_model[s, f] = np.exp(spectral_model[s, f])
+                    spectral_model[s, f] = I[s] * np.exp(spectral_model[s, f])
             else:
                 for f in range(frequency.shape[0]):
                     nu = frequency[f]

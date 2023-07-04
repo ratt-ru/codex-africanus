@@ -588,7 +588,7 @@ def bda(time, interval, antenna1, antenna2,
                              # None,  # chan_data.chan_width,
                              # None,  # chan_data.effective_bw,
                              # None,  # chan_data.resolution,
-                             row_chan_avg.visibilites,
+                             row_chan_avg.visibilities,
                              row_chan_avg.flag,
                              row_chan_avg.weight_spectrum,
                              row_chan_avg.sigma_spectrum)

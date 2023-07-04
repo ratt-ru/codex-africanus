@@ -2,12 +2,41 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Optionally check NRT allocations (:pr:`286`)
+* Use `packaging.version.Version` instead of deprecated `distutils.version.LooseVersion` (:pr:`285`)
+* Pin numba to less than 0.59 in anticipation of @generated_jit deprecation (:pr:`284`)
+* Update trove hash (:pr:`279`)
+* Adjust SPI code to handle negative/zero Stokes components (:pr:`276`, :pr:`277`)
+
+
+0.3.4 (2023-10-03)
+------------------
+* Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
+* Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
+* Update trove hash (:pr:`274`)
+
+0.3.3 (2022-08-03)
+------------------
+* Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
+* Pin flake8 to >= 4.0.0 and < 5.0.0 (:pr:`272`)
+* Document Fused RIME (:pr:`270`)
+* Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
+
+
+0.3.2 (2022-01-13)
+------------------
+* Support numba >= 0.54 (:pr:`264`)
+* Fused RIME (:pr:`239`)
+* Restrict numba version to <= 0.54.0 (:pr:`259`)
+* BDA fix typos in numba wrapper (:pr:`261`)
+* BDA Time-smearing fixes (:pr:`253`)
+
 0.3.1 (2021-09-09)
 ------------------
-* Restrict numba version to <= 0.54.0 (:pr:`259`)
 * Handle empty spectral indices in WSClean Model (:pr:`258`)
 * Support missing data during BDA (:pr:`252`)
-* BDA Time-smearing fixes (:pr:`253`)
 
 0.3.0 (2021-09-09)
 ------------------
