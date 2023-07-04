@@ -33,25 +33,15 @@ def exponential_squared(x, xp, sigmaf, l, pspec=False):  # noqa: E741
     if pspec:
         N, D = x.shape
         if D != 1:
-            raise(NotImplementedError, "Only 1D pspecs supported")
+            raise (NotImplementedError, "Only 1D pspecs supported")
         if (x != xp).any():
-            raise(ValueError, "pspec only defined if x = xp")
+            raise (ValueError, "pspec only defined if x = xp")
         x = x.squeeze()
         delx = x[1] - x[0]
         if (x[1::] - x[0:-1] != delx).any():
-            raise(ValueError, "pspec only defined on regular grid")
+            raise (ValueError, "pspec only defined on regular grid")
         s = np.fft.fftshift(np.fft.fftfreq(N, d=delx))
         return np.sqrt(2*np.pi*l)*sigmaf**2.0*np.exp(-l**2*s**2/2.0)
     else:
         xxp = abs_diff(x, xp)
         return sigmaf**2*np.exp(-xxp**2/(2*l**2))
-
-
-def matern52(x, xp, sigmaf, l):
-    if pspec:
-        raise NotImplementedError("Sorry!")
-    else:
-        xxp = abs_diff(x, xp)
-        sqrt5 = np.sqrt(5)
-        return sigmaf**2*np.exp(-sqrt5 * xxp/l) * (1 + sqrt5*xxp/l + 5*d**2/(3*l**2))
-

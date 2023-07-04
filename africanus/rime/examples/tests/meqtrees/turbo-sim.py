@@ -90,8 +90,8 @@ meqmaker = TensorMeqMaker.TensorMeqMaker()
 # these will show up in the menu automatically
 
 # OMS: time to retire this one
-#import Meow.LSM
-#lsm = Meow.LSM.MeowLSM(include_options=False);
+# import Meow.LSM
+# lsm = Meow.LSM.MeowLSM(include_options=False);
 
 models = [gridded_sky, azel_sky, transient_sky, fitsimage_sky]  # ,lsm ]
 

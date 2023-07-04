@@ -52,8 +52,10 @@ def chunkify_rows(time, utimes_per_chunk, daskify_idx=False):
     time_bin_counts = time_bin_counts.astype(np.int32)
     if daskify_idx:
         import dask.array as da
-        time_bin_indices = da.from_array(time_bin_indices, chunks=utimes_per_chunk)
-        time_bin_counts = da.from_array(time_bin_counts, chunks=utimes_per_chunk)
+        time_bin_indices = da.from_array(
+            time_bin_indices, chunks=utimes_per_chunk)
+        time_bin_counts = da.from_array(
+            time_bin_counts, chunks=utimes_per_chunk)
     return tuple(row_chunks), time_bin_indices, time_bin_counts
 
 
