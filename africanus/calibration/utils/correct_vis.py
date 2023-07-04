@@ -77,6 +77,10 @@ def correct_vis(time_bin_indices, time_bin_counts,
                         antenna1, antenna2, jones, vis, flag):
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
+        if vis.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
+        if jones.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
         time_bin_indices -= time_bin_indices.min()
         jones_shape = np.shape(jones)
         n_tim = jones_shape[0]
