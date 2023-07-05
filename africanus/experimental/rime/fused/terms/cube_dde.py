@@ -35,6 +35,7 @@ BeamInfo = namedtuple("BeamInfo", [
 
 class BeamCubeDDE(Term):
     """Voxel Beam Cube Term"""
+
     def __init__(self, configuration, corrs):
         if configuration not in {"left", "right"}:
             raise ValueError(f"BeamCubeDDE configuration must be"
