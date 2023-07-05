@@ -56,7 +56,7 @@ def jones_mul_factory(mode):
     return njit(nogil=True, inline='always')(jones_mul)
 
 
-@generated_jit(nopython=True, nogil=True, cache=False)
+@generated_jit(nopython=True, nogil=True, cache=True)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, model):
 
