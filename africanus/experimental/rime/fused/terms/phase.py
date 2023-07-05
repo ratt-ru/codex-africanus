@@ -6,6 +6,7 @@ from africanus.experimental.rime.fused.terms.core import Term
 
 class Phase(Term):
     """Phase Delay Term"""
+
     def dask_schema(self, lm, uvw, chan_freq, convention="fourier"):
         assert lm.ndim == 2
         assert uvw.ndim == 2

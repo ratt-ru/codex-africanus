@@ -42,11 +42,12 @@ def check_type(jones, vis, vis_type='vis'):
 def chunkify_rows(time, utimes_per_chunk):
     utimes, time_bin_counts = np.unique(time, return_counts=True)
     n_time = len(utimes)
+    if utimes_per_chunk <= 0:
+        utimes_per_chunk = n_time
     row_chunks = [np.sum(time_bin_counts[i:i+utimes_per_chunk])
                   for i in range(0, n_time, utimes_per_chunk)]
     time_bin_indices = np.zeros(n_time, dtype=np.int32)
     time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
-    time_bin_indices = time_bin_indices.astype(np.int32)
     time_bin_counts = time_bin_counts.astype(np.int32)
     return tuple(row_chunks), time_bin_indices, time_bin_counts
 

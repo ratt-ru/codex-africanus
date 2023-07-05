@@ -69,6 +69,12 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     @wraps(residual_vis)
     def _residual_vis_fn(time_bin_indices, time_bin_counts, antenna1,
                          antenna2, jones, vis, flag, model):
+        if vis.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
+        if jones.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
+        if model.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()

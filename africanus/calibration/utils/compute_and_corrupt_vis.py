@@ -83,6 +83,10 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
     def _compute_and_corrupt_vis_fn(time_bin_indices, time_bin_counts,
                                     antenna1, antenna2, jones, model,
                                     uvw, freq, lm):
+        if model.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
+        if jones.shape[-1] > 2:
+            raise ValueError('ncorr cant be larger than 2')
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
