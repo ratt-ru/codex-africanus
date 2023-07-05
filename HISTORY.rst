@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Check that ncorr is never larger than 2 in calibration utils (:pr:`287`)
 * Optionally check NRT allocations (:pr:`286`)
 * Use `packaging.version.Version` instead of deprecated `distutils.version.LooseVersion` (:pr:`285`)
 * Pin numba to less than 0.59 in anticipation of @generated_jit deprecation (:pr:`284`)
