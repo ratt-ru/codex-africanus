@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Remove unnecessary new_axes in calibration utils after upstream fix in dask (:pr:`288`)
 * Check that ncorr is never larger than 2 in calibration utils (:pr:`287`)
 * Optionally check NRT allocations (:pr:`286`)
 * Use `packaging.version.Version` instead of deprecated `distutils.version.LooseVersion` (:pr:`285`)
