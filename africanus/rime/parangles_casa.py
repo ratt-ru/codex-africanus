@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import threading
+from multiprocessing import Process, Queue
 
 import numpy as np
 
@@ -16,23 +16,33 @@ else:
     casa_import_error = None
     have_casa_parangles = True
 
-    # Create thread local storage for the measures server
-    _thread_local = threading.local()
-
 
 @requires_optional('pyrap.measures', 'pyrap.quanta', casa_import_error)
 def casa_parallactic_angles(times, antenna_positions, field_centre,
                             zenith_frame='AZEL'):
+
+    q = Queue()
+    p = Process(
+        target=_casa_parallactic_angles,
+        args=(times, antenna_positions, field_centre, zenith_frame, q)
+    )
+
+    p.start()
+    parangles = q.get()
+    p.join()
+
+    return parangles
+
+
+@requires_optional('pyrap.measures', 'pyrap.quanta', casa_import_error)
+def _casa_parallactic_angles(times, antenna_positions, field_centre,
+                             zenith_frame, q):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
     """
 
-    try:
-        meas_serv = _thread_local.meas_serv
-    except AttributeError:
-        # Create a measures server
-        _thread_local.meas_serv = meas_serv = pyrap.measures.measures()
+    meas_serv = pyrap.measures.measures()
 
     # Create direction measure for the zenith
     zenith = meas_serv.direction(zenith_frame, '0deg', '90deg')
@@ -47,7 +57,7 @@ def casa_parallactic_angles(times, antenna_positions, field_centre,
     fc_rad = meas_serv.direction('J2000', *(pq.quantity(f, 'rad')
                                             for f in field_centre))
 
-    return np.asarray([
+    q.put(np.asarray([
         # Set current time as the reference frame
         meas_serv.do_frame(meas_serv.epoch("UTC", pq.quantity(t, "s")))
         and
@@ -58,3 +68,4 @@ def casa_parallactic_angles(times, antenna_positions, field_centre,
             for rp in reference_positions
         ]
         for t in times])
+    )
