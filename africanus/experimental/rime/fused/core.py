@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from collections import defaultdict
 
 import numba
-from numba import generated_jit, types
+from numba import generated_jit, types, set_num_threads, prange
 import numpy as np
 
 from africanus.util.patterns import Multiton
@@ -29,7 +29,7 @@ else:
 
 
 def rime_impl_factory(terms, transformers, ncorr):
-    @generated_jit(nopython=True, nogil=True, cache=True)
+    @generated_jit(nopython=True, nogil=True, cache=True, parallel=True)
     def rime(names, *inargs):
         if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
             raise TypeError(f"{inargs[0]} must be be a Tuple")
@@ -70,6 +70,8 @@ def rime_impl_factory(terms, transformers, ncorr):
             args = pack_transformed(args_opt_idx)
             state = term_state(args)
 
+            set_num_threads(2)
+
             nsrc, _ = args[lm_i].shape
             nrow, _ = args[uvw_i].shape
             nchan, = args[chan_freq_i].shape
@@ -79,7 +81,7 @@ def rime_impl_factory(terms, transformers, ncorr):
             compensation = np.zeros_like(vis)
 
             for s in range(nsrc):
-                for r in range(nrow):
+                for r in prange(nrow):
                     t = state.time_index[r]
                     a1 = state.antenna1[r]
                     a2 = state.antenna2[r]
