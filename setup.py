@@ -20,8 +20,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         "numpy >= 1.14.0, != 1.15.3",
-        # https://github.com/ratt-ru/codex-africanus/issues/283
-        "numba >= 0.53.1, < 0.59"
+        "numba >= 0.53.1"
     ]
 
 extras_require = {
