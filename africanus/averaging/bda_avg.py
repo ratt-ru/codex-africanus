@@ -27,8 +27,8 @@ def row_average(meta, ant1, ant2, flag_row=None,
                 time_centroid=None, exposure=None, uvw=None,
                 weight=None, sigma=None):
     return row_average_impl(meta, ant1, ant2, flag_row=flag_row,
-                            time_centroid=time_centroid, exposure=exposure, uvw=uvw,
-                            weight=weight, sigma=sigma)
+                            time_centroid=time_centroid, exposure=exposure,
+                            uvw=uvw, weight=weight, sigma=sigma)
 
 
 def row_average_impl(meta, ant1, ant2, flag_row=None,
@@ -575,12 +575,13 @@ def bda(time, interval, antenna1, antenna2,
         min_nchan=1):
 
     return bda_impl(time, interval, antenna1, antenna2,
-                    time_centroid=time_centroid, exposure=exposure, flag_row=flag_row,
-                    uvw=uvw, weight=weight, sigma=sigma,
+                    time_centroid=time_centroid, exposure=exposure,
+                    flag_row=flag_row, uvw=uvw, weight=weight, sigma=sigma,
                     chan_freq=chan_freq, chan_width=chan_width,
                     effective_bw=effective_bw, resolution=resolution,
                     visibilities=visibilities, flag=flag,
-                    weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
+                    weight_spectrum=weight_spectrum,
+                    sigma_spectrum=sigma_spectrum,
                     max_uvw_dist=max_uvw_dist, max_fov=max_fov,
                     decorrelation=decorrelation,
                     time_bin_secs=time_bin_secs, min_nchan=min_nchan)
@@ -625,8 +626,8 @@ def nb_bda_impl(time, interval, antenna1, antenna2,
                       min_nchan=min_nchan)
 
     row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
-                            time_centroid, exposure, uvw,
-                            weight=weight, sigma=sigma)
+                          time_centroid, exposure, uvw,
+                          weight=weight, sigma=sigma)
 
     row_chan_avg = row_chan_average(meta,  # noqa: F841
                                     flag_row=flag_row,

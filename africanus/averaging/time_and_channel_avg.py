@@ -340,7 +340,8 @@ def row_chan_average(row_meta, chan_meta,
     return row_chan_average_impl(row_meta, chan_meta,
                                  flag_row=flag_row, weight=weight,
                                  visibilities=visibilities, flag=flag,
-                                 weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum)
+                                 weight_spectrum=weight_spectrum,
+                                 sigma_spectrum=sigma_spectrum)
 
 
 def row_chan_average_impl(row_meta, chan_meta,
@@ -558,8 +559,10 @@ ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 @njit(**JIT_OPTIONS)
 def chan_average(chan_meta, chan_freq=None, chan_width=None,
                  effective_bw=None, resolution=None):
-    return chan_average_impl(chan_meta, chan_freq=chan_freq, chan_width=chan_width,
-                             effective_bw=effective_bw, resolution=resolution)
+    return chan_average_impl(chan_meta, chan_freq=chan_freq,
+                             chan_width=chan_width,
+                             effective_bw=effective_bw,
+                             resolution=resolution)
 
 
 def chan_average_impl(chan_meta, chan_freq=None, chan_width=None,
@@ -636,13 +639,18 @@ def time_and_channel(time, interval, antenna1, antenna2,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
     return time_and_channel_impl(time, interval, antenna1, antenna2,
-                                 time_centroid=time_centroid, exposure=exposure, flag_row=flag_row,
+                                 time_centroid=time_centroid,
+                                 exposure=exposure,
+                                 flag_row=flag_row,
                                  uvw=uvw, weight=weight, sigma=sigma,
                                  chan_freq=chan_freq, chan_width=chan_width,
-                                 effective_bw=effective_bw, resolution=resolution,
+                                 effective_bw=effective_bw,
+                                 resolution=resolution,
                                  visibilities=visibilities, flag=flag,
-                                 weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
-                                 time_bin_secs=time_bin_secs, chan_bin_size=chan_bin_size)
+                                 weight_spectrum=weight_spectrum,
+                                 sigma_spectrum=sigma_spectrum,
+                                 time_bin_secs=time_bin_secs,
+                                 chan_bin_size=chan_bin_size)
 
 
 def time_and_channel_impl(time, interval, antenna1, antenna2,

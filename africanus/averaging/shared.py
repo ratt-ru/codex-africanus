@@ -5,7 +5,6 @@ import numpy as np
 from africanus.util.numba import (is_numba_type_none,
                                   intrinsic,
                                   njit,
-                                  JIT_OPTIONS,
                                   overload)
 
 

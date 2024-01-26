@@ -44,7 +44,6 @@ def rime_impl_factory(terms, transformers, ncorr):
 
         argstart = len(args) // 2
         names = args[:argstart]
-        inargs = args[argstart:]
 
         if not all(isinstance(n, types.Literal) for n in names):
             raise TypeError(f"{names} must be a Tuple of Literal strings")

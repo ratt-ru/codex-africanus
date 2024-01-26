@@ -4,7 +4,8 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import is_numba_type_none, JIT_OPTIONS, njit, overload
+from africanus.util.numba import (is_numba_type_none, JIT_OPTIONS,
+                                  njit, overload)
 
 
 JONES_NOT_PRESENT = 0
@@ -418,8 +419,12 @@ def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
     return predict_vis_impl(time_index, antenna1, antenna2,
-                            dde1_jones=dde1_jones, source_coh=source_coh, dde2_jones=dde2_jones,
-                            die1_jones=die1_jones, base_vis=base_vis, die2_jones=die2_jones)
+                            dde1_jones=dde1_jones,
+                            source_coh=source_coh,
+                            dde2_jones=dde2_jones,
+                            die1_jones=die1_jones,
+                            base_vis=base_vis,
+                            die2_jones=die2_jones)
 
 
 def predict_vis_impl(time_index, antenna1, antenna2,

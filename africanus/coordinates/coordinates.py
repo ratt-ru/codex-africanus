@@ -4,7 +4,9 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import is_numba_type_none, jit, JIT_OPTIONS, njit, overload
+from africanus.util.numba import (is_numba_type_none,
+                                  jit, JIT_OPTIONS,
+                                  njit, overload)
 from africanus.util.requirements import requires_optional
 
 try:

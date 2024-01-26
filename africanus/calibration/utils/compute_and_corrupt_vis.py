@@ -76,8 +76,9 @@ def jones_mul_factory(mode):
 @njit(**JIT_OPTIONS)
 def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                             antenna2, jones, model, uvw, freq, lm):
-    return compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
-                                        antenna2, jones, model, uvw, freq, lm)
+    return compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts,
+                                        antenna1, antenna2, jones, model,
+                                        uvw, freq, lm)
 
 
 def compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,

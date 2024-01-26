@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 
-from africanus.util.numba import is_numba_type_none, njit, overload, JIT_OPTIONS
+from africanus.util.numba import (is_numba_type_none, njit,
+                                  overload, JIT_OPTIONS)
 from africanus.util.docs import doc_tuple_to_str
 from collections import namedtuple
 

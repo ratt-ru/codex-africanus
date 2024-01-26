@@ -7,7 +7,12 @@ import numpy as np
 import numba
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.util.numba import is_numba_type_none, njit, jit, JIT_OPTIONS, overload
+from africanus.util.numba import (
+    is_numba_type_none,
+    njit,
+    jit,
+    JIT_OPTIONS,
+    overload)
 
 
 class RowMapperError(Exception):
