@@ -60,11 +60,13 @@ def jones_mul_factory(mode):
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, model):
     return corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
-                           antenna2, jones, model)
+                            antenna2, jones, model)
+
 
 def corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
                      antenna2, jones, model):
     return NotImplementedError
+
 
 @overload(corrupt_vis_impl, jit_options=JIT_OPTIONS)
 def nb_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,

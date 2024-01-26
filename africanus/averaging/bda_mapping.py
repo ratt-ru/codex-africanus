@@ -20,7 +20,6 @@ class RowMapperError(Exception):
     pass
 
 
-
 @njit(nogil=True, cache=True, inline='always')
 def factors(n):
     assert n >= 1
@@ -296,24 +295,25 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
 
 
 def bda_mapper_impl(time, interval, ant1, ant2, uvw,
-               chan_width, chan_freq,
-               max_uvw_dist,
-               flag_row=None,
-               max_fov=3.0,
-               decorrelation=0.98,
-               time_bin_secs=None,
-               min_nchan=1):
+                    chan_width, chan_freq,
+                    max_uvw_dist,
+                    flag_row=None,
+                    max_fov=3.0,
+                    decorrelation=0.98,
+                    time_bin_secs=None,
+                    min_nchan=1):
     return NotImplementedError
+
 
 @overload(bda_mapper_impl, jit_options={"nogil": True})
 def nb_bda_mapper(time, interval, ant1, ant2, uvw,
-               chan_width, chan_freq,
-               max_uvw_dist,
-               flag_row=None,
-               max_fov=3.0,
-               decorrelation=0.98,
-               time_bin_secs=None,
-               min_nchan=1):
+                  chan_width, chan_freq,
+                  max_uvw_dist,
+                  flag_row=None,
+                  max_fov=3.0,
+                  decorrelation=0.98,
+                  time_bin_secs=None,
+                  min_nchan=1):
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
     Omitted = types.misc.Omitted

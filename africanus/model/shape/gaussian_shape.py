@@ -7,12 +7,15 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.numba import njit, overload, JIT_OPTIONS
 from africanus.constants import c as lightspeed
 
+
 @njit(**JIT_OPTIONS)
 def gaussian(uvw, frequency, shape_params):
     return gaussian_impl(uvw, frequency, shape_params)
 
+
 def gaussian_impl(uvw, frequency, shape_params):
     raise NotImplementedError
+
 
 @overload(gaussian_impl, jit_options=JIT_OPTIONS)
 def nb_gaussian(uvw, frequency, shape_params):

@@ -7,6 +7,7 @@ import pytest
 from africanus.averaging.bda_mapping import bda_mapper, Binner
 from africanus.util.numba import njit
 
+
 @pytest.fixture(scope="session", params=[4096])
 def nchan(request):
     return request.param

@@ -65,9 +65,11 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     return residual_vis_impl(time_bin_indices, time_bin_counts, antenna1,
                              antenna2, jones, vis, flag, model)
 
+
 def residual_vis_impl(time_bin_indices, time_bin_counts, antenna1,
                       antenna2, jones, vis, flag, model):
     return NotImplementedError
+
 
 @overload(residual_vis_impl, jit_options=JIT_OPTIONS)
 def nb_residual_vis(time_bin_indices, time_bin_counts, antenna1,

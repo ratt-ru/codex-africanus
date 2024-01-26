@@ -55,6 +55,7 @@ def set_flag_row_factory(have_flag_row):
 RowMapOutput = namedtuple("RowMapOutput",
                           ["map", "time", "interval", "flag_row"])
 
+
 @njit(**JIT_OPTIONS)
 def row_mapper(time, interval, antenna1, antenna2,
                flag_row=None, time_bin_secs=1):
@@ -179,6 +180,7 @@ def row_mapper(time, interval, antenna1, antenna2,
     """
     return row_mapper_impl(time, interval, antenna1, antenna2,
                            flag_row=flag_row, time_bin_secs=time_bin_secs)
+
 
 def row_mapper_impl(time, interval, antenna1, antenna2,
                     flag_row=None, time_bin_secs=1):

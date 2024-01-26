@@ -198,7 +198,8 @@ class RimeFactory(metaclass=Multiton):
         keys = (self.REQUIRED_ARGS_LITERAL +
                 tuple(map(types.literal, kwargs.keys())))
 
-        args = keys + (time, antenna1, antenna2, feed1, feed2) + tuple(kwargs.values())
+        args = keys + (time, antenna1, antenna2, feed1,
+                       feed2) + tuple(kwargs.values())
         return self.impl(*args)
 
 

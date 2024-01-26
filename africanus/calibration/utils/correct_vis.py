@@ -65,19 +65,22 @@ def jones_inverse_mul_factory(mode):
                 t4*b11
     return njit(nogil=True, inline='always')(jones_inverse_mul)
 
+
 @njit(**JIT_OPTIONS)
 def correct_vis(time_bin_indices, time_bin_counts,
                 antenna1, antenna2, jones, vis, flag):
     return correct_vis_impl(time_bin_indices, time_bin_counts,
                             antenna1, antenna2, jones, vis, flag)
 
+
 def correct_vis_impl(time_bin_indices, time_bin_counts,
                      antenna1, antenna2, jones, vis, flag):
     return NotImplementedError
 
+
 @overload(correct_vis_impl, jit_options=JIT_OPTIONS)
 def nb_correct_vis(time_bin_indices, time_bin_counts,
-                antenna1, antenna2, jones, vis, flag):
+                   antenna1, antenna2, jones, vis, flag):
 
     mode = check_type(jones, vis)
     jones_inverse_mul = jones_inverse_mul_factory(mode)

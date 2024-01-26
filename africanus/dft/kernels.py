@@ -10,19 +10,22 @@ import numpy as np
 
 from africanus.constants import minus_two_pi_over_c, two_pi_over_c
 
+
 @njit(**JIT_OPTIONS)
 def im_to_vis(image, uvw, lm, frequency,
               convention='fourier', dtype=None):
     return im_to_vis_impl(image, uvw, lm, frequency,
                           convention=convention, dtype=dtype)
 
+
 def im_to_vis_impl(image, uvw, lm, frequency,
                    convention='fourier', dtype=None):
     raise NotImplementedError
 
+
 @overload(im_to_vis_impl, jit_options=JIT_OPTIONS)
 def nb_im_to_vis(image, uvw, lm, frequency,
-              convention='fourier', dtype=None):
+                 convention='fourier', dtype=None):
     # Infer complex output dtype if none provided
     if is_numba_type_none(dtype):
         out_dtype = np.result_type(np.complex64,
@@ -77,9 +80,11 @@ def vis_to_im(vis, uvw, lm, frequency, flags,
     return vis_to_im_impl(vis, uvw, lm, frequency, flags,
                           convention=convention, dtype=dtype)
 
+
 def vis_to_im_impl(vis, uvw, lm, frequency, flags,
                    convention='fourier', dtype=None):
     raise NotImplementedError
+
 
 @overload(vis_to_im_impl, jit_options=JIT_OPTIONS)
 def nb_vis_to_im(vis, uvw, lm, frequency, flags,

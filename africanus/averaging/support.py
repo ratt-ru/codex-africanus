@@ -57,8 +57,10 @@ def _unique_internal(data):
 def unique_time(time):
     return unique_time_impl(time)
 
+
 def unique_time_impl(time):
     return NotImplementedError
+
 
 @overload(unique_time_impl, jit_options=JIT_OPTIONS)
 def nb_unique_time(time):
@@ -76,8 +78,10 @@ def nb_unique_time(time):
 def unique_baselines(ant1, ant2):
     return unique_baselines_impl(ant1, ant2)
 
+
 def unique_baselines_impl(ant1, ant2):
     return NotImplementedError
+
 
 @overload(unique_baselines_impl, jit_options=JIT_OPTIONS)
 def nb_unique_baselines(ant1, ant2):

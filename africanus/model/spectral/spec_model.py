@@ -7,6 +7,7 @@ import numpy as np
 from africanus.util.numba import overload, JIT_OPTIONS, njit
 from africanus.util.docs import DocstringTemplate
 
+
 def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     out_shape = (stokes.shape[0], frequency.shape[0]) + stokes.shape[1:]
 
@@ -93,12 +94,15 @@ def add_pol_dim_factory(have_pol_dim):
 
     return njit(nogil=True, cache=True)(impl)
 
+
 @njit(**JIT_OPTIONS)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     return spectral_model_impl(stokes, spi, ref_freq, frequency, base=base)
 
+
 def spectral_model_impl(stokes, spi, ref_freq, frequency, base=0):
     raise NotImplementedError
+
 
 @overload(spectral_model_impl, jit_options=JIT_OPTIONS)
 def nb_spectral_model(stokes, spi, ref_freq, frequency, base=0):

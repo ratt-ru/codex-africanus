@@ -24,12 +24,15 @@ def _create_phase_centre(phase_centre, dtype):
 def _return_phase_centre(phase_centre, dtype):
     return phase_centre
 
+
 @njit(**JIT_OPTIONS)
 def radec_to_lmn(radec, phase_centre=None):
     return radec_to_lmn_impl(radec, phase_centre=phase_centre)
 
+
 def radec_to_lmn_impl(radec, phase_centre=None):
     raise NotImplementedError
+
 
 @overload(radec_to_lmn_impl, jit_options=JIT_OPTIONS)
 def nb_radec_to_lmn(radec, phase_centre=None):
@@ -69,12 +72,15 @@ def nb_radec_to_lmn(radec, phase_centre=None):
 
     return _radec_to_lmn_impl
 
+
 @njit(**JIT_OPTIONS)
 def radec_to_lm(radec, phase_centre=None):
     return radec_to_lm_impl(radec, phase_centre=phase_centre)
 
+
 def radec_to_lm_impl(radec, phase_centre=None):
     raise NotImplementedError
+
 
 @overload(radec_to_lm_impl, jit_options=JIT_OPTIONS)
 def nb_radec_to_lm(radec, phase_centre=None):
@@ -112,12 +118,15 @@ def nb_radec_to_lm(radec, phase_centre=None):
 
     return _radec_to_lm_impl
 
+
 @njit(**JIT_OPTIONS)
 def lmn_to_radec(lmn, phase_centre=None):
     return lmn_to_radec_impl(lmn, phase_centre=phase_centre)
 
+
 def lmn_to_radec_impl(lmn, phase_centre=None):
     raise NotImplementedError
+
 
 @overload(lmn_to_radec_impl, jit_options=JIT_OPTIONS)
 def nb_lmn_to_radec(lmn, phase_centre=None):
@@ -153,8 +162,10 @@ def nb_lmn_to_radec(lmn, phase_centre=None):
 def lm_to_radec(lm, phase_centre=None):
     return lm_to_radec_impl(lm, phase_centre=phase_centre)
 
+
 def lm_to_radec_impl(lm, phase_centre=None):
     raise NotImplementedError
+
 
 @overload(lm_to_radec_impl, jit_options=JIT_OPTIONS)
 def nb_lm_to_radec(lm, phase_centre=None):

@@ -4,12 +4,21 @@ import numpy as np
 
 from africanus.constants import minus_two_pi_over_c
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit
+from africanus.util.numba import JIT_OPTIONS, overload, njit
 from africanus.util.type_inference import infer_complex_dtype
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def phase_delay(lm, uvw, frequency, convention='fourier'):
+    return phase_delay_impl(lm, uvw, frequency, convention=convention)
+
+
+def phase_delay_impl(lm, uvw, frequency, convention='fourier'):
+    raise NotImplementedError
+
+
+@overload(phase_delay_impl, jit_options=JIT_OPTIONS)
+def nb_phase_delay(lm, uvw, frequency, convention='fourier'):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
     zero = lm.dtype(0.0)

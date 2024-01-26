@@ -4,12 +4,12 @@ import numpy as np
 
 from africanus.constants import two_pi_over_c, c as lightspeed
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit, jit
+from africanus.util.numba import JIT_OPTIONS, overload, njit
 from africanus.model.wsclean.spec_model import spectra
 
 
-@jit(nopython=True, nogil=True, cache=True)
-def wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
+@njit(**JIT_OPTIONS)
+def wsclean_predict_main(uvw, lm, source_type, gauss_shape,
                          frequency, spectrum, dtype):
 
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
@@ -86,9 +86,21 @@ def wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
     return vis
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def wsclean_predict(uvw, lm, source_type, flux, coeffs,
                     log_poly, ref_freq, gauss_shape, frequency):
+    return wsclean_predict_impl(uvw, lm, source_type, flux, coeffs,
+                                log_poly, ref_freq, gauss_shape, frequency)
+
+
+def wsclean_predict_impl(uvw, lm, source_type, flux, coeffs,
+                         log_poly, ref_freq, gauss_shape, frequency):
+    raise NotImplementedError
+
+
+@overload(wsclean_predict_impl, jit_options=JIT_OPTIONS)
+def nb_wsclean_predict(uvw, lm, source_type, flux, coeffs,
+                       log_poly, ref_freq, gauss_shape, frequency):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (uvw, lm, flux, coeffs, ref_freq, frequency))
     dtype = np.result_type(np.complex64, *arg_dtypes)
@@ -96,7 +108,7 @@ def wsclean_predict(uvw, lm, source_type, flux, coeffs,
     def impl(uvw, lm, source_type, flux, coeffs, log_poly,
              ref_freq, gauss_shape, frequency):
         spectrum = spectra(flux, coeffs, log_poly, ref_freq, frequency)
-        return wsclean_predict_impl(uvw, lm, source_type, gauss_shape,
+        return wsclean_predict_main(uvw, lm, source_type, gauss_shape,
                                     frequency, spectrum, dtype)
 
     return impl

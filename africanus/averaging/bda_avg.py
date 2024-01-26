@@ -30,6 +30,7 @@ def row_average(meta, ant1, ant2, flag_row=None,
                             time_centroid=time_centroid, exposure=exposure, uvw=uvw,
                             weight=weight, sigma=sigma)
 
+
 def row_average_impl(meta, ant1, ant2, flag_row=None,
                      time_centroid=None, exposure=None, uvw=None,
                      weight=None, sigma=None):
@@ -325,8 +326,6 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, co):
     return sig, codegen
 
 
-
-
 @njit(**JIT_OPTIONS)
 def row_chan_average(meta, flag_row=None, weight=None,
                      visibilities=None,
@@ -341,19 +340,20 @@ def row_chan_average(meta, flag_row=None, weight=None,
 
 
 def row_chan_average_impl(meta, flag_row=None, weight=None,
-                     visibilities=None,
-                     flag=None,
-                     weight_spectrum=None,
-                     sigma_spectrum=None):
+                          visibilities=None,
+                          flag=None,
+                          weight_spectrum=None,
+                          sigma_spectrum=None):
 
     return NotImplementedError
 
+
 @overload(row_chan_average_impl, jit_options=JIT_OPTIONS)
 def nb_row_chan_average(meta, flag_row=None, weight=None,
-                     visibilities=None,
-                     flag=None,
-                     weight_spectrum=None,
-                     sigma_spectrum=None):
+                        visibilities=None,
+                        flag=None,
+                        weight_spectrum=None,
+                        sigma_spectrum=None):
 
     have_vis = not is_numba_type_none(visibilities)
     have_flag = not is_numba_type_none(flag)
@@ -585,42 +585,44 @@ def bda(time, interval, antenna1, antenna2,
                     decorrelation=decorrelation,
                     time_bin_secs=time_bin_secs, min_nchan=min_nchan)
 
+
 def bda_impl(time, interval, antenna1, antenna2,
-        time_centroid=None, exposure=None, flag_row=None,
-        uvw=None, weight=None, sigma=None,
-        chan_freq=None, chan_width=None,
-        effective_bw=None, resolution=None,
-        visibilities=None, flag=None,
-        weight_spectrum=None, sigma_spectrum=None,
-        max_uvw_dist=None, max_fov=3.0,
-        decorrelation=0.98,
-        time_bin_secs=None,
-        min_nchan=1):
+             time_centroid=None, exposure=None, flag_row=None,
+             uvw=None, weight=None, sigma=None,
+             chan_freq=None, chan_width=None,
+             effective_bw=None, resolution=None,
+             visibilities=None, flag=None,
+             weight_spectrum=None, sigma_spectrum=None,
+             max_uvw_dist=None, max_fov=3.0,
+             decorrelation=0.98,
+             time_bin_secs=None,
+             min_nchan=1):
     return NotImplementedError
+
 
 @overload(bda_impl, jit_options=JIT_OPTIONS)
 def nb_bda_impl(time, interval, antenna1, antenna2,
-            time_centroid=None, exposure=None, flag_row=None,
-            uvw=None, weight=None, sigma=None,
-            chan_freq=None, chan_width=None,
-            effective_bw=None, resolution=None,
-            visibilities=None, flag=None,
-            weight_spectrum=None, sigma_spectrum=None,
-            max_uvw_dist=None, max_fov=3.0,
-            decorrelation=0.98,
-            time_bin_secs=None,
-            min_nchan=1):
+                time_centroid=None, exposure=None, flag_row=None,
+                uvw=None, weight=None, sigma=None,
+                chan_freq=None, chan_width=None,
+                effective_bw=None, resolution=None,
+                visibilities=None, flag=None,
+                weight_spectrum=None, sigma_spectrum=None,
+                max_uvw_dist=None, max_fov=3.0,
+                decorrelation=0.98,
+                time_bin_secs=None,
+                min_nchan=1):
     # Merge flag_row and flag arrays
     flag_row = merge_flags(flag_row, flag)
 
     meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
-                        chan_width, chan_freq,
-                        max_uvw_dist,
-                        flag_row=flag_row,
-                        max_fov=max_fov,
-                        decorrelation=decorrelation,
-                        time_bin_secs=time_bin_secs,
-                        min_nchan=min_nchan)
+                      chan_width, chan_freq,
+                      max_uvw_dist,
+                      flag_row=flag_row,
+                      max_fov=max_fov,
+                      decorrelation=decorrelation,
+                      time_bin_secs=time_bin_secs,
+                      min_nchan=min_nchan)
 
     row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
                             time_centroid, exposure, uvw,
@@ -635,27 +637,27 @@ def nb_bda_impl(time, interval, antenna1, antenna2,
     # Have to explicitly write it out because numba tuples
     # are highly constrained types
     return AverageOutput(meta.map,
-                            meta.offsets,
-                            meta.decorr_chan_width,
-                            meta.time,
-                            meta.interval,
-                            meta.chan_width,
-                            meta.flag_row,
-                            row_avg.antenna1,
-                            row_avg.antenna2,
-                            row_avg.time_centroid,
-                            row_avg.exposure,
-                            row_avg.uvw,
-                            row_avg.weight,
-                            row_avg.sigma,
-                            # None,  # chan_data.chan_freq,
-                            # None,  # chan_data.chan_width,
-                            # None,  # chan_data.effective_bw,
-                            # None,  # chan_data.resolution,
-                            row_chan_avg.visibilities,
-                            row_chan_avg.flag,
-                            row_chan_avg.weight_spectrum,
-                            row_chan_avg.sigma_spectrum)
+                         meta.offsets,
+                         meta.decorr_chan_width,
+                         meta.time,
+                         meta.interval,
+                         meta.chan_width,
+                         meta.flag_row,
+                         row_avg.antenna1,
+                         row_avg.antenna2,
+                         row_avg.time_centroid,
+                         row_avg.exposure,
+                         row_avg.uvw,
+                         row_avg.weight,
+                         row_avg.sigma,
+                         # None,  # chan_data.chan_freq,
+                         # None,  # chan_data.chan_width,
+                         # None,  # chan_data.effective_bw,
+                         # None,  # chan_data.resolution,
+                         row_chan_avg.visibilities,
+                         row_chan_avg.flag,
+                         row_chan_avg.weight_spectrum,
+                         row_chan_avg.sigma_spectrum)
 
 
 BDA_DOCS = DocstringTemplate("""

@@ -16,6 +16,7 @@ def shape_or_invalid_shape(array, ndim):
 def merge_flags(flag_row, flag):
     pass
 
+
 @overload(merge_flags, inline='always')
 def _merge_flags(flag_row, flag):
     have_flag_row = not is_numba_type_none(flag_row)

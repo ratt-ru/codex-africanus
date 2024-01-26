@@ -29,6 +29,7 @@ def compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
                                     antenna1, antenna2, jones, residual,
                                     model, flag)
 
+
 def compute_jhj_and_jhr_impl(time_bin_indices, time_bin_counts, antenna1,
                              antenna2, jones, residual, model, flag):
     return NotImplementedError
@@ -36,7 +37,7 @@ def compute_jhj_and_jhr_impl(time_bin_indices, time_bin_counts, antenna1,
 
 @overload(compute_jhj_and_jhr_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
-                        antenna2, jones, residual, model, flag):
+                           antenna2, jones, residual, model, flag):
 
     mode = check_type(jones, residual)
     if mode != DIAG_DIAG:
@@ -88,6 +89,7 @@ def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
     return compute_jhj_impl(time_bin_indices, time_bin_counts,
                             antenna1, antenna2, jones, model, flag)
 
+
 def compute_jhj_impl(time_bin_indices, time_bin_counts, antenna1,
                      antenna2, jones, model, flag):
     return NotImplementedError
@@ -95,7 +97,7 @@ def compute_jhj_impl(time_bin_indices, time_bin_counts, antenna1,
 
 @overload(compute_jhj_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhj(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, model, flag):
+                   antenna2, jones, model, flag):
 
     mode = check_type(jones, model, vis_type='model')
 
@@ -140,9 +142,11 @@ def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
                             antenna1, antenna2, jones, residual,
                             model, flag)
 
+
 def compute_jhr_impl(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, residual, model, flag):
+                     antenna2, jones, residual, model, flag):
     return NotImplementedError
+
 
 @overload(compute_jhr_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhr(time_bin_indices, time_bin_counts, antenna1,

@@ -29,6 +29,7 @@ def log_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
 def _check_log_poly_shape(coeffs, log_poly):
     raise NotImplementedError
 
+
 @overload(_check_log_poly_shape)
 def overload_check_log_poly_shape(coeffs, log_poly):
     if isinstance(log_poly, types.npytypes.Array):
@@ -46,6 +47,7 @@ def overload_check_log_poly_shape(coeffs, log_poly):
 
 def _log_polynomial(log_poly, s):
     raise NotImplementedError
+
 
 @overload(_log_polynomial)
 def overload_log_polynomial(log_poly, s):
@@ -65,8 +67,10 @@ def overload_log_polynomial(log_poly, s):
 def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     return spectra_impl(I, coeffs, log_poly, ref_freq, frequency)
 
+
 def spectra_impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     raise NotImplementedError
+
 
 @overload(spectra_impl, jit_option=JIT_OPTIONS)
 def nb_spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741

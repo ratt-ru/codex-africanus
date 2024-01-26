@@ -72,11 +72,13 @@ def jones_mul_factory(mode):
 
     return njit(nogil=True, inline='always')(jones_mul)
 
+
 @njit(**JIT_OPTIONS)
 def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                             antenna2, jones, model, uvw, freq, lm):
     return compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
                                         antenna2, jones, model, uvw, freq, lm)
+
 
 def compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
                                  antenna2, jones, model, uvw, freq, lm):
@@ -85,7 +87,7 @@ def compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
 
 @overload(compute_and_corrupt_vis_impl, jit_options=JIT_OPTIONS)
 def mb_compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                            antenna2, jones, model, uvw, freq, lm):
+                               antenna2, jones, model, uvw, freq, lm):
 
     mode = check_type(jones, model, vis_type='model')
     jones_mul = jones_mul_factory(mode)
