@@ -5,7 +5,7 @@ from collections import namedtuple
 import numpy as np
 import numba
 from numba.experimental import jitclass
-import numba.types
+from numba import types
 
 from africanus.constants import c as lightspeed
 from africanus.util.numba import (
@@ -64,7 +64,7 @@ FinaliseOutput = namedtuple("FinaliseOutput",
                              "nchan", "flag"])
 
 
-class Binner(object):
+class Binner:
     def __init__(self, row_start, row_end,
                  max_lm, decorrelation, time_bin_secs,
                  max_chan_freq):
@@ -305,7 +305,7 @@ def bda_mapper_impl(time, interval, ant1, ant2, uvw,
                min_nchan=1):
     return NotImplementedError
 
-@overload(bda_mapper_impl, jit_options=JIT_OPTIONS)
+@overload(bda_mapper_impl, jit_options={"nogil": True})
 def nb_bda_mapper(time, interval, ant1, ant2, uvw,
                chan_width, chan_freq,
                max_uvw_dist,
@@ -316,7 +316,7 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
                min_nchan=1):
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
-    Omitted = numba.types.misc.Omitted
+    Omitted = types.misc.Omitted
 
     decorr_type = (numba.typeof(decorrelation.value)
                    if isinstance(decorrelation, Omitted)
@@ -347,7 +347,7 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
         ('max_chan_freq', chan_freq.dtype),
         ('max_uvw_dist', max_uvw_dist)]
 
-    JitBinner = st(spec)(Binner)
+    JitBinner = jitclass(spec)(Binner)
 
     def impl(time, interval, ant1, ant2, uvw,
              chan_width, chan_freq,

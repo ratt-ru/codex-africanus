@@ -5,7 +5,7 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from africanus.averaging.bda_mapping import bda_mapper, Binner
-
+from africanus.util.numba import njit
 
 @pytest.fixture(scope="session", params=[4096])
 def nchan(request):
@@ -172,43 +172,43 @@ def synthesized_uvw(ants, time, phase_dir, auto_correlations):
     return ant1, ant2, uvw
 
 
-# @pytest.mark.parametrize("decorrelation", [0.95])
-# @pytest.mark.parametrize("min_nchan", [1])
-# def test_bda_mapper(time, synthesized_uvw, interval,
-#                     chan_freq, chan_width,
-#                     decorrelation, min_nchan):
-#     time = np.unique(time)
-#     ant1, ant2, uvw = synthesized_uvw
+@pytest.mark.parametrize("decorrelation", [0.95])
+@pytest.mark.parametrize("min_nchan", [1])
+def test_bda_mapper(time, synthesized_uvw, interval,
+                    chan_freq, chan_width,
+                    decorrelation, min_nchan):
+    time = np.unique(time)
+    ant1, ant2, uvw = synthesized_uvw
 
-#     nbl = ant1.shape[0]
-#     ntime = time.shape[0]
+    nbl = ant1.shape[0]
+    ntime = time.shape[0]
 
-#     time = np.repeat(time, nbl)
-#     interval = np.repeat(interval, nbl)
-#     ant1 = np.tile(ant1, ntime)
-#     ant2 = np.tile(ant2, ntime)
-#     flag_row = np.zeros(time.shape[0], dtype=np.int8)
+    time = np.repeat(time, nbl)
+    interval = np.repeat(interval, nbl)
+    ant1 = np.tile(ant1, ntime)
+    ant2 = np.tile(ant2, ntime)
+    flag_row = np.zeros(time.shape[0], dtype=np.int8)
 
-#     max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
+    max_uvw_dist = np.sqrt(np.sum(uvw**2, axis=1)).max()
 
-#     row_meta = bda_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
-#                           chan_width, chan_freq,
-#                           max_uvw_dist,
-#                           flag_row=flag_row,
-#                           max_fov=3.0,
-#                           decorrelation=decorrelation,
-#                           min_nchan=min_nchan)
+    row_meta = bda_mapper(time, interval, ant1, ant2, uvw,  # noqa :F841
+                          chan_width, chan_freq,
+                          max_uvw_dist,
+                          flag_row=flag_row,
+                          max_fov=3.0,
+                          decorrelation=decorrelation,
+                          min_nchan=min_nchan)
 
-#     offsets = np.unique(row_meta.map[np.arange(time.shape[0]), 0])
-#     assert_array_equal(offsets, row_meta.offsets[:-1])
-#     assert row_meta.map.max() + 1 == row_meta.offsets[-1]
+    offsets = np.unique(row_meta.map[np.arange(time.shape[0]), 0])
+    assert_array_equal(offsets, row_meta.offsets[:-1])
+    assert row_meta.map.max() + 1 == row_meta.offsets[-1]
 
-#     # NUM_CHAN divides number of channels exactly
-#     num_chan = np.diff(row_meta.offsets)
-#     _, remainder = np.divmod(chan_width.shape[0], num_chan)
-#     assert np.all(remainder == 0)
-#     decorr_cw = chan_width.sum() / num_chan
-#     assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
+    # NUM_CHAN divides number of channels exactly
+    num_chan = np.diff(row_meta.offsets)
+    _, remainder = np.divmod(chan_width.shape[0], num_chan)
+    assert np.all(remainder == 0)
+    decorr_cw = chan_width.sum() / num_chan
+    assert_array_equal(decorr_cw, row_meta.decorr_chan_width)
 
 
 def test_bda_binner(time, interval, synthesized_uvw,
