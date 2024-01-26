@@ -23,7 +23,6 @@ if on_rtd():
         return decorator
 
     cfunc = _fake_decorator
-    generated_jit = _fake_decorator
     jit = _fake_decorator
     njit = _fake_decorator
     stencil = _fake_decorator
@@ -32,7 +31,7 @@ if on_rtd():
     register_jitable = _fake_decorator
     intrinsic = _fake_decorator
 else:
-    from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
+    from numba import cfunc, jit, njit, stencil  # noqa
     from numba.extending import overload, register_jitable, intrinsic  # noqa
 
 
