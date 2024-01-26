@@ -3,7 +3,7 @@
 import numpy as np
 from africanus.util.docs import DocstringTemplate
 from africanus.calibration.utils import residual_vis, check_type
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import overload, njit, JIT_OPTIONS
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
@@ -22,8 +22,20 @@ def jacobian_factory(mode):
     return njit(nogil=True, inline='always')(jacobian)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
+@njit(**JIT_OPTIONS)
 def compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
+                        antenna2, jones, residual, model, flag):
+    return compute_jhj_and_jhr_impl(time_bin_indices, time_bin_counts,
+                                    antenna1, antenna2, jones, residual,
+                                    model, flag)
+
+def compute_jhj_and_jhr_impl(time_bin_indices, time_bin_counts, antenna1,
+                             antenna2, jones, residual, model, flag):
+    return NotImplementedError
+
+
+@overload(compute_jhj_and_jhr_impl, jit_options=JIT_OPTIONS)
+def nb_compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
                         antenna2, jones, residual, model, flag):
 
     mode = check_type(jones, residual)
@@ -70,8 +82,19 @@ def compute_jhj_and_jhr(time_bin_indices, time_bin_counts, antenna1,
     return _jhj_and_jhr_fn
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
+@njit(**JIT_OPTIONS)
 def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
+                antenna2, jones, model, flag):
+    return compute_jhj_impl(time_bin_indices, time_bin_counts,
+                            antenna1, antenna2, jones, model, flag)
+
+def compute_jhj_impl(time_bin_indices, time_bin_counts, antenna1,
+                     antenna2, jones, model, flag):
+    return NotImplementedError
+
+
+@overload(compute_jhj_impl, jit_options=JIT_OPTIONS)
+def nb_compute_jhj(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, model, flag):
 
     mode = check_type(jones, model, vis_type='model')
@@ -110,9 +133,20 @@ def compute_jhj(time_bin_indices, time_bin_counts, antenna1,
     return _compute_jhj_fn
 
 
-@generated_jit(nopython=True, nogil=True, cache=True, fastmath=True)
+@njit(**JIT_OPTIONS)
 def compute_jhr(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, residual, model, flag):
+    return compute_jhr_impl(time_bin_indices, time_bin_counts,
+                            antenna1, antenna2, jones, residual,
+                            model, flag)
+
+def compute_jhr_impl(time_bin_indices, time_bin_counts, antenna1,
+                antenna2, jones, residual, model, flag):
+    return NotImplementedError
+
+@overload(compute_jhr_impl, jit_options=JIT_OPTIONS)
+def nb_compute_jhr(time_bin_indices, time_bin_counts, antenna1,
+                   antenna2, jones, residual, model, flag):
 
     mode = check_type(jones, model, vis_type='model')
 

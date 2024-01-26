@@ -8,7 +8,11 @@ from numba.experimental import jitclass
 import numba.types
 
 from africanus.constants import c as lightspeed
-from africanus.util.numba import generated_jit, njit, is_numba_type_none
+from africanus.util.numba import (
+    JIT_OPTIONS,
+    overload,
+    njit,
+    is_numba_type_none)
 from africanus.averaging.support import unique_time, unique_baselines
 
 
@@ -16,71 +20,71 @@ class RowMapperError(Exception):
     pass
 
 
-@njit(nogil=True, cache=True)
-def erf26(x):
-    """Implements 7.1.26 erf approximation from Abramowitz and
-       Stegun (1972), pg. 299. Accurate for abs(eps(x)) <= 1.5e-7."""
+# @njit(nogil=True, cache=True)
+# def erf26(x):
+#     """Implements 7.1.26 erf approximation from Abramowitz and
+#        Stegun (1972), pg. 299. Accurate for abs(eps(x)) <= 1.5e-7."""
 
-    # Constants
-    p = 0.3275911
-    a1 = 0.254829592
-    a2 = -0.284496736
-    a3 = 1.421413741
-    a4 = -1.453152027
-    a5 = 1.061405429
-    e = 2.718281828
+#     # Constants
+#     p = 0.3275911
+#     a1 = 0.254829592
+#     a2 = -0.284496736
+#     a3 = 1.421413741
+#     a4 = -1.453152027
+#     a5 = 1.061405429
+#     e = 2.718281828
 
-    # t
-    t = 1.0/(1.0 + (p * x))
+#     # t
+#     t = 1.0/(1.0 + (p * x))
 
-    # Erf calculation
-    erf = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t)
-    erf *= e ** -(x ** 2)
+#     # Erf calculation
+#     erf = 1.0 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t)
+#     erf *= e ** -(x ** 2)
 
-    return -round(erf, 9) if x < 0 else round(erf, 0)
-
-
-@njit(nogil=True, cache=True)
-def time_decorrelation(u, v, w, max_lm, time_bin_secs, min_wavelength):
-    sidereal_rotation_rate = 7.292118516e-5
-    diffraction_limit = min_wavelength / np.sqrt(u**2 + v**2 + w**2)
-    term = max_lm * time_bin_secs * sidereal_rotation_rate / diffraction_limit
-    return 1.0 - 1.0645 * erf26(0.8326*term) / term
+#     return -round(erf, 9) if x < 0 else round(erf, 0)
 
 
-_SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
+# @njit(nogil=True, cache=True)
+# def time_decorrelation(u, v, w, max_lm, time_bin_secs, min_wavelength):
+#     sidereal_rotation_rate = 7.292118516e-5
+#     diffraction_limit = min_wavelength / np.sqrt(u**2 + v**2 + w**2)
+#     term = max_lm * time_bin_secs * sidereal_rotation_rate / diffraction_limit
+#     return 1.0 - 1.0645 * erf26(0.8326*term) / term
 
 
-@njit(nogil=True, cache=True, inline='always')
-def inv_sinc(sinc_x, tol=1e-12):
-    # Invalid input
-    if sinc_x > 1.0:
-        raise ValueError("sinc_x > 1.0")
+# _SERIES_COEFFS = (1./40, 107./67200, 3197./24192000, 49513./3973939200)
 
-    # Initial guess from reversion of Taylor series
-    # https://math.stackexchange.com/questions/3189307/inverse-of-frac-sinxx
-    x = t_pow = np.sqrt(6*np.abs((1 - sinc_x)))
-    t_squared = t_pow*t_pow
 
-    for coeff in numba.literal_unroll(_SERIES_COEFFS):
-        t_pow *= t_squared
-        x += coeff * t_pow
+# @njit(nogil=True, cache=True, inline='always')
+# def inv_sinc(sinc_x, tol=1e-12):
+#     # Invalid input
+#     if sinc_x > 1.0:
+#         raise ValueError("sinc_x > 1.0")
 
-    # Use Newton Raphson to go the rest of the way
-    # https://www.wolframalpha.com/input/?i=simplify+%28sinc%5Bx%5D+-+c%29+%2F+D%5Bsinc%5Bx%5D%2Cx%5D
-    while True:
-        # evaluate delta between this iteration sinc(x) and original
-        sinx = np.sin(x)
-        𝞓sinc_x = (1.0 if x == 0.0 else sinx/x) - sinc_x
+#     # Initial guess from reversion of Taylor series
+#     # https://math.stackexchange.com/questions/3189307/inverse-of-frac-sinxx
+#     x = t_pow = np.sqrt(6*np.abs((1 - sinc_x)))
+#     t_squared = t_pow*t_pow
 
-        # Stop if converged
-        if np.abs(𝞓sinc_x) < tol:
-            break
+#     for coeff in numba.literal_unroll(_SERIES_COEFFS):
+#         t_pow *= t_squared
+#         x += coeff * t_pow
 
-        # Next iteration
-        x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
+#     # Use Newton Raphson to go the rest of the way
+#     # https://www.wolframalpha.com/input/?i=simplify+%28sinc%5Bx%5D+-+c%29+%2F+D%5Bsinc%5Bx%5D%2Cx%5D
+#     while True:
+#         # evaluate delta between this iteration sinc(x) and original
+#         sinx = np.sin(x)
+#         𝞓sinc_x = (1.0 if x == 0.0 else sinx/x) - sinc_x
 
-    return x
+#         # Stop if converged
+#         if np.abs(𝞓sinc_x) < tol:
+#             break
+
+#         # Next iteration
+#         x -= (x*x * 𝞓sinc_x) / (x*np.cos(x) - sinx)
+
+#     return x
 
 
 @njit(nogil=True, cache=True, inline='always')
@@ -338,7 +342,7 @@ RowMapOutput = namedtuple("RowMapOutput",
                            "time", "interval", "chan_width", "flag_row"])
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def bda_mapper(time, interval, ant1, ant2, uvw,
                chan_width, chan_freq,
                max_uvw_dist,
@@ -347,7 +351,35 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
                decorrelation=0.98,
                time_bin_secs=None,
                min_nchan=1):
+    return bda_mapper_impl(time, interval, ant1, ant2, uvw,
+                           chan_width, chan_freq,
+                           max_uvw_dist,
+                           flag_row=flag_row,
+                           max_fov=max_fov,
+                           decorrelation=decorrelation,
+                           time_bin_secs=time_bin_secs,
+                           min_nchan=min_nchan)
 
+
+def bda_mapper_impl(time, interval, ant1, ant2, uvw,
+               chan_width, chan_freq,
+               max_uvw_dist,
+               flag_row=None,
+               max_fov=3.0,
+               decorrelation=0.98,
+               time_bin_secs=None,
+               min_nchan=1):
+    return NotImplementedError
+
+@overload(bda_mapper_impl, jit_options=JIT_OPTIONS)
+def nb_bda_mapper(time, interval, ant1, ant2, uvw,
+               chan_width, chan_freq,
+               max_uvw_dist,
+               flag_row=None,
+               max_fov=3.0,
+               decorrelation=0.98,
+               time_bin_secs=None,
+               min_nchan=1):
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
     Omitted = numba.types.misc.Omitted
@@ -381,7 +413,7 @@ def bda_mapper(time, interval, ant1, ant2, uvw,
         ('max_chan_freq', chan_freq.dtype),
         ('max_uvw_dist', max_uvw_dist)]
 
-    JitBinner = jitclass(spec)(Binner)
+    JitBinner = st(spec)(Binner)
 
     def impl(time, interval, ant1, ant2, uvw,
              chan_width, chan_freq,

@@ -7,7 +7,7 @@ import numpy as np
 import numba
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.util.numba import is_numba_type_none, generated_jit, njit, jit
+from africanus.util.numba import is_numba_type_none, njit, jit, JIT_OPTIONS, overload
 
 
 class RowMapperError(Exception):
@@ -55,8 +55,7 @@ def set_flag_row_factory(have_flag_row):
 RowMapOutput = namedtuple("RowMapOutput",
                           ["map", "time", "interval", "flag_row"])
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def row_mapper(time, interval, antenna1, antenna2,
                flag_row=None, time_bin_secs=1):
     """
@@ -178,6 +177,17 @@ def row_mapper(time, interval, antenna1, antenna2,
         Raised if an illegal condition occurs
 
     """
+    return row_mapper_impl(time, interval, antenna1, antenna2,
+                           flag_row=flag_row, time_bin_secs=time_bin_secs)
+
+def row_mapper_impl(time, interval, antenna1, antenna2,
+                    flag_row=None, time_bin_secs=1):
+    return NotImplementedError
+
+
+@overload(row_mapper_impl, jit_options=JIT_OPTIONS)
+def nb_row_mapper(time, interval, antenna1, antenna2,
+                  flag_row=None, time_bin_secs=1):
     have_flag_row = not is_numba_type_none(flag_row)
     is_flagged_fn = is_flagged_factory(have_flag_row)
 

@@ -4,7 +4,7 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import is_numba_type_none, generated_jit, jit
+from africanus.util.numba import is_numba_type_none, jit, JIT_OPTIONS, njit, overload
 from africanus.util.requirements import requires_optional
 
 try:
@@ -24,9 +24,15 @@ def _create_phase_centre(phase_centre, dtype):
 def _return_phase_centre(phase_centre, dtype):
     return phase_centre
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def radec_to_lmn(radec, phase_centre=None):
+    return radec_to_lmn_impl(radec, phase_centre=phase_centre)
+
+def radec_to_lmn_impl(radec, phase_centre=None):
+    raise NotImplementedError
+
+@overload(radec_to_lmn_impl, jit_options=JIT_OPTIONS)
+def nb_radec_to_lmn(radec, phase_centre=None):
     dtype = radec.dtype
 
     if is_numba_type_none(phase_centre):
@@ -63,9 +69,15 @@ def radec_to_lmn(radec, phase_centre=None):
 
     return _radec_to_lmn_impl
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def radec_to_lm(radec, phase_centre=None):
+    return radec_to_lm_impl(radec, phase_centre=phase_centre)
+
+def radec_to_lm_impl(radec, phase_centre=None):
+    raise NotImplementedError
+
+@overload(radec_to_lm_impl, jit_options=JIT_OPTIONS)
+def nb_radec_to_lm(radec, phase_centre=None):
     dtype = radec.dtype
 
     if is_numba_type_none(phase_centre):
@@ -100,9 +112,15 @@ def radec_to_lm(radec, phase_centre=None):
 
     return _radec_to_lm_impl
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def lmn_to_radec(lmn, phase_centre=None):
+    return lmn_to_radec_impl(lmn, phase_centre=phase_centre)
+
+def lmn_to_radec_impl(lmn, phase_centre=None):
+    raise NotImplementedError
+
+@overload(lmn_to_radec_impl, jit_options=JIT_OPTIONS)
+def nb_lmn_to_radec(lmn, phase_centre=None):
     dtype = lmn.dtype
 
     if is_numba_type_none(phase_centre):
@@ -131,8 +149,15 @@ def lmn_to_radec(lmn, phase_centre=None):
     return _lmn_to_radec_impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def lm_to_radec(lm, phase_centre=None):
+    return lm_to_radec_impl(lm, phase_centre=phase_centre)
+
+def lm_to_radec_impl(lm, phase_centre=None):
+    raise NotImplementedError
+
+@overload(lm_to_radec_impl, jit_options=JIT_OPTIONS)
+def nb_lm_to_radec(lm, phase_centre=None):
     dtype = lm.dtype
 
     if is_numba_type_none(phase_centre):

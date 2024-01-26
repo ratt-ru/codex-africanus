@@ -13,7 +13,7 @@ from africanus.averaging.shared import (chan_corrs,
                                         vis_output_arrays)
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import (is_numba_type_none, generated_jit,
+from africanus.util.numba import (is_numba_type_none, JIT_OPTIONS,
                                   njit, overload, intrinsic)
 
 TUPLE_TYPE = 0
@@ -59,8 +59,21 @@ _row_output_fields = ["antenna1", "antenna2", "time_centroid", "exposure",
 RowAverageOutput = namedtuple("RowAverageOutput", _row_output_fields)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def row_average(meta, ant1, ant2, flag_row=None,
+                     time_centroid=None, exposure=None, uvw=None,
+                     weight=None, sigma=None):
+    return row_average_impl(meta, ant1, ant2, flag_row=flag_row,
+                            time_centroid=time_centroid, exposure=exposure,
+                            uvw=uvw, weight=weight, sigma=sigma)
+
+def row_average_impl(meta, ant1, ant2, flag_row=None,
+                     time_centroid=None, exposure=None, uvw=None,
+                     weight=None, sigma=None):
+    return NotImplementedError
+
+@overload(row_average_impl, jit_options=JIT_OPTIONS)
+def nb_row_average(meta, ant1, ant2, flag_row=None,
                 time_centroid=None, exposure=None, uvw=None,
                 weight=None, sigma=None):
 
@@ -317,8 +330,24 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, fo, co):
     return sig, codegen
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def row_chan_average(row_meta, chan_meta,
+                     flag_row=None, weight=None,
+                     visibilities=None, flag=None,
+                     weight_spectrum=None, sigma_spectrum=None):
+    return row_chan_average_impl(row_meta, chan_meta,
+                                 flag_row=flag_row, weight=weight,
+                                 visibilities=visibilities, flag=flag,
+                                 weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum)
+
+def row_chan_average_impl(row_meta, chan_meta,
+                          flag_row=None, weight=None,
+                          visibilities=None, flag=None,
+                          weight_spectrum=None, sigma_spectrum=None):
+    return NotImplementedError
+
+@overload(row_chan_average_impl, jit_options=JIT_OPTIONS)
+def nb_row_chan_average(row_meta, chan_meta,
                      flag_row=None, weight=None,
                      visibilities=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None):
@@ -521,9 +550,19 @@ def row_chan_average(row_meta, chan_meta,
 _chan_output_fields = ["chan_freq", "chan_width", "effective_bw", "resolution"]
 ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def chan_average(chan_meta, chan_freq=None, chan_width=None,
+                 effective_bw=None, resolution=None):
+    return chan_average_impl(chan_meta, chan_freq=chan_freq, chan_width=chan_width,
+                             effective_bw=effective_bw, resolution=resolution)
+
+def chan_average_impl(chan_meta, chan_freq=None, chan_width=None,
+                      effective_bw=None, resolution=None):
+
+    return NotImplementedError
+
+@overload(chan_average_impl, jit_options=JIT_OPTIONS)
+def nb_chan_average(chan_meta, chan_freq=None, chan_width=None,
                  effective_bw=None, resolution=None):
 
     def impl(chan_meta, chan_freq=None, chan_width=None,
@@ -579,8 +618,7 @@ AverageOutput = namedtuple("AverageOutput",
                            _chan_output_fields +
                            _rowchan_output_fields)
 
-
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def time_and_channel(time, interval, antenna1, antenna2,
                      time_centroid=None, exposure=None, flag_row=None,
                      uvw=None, weight=None, sigma=None,
@@ -589,17 +627,46 @@ def time_and_channel(time, interval, antenna1, antenna2,
                      visibilities=None, flag=None,
                      weight_spectrum=None, sigma_spectrum=None,
                      time_bin_secs=1.0, chan_bin_size=1):
+    return time_and_channel_impl(time, interval, antenna1, antenna2,
+                                 time_centroid=time_centroid, exposure=exposure, flag_row=flag_row,
+                                 uvw=uvw, weight=weight, sigma=sigma,
+                                 chan_freq=chan_freq, chan_width=chan_width,
+                                 effective_bw=effective_bw, resolution=resolution,
+                                 visibilities=visibilities, flag=flag,
+                                 weight_spectrum=weight_spectrum, sigma_spectrum=sigma_spectrum,
+                                 time_bin_secs=time_bin_secs, chan_bin_size=chan_bin_size)
+
+def time_and_channel_impl(time, interval, antenna1, antenna2,
+                          time_centroid=None, exposure=None, flag_row=None,
+                          uvw=None, weight=None, sigma=None,
+                          chan_freq=None, chan_width=None,
+                          effective_bw=None, resolution=None,
+                          visibilities=None, flag=None,
+                          weight_spectrum=None, sigma_spectrum=None,
+                          time_bin_secs=1.0, chan_bin_size=1):
+    return NotImplementedError
+
+
+@overload(time_and_channel_impl, jit_options=JIT_OPTIONS)
+def nb_time_and_channel(time, interval, antenna1, antenna2,
+                        time_centroid=None, exposure=None, flag_row=None,
+                        uvw=None, weight=None, sigma=None,
+                        chan_freq=None, chan_width=None,
+                        effective_bw=None, resolution=None,
+                        visibilities=None, flag=None,
+                        weight_spectrum=None, sigma_spectrum=None,
+                        time_bin_secs=1.0, chan_bin_size=1):
 
     valid_types = (types.misc.Omitted, types.scalars.Float,
                    types.scalars.Integer)
 
     if not isinstance(time_bin_secs, valid_types):
-        raise TypeError("time_bin_secs must be a scalar float")
+        raise TypeError(f"time_bin_secs ({time_bin_secs}) must be a scalar float")
 
     valid_types = (types.misc.Omitted, types.scalars.Integer)
 
     if not isinstance(chan_bin_size, valid_types):
-        raise TypeError("chan_bin_size must be a scalar integer")
+        raise TypeError(f"chan_bin_size ({chan_bin_size}) must be a scalar integer")
 
     def impl(time, interval, antenna1, antenna2,
              time_centroid=None, exposure=None, flag_row=None,

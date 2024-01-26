@@ -5,7 +5,7 @@ import numpy as np
 from africanus.util.numba import (is_numba_type_none,
                                   intrinsic,
                                   njit,
-                                  generated_jit,
+                                  JIT_OPTIONS,
                                   overload)
 
 
@@ -13,11 +13,11 @@ def shape_or_invalid_shape(array, ndim):
     pass
 
 
-# TODO(sjperkins)
-# maybe replace with njit and inline='always' if
-# https://github.com/numba/numba/issues/4693 is resolved
-@generated_jit(nopython=True, nogil=True, cache=True)
 def merge_flags(flag_row, flag):
+    pass
+
+@overload(merge_flags, inline='always')
+def _merge_flags(flag_row, flag):
     have_flag_row = not is_numba_type_none(flag_row)
     have_flag = not is_numba_type_none(flag)
 

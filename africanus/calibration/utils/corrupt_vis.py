@@ -2,7 +2,7 @@
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import overload, njit, JIT_OPTIONS
 from africanus.calibration.utils import check_type
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
@@ -56,9 +56,19 @@ def jones_mul_factory(mode):
     return njit(nogil=True, inline='always')(jones_mul)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
                 antenna2, jones, model):
+    return corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
+                           antenna2, jones, model)
+
+def corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
+                     antenna2, jones, model):
+    return NotImplementedError
+
+@overload(corrupt_vis_impl, jit_options=JIT_OPTIONS)
+def nb_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
+                   antenna2, jones, model):
 
     mode = check_type(jones, model, vis_type='model')
     jones_mul = jones_mul_factory(mode)

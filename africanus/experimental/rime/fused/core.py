@@ -2,10 +2,11 @@ from collections.abc import Mapping
 from collections import defaultdict
 
 import numba
-from numba import generated_jit, types
+from numba import types
 import numpy as np
 
 from africanus.util.patterns import Multiton
+from africanus.util.numba import overload, njit, JIT_OPTIONS
 from africanus.experimental.rime.fused.arguments import ArgumentDependencies
 from africanus.experimental.rime.fused.intrinsics import IntrinsicFactory
 from africanus.experimental.rime.fused.specification import RimeSpecification
@@ -29,23 +30,27 @@ else:
 
 
 def rime_impl_factory(terms, transformers, ncorr):
-    @generated_jit(nopython=True, nogil=True, cache=True)
-    def rime(names, *inargs):
-        if len(inargs) != 1 or not isinstance(inargs[0], types.BaseTuple):
-            raise TypeError(f"{inargs[0]} must be be a Tuple")
+    def rime_impl(*args):
+        raise NotImplementedError
 
-        if not isinstance(names, types.BaseTuple):
-            raise TypeError(f"{names} must be a Tuple of strings")
+    @njit(**JIT_OPTIONS)
+    def rime(*args):
+        return rime_impl(*args)
 
-        if len(names) != len(inargs[0]):
-            raise ValueError(f"len(names): {len(names)} "
-                             f"!= {len(inargs[0])}")
+    @overload(rime_impl, jit_options=JIT_OPTIONS, prefer_literal=True)
+    def nb_rime(*args):
+        if not len(args) % 2 == 0:
+            raise TypeError(f"len(args) {len(args)} is not divisible by 2")
+
+        argstart = len(args) // 2
+        names = args[:argstart]
+        inargs = args[argstart:]
 
         if not all(isinstance(n, types.Literal) for n in names):
-            raise TypeError(f"{names} must be a Tuple of strings")
+            raise TypeError(f"{names} must be a Tuple of Literal strings")
 
         if not all(n.literal_type is types.unicode_type for n in names):
-            raise TypeError(f"{names} must be a Tuple of strings")
+            raise TypeError(f"{names} must be a Tuple of Literal strings")
 
         # Get literal argument names
         names = tuple(n.literal_value for n in names)
@@ -65,8 +70,8 @@ def rime_impl_factory(terms, transformers, ncorr):
         except ValueError as e:
             raise ValueError(f"{str(e)} is required")
 
-        def impl(names, *inargs):
-            args_opt_idx = pack_opts_indices(inargs)
+        def impl(*args):
+            args_opt_idx = pack_opts_indices(args[argstart:])
             args = pack_transformed(args_opt_idx)
             state = term_state(args)
 
@@ -193,10 +198,8 @@ class RimeFactory(metaclass=Multiton):
         keys = (self.REQUIRED_ARGS_LITERAL +
                 tuple(map(types.literal, kwargs.keys())))
 
-        return self.impl(keys, time,
-                         antenna1, antenna2,
-                         feed1, feed2,
-                         *kwargs.values())
+        args = keys + (time, antenna1, antenna2, feed1, feed2) + tuple(kwargs.values())
+        return self.impl(*args)
 
 
 def consolidate_args(args, kw):

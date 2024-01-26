@@ -6,6 +6,11 @@ from numba import types
 
 from africanus.util.docs import on_rtd
 
+JIT_OPTIONS = {
+    "cache": True,
+    "nogil": True,
+}
+
 if on_rtd():
     # Fake decorators when on readthedocs
     def _fake_decorator(*args, **kwargs):
