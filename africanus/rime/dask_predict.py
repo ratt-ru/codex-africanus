@@ -17,7 +17,7 @@ from africanus.rime.predict import (PREDICT_DOCS, predict_checks,
                                     predict_vis as np_predict_vis)
 from africanus.rime.wsclean_predict import (
                                 WSCLEAN_PREDICT_DOCS,
-                                wsclean_predict_impl as wsclean_predict_body)
+                                wsclean_predict_main as wsclean_predict_body)
 from africanus.model.wsclean.spec_model import spectra as wsclean_spectra
 
 
