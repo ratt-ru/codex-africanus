@@ -33,7 +33,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     def rime_impl(*args):
         raise NotImplementedError
 
-    @njit(**JIT_OPTIONS)
+    @njit(nogil=True)
     def rime(*args):
         return rime_impl(*args)
 
