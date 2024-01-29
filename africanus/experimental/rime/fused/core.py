@@ -37,7 +37,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     def rime(*args):
         return rime_impl(*args)
 
-    @overload(rime_impl, jit_options=JIT_OPTIONS, prefer_literal=True)
+    @overload(rime_impl, jit_options=JIT_OPTIONS)
     def nb_rime(*args):
         if not len(args) % 2 == 0:
             raise TypeError(f"len(args) {len(args)} is not divisible by 2")
