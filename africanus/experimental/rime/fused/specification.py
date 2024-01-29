@@ -1,4 +1,5 @@
 import ast
+from hashlib import shake_256
 from importlib import import_module
 import inspect
 import multiprocessing
@@ -11,7 +12,7 @@ from africanus.experimental.rime.fused.terms.brightness import Brightness
 from africanus.experimental.rime.fused import terms as term_mod
 from africanus.experimental.rime.fused.transformers.core import Transformer
 from africanus.experimental.rime.fused import transformers as transformer_mod
-from africanus.util.patterns import LazyProxy
+from africanus.util.patterns import freeze, LazyProxy
 
 
 TERM_STRING_REGEX = re.compile("([A-Z])(pq|p|q)")
@@ -335,6 +336,8 @@ class RimeSpecification:
             "process_pool": pool
         }
 
+        hash_elements = list(v for k, v in global_kw.items() if k != "process_pool")
+
         for cls, cfg in zip(term_types, term_cfgs):
             if cfg == "pq":
                 cfg = "middle"
@@ -350,7 +353,7 @@ class RimeSpecification:
             cls_kw = {}
 
             if "configuration" not in init_sig.parameters:
-                raise RimeSpecification(
+                raise RimeSpecificationError(
                     f"{cls}.__init__{init_sig} must take a "
                     f"'configuration' argument and call "
                     f"super().__init__(configuration)")
@@ -358,7 +361,7 @@ class RimeSpecification:
             for a, p in list(init_sig.parameters.items())[1:]:
                 if p.kind not in {p.POSITIONAL_ONLY,
                                   p.POSITIONAL_OR_KEYWORD}:
-                    raise RimeSpecification(
+                    raise RimeSpecificationError(
                         f"{cls}.__init__{init_sig} may not contain "
                         f"*args or **kwargs")
 
@@ -371,6 +374,8 @@ class RimeSpecification:
                         f"Available args: {available_kw}")
 
             term = cls(**cls_kw)
+            hash_elements.append(".".join((cls.__module__, cls.__name__)))
+            hash_elements.append(cfg)
             terms.append(term)
 
         term_type_set = set(term_types)
@@ -385,7 +390,7 @@ class RimeSpecification:
 
         transformers = []
 
-        for cls in transformer_types.values():
+        for _, cls in sorted(transformer_types.items()):
             init_sig = inspect.signature(cls.__init__)
             cls_kw = {}
 
@@ -405,10 +410,12 @@ class RimeSpecification:
                         f"Available args: {available_kw}")
 
             transformer = cls(**cls_kw)
+            hash_elements.append(".".join((cls.__module__, cls.__name__)))
             transformers.append(transformer)
 
         self.terms = terms
         self.transformers = transformers
+        self.spec_hash = shake_256(str((freeze(hash_elements))).encode("utf-8")).hexdigest(16)
 
     @staticmethod
     def _finalise_pool(pool):
