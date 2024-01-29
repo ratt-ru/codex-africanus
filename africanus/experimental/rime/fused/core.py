@@ -40,13 +40,15 @@ def rime_impl_factory(terms, transformers, ncorr):
     @overload(rime_impl, jit_options=JIT_OPTIONS)
     def nb_rime(*args):
         if not len(args) > 0:
-            raise TypeError(f"rime must be called with at least the signature argument")
+            raise TypeError("rime must be at least be called "
+                            "with the signature argument")
 
         if not isinstance(args[0], types.Literal):
             raise TypeError(f"Signature hash ({args[0]}) must be a literal")
 
         if not len(args) % 2 == 1:
-            raise TypeError(f"Length of named arguments {len(args)} is not divisible by 2")
+            raise TypeError(f"Length of named arguments {len(args)} "
+                            f"is not divisible by 2")
 
         argstart = 1 + (len(args) - 1) // 2
         names = args[1:argstart]
