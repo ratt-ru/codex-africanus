@@ -336,7 +336,8 @@ class RimeSpecification:
             "process_pool": pool
         }
 
-        hash_elements = list(v for k, v in global_kw.items() if k != "process_pool")
+        hash_elements = list(v for k, v in global_kw.items()
+                             if k != "process_pool")
 
         for cls, cfg in zip(term_types, term_cfgs):
             if cfg == "pq":
@@ -415,7 +416,8 @@ class RimeSpecification:
 
         self.terms = terms
         self.transformers = transformers
-        self.spec_hash = shake_256(str((freeze(hash_elements))).encode("utf-8")).hexdigest(16)
+        str_elements = str((freeze(hash_elements))).encode("utf-8")
+        self.spec_hash = shake_256(str_elements).hexdigest(16)
 
     @staticmethod
     def _finalise_pool(pool):
