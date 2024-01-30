@@ -178,8 +178,7 @@ defined on the `Phase` term, called `init_fields`.
    Additionally, these arrays will be stored on the ``state``
    object provided to the sampling function.
 
-2. It supports reasoning about Numba types in a manner
-   similar to :func:`numba.generated_jit`.
+2. It supports reasoning about Numba types.
    The ``lm``, ``uvw`` and ``chan_freq``
    arguments contain the Numba types of the variables supplied
    to the RIME, while the ``typingctx`` argument contains a Numba

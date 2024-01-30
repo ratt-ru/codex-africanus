@@ -4,7 +4,8 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import is_numba_type_none, generated_jit, njit
+from africanus.util.numba import (is_numba_type_none, JIT_OPTIONS,
+                                  njit, overload)
 
 
 JONES_NOT_PRESENT = 0
@@ -413,10 +414,29 @@ def predict_checks(time_index, antenna1, antenna2,
             have_dies1, have_bvis, have_dies2)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def predict_vis(time_index, antenna1, antenna2,
                 dde1_jones=None, source_coh=None, dde2_jones=None,
                 die1_jones=None, base_vis=None, die2_jones=None):
+    return predict_vis_impl(time_index, antenna1, antenna2,
+                            dde1_jones=dde1_jones,
+                            source_coh=source_coh,
+                            dde2_jones=dde2_jones,
+                            die1_jones=die1_jones,
+                            base_vis=base_vis,
+                            die2_jones=die2_jones)
+
+
+def predict_vis_impl(time_index, antenna1, antenna2,
+                     dde1_jones=None, source_coh=None, dde2_jones=None,
+                     die1_jones=None, base_vis=None, die2_jones=None):
+    raise NotImplementedError
+
+
+@overload(predict_vis_impl, jit_options=JIT_OPTIONS)
+def nb_predict_vis(time_index, antenna1, antenna2,
+                   dde1_jones=None, source_coh=None, dde2_jones=None,
+                   die1_jones=None, base_vis=None, die2_jones=None):
 
     tup = predict_checks(time_index, antenna1, antenna2,
                          dde1_jones, source_coh, dde2_jones,
@@ -490,9 +510,21 @@ def predict_vis(time_index, antenna1, antenna2,
     return _predict_vis_fn
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def apply_gains(time_index, antenna1, antenna2,
                 die1_jones, corrupted_vis, die2_jones):
+    return apply_gains_impl(time_index, antenna1, antenna2,
+                            die1_jones, corrupted_vis, die2_jones)
+
+
+def apply_gains_impl(time_index, antenna1, antenna2,
+                     die1_jones, corrupted_vis, die2_jones):
+    raise NotImplementedError
+
+
+@overload(apply_gains_impl, jit_options=JIT_OPTIONS)
+def nb_apply_gains(time_index, antenna1, antenna2,
+                   die1_jones, corrupted_vis, die2_jones):
 
     def impl(time_index, antenna1, antenna2,
              die1_jones, corrupted_vis, die2_jones):

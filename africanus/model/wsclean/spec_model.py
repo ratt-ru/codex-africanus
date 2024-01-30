@@ -2,7 +2,7 @@
 from numba import types
 import numpy as np
 
-from africanus.util.numba import generated_jit
+from africanus.util.numba import JIT_OPTIONS, njit, overload
 from africanus.util.docs import DocstringTemplate
 
 
@@ -26,8 +26,12 @@ def log_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
     return I[:, None] * np.exp(term.sum(axis=2))
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def _check_log_poly_shape(coeffs, log_poly):
+    raise NotImplementedError
+
+
+@overload(_check_log_poly_shape)
+def overload_check_log_poly_shape(coeffs, log_poly):
     if isinstance(log_poly, types.npytypes.Array):
         def impl(coeffs, log_poly):
             if coeffs.shape[0] != log_poly.shape[0]:
@@ -41,8 +45,12 @@ def _check_log_poly_shape(coeffs, log_poly):
     return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def _log_polynomial(log_poly, s):
+    raise NotImplementedError
+
+
+@overload(_log_polynomial)
+def overload_log_polynomial(log_poly, s):
     if isinstance(log_poly, types.npytypes.Array):
         def impl(log_poly, s):
             return log_poly[s]
@@ -55,8 +63,17 @@ def _log_polynomial(log_poly, s):
     return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
+    return spectra_impl(I, coeffs, log_poly, ref_freq, frequency)
+
+
+def spectra_impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
+    raise NotImplementedError
+
+
+@overload(spectra_impl, jit_option=JIT_OPTIONS)
+def nb_spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)

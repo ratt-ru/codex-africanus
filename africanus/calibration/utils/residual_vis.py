@@ -3,7 +3,7 @@
 import numpy as np
 from functools import wraps
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import overload, njit, JIT_OPTIONS
 from africanus.calibration.utils import check_type
 from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
@@ -59,9 +59,21 @@ def subtract_model_factory(mode):
     return njit(nogil=True, inline='always')(subtract_model)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def residual_vis(time_bin_indices, time_bin_counts, antenna1,
                  antenna2, jones, vis, flag, model):
+    return residual_vis_impl(time_bin_indices, time_bin_counts, antenna1,
+                             antenna2, jones, vis, flag, model)
+
+
+def residual_vis_impl(time_bin_indices, time_bin_counts, antenna1,
+                      antenna2, jones, vis, flag, model):
+    return NotImplementedError
+
+
+@overload(residual_vis_impl, jit_options=JIT_OPTIONS)
+def nb_residual_vis(time_bin_indices, time_bin_counts, antenna1,
+                    antenna2, jones, vis, flag, model):
 
     mode = check_type(jones, vis)
     subtract_model = subtract_model_factory(mode)

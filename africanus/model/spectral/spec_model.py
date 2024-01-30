@@ -4,7 +4,7 @@
 from numba import types
 import numpy as np
 
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import overload, JIT_OPTIONS, njit
 from africanus.util.docs import DocstringTemplate
 
 
@@ -95,8 +95,17 @@ def add_pol_dim_factory(have_pol_dim):
     return njit(nogil=True, cache=True)(impl)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
+    return spectral_model_impl(stokes, spi, ref_freq, frequency, base=base)
+
+
+def spectral_model_impl(stokes, spi, ref_freq, frequency, base=0):
+    raise NotImplementedError
+
+
+@overload(spectral_model_impl, jit_options=JIT_OPTIONS)
+def nb_spectral_model(stokes, spi, ref_freq, frequency, base=0):
     arg_dtypes = tuple(np.dtype(a.dtype.name) for a
                        in (stokes, spi, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)

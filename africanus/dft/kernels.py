@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 
-from africanus.util.numba import is_numba_type_none, generated_jit
+from africanus.util.numba import (is_numba_type_none, njit,
+                                  overload, JIT_OPTIONS)
 from africanus.util.docs import doc_tuple_to_str
 from collections import namedtuple
 
@@ -11,9 +12,21 @@ import numpy as np
 from africanus.constants import minus_two_pi_over_c, two_pi_over_c
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def im_to_vis(image, uvw, lm, frequency,
               convention='fourier', dtype=None):
+    return im_to_vis_impl(image, uvw, lm, frequency,
+                          convention=convention, dtype=dtype)
+
+
+def im_to_vis_impl(image, uvw, lm, frequency,
+                   convention='fourier', dtype=None):
+    raise NotImplementedError
+
+
+@overload(im_to_vis_impl, jit_options=JIT_OPTIONS)
+def nb_im_to_vis(image, uvw, lm, frequency,
+                 convention='fourier', dtype=None):
     # Infer complex output dtype if none provided
     if is_numba_type_none(dtype):
         out_dtype = np.result_type(np.complex64,
@@ -62,9 +75,21 @@ def im_to_vis(image, uvw, lm, frequency,
     return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def vis_to_im(vis, uvw, lm, frequency, flags,
               convention='fourier', dtype=None):
+    return vis_to_im_impl(vis, uvw, lm, frequency, flags,
+                          convention=convention, dtype=dtype)
+
+
+def vis_to_im_impl(vis, uvw, lm, frequency, flags,
+                   convention='fourier', dtype=None):
+    raise NotImplementedError
+
+
+@overload(vis_to_im_impl, jit_options=JIT_OPTIONS)
+def nb_vis_to_im(vis, uvw, lm, frequency, flags,
+                 convention='fourier', dtype=None):
     # Infer output dtype if none provided
     if is_numba_type_none(dtype):
         # Support both real and complex visibilities...

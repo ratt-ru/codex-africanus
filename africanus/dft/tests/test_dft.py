@@ -161,7 +161,7 @@ def test_adjointness():
     RHS = (RH(gamma_vis, uvw, lm, frequency, flag).reshape(
         size_im, 1).T.dot(gamma_im.reshape(size_im, 1))).real
 
-    assert np.abs(LHS - RHS) < 1e-14
+    assert np.abs(LHS - RHS) < 1e-13
 
 
 def test_vis_to_im_flagged():

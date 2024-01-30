@@ -6,6 +6,11 @@ from numba import types
 
 from africanus.util.docs import on_rtd
 
+JIT_OPTIONS = {
+    "cache": True,
+    "nogil": True,
+}
+
 if on_rtd():
     # Fake decorators when on readthedocs
     def _fake_decorator(*args, **kwargs):
@@ -18,7 +23,6 @@ if on_rtd():
         return decorator
 
     cfunc = _fake_decorator
-    generated_jit = _fake_decorator
     jit = _fake_decorator
     njit = _fake_decorator
     stencil = _fake_decorator
@@ -27,7 +31,7 @@ if on_rtd():
     register_jitable = _fake_decorator
     intrinsic = _fake_decorator
 else:
-    from numba import cfunc, jit, njit, generated_jit, stencil  # noqa
+    from numba import cfunc, jit, njit, stencil  # noqa
     from numba.extending import overload, register_jitable, intrinsic  # noqa
 
 

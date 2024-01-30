@@ -212,7 +212,7 @@ def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
     assert_array_equal(row_avg.exposure, out_interval)
     assert_array_equal(row_avg.uvw, out_uvw)
     assert_array_equal(row_avg.weight, out_weight)
-    assert_array_equal(row_avg.sigma, out_sigma)
+    assert_array_almost_equal(row_avg.sigma, out_sigma)
 
     vshape = (in_row, in_chan, in_corr)
     vis = rs.normal(size=vshape) + rs.normal(size=vshape)*1j

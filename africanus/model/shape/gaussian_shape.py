@@ -4,12 +4,21 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit
+from africanus.util.numba import njit, overload, JIT_OPTIONS
 from africanus.constants import c as lightspeed
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def gaussian(uvw, frequency, shape_params):
+    return gaussian_impl(uvw, frequency, shape_params)
+
+
+def gaussian_impl(uvw, frequency, shape_params):
+    raise NotImplementedError
+
+
+@overload(gaussian_impl, jit_options=JIT_OPTIONS)
+def nb_gaussian(uvw, frequency, shape_params):
     # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
     fwhminv = 1.0 / fwhm
