@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Update github action versions (:pr:`291`)
 * Deprecate python 3.8 support (:pr:`290`)
 * Use pre-commit hooks for auto-linting (:pr:`290`)
 * Deprecate use of @generated_jit. Remove upper bound on numba. (:pr:`289`)
