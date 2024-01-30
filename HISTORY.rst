@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.5 (2024-01-30)
 ------------------
 * Update setup.py metadata (:pr:`293`)
 * Address warnings (:pr:`292`)
