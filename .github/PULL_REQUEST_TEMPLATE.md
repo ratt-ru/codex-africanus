@@ -8,7 +8,7 @@
   run the pre-commit hooks in your development
   virtuale environment:
 
-  ```
+  ```bash
   $ pip install pre-commit
   $ pre-commit install
   $ pre-commit run -a
@@ -19,7 +19,7 @@
 
   To build the docs locally:
 
-  ```
+  ```bash
   pip install -r requirements.readthedocs.txt
   cd docs
   READTHEDOCS=True make html
