@@ -41,11 +41,11 @@ def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwarg
     shape = vis_shape + input_shape
 
     if backend == "numpy":
-        vis = np.arange(1.0, np.product(shape) + 1.0)
+        vis = np.arange(1.0, np.prod(shape) + 1.0)
         vis = vis.reshape(shape)
     elif backend == "dask":
         da = pytest.importorskip("dask.array")
-        vis = da.arange(1.0, np.product(shape) + 1.0, chunks=np.product(shape))
+        vis = da.arange(1.0, np.prod(shape) + 1.0, chunks=np.prod(shape))
         vis = vis.reshape(shape)
         vis = vis.rechunk(kwargs["vis_chunks"] + input_shape)
     else:
