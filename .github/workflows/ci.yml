@@ -41,11 +41,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Create a .env file
+        run: >
+          touch .env
+          echo NUMBA_NRT_STATS=1 >> .env
+          echo NUMBA_CAPTURED_ERRORS='new_style' >> .env
+
       - name: Install base codex-africanus
         run: pipenv install .[testing]
 
       - name: Run base test suite
-        run: pipenv run  NUMBA_NRT_STATS=1 py.test -s -vvv africanus/
+        run: pipenv run py.test -s -vvv africanus/
 
       - name: List the measures directory
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
@@ -79,7 +85,7 @@ jobs:
         run: pipenv graph
 
       - name: Run complete test suite
-        run: pipenv run NUMBA_NRT_STATS=1 py.test -s -vvv africanus/
+        run: pipenv run py.test -s -vvv africanus/
 
   deploy:
     needs: [test]
