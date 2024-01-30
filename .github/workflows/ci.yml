@@ -41,11 +41,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Create a .env file
-        run: |
-          touch .env
-          echo "NUMBA_NRT_STATS=1" >> .env
-          echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
+      # - name: Create a .env file
+      #   run: |
+      #     touch .env
+      #     echo "NUMBA_NRT_STATS=1" >> .env
+      #     echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
 
       - name: Install base codex-africanus
         run: pipenv install .[testing]
