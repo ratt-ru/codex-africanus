@@ -37,7 +37,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     def rime_impl(*args):
         raise NotImplementedError
 
-    @overload(rime_impl, jit_options=JIT_OPTIONS)
+    @overload(rime_impl, jit_options=JIT_OPTIONS, prefer_literal=True)
     def nb_rime(*args):
         if not len(args) > 0:
             raise TypeError(
