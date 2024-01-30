@@ -123,7 +123,7 @@ def zernike_dde(
     npoly = coeffs.shape[-1]
 
     # Flatten correlation dimensions for numba function
-    fcorrs = np.product(corr_shape)
+    fcorrs = np.prod(corr_shape)
     ddes = np.empty((sources, times, ants, chans, fcorrs), coeffs.dtype)
 
     coeffs = coeffs.reshape((ants, chans, fcorrs, npoly))

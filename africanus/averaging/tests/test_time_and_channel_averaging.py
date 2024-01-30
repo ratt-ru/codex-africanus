@@ -55,25 +55,25 @@ def interval():
 @pytest.fixture
 def weight(time):
     shape = (time.shape[0], ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def sigma(time):
     shape = (time.shape[0], ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def weight_spectrum(time):
     shape = (time.shape[0], nchan, ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def sigma_spectrum(time):
     shape = (time.shape[0], nchan, ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture

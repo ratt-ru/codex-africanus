@@ -349,7 +349,7 @@ def policy(
     pass
 
 
-@overload(policy, inline="always")
+@overload(policy, inline="always", prefer_literal=True)
 def policy_impl(
     scaled_u,
     scaled_v,

@@ -5,7 +5,7 @@ def stokes2corr(vis_in, vis_out, policy_type):
     pass
 
 
-@overload(stokes2corr, inline="always")
+@overload(stokes2corr, inline="always", prefer_literal=True)
 def stokes2corrimpl(vis_in, vis_out, policy_type):
     if policy_type.literal_value == "XXYY_FROM_I":
 
@@ -143,7 +143,7 @@ def corr2stokes(vis_in, policy_type):
     pass
 
 
-@overload(corr2stokes, inline="always")
+@overload(corr2stokes, inline="always", prefer_literal=True)
 def corr2stokesimpl(vis_in, policy_type):
     if policy_type.literal_value == "I_FROM_XXYY":
         return lambda vis_in, policy_type: (vis_in[0] + vis_in[1]) * 0.5
@@ -183,7 +183,7 @@ def ncorr_out(policy_type):
     pass
 
 
-@overload(ncorr_out, inline="always")
+@overload(ncorr_out, inline="always", prefer_literal=True)
 def ncorr_outimpl(policy_type):
     if policy_type.literal_value == "XXYY_FROM_I":
         return lambda policy_type: 2

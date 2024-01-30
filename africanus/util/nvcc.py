@@ -3,6 +3,7 @@
 
 import ast
 import contextlib
+import importlib.resources
 import logging
 import os
 import re
@@ -12,7 +13,6 @@ import sys
 import tempfile
 
 from os.path import join as pjoin
-from pkg_resources import resource_filename
 
 import distutils
 from distutils import errors
@@ -486,8 +486,8 @@ def compile_using_nvcc(source, options=None, arch=None, filename="kern.cu"):
 
     options += ["-cubin"]
 
-    cupy_path = resource_filename("cupy", pjoin("core", "include"))
-    settings["include_dirs"].append(cupy_path)
+    cupy_path = importlib.resources.files("cupy") / "core" / "include"
+    settings["include_dirs"].append(str(cupy_path))
 
     with _tempdir() as tmpdir:
         tmpfile = pjoin(tmpdir, filename)
