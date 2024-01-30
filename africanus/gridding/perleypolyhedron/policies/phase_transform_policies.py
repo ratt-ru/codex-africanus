@@ -38,7 +38,7 @@ def policy(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
     pass
 
 
-@overload(policy, inline="always")
+@overload(policy, inline="always", prefer_literal=True)
 def policy_impl(vis, uvw, lambdas, ra0, dec0, ra, dec, policy_type, phasesign=1.0):
     if policy_type.literal_value == "None" or policy_type.literal_value is None:
         return phase_norotate

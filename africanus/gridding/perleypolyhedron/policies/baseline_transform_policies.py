@@ -83,7 +83,7 @@ def policy(uvw, ra0, dec0, ra, dec, policy_type):
     pass
 
 
-@overload(policy, inline="always")
+@overload(policy, inline="always", prefer_literal=True)
 def policy_impl(uvw, ra0, dec0, ra, dec, policy_type):
     if policy_type.literal_value == "None":
         return uvw_norotate
