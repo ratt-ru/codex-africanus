@@ -64,16 +64,16 @@ with open("README.rst") as readme_file:
 
 setup(
     author="Simon Perkins",
-    author_email="sperkins@ska.ac.za",
+    author_email="sperkins@sarao.ac.za",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     description="Radio Astronomy Building Blocks",
     extras_require=extras_require,
