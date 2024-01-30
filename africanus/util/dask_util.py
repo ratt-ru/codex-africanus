@@ -66,14 +66,14 @@ class TaskData(object):
         return self
 
     def __add__(self, other):
-        return TaskData(self.completed + other.completed,
-                        self.total + other.total,
-                        self.time_sum + other.time_sum)
+        return TaskData(
+            self.completed + other.completed,
+            self.total + other.total,
+            self.time_sum + other.time_sum,
+        )
 
     def __repr__(self):
-        return "TaskData(%s, %s, %s)" % (self.completed,
-                                         self.total,
-                                         self.time_sum)
+        return "TaskData(%s, %s, %s)" % (self.completed, self.total, self.time_sum)
 
     __str__ = __repr__
 
@@ -115,9 +115,12 @@ def update_bar(elapsed, prev_completed, prev_estimated, pb):
 
     percent = int(100 * fraction)
     msg = "\r[{0:{1}.{1}}] | {2}% Complete (Estimate) | {3} / ~{4}".format(
-                bar, pb._width, percent,
-                format_time(elapsed),
-                "???" if estimated == 0.0 else format_time(estimated))
+        bar,
+        pb._width,
+        percent,
+        format_time(elapsed),
+        "???" if estimated == 0.0 else format_time(estimated),
+    )
 
     with suppress(ValueError):
         pb._file.write(msg)
@@ -135,10 +138,9 @@ def timer_func(pb):
         prev_estimated = 0.0
 
         if elapsed > pb._minimum:
-            prev_completed, prev_estimated = update_bar(elapsed,
-                                                        prev_completed,
-                                                        prev_estimated,
-                                                        pb)
+            prev_completed, prev_estimated = update_bar(
+                elapsed, prev_completed, prev_estimated, pb
+            )
 
         time.sleep(pb._dt)
 
@@ -179,6 +181,7 @@ class EstimatingProgressBar(Callback):
         Update resolution in seconds, default is 1.0 seconds.
 
     """
+
     @requires_optional("dask", opt_import_err)
     def __init__(self, minimum=0, width=42, dt=1.0, out=default_out):
         if out is None:

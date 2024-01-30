@@ -9,10 +9,10 @@ from africanus.util.numba import jit
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                             jac, beam, ncomps, nfreqs,
-                             tol, maxiter, mindet):
-    w = freqs/freq0
+def _fit_spi_components_impl(
+    data, weights, freqs, freq0, out, jac, beam, ncomps, nfreqs, tol, maxiter, mindet
+):
+    w = freqs / freq0
     dof = np.maximum(w.size - 2, 1)
     for comp in range(ncomps):
         eps = 1.0
@@ -23,8 +23,8 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
         while eps > tol and k < maxiter:
             alphap = alphak
             i0p = i0k
-            jac[1, :] = b*w**alphak
-            model = i0k*jac[1, :]
+            jac[1, :] = b * w**alphak
+            model = i0k * jac[1, :]
             jac[0, :] = model * np.log(w)
             residual = data[comp] - model
             lik = 0.0
@@ -41,22 +41,22 @@ def _fit_spi_components_impl(data, weights, freqs, freq0, out,
                 hess01 += jac[0, v] * weights[v] * jac[1, v]
                 hess11 += jac[1, v] * weights[v] * jac[1, v]
             det = np.maximum(hess00 * hess11 - hess01**2, mindet)
-            alphak = alphap + (hess11 * jr0 - hess01 * jr1)/det
-            i0k = i0p + (-hess01 * jr0 + hess00 * jr1)/det
+            alphak = alphap + (hess11 * jr0 - hess01 * jr1) / det
+            i0k = i0p + (-hess01 * jr0 + hess00 * jr1) / det
             eps = np.maximum(np.abs(alphak - alphap), np.abs(i0k - i0p))
             k += 1
         if k == maxiter:
             print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
-        out[1, comp] = hess11/det * lik/dof
+        out[1, comp] = hess11 / det * lik / dof
         out[2, comp] = i0k
-        out[3, comp] = hess00/det * lik/dof
+        out[3, comp] = hess00 / det * lik / dof
     return out
 
 
-def fit_spi_components(data, weights, freqs, freq0,
-                       alphai=None, I0i=None, beam=None,
-                       tol=1e-4, maxiter=100):
+def fit_spi_components(
+    data, weights, freqs, freq0, alphai=None, I0i=None, beam=None, tol=1e-4, maxiter=100
+):
     ncomps, nfreqs = data.shape
     if beam is None:
         beam = np.ones(data.shape, data.dtype)
@@ -73,7 +73,7 @@ def fit_spi_components(data, weights, freqs, freq0,
         ref_freq_idx = np.argwhere(tmp == tmp.min()).squeeze()
         if np.size(ref_freq_idx) > 1:
             ref_freq_idx = ref_freq_idx.min()
-        out[2, :] = data[:, ref_freq_idx]/beam[:, ref_freq_idx]
+        out[2, :] = data[:, ref_freq_idx] / beam[:, ref_freq_idx]
     if data.dtype == np.float64:
         mindet = 1e-12
     elif data.dtype == np.float32:
@@ -81,9 +81,20 @@ def fit_spi_components(data, weights, freqs, freq0,
     else:
         raise ValueError("Unsupported data type. Must be float32 of float64.")
 
-    return _fit_spi_components_impl(data, weights, freqs, freq0, out,
-                                    jac, beam, ncomps, nfreqs,
-                                    tol, maxiter, mindet)
+    return _fit_spi_components_impl(
+        data,
+        weights,
+        freqs,
+        freq0,
+        out,
+        jac,
+        beam,
+        ncomps,
+        nfreqs,
+        tol,
+        maxiter,
+        mindet,
+    )
 
 
 SPI_DOCSTRING = DocstringTemplate(
@@ -139,10 +150,12 @@ SPI_DOCSTRING = DocstringTemplate(
         array of shape :code:`(4, comps)`
         The fitted components arranged
         as [alphas, alphavars, I0s, I0vars]
-    """)
+    """
+)
 
 try:
     fit_spi_components.__doc__ = SPI_DOCSTRING.substitute(
-                            array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

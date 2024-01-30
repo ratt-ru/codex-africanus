@@ -2,11 +2,13 @@
 
 import numpy as np
 
-from africanus.util.numba import (is_numba_type_none,
-                                  intrinsic,
-                                  JIT_OPTIONS,
-                                  njit,
-                                  overload)
+from africanus.util.numba import (
+    is_numba_type_none,
+    intrinsic,
+    JIT_OPTIONS,
+    njit,
+    overload,
+)
 
 
 def shape_or_invalid_shape(array, ndim):
@@ -28,8 +30,9 @@ def nb_merge_flags(flag_row, flag):
     have_flag = not is_numba_type_none(flag)
 
     if have_flag_row and have_flag:
+
         def impl(flag_row, flag):
-            """ Check flag_row and flag agree """
+            """Check flag_row and flag agree"""
             for r in range(flag.shape[0]):
                 all_flagged = True
 
@@ -48,13 +51,15 @@ def nb_merge_flags(flag_row, flag):
             return flag_row
 
     elif have_flag_row and not have_flag:
+
         def impl(flag_row, flag):
-            """ Return flag_row """
+            """Return flag_row"""
             return flag_row
 
     elif not have_flag_row and have_flag:
+
         def impl(flag_row, flag):
-            """ Construct flag_row from flag """
+            """Construct flag_row from flag"""
             new_flag_row = np.empty(flag.shape[0], dtype=flag.dtype)
 
             for r in range(flag.shape[0]):
@@ -69,26 +74,26 @@ def nb_merge_flags(flag_row, flag):
                     if not all_flagged:
                         break
 
-                new_flag_row[r] = (1 if all_flagged else 0)
+                new_flag_row[r] = 1 if all_flagged else 0
 
             return new_flag_row
 
     else:
+
         def impl(flag_row, flag):
             return None
 
     return impl
 
 
-@overload(shape_or_invalid_shape, inline='always')
+@overload(shape_or_invalid_shape, inline="always")
 def _shape_or_invalid_shape(array, ndim):
-    """ Return array shape tuple or (-1,)*ndim if the array is None """
+    """Return array shape tuple or (-1,)*ndim if the array is None"""
 
     import numba.core.types as nbtypes
     from numba.extending import SentryLiteralArgs
 
-    SentryLiteralArgs(['ndim']).for_function(
-        _shape_or_invalid_shape).bind(array, ndim)
+    SentryLiteralArgs(["ndim"]).for_function(_shape_or_invalid_shape).bind(array, ndim)
 
     try:
         ndim_lit = getattr(ndim, "literal_value")
@@ -96,24 +101,25 @@ def _shape_or_invalid_shape(array, ndim):
         raise ValueError("ndim must be a integer literal")
 
     if is_numba_type_none(array):
-        tup = (-1,)*ndim_lit
+        tup = (-1,) * ndim_lit
 
         def impl(array, ndim):
             return tup
 
         return impl
     elif isinstance(array, nbtypes.Array):
+
         def impl(array, ndim):
             return array.shape
 
         return impl
-    elif (isinstance(array, nbtypes.UniTuple) and
-            isinstance(array.dtype, nbtypes.Array)):
-
+    elif isinstance(array, nbtypes.UniTuple) and isinstance(array.dtype, nbtypes.Array):
         if len(array) == 1:
+
             def impl(array, ndim):
                 return array[0].shape
         else:
+
             def impl(array, ndim):
                 shape = array[0].shape
 
@@ -132,9 +138,11 @@ def _shape_or_invalid_shape(array, ndim):
             raise ValueError("Array ndims in Tuple don't match")
 
         if len(array) == 1:
+
             def impl(array, ndim):
                 return array[0].shape
         else:
+
             def impl(array, ndim):
                 shape = array[0].shape
 
@@ -187,8 +195,7 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
             chan = array_chan
         # Check consistency
         elif chan != array_chan:
-            raise ValueError("Inconsistent Channel Dimension "
-                             "in Input Arrays")
+            raise ValueError("Inconsistent Channel Dimension " "in Input Arrays")
 
     if corr_idx != -1:
         array_corr = shape[corr_idx]
@@ -201,8 +208,7 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
             corr = array_corr
         # Check consistency
         elif corr != array_corr:
-            raise ValueError("Inconsistent Correlation Dimension "
-                             "in Input Arrays")
+            raise ValueError("Inconsistent Correlation Dimension " "in Input Arrays")
 
     return chan, corr
 
@@ -211,10 +217,16 @@ def find_chan_corr(chan, corr, shape, chan_idx, corr_idx):
 # maybe inline='always' if
 # https://github.com/numba/numba/issues/4693 is resolved
 @njit(nogil=True, cache=True)
-def chan_corrs(vis, flag,
-               weight_spectrum, sigma_spectrum,
-               chan_freq, chan_width,
-               effective_bw, resolution):
+def chan_corrs(
+    vis,
+    flag,
+    weight_spectrum,
+    sigma_spectrum,
+    chan_freq,
+    chan_width,
+    effective_bw,
+    resolution,
+):
     """
     Infer channel and correlation size from input dimensions
 
@@ -253,12 +265,14 @@ def flags_match(flag_row, ri, out_flag_row, ro):
     pass
 
 
-@overload(flags_match, inline='always')
+@overload(flags_match, inline="always")
 def _flags_match(flag_row, ri, out_flag_row, ro):
     if is_numba_type_none(flag_row):
+
         def impl(flag_row, ri, out_flag_row, ro):
             return True
     else:
+
         def impl(flag_row, ri, out_flag_row, ro):
             return flag_row[ri] == out_flag_row[ro]
 
@@ -271,7 +285,7 @@ def vis_output_arrays(typingctx, vis, out_shape):
     from numba.np import numpy_support
 
     def vis_weight_types(vis):
-        """ Determine output visibility and weight types """
+        """Determine output visibility and weight types"""
 
         if isinstance(vis.dtype, types.Complex):
             # Use the float representation as dtype if vis is complex
@@ -345,10 +359,9 @@ def vis_output_arrays(typingctx, vis, out_shape):
                 factory_args = [out_shape]
 
                 # Compile function and get handle to output array
-                inner_value = context.compile_internal(builder,
-                                                       array_factory,
-                                                       factory_sig,
-                                                       factory_args)
+                inner_value = context.compile_internal(
+                    builder, array_factory, factory_sig, factory_args
+                )
 
             # Insert inner tuple into outer tuple
             elif have_vis_tuple:
@@ -363,8 +376,9 @@ def vis_output_arrays(typingctx, vis, out_shape):
                     factory_args = [out_shape]
 
                     # Compile function and get handle to output
-                    data = context.compile_internal(builder, array_factory,
-                                                    factory_sig, factory_args)
+                    data = context.compile_internal(
+                        builder, array_factory, factory_sig, factory_args
+                    )
 
                     # Insert data into inner_value
                     inner_value = builder.insert_value(inner_value, data, j)

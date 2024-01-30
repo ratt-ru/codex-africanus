@@ -9,7 +9,7 @@ from africanus.util.testing import mark_in_pytest
 
 @pytest.fixture(scope="function", autouse=bool(numba.config.NRT_STATS))
 def check_allocations():
-    """ Check allocations match frees """
+    """Check allocations match frees"""
     try:
         yield
         start = rtsys.get_allocation_stats()

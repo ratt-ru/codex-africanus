@@ -37,10 +37,9 @@ def format_code(code):
     str
         Code prefixed with line numbers
     """
-    lines = ['']
-    lines.extend(["%-5d %s" % (i, l) for i, l
-                  in enumerate(code.split('\n'), 1)])
-    return '\n'.join(lines)
+    lines = [""]
+    lines.extend(["%-5d %s" % (i, l) for i, l in enumerate(code.split("\n"), 1)])
+    return "\n".join(lines)
 
 
 class memoize_on_key(object):

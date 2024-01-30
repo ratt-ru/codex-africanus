@@ -22,23 +22,47 @@ import argparse
 def create_parser():
     p = argparse.ArgumentParser()
     p.add_argument("--ms", help="Name of measurement set", type=str)
-    p.add_argument("--model_cols", help="Comma separated string of "
-                   "merasuturement set columns containing data "
-                   "for each source", default='MODEL_DATA', type=str)
-    p.add_argument("--data_col", help="Column where data lives. "
-                   "Only used to get shape of data at this stage",
-                   default='DATA', type=str)
-    p.add_argument("--out_col", help="Where to write the corrupted data to. "
-                   "Must exist in MS before writing to it.",
-                   default='CORRECTED_DATA', type=str)
-    p.add_argument("--gain_file", help=".npy file containing gains in format "
-                   "(time, antenna, freq, source, corr). "
-                   "See corrupt_vis docs.", type=str)
-    p.add_argument("--utimes_per_chunk",  default=32, type=int,
-                   help="Number of unique times in each chunk.")
-    p.add_argument("--ncpu", help="The number of threads to use. "
-                   "Default of zero means all", default=0, type=int)
-    p.add_argument('--field', default=0, type=int)
+    p.add_argument(
+        "--model_cols",
+        help="Comma separated string of "
+        "merasuturement set columns containing data "
+        "for each source",
+        default="MODEL_DATA",
+        type=str,
+    )
+    p.add_argument(
+        "--data_col",
+        help="Column where data lives. " "Only used to get shape of data at this stage",
+        default="DATA",
+        type=str,
+    )
+    p.add_argument(
+        "--out_col",
+        help="Where to write the corrupted data to. "
+        "Must exist in MS before writing to it.",
+        default="CORRECTED_DATA",
+        type=str,
+    )
+    p.add_argument(
+        "--gain_file",
+        help=".npy file containing gains in format "
+        "(time, antenna, freq, source, corr). "
+        "See corrupt_vis docs.",
+        type=str,
+    )
+    p.add_argument(
+        "--utimes_per_chunk",
+        default=32,
+        type=int,
+        help="Number of unique times in each chunk.",
+    )
+    p.add_argument(
+        "--ncpu",
+        help="The number of threads to use. " "Default of zero means all",
+        default=0,
+        type=int,
+    )
+    p.add_argument("--field", default=0, type=int)
     return p
 
 
@@ -48,28 +72,30 @@ if args.ncpu:
     ncpu = args.ncpu
     from multiprocessing.pool import ThreadPool
     import dask
+
     dask.config.set(pool=ThreadPool(ncpu))
 else:
     import multiprocessing
+
     ncpu = multiprocessing.cpu_count()
 
 print("Using %i threads" % ncpu)
 
 # get full time column and compute row chunks
-time = table(args.ms).getcol('TIME')
+time = table(args.ms).getcol("TIME")
 row_chunks, tbin_idx, tbin_counts = chunkify_rows(time, args.utimes_per_chunk)
 # convert to dask arrays
 tbin_idx = da.from_array(tbin_idx, chunks=(args.utimes_per_chunk))
 tbin_counts = da.from_array(tbin_counts, chunks=(args.utimes_per_chunk))
 
 # get model column names
-model_cols = args.model_cols.split(',')
+model_cols = args.model_cols.split(",")
 n_dir = len(model_cols)
 
 # append antenna columns
 cols = []
-cols.append('ANTENNA1')
-cols.append('ANTENNA2')
+cols.append("ANTENNA1")
+cols.append("ANTENNA2")
 cols.append(args.data_col)
 for col in model_cols:
     cols.append(col)
@@ -79,8 +105,7 @@ jones = np.load(args.gain_file)
 jones = jones.astype(np.complex64)
 jones_shape = jones.shape
 ndims = len(jones_shape)
-jones = da.from_array(jones, chunks=(args.utimes_per_chunk,)
-                      + jones_shape[1:])
+jones = da.from_array(jones, chunks=(args.utimes_per_chunk,) + jones_shape[1:])
 
 # load data in in chunks and apply gains to each chunk
 xds = xds_from_ms(args.ms, columns=cols, chunks={"row": row_chunks})[0]
@@ -102,8 +127,7 @@ else:
     reshape_vis = False
 
 # apply gains
-corrupted_data = corrupt_vis(tbin_idx, tbin_counts, ant1, ant2,
-                             jones, model)
+corrupted_data = corrupt_vis(tbin_idx, tbin_counts, ant1, ant2, jones, model)
 
 if reshape_vis:
     corrupted_data = corrupted_data.reshape(n_row, n_chan, n_corr)

@@ -6,19 +6,25 @@ class FeedRotation(Term):
 
     def __init__(self, configuration, feed_type, corrs):
         if configuration not in {"left", "right"}:
-            raise ValueError(f"FeedRotation configuration must "
-                             f"be either 'left' or 'right'. "
-                             f"Got {configuration}")
+            raise ValueError(
+                f"FeedRotation configuration must "
+                f"be either 'left' or 'right'. "
+                f"Got {configuration}"
+            )
 
         if feed_type not in {"linear", "circular"}:
-            raise ValueError(f"FeedRotation feed_type must be "
-                             f"either 'linear' or 'circular'. "
-                             f"Got {feed_type}")
+            raise ValueError(
+                f"FeedRotation feed_type must be "
+                f"either 'linear' or 'circular'. "
+                f"Got {feed_type}"
+            )
 
         if len(corrs) != 4:
-            raise ValueError(f"Four correlations required for "
-                             f"feed rotation but {corrs} were "
-                             f"specified")
+            raise ValueError(
+                f"Four correlations required for "
+                f"feed rotation but {corrs} were "
+                f"specified"
+            )
 
         super().__init__(configuration)
         self.feed_type = feed_type
@@ -50,9 +56,10 @@ class FeedRotation(Term):
             else:
                 # e^{ix} = cos(x) + i.sin(x)
                 return (
-                    0.5*((cos_a + cos_b) - (sin_a + sin_b)*1j),
-                    0.5*((cos_a - cos_b) + (sin_a - sin_b)*1j),
-                    0.5*((cos_a - cos_b) - (sin_a - sin_b)*1j),
-                    0.5*((cos_a + cos_b) + (sin_a + sin_b)*1j))
+                    0.5 * ((cos_a + cos_b) - (sin_a + sin_b) * 1j),
+                    0.5 * ((cos_a - cos_b) + (sin_a - sin_b) * 1j),
+                    0.5 * ((cos_a - cos_b) - (sin_a - sin_b) * 1j),
+                    0.5 * ((cos_a + cos_b) + (sin_a + sin_b) * 1j),
+                )
 
         return feed_rotation

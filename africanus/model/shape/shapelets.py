@@ -34,15 +34,11 @@ def basis_function(n, xx, beta, fourier=False, delta_x=-1):
     else:
         x = xx
         scale = beta
-    basis_component = 1.0 / np.sqrt(
-        2.0 ** n * np.sqrt(np.pi) * factorial(n) * scale
-    )
-    exponential_component = hermite(n, x / scale) * np.exp(
-        -(x ** 2) / (2.0 * scale ** 2)
-    )
+    basis_component = 1.0 / np.sqrt(2.0**n * np.sqrt(np.pi) * factorial(n) * scale)
+    exponential_component = hermite(n, x / scale) * np.exp(-(x**2) / (2.0 * scale**2))
     if fourier:
         return (
-            1.0j ** n
+            1.0j**n
             * basis_component
             * exponential_component
             * np.sqrt(2 * np.pi)
@@ -55,11 +51,9 @@ def basis_function(n, xx, beta, fourier=False, delta_x=-1):
 @numba.jit(nogil=True, nopython=True, cache=True)
 def phase_steer_and_w_correct(uvw, lm_source_center, frequency):
     l0, m0 = lm_source_center
-    n0 = np.sqrt(1.0 - l0 ** 2 - m0 ** 2)
+    n0 = np.sqrt(1.0 - l0**2 - m0**2)
     u, v, w = uvw
-    real_phase = (
-        minus_two_pi_over_c * frequency * (u * l0 + v * m0 + w * (n0 - 1))
-    )
+    real_phase = minus_two_pi_over_c * frequency * (u * l0 + v * m0 + w * (n0 - 1))
     return np.exp(1.0j * real_phase)
 
 
@@ -102,12 +96,8 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm, dtype=np.complex128):
                             0
                             if coeffs[src][n1, n2] == 0
                             else coeffs[src][n1, n2]
-                            * basis_function(
-                                n1, fu, beta_u, True, delta_x=delta_l
-                            )
-                            * basis_function(
-                                n2, fv, beta_v, True, delta_x=delta_m
-                            )
+                            * basis_function(n1, fu, beta_u, True, delta_x=delta_l)
+                            * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                         )
                 out_shapelets[row, chan, src] = tmp_shapelet
     return out_shapelets
@@ -155,16 +145,10 @@ def shapelet_with_w_term(
                             0
                             if coeffs[src][n1, n2] == 0
                             else coeffs[src][n1, n2]
-                            * basis_function(
-                                n1, fu, beta_u, True, delta_x=delta_l
-                            )
-                            * basis_function(
-                                n2, fv, beta_v, True, delta_x=delta_m
-                            )
+                            * basis_function(n1, fu, beta_u, True, delta_x=delta_l)
+                            * basis_function(n2, fv, beta_v, True, delta_x=delta_m)
                         )
-                w_term = phase_steer_and_w_correct(
-                    (u, v, w), (l, m), frequency[chan]
-                )
+                w_term = phase_steer_and_w_correct((u, v, w), (l, m), frequency[chan])
                 out_shapelets[row, chan, src] = tmp_shapelet * w_term
     return out_shapelets
 
@@ -197,9 +181,7 @@ def shapelet_1d(u, coeffs, fourier, delta_x=1, beta=1.0):
     nrow = u.size
     if fourier:
         if delta_x is None:
-            raise ValueError(
-                "You have to pass in a value for delta_x in Fourier mode"
-            )
+            raise ValueError("You have to pass in a value for delta_x in Fourier mode")
         out = np.zeros(nrow, dtype=np.complex128)
     else:
         out = np.zeros(nrow, dtype=np.float64)
@@ -233,11 +215,7 @@ def shapelet_2d(u, v, coeffs_l, fourier, delta_x=None, delta_y=None, beta=1.0):
                     c = coeffs_l[n1, n2]
                     out[i, j] += (
                         c
-                        * basis_function(
-                            n1, ui, beta, fourier=fourier, delta_x=delta_x
-                        )
-                        * basis_function(
-                            n2, vj, beta, fourier=fourier, delta_x=delta_y
-                        )
+                        * basis_function(n1, ui, beta, fourier=fourier, delta_x=delta_x)
+                        * basis_function(n2, vj, beta, fourier=fourier, delta_x=delta_y)
                     )
     return out

@@ -76,6 +76,7 @@ class FakeEnvironment(object):
     Fake jinja2 environment, for which attribute/dict
     type access will fail
     """
+
     @requires_optional("jinja2")
     def __getitem__(self, key):
         raise NotImplementedError()
@@ -107,19 +108,19 @@ def _jinja2_env_factory():
     except ImportError:
         return FakeEnvironment()
 
-    loader = PackageLoader('africanus', '.')
-    autoescape = select_autoescape(['j2', 'cu.j2'])
-    env = Environment(loader=loader,
-                      autoescape=autoescape,
-                      extensions=['jinja2.ext.do'])
+    loader = PackageLoader("africanus", ".")
+    autoescape = select_autoescape(["j2", "cu.j2"])
+    env = Environment(
+        loader=loader, autoescape=autoescape, extensions=["jinja2.ext.do"]
+    )
 
     # TODO(sjperkins)
     # Find a better way to set globals
     # perhaps search the package tree for e.g.
     # `jinja2_setup`.py files, whose contents
     # are inspected and assigned into the globals dict
-    env.globals['register_assign_cycles'] = register_assign_cycles
-    env.globals['throw'] = throw_helper
+    env.globals["register_assign_cycles"] = register_assign_cycles
+    env.globals["throw"] = throw_helper
 
     return env
 

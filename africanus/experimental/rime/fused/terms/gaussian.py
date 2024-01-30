@@ -12,17 +12,15 @@ class Gaussian(Term):
         assert chan_freq.ndim == 1
         assert gauss_shape.ndim == 2
 
-        return {"uvw": ("row", "uvw"),
-                "chan_freq": ("chan",),
-                "gauss_shape": ("source", "gauss_shape_params")}
+        return {
+            "uvw": ("row", "uvw"),
+            "chan_freq": ("chan",),
+            "gauss_shape": ("source", "gauss_shape_params"),
+        }
 
     def init_fields(self, typingctx, uvw, chan_freq, gauss_shape):
-        guv_dtype = typingctx.unify_types(
-                        uvw.dtype,
-                        chan_freq.dtype,
-                        gauss_shape.dtype)
-        fields = [("gauss_uv", guv_dtype[:, :, :]),
-                  ("scaled_freq", chan_freq)]
+        guv_dtype = typingctx.unify_types(uvw.dtype, chan_freq.dtype, gauss_shape.dtype)
+        fields = [("gauss_uv", guv_dtype[:, :, :]), ("scaled_freq", chan_freq)]
 
         fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
         fwhminv = 1.0 / fwhm
@@ -33,7 +31,7 @@ class Gaussian(Term):
             nrow, _ = uvw.shape
 
             gauss_uv = np.empty((nsrc, nrow, 2), dtype=guv_dtype)
-            scaled_freq = chan_freq*gauss_scale
+            scaled_freq = chan_freq * gauss_scale
 
             for s in range(nsrc):
                 emaj, emin, angle = gauss_shape[s]
@@ -47,8 +45,8 @@ class Gaussian(Term):
                     u = uvw[r, 0]
                     v = uvw[r, 1]
 
-                    gauss_uv[s, r, 0] = (u*em - v*el)*er
-                    gauss_uv[s, r, 1] = u*el + v*em
+                    gauss_uv[s, r, 0] = (u * em - v * el) * er
+                    gauss_uv[s, r, 1] = u * el + v * em
 
             return gauss_uv, scaled_freq
 
@@ -58,6 +56,6 @@ class Gaussian(Term):
         def gaussian_sample(state, s, r, t, f1, f2, a1, a2, c):
             fu1 = state.gauss_uv[s, r, 0] * state.scaled_freq[c]
             fv1 = state.gauss_uv[s, r, 1] * state.scaled_freq[c]
-            return np.exp(-(fu1*fu1 + fv1*fv1))
+            return np.exp(-(fu1 * fu1 + fv1 * fv1))
 
         return gaussian_sample

@@ -7,15 +7,13 @@ import warnings
 
 import numpy as np
 
-hour_re = re.compile(r"(?P<sign>[+-]*)"
-                     r"(?P<hours>\d+):"
-                     r"(?P<mins>\d+):"
-                     r"(?P<secs>\d+\.?\d*)")
+hour_re = re.compile(
+    r"(?P<sign>[+-]*)" r"(?P<hours>\d+):" r"(?P<mins>\d+):" r"(?P<secs>\d+\.?\d*)"
+)
 
-deg_re = re.compile(r"(?P<sign>[+-])*"
-                    r"(?P<degs>\d+)\."
-                    r"(?P<mins>\d+)\."
-                    r"(?P<secs>\d+\.?\d*)")
+deg_re = re.compile(
+    r"(?P<sign>[+-])*" r"(?P<degs>\d+)\." r"(?P<mins>\d+)\." r"(?P<secs>\d+\.?\d*)"
+)
 
 
 def _hour_converter(hour_str):
@@ -25,10 +23,10 @@ def _hour_converter(hour_str):
         raise ValueError("Error parsing '%s'" % hour_str)
 
     value = float(m.group("hours")) / 24.0
-    value += float(m.group("mins")) / (24.0*60.0)
-    value += float(m.group("secs")) / (24.0*60.0*60.0)
+    value += float(m.group("mins")) / (24.0 * 60.0)
+    value += float(m.group("secs")) / (24.0 * 60.0 * 60.0)
 
-    if m.group("sign") == '-':
+    if m.group("sign") == "-":
         value = -value
 
     return 2.0 * math.pi * value
@@ -41,17 +39,17 @@ def _deg_converter(deg_str):
         raise ValueError(f"Error parsing '{deg_str}'")
 
     value = float(m.group("degs")) / 360.0
-    value += float(m.group("mins")) / (360.0*60.0)
-    value += float(m.group("secs")) / (360.0*60.0*60.0)
+    value += float(m.group("mins")) / (360.0 * 60.0)
+    value += float(m.group("secs")) / (360.0 * 60.0 * 60.0)
 
-    if m.group("sign") == '-':
+    if m.group("sign") == "-":
         value = -value
 
     return 2.0 * math.pi * value
 
 
 def arcsec2rad(arcseconds=0.0):
-    return np.deg2rad(float(arcseconds) / 3600.)
+    return np.deg2rad(float(arcseconds) / 3600.0)
 
 
 def spi_converter(spi):
@@ -64,26 +62,27 @@ def spi_converter(spi):
 
 
 _COLUMN_CONVERTERS = {
-    'Name': str,
-    'Type': str,
-    'Ra': _hour_converter,
-    'Dec': _deg_converter,
-    'I': float,
-    'SpectralIndex': spi_converter,
-    'LogarithmicSI': lambda x: bool(x == "true"),
-    'ReferenceFrequency': float,
-    'MajorAxis': arcsec2rad,
-    'MinorAxis': arcsec2rad,
-    'Orientation': lambda x=0.0: np.deg2rad(float(x)),
+    "Name": str,
+    "Type": str,
+    "Ra": _hour_converter,
+    "Dec": _deg_converter,
+    "I": float,
+    "SpectralIndex": spi_converter,
+    "LogarithmicSI": lambda x: bool(x == "true"),
+    "ReferenceFrequency": float,
+    "MajorAxis": arcsec2rad,
+    "MinorAxis": arcsec2rad,
+    "Orientation": lambda x=0.0: np.deg2rad(float(x)),
 }
 
 
 # Split on commas, ignoring within [] brackets
-_COMMA_SPLIT_RE = re.compile(r',\s*(?=[^\]]*(?:\[|$))')
+_COMMA_SPLIT_RE = re.compile(r",\s*(?=[^\]]*(?:\[|$))")
 
 # Parse columm headers, handling possible defaults
-_COL_HEADER_RE = re.compile(r"^\s*?(?P<name>.*?)"
-                            r"(\s*?=\s*?'(?P<default>.*?)'\s*?){0,1}$")
+_COL_HEADER_RE = re.compile(
+    r"^\s*?(?P<name>.*?)" r"(\s*?=\s*?'(?P<default>.*?)'\s*?){0,1}$"
+)
 
 
 def _parse_col_descriptor(column_descriptor):
@@ -98,7 +97,7 @@ def _parse_col_descriptor(column_descriptor):
         if m is None:
             raise ValueError(f"'{column}' is not a valid column header")
 
-        name, default = m.group('name', 'default')
+        name, default = m.group("name", "default")
 
         columns.append(name)
         defaults.append(default)
@@ -110,8 +109,7 @@ def _parse_header(header):
     format_str, col_desc = (c.strip() for c in header.split("=", 1))
 
     if format_str != "Format":
-        raise ValueError(f"'{format_str}' does not "
-                         f"appear to be a wsclean header")
+        raise ValueError(f"'{format_str}' does not " f"appear to be a wsclean header")
 
     return _parse_col_descriptor(col_desc)
 
@@ -123,8 +121,10 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
         components = [c.strip() for c in re.split(_COMMA_SPLIT_RE, line)]
 
         if len(components) != len(column_names):
-            raise ValueError(f"line {line_nr} '{line}' should "
-                             f"have {len(column_names)} components")
+            raise ValueError(
+                f"line {line_nr} '{line}' should "
+                f"have {len(column_names)} components"
+            )
 
         # Iterate through each column's data
         it = zip(column_names, components, converters, source_data, defaults)
@@ -140,7 +140,8 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
                             f"on line {line_nr} and no default was "
                             f"supplied either. Attempting to "
                             f"generate a default produced the "
-                            f"following exception {e}")
+                            f"following exception {e}"
+                        )
 
                 value = default
             else:
@@ -157,8 +158,7 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
         spi_column = columns["SpectralIndex"]
         log_spi_column = columns["LogarithmicSI"]
     except KeyError as e:
-        raise ValueError(f"WSClean Model File missing "
-                         f"required column {str(e)}")
+        raise ValueError(f"WSClean Model File missing " f"required column {str(e)}")
 
     it = zip(name_column, flux_column, spi_column, log_spi_column)
 
@@ -167,15 +167,19 @@ def _parse_lines(fh, line_nr, column_names, defaults, converters):
         good = True
 
         if not math.isfinite(flux):
-            warnings.warn(f"Non-finite I {flux} encountered "
-                          f"for source {name}. This source model will "
-                          f"be zeroed.")
+            warnings.warn(
+                f"Non-finite I {flux} encountered "
+                f"for source {name}. This source model will "
+                f"be zeroed."
+            )
             good = False
 
         if not all(map(math.isfinite, spi)):
-            warnings.warn(f"Non-finite SpectralIndex {spi} encountered "
-                          f"for source {name}. This source model will "
-                          f"be zeroed.")
+            warnings.warn(
+                f"Non-finite SpectralIndex {spi} encountered "
+                f"for source {name}. This source model will "
+                f"be zeroed."
+            )
             good = False
 
         if good:
@@ -232,7 +236,7 @@ def load(filename):
 
     try:
         # Search for a header until we find a non-empty string
-        header = ''
+        header = ""
         line_nr = 1
 
         for headers in fh:
@@ -244,8 +248,9 @@ def load(filename):
             line_nr += 1
 
         if not header:
-            raise ValueError(f"'{filename}' does not contain "
-                             f"a valid wsclean header")
+            raise ValueError(
+                f"'{filename}' does not contain " f"a valid wsclean header"
+            )
 
         column_names, defaults = _parse_header(header)
 

@@ -215,4 +215,3 @@ Dask
 
 .. autofunction:: time_and_channel
 .. autofunction:: bda
-

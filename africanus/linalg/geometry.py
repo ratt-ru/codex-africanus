@@ -32,8 +32,9 @@ def timeit(method):
 
 class BoundingConvexHull(object):
     @requires_optional("scipy.stats", opt_import_err)
-    def __init__(self, list_hulls, name="unnamed",
-                 mask=None, check_mask_outofbounds=True):
+    def __init__(
+        self, list_hulls, name="unnamed", mask=None, check_mask_outofbounds=True
+    ):
         """
         Initializes a bounding convex hull around a list of bounding
         convex hulls or series of points.
@@ -52,10 +53,7 @@ class BoundingConvexHull(object):
         self._check_mask_outofbounds = check_mask_outofbounds
         self._cached_filled_mask = None
         self._vertices = points = np.vstack(
-            [
-                b.corners if hasattr(b, "corners") else [b[0], b[1]]
-                for b in list_hulls
-            ]
+            [b.corners if hasattr(b, "corners") else [b[0], b[1]] for b in list_hulls]
         )
         self._hull = spat.ConvexHull(points)
         if mask is None:
@@ -64,14 +62,12 @@ class BoundingConvexHull(object):
             self.sparse_mask = mask
 
     def invalidate_cached_masks(self):
-        """ Invalidates the cached masks (sparse or regular) """
+        """Invalidates the cached masks (sparse or regular)"""
         self._cached_filled_mask = None
         self._mask, self._mask_weights = self.init_mask()
 
     def __str__(self):
-        return ",".join(
-            ["({0:d},{1:d})".format(x, y) for (x, y) in self.corners]
-        )
+        return ",".join(["({0:d},{1:d})".format(x, y) for (x, y) in self.corners])
 
     def init_mask(self):
         """
@@ -98,7 +94,7 @@ class BoundingConvexHull(object):
 
     @property
     def sprase_mask_weights(self):
-        """ returns sparse mask weights """
+        """returns sparse mask weights"""
         return self._mask_weights
 
     @property
@@ -118,23 +114,18 @@ class BoundingConvexHull(object):
             raise TypeError("Mask must be list")
         if not (
             hasattr(mask, "__len__")
-            and (
-                len(mask) == 0
-                or (hasattr(mask[0], "__len__") and len(mask[0]) == 2)
-            )
+            and (len(mask) == 0 or (hasattr(mask[0], "__len__") and len(mask[0]) == 2))
         ):
             raise TypeError("Mask must be a sparse mask of 2 element values")
         if self._check_mask_outofbounds:
-            self._mask = copy.deepcopy(
-                [c for c in mask if (c[1], c[0]) in self]
-            )
+            self._mask = copy.deepcopy([c for c in mask if (c[1], c[0]) in self])
         else:
             self._mask = copy.deepcopy(mask)
         self._mask_weights = np.ones(len(self._mask))
 
     @property
     def mask(self, dtype=np.float64):
-        """ Creates a filled rectangular mask grid of size y, x """
+        """Creates a filled rectangular mask grid of size y, x"""
         if self._cached_filled_mask is not None:
             return self._cached_filled_mask
 
@@ -151,12 +142,8 @@ class BoundingConvexHull(object):
         else:
             sparse_mask = np.array(self.sparse_mask)
             sel = np.logical_and(
-                np.logical_and(
-                    sparse_mask[:, 1] >= minx, sparse_mask[:, 1] <= maxx
-                ),
-                np.logical_and(
-                    sparse_mask[:, 0] >= miny, sparse_mask[:, 0] <= maxy
-                ),
+                np.logical_and(sparse_mask[:, 1] >= minx, sparse_mask[:, 1] <= maxx),
+                np.logical_and(sparse_mask[:, 0] >= miny, sparse_mask[:, 0] <= maxy),
             )
             flat_index = (sparse_mask[sel][:, 0] - miny) * nx + (
                 sparse_mask[sel][:, 1] - minx
@@ -167,25 +154,21 @@ class BoundingConvexHull(object):
 
     @classmethod
     def regional_data(cls, sel_region, data_cube, axes=(2, 3), oob_value=0):
-        """ 2D array containing all values within convex hull
-            sliced out along axes provided as argument. Portions of sel_region
-            that are outside of the data_cube is set to oob_value
+        """2D array containing all values within convex hull
+        sliced out along axes provided as argument. Portions of sel_region
+        that are outside of the data_cube is set to oob_value
 
-            assumes the last value of axes is the fastest varying axis
+        assumes the last value of axes is the fastest varying axis
         """
         if not isinstance(sel_region, BoundingConvexHull):
-            raise TypeError(
-                "Object passed in is not of type BoundingConvexHull"
-            )
+            raise TypeError("Object passed in is not of type BoundingConvexHull")
         if not (hasattr(axes, "__len__") and len(axes) == 2):
             raise ValueError(
                 "Expected a tupple of axes along which to slice out a region"
             )
         axes = sorted(axes)
 
-        lines = np.hstack(
-            [sel_region.corners, np.roll(sel_region.corners, -1, axis=0)]
-        )
+        lines = np.hstack([sel_region.corners, np.roll(sel_region.corners, -1, axis=0)])
         minx = np.min(lines[:, 0:4:2])
         maxx = np.max(lines[:, 0:4:2])
         miny = np.min(lines[:, 1:4:2])
@@ -203,8 +186,10 @@ class BoundingConvexHull(object):
             or maxy < 0
             or maxx < 0
         ):
-            raise ValueError("Expected a bounding hull that is "
-                             "at least partially within the image")
+            raise ValueError(
+                "Expected a bounding hull that is "
+                "at least partially within the image"
+            )
 
         # extract data, pad if necessary
         slc_data = [slice(None)] * len(data_cube.shape)
@@ -233,8 +218,7 @@ class BoundingConvexHull(object):
 
         if any(np.array([pad_left, pad_bottom, pad_right, pad_top]) > 0):
             padded_data = (
-                np.zeros(tuple(new_shape), dtype=selected_data.dtype)
-                * oob_value
+                np.zeros(tuple(new_shape), dtype=selected_data.dtype) * oob_value
             )
             padded_data[tuple(slc_padded)] = selected_data.copy()
         else:
@@ -312,9 +296,7 @@ class BoundingConvexHull(object):
             paint_count = paint_count[sel]
 
         # with the reduced number of overlap pixels unflatten
-        unique_pxls = np.vstack(
-            [unique_pxls_flatten // nx, unique_pxls_flatten % nx]
-        ).T
+        unique_pxls = np.vstack([unique_pxls_flatten // nx, unique_pxls_flatten % nx]).T
         unique_pxls = list(map(tuple, unique_pxls))
         paint_count[...] = 1.0 / paint_count
 
@@ -322,9 +304,7 @@ class BoundingConvexHull(object):
         for reg in regions:
             reg._cached_filled_mask = None  # invalidate
             overlap = [
-                x
-                for x in zip(paint_count, unique_pxls)
-                if x[1] in reg.sparse_mask
+                x for x in zip(paint_count, unique_pxls) if x[1] in reg.sparse_mask
             ]
             for px_pc, px in overlap:
                 sel = (
@@ -336,21 +316,16 @@ class BoundingConvexHull(object):
 
     @property
     def circumference(self):
-        """ area contained in hull """
+        """area contained in hull"""
         lines = self.edges
-        return np.sum(
-            np.linalg.norm(lines[:, 1, :] - lines[:, 0, :], axis=1) + 1
-        )
+        return np.sum(np.linalg.norm(lines[:, 1, :] - lines[:, 0, :], axis=1) + 1)
 
     @property
     def area(self):
-        """ area contained in hull """
+        """area contained in hull"""
         lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
         return (
-            0.5
-            * np.abs(
-                np.sum([x1 * (y2) - (x2) * y1 for x1, y1, x2, y2 in lines])
-            )
+            0.5 * np.abs(np.sum([x1 * (y2) - (x2) * y1 for x1, y1, x2, y2 in lines]))
             + 0.5 * self.circumference
             - 1
         )
@@ -365,11 +340,11 @@ class BoundingConvexHull(object):
 
     @property
     def corners(self):
-        """ Returns vertices and guarentees clockwise winding """
+        """Returns vertices and guarentees clockwise winding"""
         return self._vertices[self._hull.vertices][::-1]
 
     def normals(self, left=True):
-        """ return a list of left normals to the hull """
+        """return a list of left normals to the hull"""
         normals = []
         for i in range(self.corners.shape[0]):
             # assuming clockwise winding
@@ -383,7 +358,7 @@ class BoundingConvexHull(object):
 
     @property
     def edges(self):
-        """ return edge segments of the hull (clockwise wound) """
+        """return edge segments of the hull (clockwise wound)"""
         edges = []
         for i in range(self.corners.shape[0]):
             # assuming clockwise winding
@@ -394,18 +369,18 @@ class BoundingConvexHull(object):
 
     @property
     def edge_midpoints(self):
-        """ return edge midpoints of the hull (clockwise wound) """
+        """return edge midpoints of the hull (clockwise wound)"""
         edges = self.edges
         return np.mean(edges, axis=1)
 
     @property
     def lnormals(self):
-        """ left normals to the edges of the hull """
+        """left normals to the edges of the hull"""
         return self.normals(left=True)
 
     @property
     def rnormals(self):
-        """ right normals to the edges of the hull """
+        """right normals to the edges of the hull"""
         return self.normals(left=False)
 
     def overlaps_with(self, other, min_sep_dist=0.5):
@@ -443,7 +418,7 @@ class BoundingConvexHull(object):
 
     @property
     def centre(self, integral=True):
-        """ Barycentre of hull """
+        """Barycentre of hull"""
         if integral:
 
             def rnd(x):
@@ -454,7 +429,7 @@ class BoundingConvexHull(object):
             return np.mean(self._vertices, axis=0)
 
     def __contains__(self, s, tolerance=0.5):  # less than half a pixel away
-        """ tests whether a point s(x,y) is in the convex hull """
+        """tests whether a point s(x,y) is in the convex hull"""
         # there are three cases to consider
         # CASE 1:
         # scalar projection  between all
@@ -487,11 +462,7 @@ class BoundingBox(BoundingConvexHull):
         self.__xnpx = abs(xu - xl + 1)  # inclusive of the upper pixel
         self.__ynpx = abs(yu - yl + 1)
         BoundingConvexHull.__init__(
-            self,
-            [[xl, yl], [xl, yu], [xu, yu], [xu, yl]],
-            name,
-            mask=mask,
-            **kwargs
+            self, [[xl, yl], [xl, yu], [xu, yu], [xu, yl]], name, mask=mask, **kwargs
         )
 
     def init_mask(self):
@@ -516,7 +487,7 @@ class BoundingBox(BoundingConvexHull):
         return sparse_mask, mask_weights
 
     def __contains__(self, s):
-        """ tests whether a point s(x,y) is in the box"""
+        """tests whether a point s(x,y) is in the box"""
         lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
         minx = np.min(lines[:, 0:4:2])
         maxx = np.max(lines[:, 0:4:2])
@@ -545,63 +516,46 @@ class BoundingBox(BoundingConvexHull):
             raise TypeError("Mask must be list")
         if not (
             hasattr(mask, "__len__")
-            and (
-                len(mask) == 0
-                or (hasattr(mask[0], "__len__") and len(mask[0]) == 2)
-            )
+            and (len(mask) == 0 or (hasattr(mask[0], "__len__") and len(mask[0]) == 2))
         ):
             raise TypeError("Mask must be a sparse mask of 2 element values")
         if len(mask) == 0:
             self._mask = []
         else:
-            lines = np.hstack(
-                [self.corners, np.roll(self.corners, -1, axis=0)])
+            lines = np.hstack([self.corners, np.roll(self.corners, -1, axis=0)])
             minx = np.min(lines[:, 0:4:2])
             maxx = np.max(lines[:, 0:4:2])
             miny = np.min(lines[:, 1:4:2])
             maxy = np.max(lines[:, 1:4:2])
             sparse_mask = np.asarray(mask)
             sel = np.logical_and(
-                np.logical_and(
-                    sparse_mask[:, 1] >= minx, sparse_mask[:, 1] <= maxx
-                ),
-                np.logical_and(
-                    sparse_mask[:, 0] >= miny, sparse_mask[:, 0] <= maxy
-                ),
+                np.logical_and(sparse_mask[:, 1] >= minx, sparse_mask[:, 1] <= maxx),
+                np.logical_and(sparse_mask[:, 0] >= miny, sparse_mask[:, 0] <= maxy),
             )
             self._mask = sparse_mask[sel]
             self._mask_weights = np.ones(len(self._mask))
 
     @classmethod
     def project_regions(
-        cls,
-        regional_data_list,
-        regions_list,
-        axes=(2, 3),
-        dtype=np.float64,
-        **kwargs
+        cls, regional_data_list, regions_list, axes=(2, 3), dtype=np.float64, **kwargs
     ):
-        """ Projects individial regions back onto a single contiguous cube """
+        """Projects individial regions back onto a single contiguous cube"""
         if not (
             hasattr(regional_data_list, "__len__")
             and hasattr(regions_list, "__len__")
             and len(regions_list) == len(regional_data_list)
         ):
-            raise TypeError("Region data list and regions lists "
-                            "must be lists of equal length")
+            raise TypeError(
+                "Region data list and regions lists " "must be lists of equal length"
+            )
         if not all([isinstance(x, np.ndarray) for x in regional_data_list]):
             raise TypeError("Region data list must be a list of ndarrays")
         if not all([isinstance(x, BoundingBox) for x in regions_list]):
-            raise TypeError(
-                "Region list must be a list of Axis Aligned Bounding Boxes"
-            )
+            raise TypeError("Region list must be a list of Axis Aligned Bounding Boxes")
         if regions_list == []:
             return np.empty((0))
         if not all(
-            [
-                reg.ndim == regional_data_list[0].ndim
-                for reg in regional_data_list
-            ]
+            [reg.ndim == regional_data_list[0].ndim for reg in regional_data_list]
         ):
             raise ValueError("All data cubes must be of equal dimension")
         axes = tuple(sorted(axes))
@@ -630,9 +584,11 @@ class BoundingBox(BoundingConvexHull):
             fnx = xu - xl + 1  # inclusive
             fny = yu - yl + 1  # inclusive
             if f.shape[axes[0]] != fny - 1 or f.shape[axes[1]] != fnx - 1:
-                raise ValueError("One or more bounding box descriptors "
-                                 "does not match shape of corresponding "
-                                 "data cubes")
+                raise ValueError(
+                    "One or more bounding box descriptors "
+                    "does not match shape of corresponding "
+                    "data cubes"
+                )
             slc_data = [slice(None)] * len(stitched_img.shape)
             for (start, end), axis in zip([(yl, yu), (xl, xu)], axes):
                 slc_data[axis] = slice(start, end)
@@ -656,10 +612,12 @@ class BoundingBoxFactory(object):
     def AxisAlignedBoundingBox(
         cls, convex_hull_object, square=False, enforce_odd=True, **kwargs
     ):
-        """ Constructs an axis aligned bounding box around convex hull """
+        """Constructs an axis aligned bounding box around convex hull"""
         if not isinstance(convex_hull_object, BoundingConvexHull):
-            raise TypeError("Convex hull object passed in constructor "
-                            "is not of type BoundingConvexHull")
+            raise TypeError(
+                "Convex hull object passed in constructor "
+                "is not of type BoundingConvexHull"
+            )
         if square:
             nx = (
                 np.max(convex_hull_object.corners[:, 0])
@@ -694,17 +652,16 @@ class BoundingBoxFactory(object):
             yu,
             convex_hull_object.name,
             mask=convex_hull_object.sparse_mask,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
     def SplitBox(cls, bounding_box_object, nsubboxes=1, **kwargs):
-        """ Split a axis-aligned bounding box into smaller boxes """
+        """Split a axis-aligned bounding box into smaller boxes"""
         if not isinstance(bounding_box_object, BoundingBox):
             raise TypeError("Expected bounding box object")
         if not (isinstance(nsubboxes, int) and nsubboxes >= 1):
-            raise ValueError(
-                "nsubboxes must be integral type and be 1 or more")
+            raise ValueError("nsubboxes must be integral type and be 1 or more")
         xl = np.min(bounding_box_object.corners[:, 0])
         xu = np.max(bounding_box_object.corners[:, 0])
         yl = np.min(bounding_box_object.corners[:, 1])
@@ -755,7 +712,7 @@ class BoundingBoxFactory(object):
                 ul[1],
                 bounding_box_object.name,
                 mask=bounding_box_object.sparse_mask,
-                **kwargs
+                **kwargs,
             )
             for bl, br, ur, ul in contained_boxes
         ]
@@ -789,5 +746,5 @@ class BoundingBoxFactory(object):
             yu,
             bounding_box_object.name,
             mask=bounding_box_object.sparse_mask,
-            **kwargs
+            **kwargs,
         )  # mask unchanged in the new shape, border frame discarded

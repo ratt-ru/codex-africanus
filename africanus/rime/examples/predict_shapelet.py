@@ -39,7 +39,7 @@ _einsum_corr_indices = "ijkl"
 
 def _brightness_schema(corrs, index):
     if corrs == 4:
-        return "sf" + _einsum_corr_indices[index: index + 2], index + 1
+        return "sf" + _einsum_corr_indices[index : index + 2], index + 1
     else:
         return "sfi", index
 
@@ -204,9 +204,7 @@ def parse_sky_model(filename, chunks):
         U = source.flux.U
         V = source.flux.V
 
-        spectrum = (
-            getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
-        )
+        spectrum = getattr(source, "spectrum", _empty_spectrum) or _empty_spectrum
         try:
             # Extract reference frequency
             ref_freq = spectrum.freq0
@@ -253,9 +251,7 @@ def parse_sky_model(filename, chunks):
             raise ValueError("Unknown source morphology %s" % typecode)
 
     Point = namedtuple("Point", ["radec", "stokes", "spi", "ref_freq"])
-    Gauss = namedtuple(
-        "Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"]
-    )
+    Gauss = namedtuple("Gauss", ["radec", "stokes", "spi", "ref_freq", "shape"])
     Shapelet = namedtuple(
         "Shapelet", ["radec", "stokes", "spi", "ref_freq", "beta", "coeffs"]
     )
@@ -322,12 +318,8 @@ def support_tables(args):
         "DATA_DESCRIPTION": xds_from_table(n["DATA_DESCRIPTION"]),
         # Variably shaped, need a dataset per row
         "FIELD": xds_from_table(n["FIELD"], group_cols="__row__"),
-        "SPECTRAL_WINDOW": xds_from_table(
-            n["SPECTRAL_WINDOW"], group_cols="__row__"
-        ),
-        "POLARIZATION": xds_from_table(
-            n["POLARIZATION"], group_cols="__row__"
-        ),
+        "SPECTRAL_WINDOW": xds_from_table(n["SPECTRAL_WINDOW"], group_cols="__row__"),
+        "POLARIZATION": xds_from_table(n["POLARIZATION"], group_cols="__row__"),
     }
 
     lazy_tables.update(dask.compute(compute_tables)[0])
@@ -335,23 +327,21 @@ def support_tables(args):
 
 
 def _zero_pes(parangles, frequency, dtype_):
-    """ Create zeroed pointing errors """
+    """Create zeroed pointing errors"""
     ntime, na = parangles.shape
     nchan = frequency.shape[0]
     return np.zeros((ntime, na, nchan, 2), dtype=dtype_)
 
 
 def _unity_ant_scales(parangles, frequency, dtype_):
-    """ Create zeroed antenna scalings """
+    """Create zeroed antenna scalings"""
     _, na = parangles[0].shape
     nchan = frequency.shape[0]
     return np.ones((na, nchan, 2), dtype=dtype_)
 
 
-def zernike_factory(
-    args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=None
-):
-    """ Generate a primary beam DDE using Zernike polynomials """
+def zernike_factory(args, ms, ant, field, pol, lm, utime, frequency, jon, nrow=None):
+    """Generate a primary beam DDE using Zernike polynomials"""
     if not args.zernike:
         return None
 
@@ -382,9 +372,7 @@ def zernike_factory(
     pointing_errors = da.from_array(
         np.zeros((ntime, na, nchan, 2)), chunks=(time_chunks, na, nchan, 2)
     )
-    antenna_scaling = da.from_array(
-        np.ones((na, nchan, 2)), chunks=(na, nchan, 2)
-    )
+    antenna_scaling = da.from_array(np.ones((na, nchan, 2)), chunks=(na, nchan, 2))
     parangles = da.from_array(
         parallactic_angles(
             np.array(utime)[:ntime],
@@ -419,9 +407,7 @@ def zernike_factory(
 
     # Call Zernike_dde
     dde_r = zernike_dde(
-        da.from_array(
-            zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)
-        ),
+        da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
         da.from_array(coeffs_r, chunks=coeffs_r.shape),
         da.from_array(noll_index_r, chunks=noll_index_r.shape),
         parangles,
@@ -430,9 +416,7 @@ def zernike_factory(
         pointing_errors,
     )
     dde_i = zernike_dde(
-        da.from_array(
-            zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)
-        ),
+        da.from_array(zernike_coords, chunks=(3, nsrc, time_chunks, na, nchan)),
         da.from_array(coeffs_i, chunks=coeffs_i.shape),
         da.from_array(noll_index_i, chunks=noll_index_i.shape),
         parangles,
@@ -489,9 +473,7 @@ def vis_factory(args, source_type, sky_model, ms, ant, field, spw, pol):
 
     # Need unique times for parallactic angles
     nan_chunks = (tuple(np.nan for _ in utime_inv.chunks[0]),)
-    utime = utime_inv.map_blocks(
-        getitem, 0, chunks=nan_chunks, dtype=ms.TIME.dtype
-    )
+    utime = utime_inv.map_blocks(getitem, 0, chunks=nan_chunks, dtype=ms.TIME.dtype)
 
     time_idx = utime_inv.map_blocks(getitem, 1, dtype=np.int32)
 
@@ -572,7 +554,6 @@ def predict(args):
         group_cols=["FIELD_ID", "DATA_DESC_ID"],
         chunks={"row": args.row_chunks},
     ):
-
         # Perform subtable joins
         ant = ant_ds[0]
         field = field_ds[xds.attrs["FIELD_ID"]]

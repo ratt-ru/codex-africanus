@@ -1,4 +1,3 @@
-
 from collections import namedtuple
 
 from numba.core import cgutils, types
@@ -12,7 +11,7 @@ from africanus.experimental.rime.fused.terms.core import Term
 def zero_vis_factory(ncorr):
     @intrinsic
     def zero_vis(typingctx, value):
-        sig = types.Tuple([value]*ncorr)(value)
+        sig = types.Tuple([value] * ncorr)(value)
 
         def codegen(context, builder, signature, args):
             llvm_ret_type = context.get_value_type(signature.return_type)
@@ -28,9 +27,9 @@ def zero_vis_factory(ncorr):
     return zero_vis
 
 
-BeamInfo = namedtuple("BeamInfo", [
-    "lscale", "mscale",
-    "lmaxi", "mmaxi", "lmaxf", "mmaxf"])
+BeamInfo = namedtuple(
+    "BeamInfo", ["lscale", "mscale", "lmaxi", "mmaxi", "lmaxf", "mmaxf"]
+)
 
 
 class BeamCubeDDE(Term):
@@ -38,17 +37,26 @@ class BeamCubeDDE(Term):
 
     def __init__(self, configuration, corrs):
         if configuration not in {"left", "right"}:
-            raise ValueError(f"BeamCubeDDE configuration must be"
-                             f"either 'left' or 'right'. "
-                             f"Got {configuration}")
+            raise ValueError(
+                f"BeamCubeDDE configuration must be"
+                f"either 'left' or 'right'. "
+                f"Got {configuration}"
+            )
 
         super().__init__(configuration)
         self.corrs = corrs
 
-    def dask_schema(self, beam, beam_lm_extents, beam_freq_map,
-                    lm, beam_parangle, chan_freq,
-                    beam_point_errors=None,
-                    beam_antenna_scaling=None):
+    def dask_schema(
+        self,
+        beam,
+        beam_lm_extents,
+        beam_freq_map,
+        lm,
+        beam_parangle,
+        chan_freq,
+        beam_point_errors=None,
+        beam_antenna_scaling=None,
+    ):
         return {
             "beam": ("beam_lw", "beam_mh", "beam_nud", "corr"),
             "beam_lm_extents": ("lm_ext", "lm_ext_comp"),
@@ -57,28 +65,40 @@ class BeamCubeDDE(Term):
             "chan_freq": ("chan",),
         }
 
-    def init_fields(self, typingctx,
-                    beam, beam_lm_extents, beam_freq_map,
-                    lm, beam_parangle, chan_freq,
-                    beam_point_errors=None,
-                    beam_antenna_scaling=None):
-
+    def init_fields(
+        self,
+        typingctx,
+        beam,
+        beam_lm_extents,
+        beam_freq_map,
+        lm,
+        beam_parangle,
+        chan_freq,
+        beam_point_errors=None,
+        beam_antenna_scaling=None,
+    ):
         ncorr = len(self.corrs)
         ex_dtype = beam_lm_extents.dtype
-        beam_info_types = [ex_dtype]*2 + [types.int64]*2 + [types.float64]*2
+        beam_info_types = [ex_dtype] * 2 + [types.int64] * 2 + [types.float64] * 2
         beam_info_type = types.NamedTuple(beam_info_types, BeamInfo)
 
-        fields = [("beam_freq_data", chan_freq.copy(ndim=2)),
-                  ("beam_info", beam_info_type)]
+        fields = [
+            ("beam_freq_data", chan_freq.copy(ndim=2)),
+            ("beam_info", beam_info_type),
+        ]
 
-        def beam(beam, beam_lm_extents, beam_freq_map,
-                 lm, beam_parangle, chan_freq,
-                 beam_point_errors=None,
-                 beam_antenna_scaling=None):
-
+        def beam(
+            beam,
+            beam_lm_extents,
+            beam_freq_map,
+            lm,
+            beam_parangle,
+            chan_freq,
+            beam_point_errors=None,
+            beam_antenna_scaling=None,
+        ):
             if beam.shape[3] != ncorr:
-                raise ValueError(
-                    "Beam correlations don't match specification corrs")
+                raise ValueError("Beam correlations don't match specification corrs")
 
             freq_data = np.empty((chan_freq.shape[0], 3), chan_freq.dtype)
             beam_nud = beam_freq_map.shape[0]
@@ -177,8 +197,8 @@ class BeamCubeDDE(Term):
             tm = sm
 
             # Rotate lm coordinate angle
-            vl = tl*cos_pa - tm*sin_pa
-            vm = tl*sin_pa + tm*cos_pa
+            vl = tl * cos_pa - tm * sin_pa
+            vm = tl * sin_pa + tm * cos_pa
 
             # Scale by antenna scaling
             # vl *= antenna_scaling[a, f, 0]
@@ -189,8 +209,8 @@ class BeamCubeDDE(Term):
             lower_m, upper_m = state.beam_lm_extents[1]
 
             # Shift into the cube coordinate system
-            vl = state.beam_info.lscale*(vl - lower_l)
-            vm = state.beam_info.mscale*(vm - lower_m)
+            vl = state.beam_info.lscale * (vl - lower_l)
+            vm = state.beam_info.mscale * (vm - lower_m)
 
             # Clamp the coordinates to the edges of the cube
             vl = max(0.0, min(vl, state.beam_info.lmaxf))
@@ -212,82 +232,82 @@ class BeamCubeDDE(Term):
             absc_sum = zero_vis(state.beam.real.dtype.type(0))
 
             # Lower cube
-            weight = (1.0 - ld)*(1.0 - md)*nud
+            weight = (1.0 - ld) * (1.0 - md) * nud
 
             for co in range(ncorr):
                 value = state.beam[gl0, gm0, gc0, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = ld*(1.0 - md)*nud
+            weight = ld * (1.0 - md) * nud
 
             for co in range(ncorr):
                 value = state.beam[gl1, gm0, gc0, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = (1.0 - ld)*md*nud
+            weight = (1.0 - ld) * md * nud
 
             for co in range(ncorr):
                 value = state.beam[gl0, gm1, gc0, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = ld*md*nud
+            weight = ld * md * nud
 
             for co in range(ncorr):
                 value = state.beam[gl1, gm1, gc0, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
             # Upper cube
-            weight = (1.0 - ld)*(1.0 - md)*inv_nud
+            weight = (1.0 - ld) * (1.0 - md) * inv_nud
 
             for co in range(ncorr):
                 value = state.beam[gl0, gm0, gc1, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = ld*(1.0 - md)*inv_nud
+            weight = ld * (1.0 - md) * inv_nud
 
             for co in range(ncorr):
                 value = state.beam[gl1, gm0, gc1, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = (1.0 - ld)*md*inv_nud
+            weight = (1.0 - ld) * md * inv_nud
 
             for co in range(ncorr):
                 value = state.beam[gl0, gm1, gc1, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
-            weight = ld*md*inv_nud
+            weight = ld * md * inv_nud
 
             for co in range(ncorr):
                 value = state.beam[gl1, gm1, gc1, co]
-                absc_sum = tuple_setitem(absc_sum, co,
-                                         weight*np.abs(value) + absc_sum[co])
-                corr_sum = tuple_setitem(corr_sum, co,
-                                         weight*value + corr_sum[co])
+                absc_sum = tuple_setitem(
+                    absc_sum, co, weight * np.abs(value) + absc_sum[co]
+                )
+                corr_sum = tuple_setitem(corr_sum, co, weight * value + corr_sum[co])
 
             for co in range(ncorr):
                 div = np.abs(corr_sum[co])
-                value = corr_sum[co]*absc_sum[co]
+                value = corr_sum[co] * absc_sum[co]
 
                 if div != 0.0:
                     value /= div

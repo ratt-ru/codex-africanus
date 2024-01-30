@@ -26,8 +26,8 @@ class LMTransformer(Transformer):
                 sin_dec = np.sin(radec[s, 1])
                 cos_dec = np.cos(radec[s, 1])
 
-                lm[s, 0] = cos_dec*sin_ra_delta
-                lm[s, 1] = sin_dec*cos_pc_dec - cos_dec*sin_pc_dec*cos_ra_delta
+                lm[s, 0] = cos_dec * sin_ra_delta
+                lm[s, 1] = sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
 
             return lm
 
@@ -37,10 +37,7 @@ class LMTransformer(Transformer):
         assert radec.ndim == 2
         assert phase_dir.ndim == 1
 
-        inputs = {
-            "radec": ("source", "radec"),
-            "phase_dir": ("radec",)
-        }
+        inputs = {"radec": ("source", "radec"), "phase_dir": ("radec",)}
 
         outputs = {"lm": np.empty((0, 0), dtype=radec.dtype)}
 

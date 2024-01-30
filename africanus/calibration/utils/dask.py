@@ -4,10 +4,12 @@ from africanus.calibration.utils.correct_vis import CORRECT_VIS_DOCS
 from africanus.calibration.utils.corrupt_vis import CORRUPT_VIS_DOCS
 from africanus.calibration.utils.residual_vis import RESIDUAL_VIS_DOCS
 from africanus.calibration.utils.compute_and_corrupt_vis import (
-                                COMPUTE_AND_CORRUPT_VIS_DOCS)
+    COMPUTE_AND_CORRUPT_VIS_DOCS,
+)
 from africanus.calibration.utils import correct_vis as np_correct_vis
-from africanus.calibration.utils import (compute_and_corrupt_vis as
-                                         np_compute_and_corrupt_vis)
+from africanus.calibration.utils import (
+    compute_and_corrupt_vis as np_compute_and_corrupt_vis,
+)
 from africanus.calibration.utils import corrupt_vis as np_corrupt_vis
 from africanus.calibration.utils import residual_vis as np_residual_vis
 from africanus.calibration.utils import check_type
@@ -22,17 +24,17 @@ else:
     dask_import_error = None
 
 
-def _corrupt_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, model):
-    return np_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                          antenna2, jones[0][0], model[0])
+def _corrupt_vis_wrapper(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model
+):
+    return np_corrupt_vis(
+        time_bin_indices, time_bin_counts, antenna1, antenna2, jones[0][0], model[0]
+    )
 
 
-@requires_optional('dask.array', dask_import_error)
-def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, model):
-
-    mode = check_type(jones, model, vis_type='model')
+@requires_optional("dask.array", dask_import_error)
+def corrupt_vis(time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model):
+    mode = check_type(jones, model, vis_type="model")
 
     if jones.chunks[1][0] != jones.shape[1]:
         raise ValueError("Cannot chunk jones over antenna")
@@ -56,31 +58,47 @@ def corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
-    return blockwise(_corrupt_vis_wrapper, out_shape,
-                     time_bin_indices, ("row",),
-                     time_bin_counts, ("row",),
-                     antenna1, ("row",),
-                     antenna2, ("row",),
-                     jones, jones_shape,
-                     model, model_shape,
-                     adjust_chunks={"row": antenna1.chunks[0]},
-                     dtype=model.dtype,
-                     align_arrays=False)
+    return blockwise(
+        _corrupt_vis_wrapper,
+        out_shape,
+        time_bin_indices,
+        ("row",),
+        time_bin_counts,
+        ("row",),
+        antenna1,
+        ("row",),
+        antenna2,
+        ("row",),
+        jones,
+        jones_shape,
+        model,
+        model_shape,
+        adjust_chunks={"row": antenna1.chunks[0]},
+        dtype=model.dtype,
+        align_arrays=False,
+    )
 
 
-def _compute_and_corrupt_vis_wrapper(time_bin_indices, time_bin_counts,
-                                     antenna1, antenna2, jones, model,
-                                     uvw, freq, lm):
-    return np_compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
-                                      antenna1, antenna2, jones[0][0],
-                                      model[0], uvw[0], freq, lm[0][0])
+def _compute_and_corrupt_vis_wrapper(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+):
+    return np_compute_and_corrupt_vis(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones[0][0],
+        model[0],
+        uvw[0],
+        freq,
+        lm[0][0],
+    )
 
 
-@requires_optional('dask.array', dask_import_error)
-def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
-                            antenna1, antenna2, jones, model,
-                            uvw, freq, lm):
-
+@requires_optional("dask.array", dask_import_error)
+def compute_and_corrupt_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+):
     if jones.chunks[1][0] != jones.shape[1]:
         raise ValueError("Cannot chunk jones over antenna")
     if jones.chunks[3][0] != jones.shape[3]:
@@ -94,7 +112,7 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
     if lm.chunks[2][0] != lm.shape[2]:
         raise ValueError("Cannot chunks lm over last axis")
 
-    mode = check_type(jones, model, vis_type='model')
+    mode = check_type(jones, model, vis_type="model")
 
     if mode == DIAG_DIAG:
         out_shape = ("row", "chan", "corr1")
@@ -111,31 +129,45 @@ def compute_and_corrupt_vis(time_bin_indices, time_bin_counts,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
-    return blockwise(_compute_and_corrupt_vis_wrapper, out_shape,
-                     time_bin_indices, ("row",),
-                     time_bin_counts, ("row",),
-                     antenna1, ("row",),
-                     antenna2, ("row",),
-                     jones, jones_shape,
-                     model, model_shape,
-                     uvw, ("row", "three"),
-                     freq, ("chan",),
-                     lm, ("row", "dir", "two"),
-                     adjust_chunks={"row": antenna1.chunks[0]},
-                     dtype=model.dtype,
-                     align_arrays=False)
+    return blockwise(
+        _compute_and_corrupt_vis_wrapper,
+        out_shape,
+        time_bin_indices,
+        ("row",),
+        time_bin_counts,
+        ("row",),
+        antenna1,
+        ("row",),
+        antenna2,
+        ("row",),
+        jones,
+        jones_shape,
+        model,
+        model_shape,
+        uvw,
+        ("row", "three"),
+        freq,
+        ("chan",),
+        lm,
+        ("row", "dir", "two"),
+        adjust_chunks={"row": antenna1.chunks[0]},
+        dtype=model.dtype,
+        align_arrays=False,
+    )
 
 
-def _correct_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
-                         antenna2, jones, vis, flag):
-    return np_correct_vis(time_bin_indices, time_bin_counts, antenna1,
-                          antenna2, jones[0][0], vis, flag)
+def _correct_vis_wrapper(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag
+):
+    return np_correct_vis(
+        time_bin_indices, time_bin_counts, antenna1, antenna2, jones[0][0], vis, flag
+    )
 
 
-@requires_optional('dask.array', dask_import_error)
-def correct_vis(time_bin_indices, time_bin_counts, antenna1,
-                antenna2, jones, vis, flag):
-
+@requires_optional("dask.array", dask_import_error)
+def correct_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag
+):
     if jones.chunks[1][0] != jones.shape[1]:
         raise ValueError("Cannot chunk jones over antenna")
     if jones.chunks[3][0] != jones.shape[3]:
@@ -155,29 +187,48 @@ def correct_vis(time_bin_indices, time_bin_counts, antenna1,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
-    return blockwise(_correct_vis_wrapper, out_shape,
-                     time_bin_indices, ("row",),
-                     time_bin_counts, ("row",),
-                     antenna1, ("row",),
-                     antenna2, ("row",),
-                     jones, jones_shape,
-                     vis, out_shape,
-                     flag, out_shape,
-                     adjust_chunks={"row": antenna1.chunks[0]},
-                     dtype=vis.dtype,
-                     align_arrays=False)
+    return blockwise(
+        _correct_vis_wrapper,
+        out_shape,
+        time_bin_indices,
+        ("row",),
+        time_bin_counts,
+        ("row",),
+        antenna1,
+        ("row",),
+        antenna2,
+        ("row",),
+        jones,
+        jones_shape,
+        vis,
+        out_shape,
+        flag,
+        out_shape,
+        adjust_chunks={"row": antenna1.chunks[0]},
+        dtype=vis.dtype,
+        align_arrays=False,
+    )
 
 
-def _residual_vis_wrapper(time_bin_indices, time_bin_counts, antenna1,
-                          antenna2, jones, vis, flag, model):
-    return np_residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                           antenna2, jones[0][0], vis, flag, model[0])
+def _residual_vis_wrapper(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+):
+    return np_residual_vis(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones[0][0],
+        vis,
+        flag,
+        model[0],
+    )
 
 
-@requires_optional('dask.array', dask_import_error)
-def residual_vis(time_bin_indices, time_bin_counts, antenna1,
-                 antenna2, jones, vis, flag, model):
-
+@requires_optional("dask.array", dask_import_error)
+def residual_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, vis, flag, model
+):
     if jones.chunks[1][0] != jones.shape[1]:
         raise ValueError("Cannot chunk jones over antenna")
     if jones.chunks[3][0] != jones.shape[3]:
@@ -202,28 +253,43 @@ def residual_vis(time_bin_indices, time_bin_counts, antenna1,
     else:
         raise ValueError("Unknown mode argument of %s" % mode)
 
-    return blockwise(_residual_vis_wrapper, out_shape,
-                     time_bin_indices, ("row",),
-                     time_bin_counts, ("row",),
-                     antenna1, ("row",),
-                     antenna2, ("row",),
-                     jones, jones_shape,
-                     vis, out_shape,
-                     flag, out_shape,
-                     model, model_shape,
-                     adjust_chunks={"row": antenna1.chunks[0]},
-                     dtype=vis.dtype,
-                     align_arrays=False)
+    return blockwise(
+        _residual_vis_wrapper,
+        out_shape,
+        time_bin_indices,
+        ("row",),
+        time_bin_counts,
+        ("row",),
+        antenna1,
+        ("row",),
+        antenna2,
+        ("row",),
+        jones,
+        jones_shape,
+        vis,
+        out_shape,
+        flag,
+        out_shape,
+        model,
+        model_shape,
+        adjust_chunks={"row": antenna1.chunks[0]},
+        dtype=vis.dtype,
+        align_arrays=False,
+    )
 
 
 compute_and_corrupt_vis.__doc__ = COMPUTE_AND_CORRUPT_VIS_DOCS.substitute(
-                                        array_type=":class:`dask.array.Array`")
+    array_type=":class:`dask.array.Array`"
+)
 
 corrupt_vis.__doc__ = CORRUPT_VIS_DOCS.substitute(
-                        array_type=":class:`dask.array.Array`")
+    array_type=":class:`dask.array.Array`"
+)
 
 correct_vis.__doc__ = CORRECT_VIS_DOCS.substitute(
-                        array_type=":class:`dask.array.Array`")
+    array_type=":class:`dask.array.Array`"
+)
 
 residual_vis.__doc__ = RESIDUAL_VIS_DOCS.substitute(
-                        array_type=":class:`dask.array.Array`")
+    array_type=":class:`dask.array.Array`"
+)

@@ -4,8 +4,7 @@ import pickle
 
 import pytest
 
-from africanus.util.patterns import (
-    Multiton, LazyProxy, LazyProxyMultiton)
+from africanus.util.patterns import Multiton, LazyProxy, LazyProxyMultiton
 
 
 class DummyResource:

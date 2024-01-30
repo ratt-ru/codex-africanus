@@ -54,12 +54,10 @@ class RimeSpecificationError(ValueError):
 def parse_stokes(stokes_string):
     stokes = parse_str_list(stokes_string)
 
-    if (not isinstance(stokes, list) or
-            not all(isinstance(s, str) for s in stokes)):
-
+    if not isinstance(stokes, list) or not all(isinstance(s, str) for s in stokes):
         raise RimeParseError(
-            f"Stokes specification must be of the form "
-            f"[I,Q,U,V]. Got {stokes}.")
+            f"Stokes specification must be of the form " f"[I,Q,U,V]. Got {stokes}."
+        )
 
     return [s.upper() for s in stokes]
 
@@ -67,12 +65,11 @@ def parse_stokes(stokes_string):
 def parse_corrs(corrs_string):
     corrs = parse_str_list(corrs_string)
 
-    if (not isinstance(corrs, list) or
-            not all(isinstance(c, str) for c in corrs)):
-
+    if not isinstance(corrs, list) or not all(isinstance(c, str) for c in corrs):
         raise RimeParseError(
             f"Correlation specification must be of the form "
-            f"[XX,XY,YX,YY]. Got {corrs}.")
+            f"[XX,XY,YX,YY]. Got {corrs}."
+        )
 
     return [c.upper() for c in corrs]
 
@@ -86,7 +83,8 @@ def parse_rime(rime: str):
         raise RimeParseError(
             f"RIME must be of the form "
             f"[Gp, (Kpq, Bpq), Gq]: [I,Q,U,V] -> [XX,XY,YX,YY]. "
-            f"Got {rime}.")
+            f"Got {rime}."
+        )
 
     bits = [s.strip() for s in polarisation_bits.split("->")]
 
@@ -95,7 +93,8 @@ def parse_rime(rime: str):
     except (ValueError, TypeError):
         raise RimeParseError(
             f"Polarisation specification must be of the form "
-            f"[I,Q,U,V] -> [XX,XY,YX,YY]. Got {polarisation_bits}.")
+            f"[I,Q,U,V] -> [XX,XY,YX,YY]. Got {polarisation_bits}."
+        )
 
     stokes_bits, corr_bits = bits
 
@@ -103,12 +102,14 @@ def parse_rime(rime: str):
     corrs = parse_corrs(corr_bits)
     equation = parse_str_list(rime_bits)
 
-    if (not isinstance(equation, (tuple, list)) or
-        any(isinstance(e, (tuple, list)) for e in equation) or
-            not all(isinstance(t, str) for t in equation)):
+    if (
+        not isinstance(equation, (tuple, list))
+        or any(isinstance(e, (tuple, list)) for e in equation)
+        or not all(isinstance(t, str) for t in equation)
+    ):
         raise RimeParseError(
-                f"RIME must be a tuple/list of Terms "
-                f"(Kpq, Bpq). Got {equation}.")
+            f"RIME must be a tuple/list of Terms " f"(Kpq, Bpq). Got {equation}."
+        )
 
     return equation, stokes, corrs
 
@@ -148,8 +149,12 @@ def search_types(module, typ, exclude=("__init__.py", "core.py")):
         mod = import_module(f"{module.__package__}.{py_file.stem}")
 
         for k, v in vars(mod).items():
-            if (k.startswith("_") or not isinstance(v, type) or
-                    not issubclass(v, typ) or v in typ):
+            if (
+                k.startswith("_")
+                or not isinstance(v, type)
+                or not issubclass(v, typ)
+                or v in typ
+            ):
                 continue
 
             typs[k] = v
@@ -162,7 +167,8 @@ def _decompose_term_str(term_str):
 
     if not match:
         raise RimeSpecificationError(
-            f"{term_str} does not match {TERM_STRING_REGEX.pattern}")
+            f"{term_str} does not match {TERM_STRING_REGEX.pattern}"
+        )
 
     return tuple(match.groups())
 
@@ -255,7 +261,8 @@ class RimeSpecification:
         "K": "Phase",
         "B": "Brightness",
         "L": "FeedRotation",
-        "E": "BeamCubeDDE"}
+        "E": "BeamCubeDDE",
+    }
 
     def __reduce__(self):
         return (RimeSpecification, self._saved_args)
@@ -264,8 +271,9 @@ class RimeSpecification:
         return hash(self._saved_args)
 
     def __eq__(self, rhs):
-        return (isinstance(rhs, RimeSpecification) and
-                self._saved_args == rhs._saved_args)
+        return (
+            isinstance(rhs, RimeSpecification) and self._saved_args == rhs._saved_args
+        )
 
     def __init__(self, specification, terms=None, transformers=None):
         # Argument Handling
@@ -282,7 +290,8 @@ class RimeSpecification:
         else:
             raise TypeError(
                 f"terms: {terms} must be a dictionary or "
-                f"an iterable of (key, value) pairs")
+                f"an iterable of (key, value) pairs"
+            )
 
         if not transformers:
             saved_transforms = transformers
@@ -290,8 +299,8 @@ class RimeSpecification:
             saved_transforms = frozenset(transformers)
         else:
             raise TypeError(
-                f"transformers: {transformers} must be "
-                f"an iterable of Transformers")
+                f"transformers: {transformers} must be " f"an iterable of Transformers"
+            )
 
         # Parse the specification
         equation, stokes, corrs = parse_rime(specification)
@@ -299,7 +308,8 @@ class RimeSpecification:
         if not set(stokes).issubset(self.VALID_STOKES):
             raise RimeSpecificationError(
                 f"{stokes} contains invalid stokes parameters. "
-                f"Only {self.VALID_STOKES} are accepted")
+                f"Only {self.VALID_STOKES} are accepted"
+            )
 
         self._saved_args = (specification, saved_terms, saved_transforms)
         self.equation = equation
@@ -319,8 +329,10 @@ class RimeSpecification:
             raise RimeSpecificationError(f"Unknown term {str(e)}")
 
         try:
-            term_types = tuple(t if isinstance(t, type) and issubclass(t, Term)
-                               else term_types[t] for t in terms_wanted)
+            term_types = tuple(
+                t if isinstance(t, type) and issubclass(t, Term) else term_types[t]
+                for t in terms_wanted
+            )
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
@@ -333,11 +345,10 @@ class RimeSpecification:
             "corrs": corrs,
             "stokes": stokes,
             "feed_type": feed_type,
-            "process_pool": pool
+            "process_pool": pool,
         }
 
-        hash_elements = list(v for k, v in global_kw.items()
-                             if k != "process_pool")
+        hash_elements = list(v for k, v in global_kw.items() if k != "process_pool")
 
         for cls, cfg in zip(term_types, term_cfgs):
             if cfg == "pq":
@@ -357,14 +368,15 @@ class RimeSpecification:
                 raise RimeSpecificationError(
                     f"{cls}.__init__{init_sig} must take a "
                     f"'configuration' argument and call "
-                    f"super().__init__(configuration)")
+                    f"super().__init__(configuration)"
+                )
 
             for a, p in list(init_sig.parameters.items())[1:]:
-                if p.kind not in {p.POSITIONAL_ONLY,
-                                  p.POSITIONAL_OR_KEYWORD}:
+                if p.kind not in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}:
                     raise RimeSpecificationError(
                         f"{cls}.__init__{init_sig} may not contain "
-                        f"*args or **kwargs")
+                        f"*args or **kwargs"
+                    )
 
                 try:
                     cls_kw[a] = available_kw[a]
@@ -372,7 +384,8 @@ class RimeSpecification:
                     raise RimeSpecificationError(
                         f"{cls}.__init__{init_sig} wants argument {a} "
                         f"but it is not available. "
-                        f"Available args: {available_kw}")
+                        f"Available args: {available_kw}"
+                    )
 
             term = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
@@ -382,12 +395,10 @@ class RimeSpecification:
         term_type_set = set(term_types)
 
         if Phase not in term_type_set:
-            raise RimeSpecificationError(
-                "RIME must at least contain a Phase term")
+            raise RimeSpecificationError("RIME must at least contain a Phase term")
 
         if Brightness not in term_type_set:
-            raise RimeSpecificationError(
-                "RIME must at least contain a Brightness term")
+            raise RimeSpecificationError("RIME must at least contain a Brightness term")
 
         transformers = []
 
@@ -396,11 +407,11 @@ class RimeSpecification:
             cls_kw = {}
 
             for a, p in list(init_sig.parameters.items())[1:]:
-                if p.kind not in {p.POSITIONAL_ONLY,
-                                  p.POSITIONAL_OR_KEYWORD}:
+                if p.kind not in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}:
                     raise RimeSpecification(
                         f"{cls}.__init__{init_sig} may not contain "
-                        f"*args or **kwargs")
+                        f"*args or **kwargs"
+                    )
 
                 try:
                     cls_kw[a] = available_kw[a]
@@ -408,7 +419,8 @@ class RimeSpecification:
                     raise RimeSpecificationError(
                         f"{cls}.__init__{init_sig} wants argument {a} "
                         f"but it is not available. "
-                        f"Available args: {available_kw}")
+                        f"Available args: {available_kw}"
+                    )
 
             transformer = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
@@ -436,8 +448,8 @@ class RimeSpecification:
             return "circular"
 
         raise RimeSpecificationError(
-            f"Correlations must be purely linear or circular. "
-            f"Got {corrs}")
+            f"Correlations must be purely linear or circular. " f"Got {corrs}"
+        )
 
     @staticmethod
     def flatten_eqn(equation):
@@ -447,22 +459,24 @@ class RimeSpecification:
         elif isinstance(equation, str):
             return equation
         else:
-            raise TypeError(f"equation: {equation} must "
-                            f"be a string or sequence")
+            raise TypeError(f"equation: {equation} must " f"be a string or sequence")
 
     def equation_bits(self):
         return self.flatten_eqn(self.equation)
 
     def __repr__(self):
-        return "".join((self.__class__.__name__, "(\"", str(self), "\")"))
+        return "".join((self.__class__.__name__, '("', str(self), '")'))
 
     def __str__(self):
-        return "".join((
-            self.equation_bits(),
-            ": ",
-            "".join(("[", ",".join(self.stokes), "]")),
-            " -> ",
-            "".join(("[", ",".join(self.corrs), "]"))))
+        return "".join(
+            (
+                self.equation_bits(),
+                ": ",
+                "".join(("[", ",".join(self.stokes), "]")),
+                " -> ",
+                "".join(("[", ",".join(self.corrs), "]")),
+            )
+        )
 
 
 def parse_str_list(str_list):

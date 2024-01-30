@@ -10,96 +10,113 @@ from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 def jones_mul_factory(mode):
     if mode == DIAG_DIAG:
+
         def jones_mul(a1j, model, a2j, uvw, freq, lm, out):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
                 l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
-                real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
-                source_vis = model[s] * np.exp(1.0j*real_phase)/n
+                real_phase = m2pioc * freq * (u * l + v * m + w * (n - 1))
+                source_vis = model[s] * np.exp(1.0j * real_phase) / n
                 for c in range(out.shape[-1]):
-                    out[c] += a1j[s, c]*source_vis[c]*np.conj(a2j[s, c])
+                    out[c] += a1j[s, c] * source_vis[c] * np.conj(a2j[s, c])
     elif mode == DIAG:
+
         def jones_mul(a1j, model, a2j, uvw, freq, lm, out):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
                 l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
-                real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
-                source_vis = model[s] * np.exp(1.0j*real_phase)/n
-                out[0, 0] += a1j[s, 0]*source_vis[0, 0] * np.conj(a2j[s, 0])
-                out[0, 1] += a1j[s, 0]*source_vis[0, 1] * np.conj(a2j[s, 1])
-                out[1, 0] += a1j[s, 1]*source_vis[1, 0] * np.conj(a2j[s, 0])
-                out[1, 1] += a1j[s, 1]*source_vis[1, 1] * np.conj(a2j[s, 1])
+                real_phase = m2pioc * freq * (u * l + v * m + w * (n - 1))
+                source_vis = model[s] * np.exp(1.0j * real_phase) / n
+                out[0, 0] += a1j[s, 0] * source_vis[0, 0] * np.conj(a2j[s, 0])
+                out[0, 1] += a1j[s, 0] * source_vis[0, 1] * np.conj(a2j[s, 1])
+                out[1, 0] += a1j[s, 1] * source_vis[1, 0] * np.conj(a2j[s, 0])
+                out[1, 1] += a1j[s, 1] * source_vis[1, 1] * np.conj(a2j[s, 1])
     elif mode == FULL:
+
         def jones_mul(a1j, model, a2j, uvw, freq, lm, out):
             n_dir = np.shape(model)[0]
             u, v, w = uvw
             for s in range(n_dir):
                 l, m = lm[s]
                 n = np.sqrt(1 - l**2 - m**2)
-                real_phase = m2pioc * freq * (u*l + v*m + w*(n-1))
-                source_vis = model[s] * np.exp(1.0j*real_phase)/n
+                real_phase = m2pioc * freq * (u * l + v * m + w * (n - 1))
+                source_vis = model[s] * np.exp(1.0j * real_phase) / n
                 # precompute resuable terms
-                t1 = a1j[s, 0, 0]*source_vis[0, 0]
-                t2 = a1j[s, 0, 1]*source_vis[1, 0]
-                t3 = a1j[s, 0, 0]*source_vis[0, 1]
-                t4 = a1j[s, 0, 1]*source_vis[1, 1]
+                t1 = a1j[s, 0, 0] * source_vis[0, 0]
+                t2 = a1j[s, 0, 1] * source_vis[1, 0]
+                t3 = a1j[s, 0, 0] * source_vis[0, 1]
+                t4 = a1j[s, 0, 1] * source_vis[1, 1]
                 tmp = np.conj(a2j[s].T)
                 # overwrite with result
-                out[0, 0] += t1*tmp[0, 0] +\
-                    t2*tmp[0, 0] +\
-                    t3*tmp[1, 0] +\
-                    t4*tmp[1, 0]
-                out[0, 1] += t1*tmp[0, 1] +\
-                    t2*tmp[0, 1] +\
-                    t3*tmp[1, 1] +\
-                    t4*tmp[1, 1]
-                t1 = a1j[s, 1, 0]*source_vis[0, 0]
-                t2 = a1j[s, 1, 1]*source_vis[1, 0]
-                t3 = a1j[s, 1, 0]*source_vis[0, 1]
-                t4 = a1j[s, 1, 1]*source_vis[1, 1]
-                out[1, 0] += t1*tmp[0, 0] +\
-                    t2*tmp[0, 0] +\
-                    t3*tmp[1, 0] +\
-                    t4*tmp[1, 0]
-                out[1, 1] += t1*tmp[0, 1] +\
-                    t2*tmp[0, 1] +\
-                    t3*tmp[1, 1] +\
-                    t4*tmp[1, 1]
+                out[0, 0] += (
+                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                )
+                out[0, 1] += (
+                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                )
+                t1 = a1j[s, 1, 0] * source_vis[0, 0]
+                t2 = a1j[s, 1, 1] * source_vis[1, 0]
+                t3 = a1j[s, 1, 0] * source_vis[0, 1]
+                t4 = a1j[s, 1, 1] * source_vis[1, 1]
+                out[1, 0] += (
+                    t1 * tmp[0, 0] + t2 * tmp[0, 0] + t3 * tmp[1, 0] + t4 * tmp[1, 0]
+                )
+                out[1, 1] += (
+                    t1 * tmp[0, 1] + t2 * tmp[0, 1] + t3 * tmp[1, 1] + t4 * tmp[1, 1]
+                )
 
-    return njit(nogil=True, inline='always')(jones_mul)
+    return njit(nogil=True, inline="always")(jones_mul)
 
 
 @njit(**JIT_OPTIONS)
-def compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                            antenna2, jones, model, uvw, freq, lm):
-    return compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts,
-                                        antenna1, antenna2, jones, model,
-                                        uvw, freq, lm)
+def compute_and_corrupt_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+):
+    return compute_and_corrupt_vis_impl(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        model,
+        uvw,
+        freq,
+        lm,
+    )
 
 
-def compute_and_corrupt_vis_impl(time_bin_indices, time_bin_counts, antenna1,
-                                 antenna2, jones, model, uvw, freq, lm):
+def compute_and_corrupt_vis_impl(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+):
     return NotImplementedError
 
 
 @overload(compute_and_corrupt_vis_impl, jit_options=JIT_OPTIONS)
-def mb_compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
-                               antenna2, jones, model, uvw, freq, lm):
-
-    mode = check_type(jones, model, vis_type='model')
+def mb_compute_and_corrupt_vis(
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, uvw, freq, lm
+):
+    mode = check_type(jones, model, vis_type="model")
     jones_mul = jones_mul_factory(mode)
 
-    def _compute_and_corrupt_vis_fn(time_bin_indices, time_bin_counts,
-                                    antenna1, antenna2, jones, model,
-                                    uvw, freq, lm):
+    def _compute_and_corrupt_vis_fn(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        model,
+        uvw,
+        freq,
+        lm,
+    ):
         if model.shape[-1] > 2:
-            raise ValueError('ncorr cant be larger than 2')
+            raise ValueError("ncorr cant be larger than 2")
         if jones.shape[-1] > 2:
-            raise ValueError('ncorr cant be larger than 2')
+            raise ValueError("ncorr cant be larger than 2")
         # for dask arrays we need to adjust the chunks to
         # start counting from zero
         time_bin_indices -= time_bin_indices.min()
@@ -109,21 +126,30 @@ def mb_compute_and_corrupt_vis(time_bin_indices, time_bin_counts, antenna1,
         vis = np.zeros(vis_shape, dtype=jones.dtype)
         n_chan = model_shape[1]
         for t in range(n_tim):
-            for row in range(time_bin_indices[t],
-                             time_bin_indices[t] + time_bin_counts[t]):
+            for row in range(
+                time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]
+            ):
                 p = int(antenna1[row])
                 q = int(antenna2[row])
                 gp = jones[t, p]
                 gq = jones[t, q]
                 for nu in range(n_chan):
-                    jones_mul(gp[nu], model[t, nu], gq[nu], uvw[row],
-                              freq[nu], lm[t], vis[row, nu])
+                    jones_mul(
+                        gp[nu],
+                        model[t, nu],
+                        gq[nu],
+                        uvw[row],
+                        freq[nu],
+                        lm[t],
+                        vis[row, nu],
+                    )
         return vis
 
     return _compute_and_corrupt_vis_fn
 
 
-COMPUTE_AND_CORRUPT_VIS_DOCS = DocstringTemplate("""
+COMPUTE_AND_CORRUPT_VIS_DOCS = DocstringTemplate(
+    """
 Corrupts time variable component model with arbitrary
 Jones terms. Currrently only time variable point source
 models are supported.
@@ -159,11 +185,13 @@ vis : $(array_type)
     visibilities of shape
     :code:`(row, chan, corr)`
     or :code:`(row, chan, corr, corr)`.
-""")
+"""
+)
 
 
 try:
     compute_and_corrupt_vis.__doc__ = COMPUTE_AND_CORRUPT_VIS_DOCS.substitute(
-                                    array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

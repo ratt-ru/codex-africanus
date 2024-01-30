@@ -44,16 +44,18 @@ def _generate_kernel(lm, uvw, frequency):
     render = jinja_env.get_template(_TEMPLATE_PATH).render
     name = "phase_delay"
 
-    code = render(kernel_name=name,
-                  lm_type=_get_typename(lm.dtype),
-                  uvw_type=_get_typename(uvw.dtype),
-                  freq_type=_get_typename(frequency.dtype),
-                  out_type=_get_typename(out_dtype),
-                  sqrt_fn=cuda_function('sqrt', lm.dtype),
-                  sincos_fn=cuda_function('sincos', out_dtype),
-                  minus_two_pi_over_c=minus_two_pi_over_c,
-                  blockdimx=blockdimx,
-                  blockdimy=blockdimy)
+    code = render(
+        kernel_name=name,
+        lm_type=_get_typename(lm.dtype),
+        uvw_type=_get_typename(uvw.dtype),
+        freq_type=_get_typename(frequency.dtype),
+        out_type=_get_typename(out_dtype),
+        sqrt_fn=cuda_function("sqrt", lm.dtype),
+        sincos_fn=cuda_function("sincos", out_dtype),
+        minus_two_pi_over_c=minus_two_pi_over_c,
+        blockdimx=blockdimx,
+        blockdimy=blockdimy,
+    )
 
     # Complex output type
     out_dtype = np.result_type(out_dtype, np.complex64)
@@ -64,8 +66,9 @@ def _generate_kernel(lm, uvw, frequency):
 def phase_delay(lm, uvw, frequency):
     kernel, block, out_dtype = _generate_kernel(lm, uvw, frequency)
     grid = grids((frequency.shape[0], uvw.shape[0], 1), block)
-    out = cp.empty(shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]),
-                   dtype=out_dtype)
+    out = cp.empty(
+        shape=(lm.shape[0], uvw.shape[0], frequency.shape[0]), dtype=out_dtype
+    )
 
     try:
         kernel(grid, block, (lm, uvw, frequency, out))
@@ -78,6 +81,7 @@ def phase_delay(lm, uvw, frequency):
 
 try:
     phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
-                                array_type=':class:`cupy.ndarray`')
+        array_type=":class:`cupy.ndarray`"
+    )
 except AttributeError:
     pass

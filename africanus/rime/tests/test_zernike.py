@@ -3,11 +3,11 @@ import pytest
 
 
 def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
-    """ Tests reconstruction of xx correlation against eidos """
+    """Tests reconstruction of xx correlation against eidos"""
     from africanus.rime import zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 1
     na = 1
     nchan = 1
@@ -54,11 +54,11 @@ def test_zernike_func_xx_corr(coeff_xx, noll_index_xx, eidos_data_xx):
 
 
 def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
-    """ Tests reconstruction of xy correlation against eidos """
+    """Tests reconstruction of xy correlation against eidos"""
     from africanus.rime import zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 1
     na = 1
     nchan = 1
@@ -105,11 +105,11 @@ def test_zernike_func_xy_corr(coeff_xy, noll_index_xy, eidos_data_xy):
 
 
 def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
-    """ Tests reconstruction of yx correlation against eidos """
+    """Tests reconstruction of yx correlation against eidos"""
     from africanus.rime import zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 1
     na = 1
     nchan = 1
@@ -156,11 +156,11 @@ def test_zernike_func_yx_corr(coeff_yx, noll_index_yx, eidos_data_yx):
 
 
 def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
-    """ Tests reconstruction of yy correlation against eidos """
+    """Tests reconstruction of yy correlation against eidos"""
     from africanus.rime import zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 1
     na = 1
     nchan = 1
@@ -207,11 +207,11 @@ def test_zernike_func_yy_corr(coeff_yy, noll_index_yy, eidos_data_yy):
 
 
 def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
-    """ Tests that we can call zernike_dde with multiple dimensions """
+    """Tests that we can call zernike_dde with multiple dimensions"""
     from africanus.rime import zernike_dde as np_zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 10
     na = 7
     nchan = 8
@@ -258,14 +258,14 @@ def test_zernike_multiple_dims(coeff_xx, noll_index_xx):
 
 
 def test_dask_zernike(coeff_xx, noll_index_xx):
-    """ Tests that dask zernike_dde agrees with numpy zernike_dde """
+    """Tests that dask zernike_dde agrees with numpy zernike_dde"""
     da = pytest.importorskip("dask.array")
 
     from africanus.rime.dask import zernike_dde
     from africanus.rime import zernike_dde as np_zernike_dde
 
     npix = 17
-    nsrc = npix ** 2
+    nsrc = npix**2
     ntime = 10
     na = 7
     nchan = 8
@@ -317,9 +317,7 @@ def test_dask_zernike(coeff_xx, noll_index_xx):
 
     coords = da.from_array(coords, (3, npix, time_c, ant_c, chan_c))
     coeffs = da.from_array(coeffs, (ant_c, chan_c, corr1, corr2, npoly))
-    noll_indices = da.from_array(
-        noll_indices, (ant_c, chan_c, corr1, corr2, npoly)
-    )
+    noll_indices = da.from_array(noll_indices, (ant_c, chan_c, corr1, corr2, npoly))
 
     parallactic_angles = da.from_array(parallactic_angles)
     frequency_scaling = da.from_array(frequency_scaling)
@@ -424,9 +422,7 @@ def coeff_yy():
 
 @pytest.fixture
 def noll_index_xx():
-    return np.array(
-        [10, 3, 21, 36, 0, 55, 16, 28, 37, 46, 23, 6, 15, 2, 5, 7, 57]
-    )
+    return np.array([10, 3, 21, 36, 0, 55, 16, 28, 37, 46, 23, 6, 15, 2, 5, 7, 57])
 
 
 @pytest.fixture
@@ -441,9 +437,7 @@ def noll_index_yx():
 
 @pytest.fixture
 def noll_index_yy():
-    return np.array(
-        [10, 3, 21, 36, 0, 55, 28, 16, 11, 23, 37, 46, 6, 2, 15, 5, 29]
-    )
+    return np.array([10, 3, 21, 36, 0, 55, 28, 16, 11, 23, 37, 46, 6, 2, 15, 5, 29])
 
 
 @pytest.fixture

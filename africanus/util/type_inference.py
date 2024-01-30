@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 
 
@@ -23,5 +22,5 @@ def _numpy_dtype(arg):
 
 
 def infer_complex_dtype(*args):
-    """ Infer complex datatype from arg inputs """
+    """Infer complex datatype from arg inputs"""
     return np.result_type(np.complex64, *(_numpy_dtype(a) for a in args))
