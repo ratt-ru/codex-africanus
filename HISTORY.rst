@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Address warnings (:pr:`292`)
 * Update github action versions (:pr:`291`)
 * Deprecate python 3.8 support (:pr:`290`)
 * Use pre-commit hooks for auto-linting (:pr:`290`)
