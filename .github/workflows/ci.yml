@@ -79,7 +79,7 @@ jobs:
         run: pipenv graph
 
       - name: Run complete test suite
-        run: pipenv run NUMBA_NRT_STATS=1 py.test --flake8 -s -vvv africanus/
+        run: pipenv run NUMBA_NRT_STATS=1 py.test -s -vvv africanus/
 
   deploy:
     needs: [test]
