@@ -8,11 +8,7 @@ from numba.experimental import jitclass
 from numba import types
 
 from africanus.constants import c as lightspeed
-from africanus.util.numba import (
-    JIT_OPTIONS,
-    overload,
-    njit,
-    is_numba_type_none)
+from africanus.util.numba import JIT_OPTIONS, overload, njit, is_numba_type_none
 from africanus.averaging.support import unique_time, unique_baselines
 
 
@@ -20,13 +16,13 @@ class RowMapperError(Exception):
     pass
 
 
-@njit(nogil=True, cache=True, inline='always')
+@njit(nogil=True, cache=True, inline="always")
 def factors(n):
     assert n >= 1
     result = []
     i = 1
 
-    while i*i <= n:
+    while i * i <= n:
         quot, rem = divmod(n, i)
 
         if rem == 0:
@@ -40,7 +36,7 @@ def factors(n):
     return np.unique(np.array(result))
 
 
-@njit(nogil=True, cache=True, inline='always')
+@njit(nogil=True, cache=True, inline="always")
 def max_chan_width(ref_freq, fractional_bandwidth):
     """
     Derive max_𝞓𝝼, the maximum change in bandwidth
@@ -58,15 +54,15 @@ def max_chan_width(ref_freq, fractional_bandwidth):
     return 2 * ref_freq * fractional_bandwidth
 
 
-FinaliseOutput = namedtuple("FinaliseOutput",
-                            ["tbin", "time", "interval",
-                             "nchan", "flag"])
+FinaliseOutput = namedtuple(
+    "FinaliseOutput", ["tbin", "time", "interval", "nchan", "flag"]
+)
 
 
 class Binner:
-    def __init__(self, row_start, row_end,
-                 max_lm, decorrelation, time_bin_secs,
-                 max_chan_freq):
+    def __init__(
+        self, row_start, row_end, max_lm, decorrelation, time_bin_secs, max_chan_freq
+    ):
         # Index of the time bin to which all rows in the bin will contribute
         self.tbin = 0
         # Number of rows in the bin
@@ -94,10 +90,14 @@ class Binner:
         self.time_bin_secs = time_bin_secs
 
     def reset(self):
-        self.__init__(0, 0, self.max_lm,
-                      self.decorrelation,
-                      self.time_bin_secs,
-                      self.max_chan_freq)
+        self.__init__(
+            0,
+            0,
+            self.max_lm,
+            self.decorrelation,
+            self.time_bin_secs,
+            self.max_chan_freq,
+        )
 
     def start_bin(self, row, time, interval, flag_row):
         """
@@ -106,8 +106,7 @@ class Binner:
         self.rs = row
         self.re = row
         self.bin_count = 1
-        self.bin_flag_count = (1 if flag_row is not None and flag_row[row] != 0
-                               else 0)
+        self.bin_flag_count = 1 if flag_row is not None and flag_row[row] != 0 else 0
 
     def add_row(self, row, auto_corr, time, interval, uvw, flag_row):
         """
@@ -123,8 +122,9 @@ class Binner:
         re = self.re
 
         if re == row:
-            raise ValueError("start_bin should be called to start a bin "
-                             "before add_row is called.")
+            raise ValueError(
+                "start_bin should be called to start a bin " "before add_row is called."
+            )
 
         if auto_corr:
             # Fast path for auto-correlated baseline.
@@ -147,10 +147,13 @@ class Binner:
         dv = uvw[row, 1] - uvw[rs, 1]
         dw = uvw[row, 2] - uvw[rs, 2]
         dt = time_end - time_start
-        half_𝞓𝞇 = (np.sqrt(du**2 + dv**2 + dw**2) *
-                   self.max_chan_freq *
-                   np.sin(np.abs(self.max_lm)) *
-                   np.pi / lightspeed) + 1.0e-8
+        half_𝞓𝞇 = (
+            np.sqrt(du**2 + dv**2 + dw**2)
+            * self.max_chan_freq
+            * np.sin(np.abs(self.max_lm))
+            * np.pi
+            / lightspeed
+        ) + 1.0e-8
         bldecorr = np.sin(half_𝞓𝞇) / half_𝞓𝞇
 
         # fringe rate at the equator
@@ -168,8 +171,7 @@ class Binner:
         # Do not add the row to the bin as it
         # would exceed the decorrelation tolerance
         # or the required number of seconds in the bin
-        if (bldecorr < np.sinc(self.decorrelation) or
-                dt > self.time_bin_secs):
+        if bldecorr < np.sinc(self.decorrelation) or dt > self.time_bin_secs:
             return False
 
         # Add the row by making it the end of the bin
@@ -187,18 +189,21 @@ class Binner:
     def empty(self):
         return self.bin_count == 0
 
-    def finalise_bin(self, auto_corr, uvw, time, interval,
-                     nchan_factors, chan_width, chan_freq):
-        """ Finalise the contents of this bin """
+    def finalise_bin(
+        self, auto_corr, uvw, time, interval, nchan_factors, chan_width, chan_freq
+    ):
+        """Finalise the contents of this bin"""
         if self.bin_count == 0:
             raise ValueError("Attempted to finalise empty bin")
         elif self.bin_count == 1:
             # Single entry in the bin, no averaging occurs
-            out = FinaliseOutput(self.tbin,
-                                 time[self.rs],
-                                 interval[self.rs],
-                                 chan_width.size,
-                                 self.bin_count == self.bin_flag_count)
+            out = FinaliseOutput(
+                self.tbin,
+                time[self.rs],
+                interval[self.rs],
+                chan_width.size,
+                self.bin_count == self.bin_flag_count,
+            )
 
             self.tbin += 1
 
@@ -221,8 +226,9 @@ class Binner:
 
             cuv = np.sqrt(cu**2 + cv**2)
 
-            max_abs_dist = np.sqrt(np.abs(cuv)*np.abs(self.max_lm) +
-                                   np.abs(cw)*np.abs(self.n_max))
+            max_abs_dist = np.sqrt(
+                np.abs(cuv) * np.abs(self.max_lm) + np.abs(cw) * np.abs(self.n_max)
+            )
 
             if max_abs_dist == 0.0:
                 raise ValueError("max_abs_dist == 0.0")
@@ -240,18 +246,17 @@ class Binner:
             # The following is copied from DDFacet. Variables names could
             # be changed but wanted to keep the correspondence clear.
             # BH: I strongly suspect this is wrong: see eq. 18-19 in SI II
-            delta_nu = (lightspeed / (2*np.pi)) * \
-                       (self.decorrelation / max_abs_dist)
+            delta_nu = (lightspeed / (2 * np.pi)) * (self.decorrelation / max_abs_dist)
 
             fracsizeChanBlock = delta_nu / chan_width
 
             fracsizeChanBlockMin = max(fracsizeChanBlock.min(), 1)
             assert fracsizeChanBlockMin >= 1
-            nchan = np.ceil(chan_width.size/fracsizeChanBlockMin)
+            nchan = np.ceil(chan_width.size / fracsizeChanBlockMin)
 
             # Now find the next highest integer factorisation
             # of the input number of channels
-            s = np.searchsorted(nchan_factors, nchan, side='left')
+            s = np.searchsorted(nchan_factors, nchan, side="left")
             nchan = nchan_factors[min(nchan_factors.shape[0] - 1, s)]
 
         time_start = time[rs] - (interval[rs] / 2.0)
@@ -259,72 +264,111 @@ class Binner:
 
         # Finalise bin values for return
         assert self.bin_count >= 1
-        out = FinaliseOutput(self.tbin,
-                             (time_start + time_end) / 2.0,
-                             time_end - time_start,
-                             nchan,
-                             self.bin_count == self.bin_flag_count)
+        out = FinaliseOutput(
+            self.tbin,
+            (time_start + time_end) / 2.0,
+            time_end - time_start,
+            nchan,
+            self.bin_count == self.bin_flag_count,
+        )
 
         self.tbin += 1
 
         return out
 
 
-RowMapOutput = namedtuple("RowMapOutput",
-                          ["map", "offsets", "decorr_chan_width",
-                           "time", "interval", "chan_width", "flag_row"])
+RowMapOutput = namedtuple(
+    "RowMapOutput",
+    [
+        "map",
+        "offsets",
+        "decorr_chan_width",
+        "time",
+        "interval",
+        "chan_width",
+        "flag_row",
+    ],
+)
 
 
 @njit(**JIT_OPTIONS)
-def bda_mapper(time, interval, ant1, ant2, uvw,
-               chan_width, chan_freq,
-               max_uvw_dist,
-               flag_row=None,
-               max_fov=3.0,
-               decorrelation=0.98,
-               time_bin_secs=None,
-               min_nchan=1):
-    return bda_mapper_impl(time, interval, ant1, ant2, uvw,
-                           chan_width, chan_freq,
-                           max_uvw_dist,
-                           flag_row=flag_row,
-                           max_fov=max_fov,
-                           decorrelation=decorrelation,
-                           time_bin_secs=time_bin_secs,
-                           min_nchan=min_nchan)
+def bda_mapper(
+    time,
+    interval,
+    ant1,
+    ant2,
+    uvw,
+    chan_width,
+    chan_freq,
+    max_uvw_dist,
+    flag_row=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
+    return bda_mapper_impl(
+        time,
+        interval,
+        ant1,
+        ant2,
+        uvw,
+        chan_width,
+        chan_freq,
+        max_uvw_dist,
+        flag_row=flag_row,
+        max_fov=max_fov,
+        decorrelation=decorrelation,
+        time_bin_secs=time_bin_secs,
+        min_nchan=min_nchan,
+    )
 
 
-def bda_mapper_impl(time, interval, ant1, ant2, uvw,
-                    chan_width, chan_freq,
-                    max_uvw_dist,
-                    flag_row=None,
-                    max_fov=3.0,
-                    decorrelation=0.98,
-                    time_bin_secs=None,
-                    min_nchan=1):
+def bda_mapper_impl(
+    time,
+    interval,
+    ant1,
+    ant2,
+    uvw,
+    chan_width,
+    chan_freq,
+    max_uvw_dist,
+    flag_row=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
     return NotImplementedError
 
 
 @overload(bda_mapper_impl, jit_options={"nogil": True})
-def nb_bda_mapper(time, interval, ant1, ant2, uvw,
-                  chan_width, chan_freq,
-                  max_uvw_dist,
-                  flag_row=None,
-                  max_fov=3.0,
-                  decorrelation=0.98,
-                  time_bin_secs=None,
-                  min_nchan=1):
+def nb_bda_mapper(
+    time,
+    interval,
+    ant1,
+    ant2,
+    uvw,
+    chan_width,
+    chan_freq,
+    max_uvw_dist,
+    flag_row=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
     have_time_bin_secs = not is_numba_type_none(time_bin_secs)
 
     Omitted = types.misc.Omitted
 
-    decorr_type = (numba.typeof(decorrelation.value)
-                   if isinstance(decorrelation, Omitted)
-                   else decorrelation)
+    decorr_type = (
+        numba.typeof(decorrelation.value)
+        if isinstance(decorrelation, Omitted)
+        else decorrelation
+    )
 
-    fov_type = (numba.typeof(max_fov.value)
-                if isinstance(max_fov, Omitted)
-                else max_fov)
+    fov_type = numba.typeof(max_fov.value) if isinstance(max_fov, Omitted) else max_fov
 
     # If time_bin_secs is None,
     # then we set it to the max of the time dtype
@@ -332,31 +376,39 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
     time_bin_secs_type = time_bin_secs if have_time_bin_secs else time.dtype
 
     spec = [
-        ('tbin', numba.uintp),
-        ('bin_count', numba.uintp),
-        ('bin_flag_count', numba.uintp),
-        ('time_sum', time.dtype),
-        ('interval_sum', interval.dtype),
-        ('rs', numba.uintp),
-        ('re', numba.uintp),
-        ('bin_half_Δψ', uvw.dtype),
-        ('max_lm', fov_type),
-        ('n_max', fov_type),
-        ('decorrelation', decorr_type),
-        ('time_bin_secs', time_bin_secs_type),
-        ('max_chan_freq', chan_freq.dtype),
-        ('max_uvw_dist', max_uvw_dist)]
+        ("tbin", numba.uintp),
+        ("bin_count", numba.uintp),
+        ("bin_flag_count", numba.uintp),
+        ("time_sum", time.dtype),
+        ("interval_sum", interval.dtype),
+        ("rs", numba.uintp),
+        ("re", numba.uintp),
+        ("bin_half_Δψ", uvw.dtype),
+        ("max_lm", fov_type),
+        ("n_max", fov_type),
+        ("decorrelation", decorr_type),
+        ("time_bin_secs", time_bin_secs_type),
+        ("max_chan_freq", chan_freq.dtype),
+        ("max_uvw_dist", max_uvw_dist),
+    ]
 
     JitBinner = jitclass(spec)(Binner)
 
-    def impl(time, interval, ant1, ant2, uvw,
-             chan_width, chan_freq,
-             max_uvw_dist,
-             flag_row=None,
-             max_fov=3.0,
-             decorrelation=0.98,
-             time_bin_secs=None,
-             min_nchan=1):
+    def impl(
+        time,
+        interval,
+        ant1,
+        ant2,
+        uvw,
+        chan_width,
+        chan_freq,
+        max_uvw_dist,
+        flag_row=None,
+        max_fov=3.0,
+        decorrelation=0.98,
+        time_bin_secs=None,
+        min_nchan=1,
+    ):
         # 𝞓 𝝿 𝞇 𝞍 𝝼
 
         if decorrelation < 0.0 or decorrelation > 1.0:
@@ -375,8 +427,9 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
         nbl = ubl.shape[0]
         nchan = chan_width.shape[0]
         if nchan == 0:
-            raise ValueError("Number of channels passed into "
-                             "averager must be at least size 1")
+            raise ValueError(
+                "Number of channels passed into " "averager must be at least size 1"
+            )
         nchan_factors = factors(nchan)
         bandwidth = chan_width.sum()
 
@@ -384,7 +437,7 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
             min_nchan = 1
         else:
             min_nchan = min(min_nchan, nchan)
-            s = np.searchsorted(nchan_factors, min_nchan, side='left')
+            s = np.searchsorted(nchan_factors, min_nchan, side="left")
             min_nchan = max(min_nchan, nchan_factors[s])
 
         if nchan == 0:
@@ -453,12 +506,9 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
         # dphi = np.sqrt(6. / np.pi**2 * (1. - decorrelation))
 
         # better approximation
-        dphi = np.arccos(decorrelation)*np.sqrt(3)/np.pi
+        dphi = np.arccos(decorrelation) * np.sqrt(3) / np.pi
 
-        binner = JitBinner(0, 0, max_lm,
-                           dphi,
-                           time_bin_secs,
-                           chan_freq.max())
+        binner = JitBinner(0, 0, max_lm, dphi, time_bin_secs, chan_freq.max())
 
         for bl in range(nbl):
             # Reset the binner for this baseline
@@ -480,12 +530,16 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
 
                 # Try add the row to the bin
                 # If this fails, finalise the current bin and start a new one
-                elif not binner.add_row(r, auto_corr,
-                                        time, interval,
-                                        uvw, flag_row):
-                    f = binner.finalise_bin(auto_corr, uvw, time, interval,
-                                            nchan_factors,
-                                            chan_width, chan_freq)
+                elif not binner.add_row(r, auto_corr, time, interval, uvw, flag_row):
+                    f = binner.finalise_bin(
+                        auto_corr,
+                        uvw,
+                        time,
+                        interval,
+                        nchan_factors,
+                        chan_width,
+                        chan_freq,
+                    )
                     update_lookups(f, bl)
                     # Post-finalisation, the bin is empty, start a new bin
                     binner.start_bin(r, time, interval, flag_row)
@@ -495,8 +549,9 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
 
             # Finalise any remaining data in the bin
             if not binner.empty:
-                f = binner.finalise_bin(auto_corr, uvw, time, interval,
-                                        nchan_factors, chan_width, chan_freq)
+                f = binner.finalise_bin(
+                    auto_corr, uvw, time, interval, nchan_factors, chan_width, chan_freq
+                )
                 update_lookups(f, bl)
 
             nr_of_time_bins += binner.tbin
@@ -510,7 +565,7 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
 
         # Flatten the time lookup and argsort it
         flat_time = time_lookup.ravel()
-        argsort = np.argsort(flat_time, kind='mergesort')
+        argsort = np.argsort(flat_time, kind="mergesort")
         inv_argsort = np.empty_like(argsort)
 
         # Generate lookup from flattened (bl, time) to output row
@@ -539,8 +594,9 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
         chan_width_ret = np.full(out_row_chans, 0, dtype=chan_width.dtype)
 
         # Construct output flag row, if necessary
-        out_flag_row = (None if flag_row is None else
-                        np.empty(out_row_chans, dtype=flag_row.dtype))
+        out_flag_row = (
+            None if flag_row is None else np.empty(out_row_chans, dtype=flag_row.dtype)
+        )
 
         # foreach input row
         for in_row in range(time.shape[0]):
@@ -553,7 +609,7 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
             bin_time = time_lookup[bl, tbin]
             bin_interval = interval_lookup[bl, tbin]
             flagged = bin_flagged[bl, tbin]
-            out_row = inv_argsort[bl*ntime + tbin]
+            out_row = inv_argsort[bl * ntime + tbin]
 
             decorr_chan_width[out_row] = bin_chan_width[bl, tbin]
 
@@ -563,10 +619,12 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
 
             # Handle output row flagging
             if flag_row is not None and flag_row[in_row] == 0 and flagged:
-                raise RowMapperError("Unflagged input row "
-                                     "contributing to "
-                                     "flagged output row. "
-                                     "This should never happen!")
+                raise RowMapperError(
+                    "Unflagged input row "
+                    "contributing to "
+                    "flagged output row. "
+                    "This should never happen!"
+                )
 
             # Set up the row channel map, populate
             # time, interval and chan_width
@@ -590,9 +648,14 @@ def nb_bda_mapper(time, interval, ant1, ant2, uvw,
                 if flag_row is not None:
                     out_flag_row[out_offset] = 1 if flagged else 0
 
-        return RowMapOutput(row_chan_map, offsets,
-                            decorr_chan_width,
-                            time_ret, int_ret,
-                            chan_width_ret, out_flag_row)
+        return RowMapOutput(
+            row_chan_map,
+            offsets,
+            decorr_chan_width,
+            time_ret,
+            int_ret,
+            chan_width_ret,
+            out_flag_row,
+        )
 
     return impl

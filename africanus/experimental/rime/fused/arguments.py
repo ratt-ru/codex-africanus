@@ -4,12 +4,10 @@ from collections.abc import Mapping
 
 class ArgumentPack(Mapping):
     def __init__(self, names, types, index):
-        self.pack = OrderedDict((n, (t, i)) for n, t, i
-                                in zip(names, types, index))
+        self.pack = OrderedDict((n, (t, i)) for n, t, i in zip(names, types, index))
 
     def copy(self):
-        names, types, index = zip(*((k, t, i) for k, (t, i)
-                                    in self.pack.items()))
+        names, types, index = zip(*((k, t, i) for k, (t, i) in self.pack.items()))
         return ArgumentPack(names, types, index)
 
     def pop(self, key):
@@ -45,15 +43,22 @@ class ArgumentPack(Mapping):
 
 class ArgumentDependencies:
     REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
-    KEY_ARGS = ("utime", "time_index",
-                "uantenna", "antenna1_index", "antenna2_index",
-                "ufeed", "feed1_index", "feed2_index")
+    KEY_ARGS = (
+        "utime",
+        "time_index",
+        "uantenna",
+        "antenna1_index",
+        "antenna2_index",
+        "ufeed",
+        "feed1_index",
+        "feed2_index",
+    )
 
     def __init__(self, arg_names, terms, transformers):
         if not set(self.REQUIRED_ARGS).issubset(arg_names):
             raise ValueError(
-                f"{set(self.REQUIRED_ARGS) - set(arg_names)} "
-                f"missing from arg_names")
+                f"{set(self.REQUIRED_ARGS) - set(arg_names)} " f"missing from arg_names"
+            )
 
         self.names = arg_names
         self.terms = terms
@@ -79,9 +84,9 @@ class ArgumentDependencies:
 
         # Determine a canonical set of valid inputs
         # We start with the desired and required arguments
-        self.valid_inputs = (set(desired.keys()) |
-                             set(self.REQUIRED_ARGS) |
-                             set(optional.keys()))
+        self.valid_inputs = (
+            set(desired.keys()) | set(self.REQUIRED_ARGS) | set(optional.keys())
+        )
 
         # Then, for each argument than can be created
         # we add the transformer arguments and remove
@@ -111,8 +116,7 @@ class ArgumentDependencies:
             for transformer in self.maybe_create[arg]:
                 # We didn't have the arguments, make a note of this
                 if not set(transformer.ARGS).issubset(available_args):
-                    failed_transforms[arg].append(
-                        (transformer, set(transformer.ARGS)))
+                    failed_transforms[arg].append((transformer, set(transformer.ARGS)))
                     continue
 
             # The transformer can create arg
@@ -128,10 +132,12 @@ class ArgumentDependencies:
 
             if arg in failed_transforms:
                 for transformer, needed in failed_transforms[arg]:
-                    err_msgs.append(f"{transformer} can create {arg} "
-                                    f"but needs {needed}, of which "
-                                    f"{needed - supplied_args} is missing "
-                                    f"from the input arguments.")
+                    err_msgs.append(
+                        f"{transformer} can create {arg} "
+                        f"but needs {needed}, of which "
+                        f"{needed - supplied_args} is missing "
+                        f"from the input arguments."
+                    )
 
             raise ValueError("\n".join(err_msgs))
 
@@ -146,9 +152,11 @@ class ArgumentDependencies:
             defaults = set(defaults)
 
             if len(defaults) != 1:
-                raise ValueError(f"Multiple terms: {self.terms} have "
-                                 f"contradicting definitions for "
-                                 f"{k}: {defaults}")
+                raise ValueError(
+                    f"Multiple terms: {self.terms} have "
+                    f"contradicting definitions for "
+                    f"{k}: {defaults}"
+                )
 
             opt_defaults[k] = defaults.pop()
 

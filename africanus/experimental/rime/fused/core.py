@@ -40,15 +40,17 @@ def rime_impl_factory(terms, transformers, ncorr):
     @overload(rime_impl, jit_options=JIT_OPTIONS)
     def nb_rime(*args):
         if not len(args) > 0:
-            raise TypeError("rime must be at least be called "
-                            "with the signature argument")
+            raise TypeError(
+                "rime must be at least be called " "with the signature argument"
+            )
 
         if not isinstance(args[0], types.Literal):
             raise TypeError(f"Signature hash ({args[0]}) must be a literal")
 
         if not len(args) % 2 == 1:
-            raise TypeError(f"Length of named arguments {len(args)} "
-                            f"is not divisible by 2")
+            raise TypeError(
+                f"Length of named arguments {len(args)} " f"is not divisible by 2"
+            )
 
         argstart = 1 + (len(args) - 1) // 2
         names = args[1:argstart]
@@ -84,7 +86,7 @@ def rime_impl_factory(terms, transformers, ncorr):
 
             nsrc, _ = args[lm_i].shape
             nrow, _ = args[uvw_i].shape
-            nchan, = args[chan_freq_i].shape
+            (nchan,) = args[chan_freq_i].shape
 
             vis = np.zeros((nrow, nchan, ncorr), np.complex128)
             # Kahan summation compensation
@@ -128,8 +130,7 @@ class RimeFactory(metaclass=Multiton):
         return hash(self.rime_spec)
 
     def __eq__(self, rhs):
-        return (isinstance(rhs, RimeFactory) and
-                self.rime_spec == rhs.rime_spec)
+        return isinstance(rhs, RimeFactory) and self.rime_spec == rhs.rime_spec
 
     def __init__(self, rime_spec=DEFAULT_SPEC):
         if isinstance(rime_spec, RimeSpecification):
@@ -141,16 +142,14 @@ class RimeFactory(metaclass=Multiton):
 
         self.rime_spec = rime_spec
         self.impl = rime_impl_factory(
-            rime_spec.terms,
-            rime_spec.transformers,
-            len(rime_spec.corrs))
+            rime_spec.terms, rime_spec.transformers, len(rime_spec.corrs)
+        )
 
     def dask_blockwise_args(self, **kwargs):
-        """ Get the dask schema """
+        """Get the dask schema"""
         argdeps = ArgumentDependencies(
-            tuple(kwargs.keys()),
-            self.rime_spec.terms,
-            self.rime_spec.transformers)
+            tuple(kwargs.keys()), self.rime_spec.terms, self.rime_spec.transformers
+        )
         # Holds kwargs + any dummy outputs from transformations
         dummy_kw = kwargs.copy()
 
@@ -190,23 +189,23 @@ class RimeFactory(metaclass=Multiton):
             if len(dims) != 1:
                 raise ValueError(
                     f"Multiple candidates provided conflicting "
-                    f"dimension definitions for {a}: {candidates}.")
+                    f"dimension definitions for {a}: {candidates}."
+                )
 
             merged_schema[a] = dims.pop()
 
         names = list(sorted(argdeps.valid_inputs & set(kwargs.keys())))
-        blockwise_args = [e for n in names
-                          for e in (kwargs[n], merged_schema.get(n, None))]
+        blockwise_args = [
+            e for n in names for e in (kwargs[n], merged_schema.get(n, None))
+        ]
 
         assert 2 * len(names) == len(blockwise_args)
         return names, blockwise_args
 
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
-        keys = (self.REQUIRED_ARGS_LITERAL +
-                tuple(map(types.literal, kwargs.keys())))
+        keys = self.REQUIRED_ARGS_LITERAL + tuple(map(types.literal, kwargs.keys()))
 
-        args = keys + (time, antenna1, antenna2, feed1,
-                       feed2) + tuple(kwargs.values())
+        args = keys + (time, antenna1, antenna2, feed1, feed2) + tuple(kwargs.values())
         return self.impl(types.literal(self.rime_spec.spec_hash), *args)
 
 

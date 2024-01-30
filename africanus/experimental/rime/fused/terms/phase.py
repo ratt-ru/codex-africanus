@@ -13,10 +13,12 @@ class Phase(Term):
         assert chan_freq.ndim == 1
         assert isinstance(convention, str)
 
-        return {"lm": ("source", "lm"),
-                "uvw": ("row", "uvw"),
-                "chan_freq": ("chan",),
-                "convention": None}
+        return {
+            "lm": ("source", "lm"),
+            "uvw": ("row", "uvw"),
+            "chan_freq": ("chan",),
+            "convention": None,
+        }
 
     def init_fields(self, typingctx, lm, uvw, chan_freq, convention="fourier"):
         phase_dt = typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)
@@ -25,7 +27,7 @@ class Phase(Term):
         def phase(lm, uvw, chan_freq, convention="fourier"):
             nsrc, _ = lm.shape
             nrow, _ = uvw.shape
-            nchan, = chan_freq.shape
+            (nchan,) = chan_freq.shape
 
             phase_dot = np.empty((nsrc, nrow), dtype=phase_dt)
 
@@ -33,11 +35,11 @@ class Phase(Term):
             one = lm.dtype.type(1.0)
 
             if convention == "fourier":
-                C = phase_dt(-2.0*np.pi/lightspeed)
+                C = phase_dt(-2.0 * np.pi / lightspeed)
             elif convention == "casa":
-                C = phase_dt(2.0*np.pi/lightspeed)
+                C = phase_dt(2.0 * np.pi / lightspeed)
             else:
-                raise ValueError("convention not in (\"fourier\", \"casa\")")
+                raise ValueError('convention not in ("fourier", "casa")')
 
             for s in range(nsrc):
                 l = lm[s, 0]  # noqa
@@ -50,7 +52,7 @@ class Phase(Term):
                     v = uvw[r, 1]
                     w = uvw[r, 2]
 
-                    phase_dot[s, r] = C*(l*u + m*v + n*w)
+                    phase_dot[s, r] = C * (l * u + m * v + n * w)
 
             return phase_dot
 
@@ -59,6 +61,6 @@ class Phase(Term):
     def sampler(self):
         def phase_sample(state, s, r, t, f1, f2, a1, a2, c):
             p = state.phase_dot[s, r] * state.chan_freq[c]
-            return np.cos(p) + np.sin(p)*1j
+            return np.cos(p) + np.sin(p) * 1j
 
         return phase_sample

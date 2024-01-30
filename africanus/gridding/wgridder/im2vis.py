@@ -12,9 +12,21 @@ from africanus.util.docs import DocstringTemplate
 from africanus.util.requirements import requires_optional
 
 
-@requires_optional('ducc0.wgridder', ducc_import_error)
-def _model_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
-                    weights, flag, celly, epsilon, nthreads, do_wstacking):
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def _model_internal(
+    uvw,
+    freq,
+    image,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights,
+    flag,
+    celly,
+    epsilon,
+    nthreads,
+    do_wstacking,
+):
     # adjust for chunking
     # need a copy here if using multiple row chunks
     freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
@@ -32,27 +44,60 @@ def _model_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell,
             mask = flag[:, ind]
         else:
             mask = None
-        vis[:, ind] = dirty2ms(uvw=uvw, freq=freq[ind], dirty=image[i],
-                               wgt=wgt, pixsize_x=cell, pixsize_y=celly,
-                               nu=0, nv=0, epsilon=epsilon, mask=mask,
-                               nthreads=nthreads, do_wstacking=do_wstacking)
+        vis[:, ind] = dirty2ms(
+            uvw=uvw,
+            freq=freq[ind],
+            dirty=image[i],
+            wgt=wgt,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            mask=mask,
+            nthreads=nthreads,
+            do_wstacking=do_wstacking,
+        )
     return vis
 
 
-@requires_optional('ducc0.wgridder', ducc_import_error)
-def model(uvw, freq, image, freq_bin_idx, freq_bin_counts, cell, weights=None,
-          flag=None, celly=None, epsilon=1e-5, nthreads=1, do_wstacking=True):
-
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def model(
+    uvw,
+    freq,
+    image,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+):
     if celly is None:
         celly = cell
 
     if not nthreads:
         import multiprocessing
+
         nthreads = multiprocessing.cpu_count()
 
-    return _model_internal(uvw, freq, image, freq_bin_idx, freq_bin_counts,
-                           cell, weights, flag, celly, epsilon, nthreads,
-                           do_wstacking)
+    return _model_internal(
+        uvw,
+        freq,
+        image,
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+    )
 
 
 MODEL_DOCS = DocstringTemplate(
@@ -129,10 +174,10 @@ MODEL_DOCS = DocstringTemplate(
     vis : $(array_type)
         Visibilities corresponding to :code:`model` of shape
         :code:`(row,chan)`.
-    """)
+    """
+)
 
 try:
-    model.__doc__ = MODEL_DOCS.substitute(
-                        array_type=":class:`numpy.ndarray`")
+    model.__doc__ = MODEL_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

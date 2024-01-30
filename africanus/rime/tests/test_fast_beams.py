@@ -11,18 +11,18 @@ def rf(*a, **kw):
 
 
 def rc(*a, **kw):
-    return rf(*a, **kw) + 1j*rf(*a, **kw)
+    return rf(*a, **kw) + 1j * rf(*a, **kw)
 
 
 @pytest.fixture
 def beam_freq_map():
-    return np.array([.5, .56,  .7, .91, 1.0])
+    return np.array([0.5, 0.56, 0.7, 0.91, 1.0])
 
 
 @pytest.fixture
 def beam_freq_map_montblanc():
-    """ Montblanc doesn't handle values outside the cube in the same way """
-    return np.array([.4, .56,  .7, .91, 1.1])
+    """Montblanc doesn't handle values outside the cube in the same way"""
+    return np.array([0.4, 0.56, 0.7, 0.91, 1.1])
 
 
 @pytest.fixture
@@ -37,15 +37,15 @@ def freqs():
     4. One value (1.1) above the beam freq range
     """
 
-    return np.array([.4, .5, .6, .7, .8, .9, 1.0, 1.1])
+    return np.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1])
 
 
 def test_fast_beam_small():
-    """ Small beam test, interpolation of one soure at [0.1, 0.1] """
+    """Small beam test, interpolation of one soure at [0.1, 0.1]"""
     np.random.seed(42)
 
     # One frequency, to the lower side of the beam frequency map
-    freq = np.asarray([.3])
+    freq = np.asarray([0.3])
     beam_freq_map = np.asarray([0.0, 1.0])
 
     beam_lw = 2
@@ -66,9 +66,16 @@ def test_fast_beam_small():
 
     beam = rc((beam_lw, beam_mh, beam_nud, 1))
 
-    ddes = beam_cube_dde(beam, beam_extents, beam_freq_map,
-                         lm, parangles, point_errors, antenna_scaling,
-                         freq)
+    ddes = beam_cube_dde(
+        beam,
+        beam_extents,
+        beam_freq_map,
+        lm,
+        parangles,
+        point_errors,
+        antenna_scaling,
+        freq,
+    )
 
     # Pen and paper the expected value
     lower_l = beam_extents[0, 0]
@@ -82,15 +89,15 @@ def test_fast_beam_small():
     abs_sum = np.zeros((1,), dtype=beam.real.dtype)
 
     # Weights of the sample at each grid point
-    wt0 = (1 - ld)*(1 - md)*(1 - chd)
-    wt1 = ld*(1 - md)*(1 - chd)
-    wt2 = (1 - ld)*md*(1 - chd)
-    wt3 = ld*md*(1 - chd)
+    wt0 = (1 - ld) * (1 - md) * (1 - chd)
+    wt1 = ld * (1 - md) * (1 - chd)
+    wt2 = (1 - ld) * md * (1 - chd)
+    wt3 = ld * md * (1 - chd)
 
-    wt4 = (1 - ld)*(1 - md)*chd
-    wt5 = ld*(1 - md)*chd
-    wt6 = (1 - ld)*md*chd
-    wt7 = ld*md*chd
+    wt4 = (1 - ld) * (1 - md) * chd
+    wt5 = ld * (1 - md) * chd
+    wt6 = (1 - ld) * md * chd
+    wt7 = ld * md * chd
 
     # Sum lower channel correlations
     corr_sum[:] += wt0 * beam[0, 0, 0, 0]
@@ -116,7 +123,7 @@ def test_fast_beam_small():
 
     corr_sum *= abs_sum / np.abs(corr_sum)
 
-    assert_array_almost_equal([[[[[0.470255+0.4786j]]]]], ddes)
+    assert_array_almost_equal([[[[[0.470255 + 0.4786j]]]]], ddes)
     assert_array_almost_equal(ddes.squeeze(), corr_sum.squeeze())
 
 
@@ -129,8 +136,7 @@ def test_grid_interpolate(freqs, beam_freq_map):
 
     # Frequencies (first -- 0.8 and last -- 1.1)
     # outside the beam result in scaling,
-    assert_array_almost_equal(freq_scale,
-                              [0.8, 1.,  1.,  1.,  1.,  1.,  1.,  1.1])
+    assert_array_almost_equal(freq_scale, [0.8, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.1])
     # Frequencies outside the beam are snapped to 0 if below
     # and beam_nud - 2 if above.
     # Frequencies on the edges are similarly snapped
@@ -139,14 +145,7 @@ def test_grid_interpolate(freqs, beam_freq_map):
     # frequency is snapped to the first and last beam freq value
     # if outside (first and last values)
     # Third frequency value is also exactly on a grid point
-    exp_diff = [1.,
-                1.,
-                0.71428571,
-                1.,
-                0.52380952,
-                0.04761905,
-                0.,
-                0.]
+    exp_diff = [1.0, 1.0, 0.71428571, 1.0, 0.52380952, 0.04761905, 0.0, 0.0]
 
     assert_array_almost_equal(fgrid_diff, exp_diff)
 
@@ -176,35 +175,48 @@ def test_dask_fast_beams(freqs, beam_freq_map):
     antenna_scaling = np.random.random(size=(ants, chans, 2))
 
     # Make random values more representative
-    lm = (lm - 0.5)*0.0001        # Shift lm to around the centre
-    parangles *= np.pi / 12        # parangles to 15 degrees max
-    point_errors *= 0.001         # Pointing errors
-    antenna_scaling *= 0.0001     # Antenna scaling
+    lm = (lm - 0.5) * 0.0001  # Shift lm to around the centre
+    parangles *= np.pi / 12  # parangles to 15 degrees max
+    point_errors *= 0.001  # Pointing errors
+    antenna_scaling *= 0.0001  # Antenna scaling
 
     # Beam variables
     beam = rc((beam_lw, beam_mh, beam_nud, 2, 2))
     beam_lm_extents = np.asarray([[-1.0, 1.0], [-1.0, 1.0]])
 
     # Compute numba ddes
-    ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
-                         lm, parangles, point_errors, antenna_scaling,
-                         freqs)
+    ddes = beam_cube_dde(
+        beam,
+        beam_lm_extents,
+        beam_freq_map,
+        lm,
+        parangles,
+        point_errors,
+        antenna_scaling,
+        freqs,
+    )
 
     # Create dask arrays
     da_beam = da.from_array(beam, chunks=beam.shape)
     da_beam_freq_map = da.from_array(beam_freq_map, chunks=beam_freq_map.shape)
     da_lm = da.from_array(lm, chunks=(src_c, 2))
     da_parangles = da.from_array(parangles, chunks=(time_c, ants_c))
-    da_point_errors = da.from_array(point_errors,
-                                    chunks=(time_c, ants_c, chan_c, 2))
+    da_point_errors = da.from_array(point_errors, chunks=(time_c, ants_c, chan_c, 2))
     da_ant_scale = da.from_array(antenna_scaling, chunks=(ants_c, chan_c, 2))
     da_extents = da.from_array(beam_lm_extents, chunks=beam_lm_extents.shape)
     da_freqs = da.from_array(freqs, chunks=chan_c)
 
     # dask ddes
-    da_ddes = dask_beam_cube_dde(da_beam, da_extents, da_beam_freq_map,
-                                 da_lm, da_parangles, da_point_errors,
-                                 da_ant_scale, da_freqs)
+    da_ddes = dask_beam_cube_dde(
+        da_beam,
+        da_extents,
+        da_beam_freq_map,
+        da_lm,
+        da_parangles,
+        da_point_errors,
+        da_ant_scale,
+        da_freqs,
+    )
 
     # Should be strictly equal
     assert_array_equal(da_ddes.compute(), ddes)
@@ -212,7 +224,7 @@ def test_dask_fast_beams(freqs, beam_freq_map):
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
-    """ Test that the numba beam matches montblanc implementation """
+    """Test that the numba beam matches montblanc implementation"""
     mb_tf_mod = pytest.importorskip("montblanc.impl.rime.tensorflow")
     tf = pytest.importorskip("tensorflow")
 
@@ -237,41 +249,69 @@ def test_fast_beams_vs_montblanc(freqs, beam_freq_map_montblanc, dtype):
     antenna_scaling = np.random.random(size=(ants, chans, 2)).astype(dtype)
 
     # Make random values more representative
-    lm = (lm - 0.5)*0.0001        # Shift lm to around the centre
-    parangles *= np.pi / 12        # parangles to 15 degrees max
-    point_errors *= 0.001         # Pointing errors
-    antenna_scaling *= 0.0001     # Antenna scaling
+    lm = (lm - 0.5) * 0.0001  # Shift lm to around the centre
+    parangles *= np.pi / 12  # parangles to 15 degrees max
+    point_errors *= 0.001  # Pointing errors
+    antenna_scaling *= 0.0001  # Antenna scaling
 
     # Beam variables
     beam = rc((beam_lw, beam_mh, beam_nud, 2, 2)).astype(ctype)
     beam_lm_extents = np.asarray([[-1.0, 1.0], [-1.0, 1.0]]).astype(dtype)
 
-    ddes = beam_cube_dde(beam, beam_lm_extents, beam_freq_map,
-                         lm, parangles, point_errors, antenna_scaling,
-                         freqs)
+    ddes = beam_cube_dde(
+        beam,
+        beam_lm_extents,
+        beam_freq_map,
+        lm,
+        parangles,
+        point_errors,
+        antenna_scaling,
+        freqs,
+    )
 
     assert ddes.shape == (src, time, ants, chans, 2, 2)
 
     rime = mb_tf_mod.load_tf_lib()
 
     # Montblanc beam extent format is different
-    mb_beam_extents = np.array([beam_lm_extents[0, 0],
-                                beam_lm_extents[1, 0],
-                                beam_freq_map[0],
-                                beam_lm_extents[0, 1],
-                                beam_lm_extents[1, 1],
-                                beam_freq_map[-1]], dtype=dtype)
+    mb_beam_extents = np.array(
+        [
+            beam_lm_extents[0, 0],
+            beam_lm_extents[1, 0],
+            beam_freq_map[0],
+            beam_lm_extents[0, 1],
+            beam_lm_extents[1, 1],
+            beam_freq_map[-1],
+        ],
+        dtype=dtype,
+    )
 
     # Montblanc wants flattened correlations
     mb_beam = beam.reshape(beam.shape[:3] + (-1,))
 
-    np_args = [lm, freqs, point_errors, antenna_scaling,
-               np.sin(parangles), np.cos(parangles),
-               mb_beam_extents, beam_freq_map, mb_beam]
+    np_args = [
+        lm,
+        freqs,
+        point_errors,
+        antenna_scaling,
+        np.sin(parangles),
+        np.cos(parangles),
+        mb_beam_extents,
+        beam_freq_map,
+        mb_beam,
+    ]
     # Argument string name list
-    arg_names = ["lm", "frequency", "point_errors", "antenna_scaling",
-                 "parallactic_angle_sin", "parallactic_angle_cos",
-                 "beam_extents", "beam_freq_map", "e_beam"]
+    arg_names = [
+        "lm",
+        "frequency",
+        "point_errors",
+        "antenna_scaling",
+        "parallactic_angle_sin",
+        "parallactic_angle_cos",
+        "beam_extents",
+        "beam_freq_map",
+        "e_beam",
+    ]
 
     # Constructor tensorflow variables
     tf_args = [tf.Variable(v, name=n) for v, n in zip(np_args, arg_names)]

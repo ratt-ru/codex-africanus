@@ -88,4 +88,3 @@ Dask
 
 .. autofunction:: im_to_vis
 .. autofunction:: vis_to_im
-

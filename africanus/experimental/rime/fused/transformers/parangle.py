@@ -12,38 +12,46 @@ class ParallacticTransformer(Transformer):
     def __init__(self, process_pool):
         self.pool = process_pool
 
-    def init_fields(self, typingctx,
-                    utime, ufeed, uantenna,
-                    antenna_position, phase_dir,
-                    receptor_angle=None):
-        dt = typingctx.unify_types(utime.dtype, ufeed.dtype,
-                                   antenna_position.dtype,
-                                   phase_dir.dtype)
+    def init_fields(
+        self,
+        typingctx,
+        utime,
+        ufeed,
+        uantenna,
+        antenna_position,
+        phase_dir,
+        receptor_angle=None,
+    ):
+        dt = typingctx.unify_types(
+            utime.dtype, ufeed.dtype, antenna_position.dtype, phase_dir.dtype
+        )
         fields = [
             ("feed_parangle", dt[:, :, :, :, :]),
-            ("beam_parangle", dt[:, :, :, :])]
+            ("beam_parangle", dt[:, :, :, :]),
+        ]
         parangle_dt = types.Array(types.float64, 2, "C")
         have_ra = not cgutils.is_nonelike(receptor_angle)
 
-        if have_ra and (not isinstance(receptor_angle, types.Array) or
-                        receptor_angle.ndim != 2):
+        if have_ra and (
+            not isinstance(receptor_angle, types.Array) or receptor_angle.ndim != 2
+        ):
             raise errors.TypingError("receptor_angle must be a 2D array")
 
         @njit(inline="never")
         def parangle_stub(time, antenna, phase_dir):
             with objmode(out=parangle_dt):
-                out = self.pool.apply(casa_parallactic_angles,
-                                      (time, antenna, phase_dir))
+                out = self.pool.apply(
+                    casa_parallactic_angles, (time, antenna, phase_dir)
+                )
 
             return out
 
-        def parangles(utime, ufeed, uantenna,
-                      antenna_position, phase_dir,
-                      receptor_angle=None):
-
-            ntime, = utime.shape
-            nant, = uantenna.shape
-            nfeed, = ufeed.shape
+        def parangles(
+            utime, ufeed, uantenna, antenna_position, phase_dir, receptor_angle=None
+        ):
+            (ntime,) = utime.shape
+            (nant,) = uantenna.shape
+            (nfeed,) = ufeed.shape
 
             # Select out the antennae we're interested in
             antenna_position = antenna_position[uantenna]
@@ -57,8 +65,7 @@ class ParallacticTransformer(Transformer):
                     raise ValueError("receptor_angle.ndim != 2")
 
                 if receptor_angle.shape[1] != 2:
-                    raise ValueError("Only 2 receptor angles "
-                                     "currently supported")
+                    raise ValueError("Only 2 receptor angles " "currently supported")
 
                 # Select out the feeds we're interested in
                 receptor_angle = receptor_angle[ufeed, :]
@@ -87,13 +94,11 @@ class ParallacticTransformer(Transformer):
 
         return fields, parangles
 
-    def dask_schema(self, utime, ufeed, uantenna,
-                    antenna_position, phase_dir,
-                    receptor_angle=None):
-        dt = np.result_type(utime, ufeed, antenna_position,
-                            phase_dir, receptor_angle)
-        inputs = {"antenna_position": ("antenna", "ant-comp"),
-                  "phase_dir": ("radec",)}
+    def dask_schema(
+        self, utime, ufeed, uantenna, antenna_position, phase_dir, receptor_angle=None
+    ):
+        dt = np.result_type(utime, ufeed, antenna_position, phase_dir, receptor_angle)
+        inputs = {"antenna_position": ("antenna", "ant-comp"), "phase_dir": ("radec",)}
 
         if receptor_angle is not None:
             inputs["receptor_angle"] = ("feed", "receptor_angle")
@@ -101,8 +106,8 @@ class ParallacticTransformer(Transformer):
             inputs["receptor_angle"] = None
 
         outputs = {
-            "feed_parangle": np.empty((0,)*5, dt),
-            "beam_parangle": np.empty((0,)*4, dt)
+            "feed_parangle": np.empty((0,) * 5, dt),
+            "beam_parangle": np.empty((0,) * 4, dt),
         }
 
         return inputs, outputs

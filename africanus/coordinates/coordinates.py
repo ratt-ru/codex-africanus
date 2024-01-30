@@ -4,9 +4,7 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import (is_numba_type_none,
-                                  jit, JIT_OPTIONS,
-                                  njit, overload)
+from africanus.util.numba import is_numba_type_none, jit, JIT_OPTIONS, njit, overload
 from africanus.util.requirements import requires_optional
 
 try:
@@ -65,9 +63,8 @@ def nb_radec_to_lmn(radec, phase_centre=None):
             sin_dec = np.sin(radec[s, 1])
             cos_dec = np.cos(radec[s, 1])
 
-            lmn[s, 0] = l = cos_dec*sin_ra_delta  # noqa
-            lmn[s, 1] = m = (sin_dec*cos_pc_dec -
-                             cos_dec*sin_pc_dec*cos_ra_delta)
+            lmn[s, 0] = l = cos_dec * sin_ra_delta  # noqa
+            lmn[s, 1] = m = sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
             lmn[s, 2] = np.sqrt(1.0 - l**2 - m**2)
 
         return lmn
@@ -113,8 +110,8 @@ def nb_radec_to_lm(radec, phase_centre=None):
             sin_dec = np.sin(radec[s, 1])
             cos_dec = np.cos(radec[s, 1])
 
-            lm[s, 0] = cos_dec*sin_ra_delta
-            lm[s, 1] = sin_dec*cos_pc_dec - cos_dec*sin_pc_dec*cos_ra_delta
+            lm[s, 0] = cos_dec * sin_ra_delta
+            lm[s, 1] = sin_dec * cos_pc_dec - cos_dec * sin_pc_dec * cos_ra_delta
 
         return lm
 
@@ -152,8 +149,8 @@ def nb_lmn_to_radec(lmn, phase_centre=None):
         for s in range(radec.shape[0]):
             l, m, n = lmn[s]
 
-            radec[s, 1] = np.arcsin(m*cos_pc_dec + n*sin_pc_dec)
-            radec[s, 0] = pc_ra + np.arctan(l / (n*cos_pc_dec - m*sin_pc_dec))
+            radec[s, 1] = np.arcsin(m * cos_pc_dec + n * sin_pc_dec)
+            radec[s, 0] = pc_ra + np.arctan(l / (n * cos_pc_dec - m * sin_pc_dec))
 
         return radec
 
@@ -192,8 +189,8 @@ def nb_lm_to_radec(lm, phase_centre=None):
             l, m = lm[s]
             n = np.sqrt(1.0 - l**2 - m**2)
 
-            radec[s, 1] = np.arcsin(m*cos_pc_dec + n*sin_pc_dec)
-            radec[s, 0] = pc_ra + np.arctan(l / (n*cos_pc_dec - m*sin_pc_dec))
+            radec[s, 1] = np.arcsin(m * cos_pc_dec + n * sin_pc_dec)
+            radec[s, 0] = pc_ra + np.arctan(l / (n * cos_pc_dec - m * sin_pc_dec))
 
         return radec
 
@@ -230,7 +227,8 @@ def astropy_radec_to_lmn(radec, phase_centre):
     return result
 
 
-RADEC_TO_LMN_DOCS = DocstringTemplate(r"""
+RADEC_TO_LMN_DOCS = DocstringTemplate(
+    r"""
 Converts Right-Ascension/Declination coordinates in radians
 to a Direction Cosine lm coordinates, relative to the Phase Centre.
 
@@ -262,10 +260,12 @@ Returns
 -------
 $(array_type)
     lm Direction Cosines of shape :code:`(coord, $(lm_components))`
-""")
+"""
+)
 
 
-LMN_TO_RADEC_DOCS = DocstringTemplate(r"""
+LMN_TO_RADEC_DOCS = DocstringTemplate(
+    r"""
 Convert Direction Cosine lm coordinates to Right Ascension/Declination
 coordinates in radians, relative to the Phase Centre.
 
@@ -298,21 +298,22 @@ $(array_type)
     where Right-Ascension and Declination are in the
     last 2 components, respectively.
 
-""")
+"""
+)
 
 try:
     radec_to_lmn.__doc__ = RADEC_TO_LMN_DOCS.substitute(
-                                lm_components="3",
-                                array_type=":class:`numpy.ndarray`")
+        lm_components="3", array_type=":class:`numpy.ndarray`"
+    )
     radec_to_lm.__doc__ = RADEC_TO_LMN_DOCS.substitute(
-                                lm_components="2",
-                                array_type=":class:`numpy.ndarray`")
+        lm_components="2", array_type=":class:`numpy.ndarray`"
+    )
     lmn_to_radec.__doc__ = LMN_TO_RADEC_DOCS.substitute(
-                                lm_name="lmn", lm_components="3",
-                                array_type=":class:`numpy.ndarray`")
+        lm_name="lmn", lm_components="3", array_type=":class:`numpy.ndarray`"
+    )
     lm_to_radec.__doc__ = LMN_TO_RADEC_DOCS.substitute(
-                                lm_name="lm", lm_components="2",
-                                array_type=":class:`numpy.ndarray`")
+        lm_name="lm", lm_components="2", array_type=":class:`numpy.ndarray`"
+    )
 
 except AttributeError:
     pass

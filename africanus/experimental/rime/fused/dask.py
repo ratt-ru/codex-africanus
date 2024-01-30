@@ -1,8 +1,7 @@
 import numpy as np
 
 from africanus.util.requirements import requires_optional
-from africanus.experimental.rime.fused.core import (
-    RimeFactory, consolidate_args)
+from africanus.experimental.rime.fused.core import RimeFactory, consolidate_args
 
 try:
     import dask.array as da
@@ -20,7 +19,7 @@ def rime_dask_wrapper(factory, names, nconcat_dims, *args):
     # (2) slice the existing dimensions
     # (3) expand by the contraction dims which will
     #     be removed in the later dask reduction
-    return out[(None,) + (slice(None),)*out.ndim + (None,)*nconcat_dims]
+    return out[(None,) + (slice(None),) * out.ndim + (None,) * nconcat_dims]
 
 
 @requires_optional("dask.array", opt_import_err)
@@ -44,18 +43,24 @@ def rime(rime_spec, *args, **kw):
     # This incurs memory allocations within numba, as well as
     # exceptions, leading to memory leaks as described
     # in https://github.com/numba/numba/issues/3263
-    meta = np.empty((0,)*len(out_dims), dtype=np.complex128)
+    meta = np.empty((0,) * len(out_dims), dtype=np.complex128)
 
     # Construct the wrapper call from given arguments
-    out = da.blockwise(rime_dask_wrapper, out_dims,
-                       factory, None,
-                       names, None,
-                       len(contract_dims), None,
-                       *args,
-                       concatenate=False,
-                       adjust_chunks=adjust_chunks,
-                       new_axes=new_axes,
-                       meta=meta)
+    out = da.blockwise(
+        rime_dask_wrapper,
+        out_dims,
+        factory,
+        None,
+        names,
+        None,
+        len(contract_dims),
+        None,
+        *args,
+        concatenate=False,
+        adjust_chunks=adjust_chunks,
+        new_axes=new_axes,
+        meta=meta,
+    )
 
     # Contract over source and concatenation dims
     axes = (0,) + tuple(range(len(dims), len(dims) + len(contract_dims)))

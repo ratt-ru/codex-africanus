@@ -20,7 +20,7 @@ if not on_rtd:
         # astropy breaks with numpy 1.15.3
         # https://github.com/astropy/astropy/issues/7943
         "numpy >= 1.14.0, != 1.15.3",
-        "numba >= 0.53.1"
+        "numba >= 0.53.1",
     ]
 
 extras_require = {
@@ -31,7 +31,7 @@ extras_require = {
     "astropy": ["astropy >= 4.0"],
     "python-casacore": ["python-casacore >= 3.4.0, != 3.5.0"],
     "ducc0": ["ducc0 >= 0.9.0"],
-    "testing": ["pytest", "flaky", "pytest-flake8 >= 1.0.6", "flake8 >= 4.0.0, < 5.0.0"],
+    "testing": ["pytest", "flaky"],
 }
 
 with open(str(Path("africanus", "install", "extras_require.py")), "w") as f:
@@ -85,7 +85,7 @@ setup(
     keywords="codex-africanus",
     name="codex-africanus",
     packages=find_packages(),
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,

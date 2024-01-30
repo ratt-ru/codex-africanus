@@ -10,7 +10,7 @@ from africanus.experimental.rime.fused.error import InvalidSignature
 @structref.register
 class StateStructRef(types.StructRef):
     def preprocess_fields(self, fields):
-        """ Disallow literal types in field definitions """
+        """Disallow literal types in field definitions"""
         return tuple((n, types.unliteral(t)) for n, t in fields)
 
 
@@ -18,8 +18,9 @@ def sigcheck_factory(expected_sig):
     def check_constructor_signature(self, fn):
         sig = inspect.signature(fn)
         if sig != expected_sig:
-            raise ValueError(f"{fn.__name__}{sig} should be "
-                             f"{fn.__name__}{expected_sig}")
+            raise ValueError(
+                f"{fn.__name__}{sig} should be " f"{fn.__name__}{expected_sig}"
+            )
 
     return check_constructor_signature
 
@@ -65,42 +66,50 @@ class TermMetaClass(type):
         field_params = list(init_fields_sig.parameters.values())
 
         if len(init_fields_sig.parameters) < 2:
-            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
-                                   f"should be "
-                                   f"{name}.init_fields(self, typingctx, ...)")
+            raise InvalidSignature(
+                f"{name}.init_fields{init_fields_sig} "
+                f"should be "
+                f"{name}.init_fields(self, typingctx, ...)"
+            )
 
         it = iter(init_fields_sig.parameters.items())
         first, second = next(it), next(it)
 
         if first[0] != "self" or second[0] != "typingctx":
-            raise InvalidSignature(f"{name}.init_fields{init_fields_sig} "
-                                   f"should be "
-                                   f"{name}.init_fields(self, typingctx, ...)")
+            raise InvalidSignature(
+                f"{name}.init_fields{init_fields_sig} "
+                f"should be "
+                f"{name}.init_fields(self, typingctx, ...)"
+            )
 
         for n, p in it:
             if p.kind == p.VAR_POSITIONAL:
-                raise InvalidSignature(f"*{n} in "
-                                       f"{name}.init_fields{init_fields_sig} "
-                                       f"is not supported")
+                raise InvalidSignature(
+                    f"*{n} in "
+                    f"{name}.init_fields{init_fields_sig} "
+                    f"is not supported"
+                )
 
             if p.kind == p.VAR_KEYWORD:
-                raise InvalidSignature(f"**{n} in "
-                                       f"{name}.init_fields{init_fields_sig} "
-                                       f"is not supported")
+                raise InvalidSignature(
+                    f"**{n} in "
+                    f"{name}.init_fields{init_fields_sig} "
+                    f"is not supported"
+                )
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
         expected_dask_params = field_params[0:1] + field_params[2:]
-        expected_dask_sig = init_fields_sig.replace(
-            parameters=expected_dask_params)
+        expected_dask_sig = init_fields_sig.replace(parameters=expected_dask_params)
 
         if dask_schema_sig != expected_dask_sig:
-            raise InvalidSignature(f"{name}.dask_schema{dask_schema_sig} "
-                                   f"should be "
-                                   f"{name}.dask_schema{expected_dask_sig}")
+            raise InvalidSignature(
+                f"{name}.dask_schema{dask_schema_sig} "
+                f"should be "
+                f"{name}.dask_schema{expected_dask_sig}"
+            )
 
         Parameter = inspect.Parameter
-        expected_init_sig = init_fields_sig.replace(
-                                parameters=field_params[2:])
+        expected_init_sig = init_fields_sig.replace(parameters=field_params[2:])
         validator = sigcheck_factory(expected_init_sig)
 
         sampler_sig = inspect.signature(methods["sampler"])
@@ -108,19 +117,27 @@ class TermMetaClass(type):
         expected_sampler_sig = inspect.Signature(parameters=params)
 
         if sampler_sig != expected_sampler_sig:
-            raise InvalidSignature(f"{name}.sampler{sampler_sig} "
-                                   f"should be "
-                                   f"{name}.sampler{expected_sampler_sig}")
+            raise InvalidSignature(
+                f"{name}.sampler{sampler_sig} "
+                f"should be "
+                f"{name}.sampler{expected_sampler_sig}"
+            )
 
-        args = tuple(n for n, p in init_fields_sig.parameters.items()
-                     if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
-                     and n not in {"self", "typingctx"}
-                     and p.default is p.empty)
+        args = tuple(
+            n
+            for n, p in init_fields_sig.parameters.items()
+            if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
+            and n not in {"self", "typingctx"}
+            and p.default is p.empty
+        )
 
-        kw = [(n, p.default) for n, p in init_fields_sig.parameters.items()
-              if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
-              and n not in {"self", "typingctx"}
-              and p.default is not p.empty]
+        kw = [
+            (n, p.default)
+            for n, p in init_fields_sig.parameters.items()
+            if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
+            and n not in {"self", "typingctx"}
+            and p.default is not p.empty
+        ]
 
         namespace = namespace.copy()
         namespace["ARGS"] = args
@@ -132,7 +149,7 @@ class TermMetaClass(type):
 
     @classmethod
     def term_in_bases(cls, bases):
-        """ Is `Term` in bases? """
+        """Is `Term` in bases?"""
         for base in bases:
             if base is Term or cls.term_in_bases(base.__bases__):
                 return True
@@ -157,8 +174,7 @@ class Term(metaclass=TermMetaClass):
         return self._configuration
 
     def __eq__(self, rhs):
-        return (isinstance(rhs, Term) and
-                self._configuration == rhs._configuration)
+        return isinstance(rhs, Term) and self._configuration == rhs._configuration
 
     def __repr__(self):
         return self.__class__.__name__
@@ -168,7 +184,7 @@ class Term(metaclass=TermMetaClass):
 
     @classmethod
     def validate_sampler(cls, sampler):
-        """ Validate the sampler implementation """
+        """Validate the sampler implementation"""
         sampler_sig = inspect.signature(sampler)
         Parameter = inspect.Parameter
         P = partial(Parameter, kind=Parameter.POSITIONAL_OR_KEYWORD)
@@ -176,6 +192,8 @@ class Term(metaclass=TermMetaClass):
         expected_sig = inspect.Signature(params)
 
         if sampler_sig != expected_sig:
-            raise InvalidSignature(f"{sampler.__name__}{sampler_sig}"
-                                   f"should be "
-                                   f"{sampler.__name__}{expected_sig}")
+            raise InvalidSignature(
+                f"{sampler.__name__}{sampler_sig}"
+                f"should be "
+                f"{sampler.__name__}{expected_sig}"
+            )

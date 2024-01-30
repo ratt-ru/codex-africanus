@@ -4,43 +4,81 @@ from collections import namedtuple
 
 import numpy as np
 
-from africanus.averaging.bda_mapping import (bda_mapper,
-                                             RowMapOutput)
-from africanus.averaging.shared import (chan_corrs,
-                                        merge_flags,
-                                        vis_output_arrays)
+from africanus.averaging.bda_mapping import bda_mapper, RowMapOutput
+from africanus.averaging.shared import chan_corrs, merge_flags, vis_output_arrays
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import (njit,
-                                  overload,
-                                  JIT_OPTIONS,
-                                  intrinsic,
-                                  is_numba_type_none)
+from africanus.util.numba import (
+    njit,
+    overload,
+    JIT_OPTIONS,
+    intrinsic,
+    is_numba_type_none,
+)
 
 
-_row_output_fields = ["antenna1", "antenna2", "time_centroid", "exposure",
-                      "uvw", "weight", "sigma"]
+_row_output_fields = [
+    "antenna1",
+    "antenna2",
+    "time_centroid",
+    "exposure",
+    "uvw",
+    "weight",
+    "sigma",
+]
 RowAverageOutput = namedtuple("RowAverageOutput", _row_output_fields)
 
 
 @njit(**JIT_OPTIONS)
-def row_average(meta, ant1, ant2, flag_row=None,
-                time_centroid=None, exposure=None, uvw=None,
-                weight=None, sigma=None):
-    return row_average_impl(meta, ant1, ant2, flag_row=flag_row,
-                            time_centroid=time_centroid, exposure=exposure,
-                            uvw=uvw, weight=weight, sigma=sigma)
+def row_average(
+    meta,
+    ant1,
+    ant2,
+    flag_row=None,
+    time_centroid=None,
+    exposure=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+):
+    return row_average_impl(
+        meta,
+        ant1,
+        ant2,
+        flag_row=flag_row,
+        time_centroid=time_centroid,
+        exposure=exposure,
+        uvw=uvw,
+        weight=weight,
+        sigma=sigma,
+    )
 
 
-def row_average_impl(meta, ant1, ant2, flag_row=None,
-                     time_centroid=None, exposure=None, uvw=None,
-                     weight=None, sigma=None):
+def row_average_impl(
+    meta,
+    ant1,
+    ant2,
+    flag_row=None,
+    time_centroid=None,
+    exposure=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+):
     return NotImplementedError
 
 
 @overload(row_average_impl, jit_options=JIT_OPTIONS)
-def nb_row_average_impl(meta, ant1, ant2, flag_row=None,
-                        time_centroid=None, exposure=None, uvw=None,
-                        weight=None, sigma=None):
+def nb_row_average_impl(
+    meta,
+    ant1,
+    ant2,
+    flag_row=None,
+    time_centroid=None,
+    exposure=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+):
     have_flag_row = not is_numba_type_none(flag_row)
     have_time_centroid = not is_numba_type_none(time_centroid)
     have_exposure = not is_numba_type_none(exposure)
@@ -48,10 +86,17 @@ def nb_row_average_impl(meta, ant1, ant2, flag_row=None,
     have_weight = not is_numba_type_none(weight)
     have_sigma = not is_numba_type_none(sigma)
 
-    def impl(meta, ant1, ant2, flag_row=None,
-             time_centroid=None, exposure=None, uvw=None,
-             weight=None, sigma=None):
-
+    def impl(
+        meta,
+        ant1,
+        ant2,
+        flag_row=None,
+        time_centroid=None,
+        exposure=None,
+        uvw=None,
+        weight=None,
+        sigma=None,
+    ):
         out_rows = meta.time.shape[0]
         counts = np.zeros(out_rows, dtype=np.uint32)
 
@@ -61,34 +106,42 @@ def nb_row_average_impl(meta, ant1, ant2, flag_row=None,
 
         # Possibly present outputs for possibly present inputs
         uvw_avg = (
-            None if not have_uvw else
-            np.zeros((out_rows,) + uvw.shape[1:],
-                     dtype=uvw.dtype))
+            None
+            if not have_uvw
+            else np.zeros((out_rows,) + uvw.shape[1:], dtype=uvw.dtype)
+        )
 
         time_centroid_avg = (
-            None if not have_time_centroid else
-            np.zeros((out_rows,) + time_centroid.shape[1:],
-                     dtype=time_centroid.dtype))
+            None
+            if not have_time_centroid
+            else np.zeros(
+                (out_rows,) + time_centroid.shape[1:], dtype=time_centroid.dtype
+            )
+        )
 
         exposure_avg = (
-            None if not have_exposure else
-            np.zeros((out_rows,) + exposure.shape[1:],
-                     dtype=exposure.dtype))
+            None
+            if not have_exposure
+            else np.zeros((out_rows,) + exposure.shape[1:], dtype=exposure.dtype)
+        )
 
         weight_avg = (
-            None if not have_weight else
-            np.zeros((out_rows,) + weight.shape[1:],
-                     dtype=weight.dtype))
+            None
+            if not have_weight
+            else np.zeros((out_rows,) + weight.shape[1:], dtype=weight.dtype)
+        )
 
         sigma_avg = (
-            None if not have_sigma else
-            np.zeros((out_rows,) + sigma.shape[1:],
-                     dtype=sigma.dtype))
+            None
+            if not have_sigma
+            else np.zeros((out_rows,) + sigma.shape[1:], dtype=sigma.dtype)
+        )
 
         sigma_weight_sum = (
-            None if not have_sigma else
-            np.zeros((out_rows,) + sigma.shape[1:],
-                     dtype=sigma.dtype))
+            None
+            if not have_sigma
+            else np.zeros((out_rows,) + sigma.shape[1:], dtype=sigma.dtype)
+        )
 
         # Average each array, if present
         # The output is a flattened row-channel array
@@ -131,7 +184,7 @@ def nb_row_average_impl(meta, ant1, ant2, flag_row=None,
                     wt = weight[ri, co] if have_weight else 1.0
 
                     # Aggregate
-                    sigma_avg[ro, co] += sigma[ri, co]**2 * wt**2
+                    sigma_avg[ro, co] += sigma[ri, co] ** 2 * wt**2
                     sigma_weight_sum[ro, co] += wt
 
         # Normalise and copy
@@ -191,20 +244,21 @@ def nb_row_average_impl(meta, ant1, ant2, flag_row=None,
                     for co in range(sigma.shape[1]):
                         sigma_avg[bro + c, co] = sigma_avg[bro, co]
 
-        return RowAverageOutput(ant1_avg, ant2_avg,
-                                time_centroid_avg,
-                                exposure_avg, uvw_avg,
-                                weight_avg, sigma_avg)
+        return RowAverageOutput(
+            ant1_avg,
+            ant2_avg,
+            time_centroid_avg,
+            exposure_avg,
+            uvw_avg,
+            weight_avg,
+            sigma_avg,
+        )
 
     return impl
 
 
-_rowchan_output_fields = ["visibilities",
-                          "flag",
-                          "weight_spectrum",
-                          "sigma_spectrum"]
-RowChanAverageOutput = namedtuple("RowChanAverageOutput",
-                                  _rowchan_output_fields)
+_rowchan_output_fields = ["visibilities", "flag", "weight_spectrum", "sigma_spectrum"]
+RowChanAverageOutput = namedtuple("RowChanAverageOutput", _rowchan_output_fields)
 
 
 class RowChannelAverageException(Exception):
@@ -212,9 +266,9 @@ class RowChannelAverageException(Exception):
 
 
 @intrinsic
-def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
-                         weight, ri, fi, ro, co):
-
+def average_visibilities(
+    typingctx, vis, vis_avg, vis_weight_sum, weight, ri, fi, ro, co
+):
     import numba.core.types as nbtypes
 
     have_array = isinstance(vis, nbtypes.Array)
@@ -226,8 +280,7 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
 
     return_type = nbtypes.NoneType("none")
 
-    sig = return_type(vis, vis_avg, vis_weight_sum,
-                      weight, ri, fi, ro, co)
+    sig = return_type(vis, vis_avg, vis_weight_sum, weight, ri, fi, ro, co)
 
     def codegen(context, builder, signature, args):
         vis, vis_type = args[0], signature.args[0]
@@ -241,34 +294,45 @@ def average_visibilities(typingctx, vis, vis_avg, vis_weight_sum,
         return_type = signature.return_type
 
         if have_array:
-            avg_sig = return_type(vis_type,
-                                  vis_avg_type,
-                                  vis_weight_sum_type,
-                                  weight_type,
-                                  ri_type, fi_type,
-                                  ro_type, co_type)
-            avg_args = [vis, vis_avg, vis_weight_sum,
-                        weight, ri, fi, ro, co]
+            avg_sig = return_type(
+                vis_type,
+                vis_avg_type,
+                vis_weight_sum_type,
+                weight_type,
+                ri_type,
+                fi_type,
+                ro_type,
+                co_type,
+            )
+            avg_args = [vis, vis_avg, vis_weight_sum, weight, ri, fi, ro, co]
 
             # Compile function and get handle to output
-            context.compile_internal(builder, avg_fn,
-                                     avg_sig, avg_args)
+            context.compile_internal(builder, avg_fn, avg_sig, avg_args)
         elif have_tuple:
             for i in range(len(vis_type)):
-                avg_sig = return_type(vis_type.types[i],
-                                      vis_avg_type.types[i],
-                                      vis_weight_sum_type.types[i],
-                                      weight_type,
-                                      ri_type, fi_type,
-                                      ro_type, co_type)
-                avg_args = [builder.extract_value(vis, i),
-                            builder.extract_value(vis_avg, i),
-                            builder.extract_value(vis_weight_sum, i),
-                            weight, ri, fi, ro, co]
+                avg_sig = return_type(
+                    vis_type.types[i],
+                    vis_avg_type.types[i],
+                    vis_weight_sum_type.types[i],
+                    weight_type,
+                    ri_type,
+                    fi_type,
+                    ro_type,
+                    co_type,
+                )
+                avg_args = [
+                    builder.extract_value(vis, i),
+                    builder.extract_value(vis_avg, i),
+                    builder.extract_value(vis_weight_sum, i),
+                    weight,
+                    ri,
+                    fi,
+                    ro,
+                    co,
+                ]
 
                 # Compile function and get handle to output
-                context.compile_internal(builder, avg_fn,
-                                         avg_sig, avg_args)
+                context.compile_internal(builder, avg_fn, avg_sig, avg_args)
         else:
             raise TypeError("Unhandled visibility array type")
 
@@ -300,26 +364,28 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, co):
 
         if have_array:
             # Normalise single array
-            norm_sig = return_type(vis_avg_type,
-                                   vis_weight_sum_type,
-                                   ro_type, co_type)
+            norm_sig = return_type(vis_avg_type, vis_weight_sum_type, ro_type, co_type)
             norm_args = [vis_avg, vis_weight_sum, ro, co]
 
-            context.compile_internal(builder, normalise_fn,
-                                     norm_sig, norm_args)
+            context.compile_internal(builder, normalise_fn, norm_sig, norm_args)
         elif have_tuple:
             # Normalise each array in the tuple
             for i in range(len(vis_avg_type)):
-                norm_sig = return_type(vis_avg_type.types[i],
-                                       vis_weight_sum_type.types[i],
-                                       ro_type, co_type)
-                norm_args = [builder.extract_value(vis_avg, i),
-                             builder.extract_value(vis_weight_sum, i),
-                             ro, co]
+                norm_sig = return_type(
+                    vis_avg_type.types[i],
+                    vis_weight_sum_type.types[i],
+                    ro_type,
+                    co_type,
+                )
+                norm_args = [
+                    builder.extract_value(vis_avg, i),
+                    builder.extract_value(vis_weight_sum, i),
+                    ro,
+                    co,
+                ]
 
                 # Compile function and get handle to output
-                context.compile_internal(builder, normalise_fn,
-                                         norm_sig, norm_args)
+                context.compile_internal(builder, normalise_fn, norm_sig, norm_args)
         else:
             raise TypeError("Unhandled visibility array type")
 
@@ -327,34 +393,48 @@ def normalise_visibilities(typingctx, vis_avg, vis_weight_sum, ro, co):
 
 
 @njit(**JIT_OPTIONS)
-def row_chan_average(meta, flag_row=None, weight=None,
-                     visibilities=None,
-                     flag=None,
-                     weight_spectrum=None,
-                     sigma_spectrum=None):
+def row_chan_average(
+    meta,
+    flag_row=None,
+    weight=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+):
+    return row_chan_average_impl(
+        meta,
+        flag_row=flag_row,
+        weight=weight,
+        visibilities=visibilities,
+        flag=flag,
+        weight_spectrum=weight_spectrum,
+        sigma_spectrum=sigma_spectrum,
+    )
 
-    return row_chan_average_impl(meta, flag_row=flag_row, weight=weight,
-                                 visibilities=visibilities, flag=flag,
-                                 weight_spectrum=weight_spectrum,
-                                 sigma_spectrum=sigma_spectrum)
 
-
-def row_chan_average_impl(meta, flag_row=None, weight=None,
-                          visibilities=None,
-                          flag=None,
-                          weight_spectrum=None,
-                          sigma_spectrum=None):
-
+def row_chan_average_impl(
+    meta,
+    flag_row=None,
+    weight=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+):
     return NotImplementedError
 
 
 @overload(row_chan_average_impl, jit_options=JIT_OPTIONS)
-def nb_row_chan_average(meta, flag_row=None, weight=None,
-                        visibilities=None,
-                        flag=None,
-                        weight_spectrum=None,
-                        sigma_spectrum=None):
-
+def nb_row_chan_average(
+    meta,
+    flag_row=None,
+    weight=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+):
     have_vis = not is_numba_type_none(visibilities)
     have_flag = not is_numba_type_none(flag)
     have_flag_row = not is_numba_type_none(flag_row)
@@ -364,17 +444,19 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
     have_weight_spectrum = not is_numba_type_none(weight_spectrum)
     have_sigma_spectrum = not is_numba_type_none(sigma_spectrum)
 
-    def impl(meta, flag_row=None, weight=None,
-             visibilities=None,
-             flag=None,
-             weight_spectrum=None,
-             sigma_spectrum=None):
-
+    def impl(
+        meta,
+        flag_row=None,
+        weight=None,
+        visibilities=None,
+        flag=None,
+        weight_spectrum=None,
+        sigma_spectrum=None,
+    ):
         out_rows = meta.time.shape[0]
-        nchan, ncorrs = chan_corrs(visibilities, flag,
-                                   weight_spectrum, sigma_spectrum,
-                                   None, None,
-                                   None, None)
+        nchan, ncorrs = chan_corrs(
+            visibilities, flag, weight_spectrum, sigma_spectrum, None, None, None, None
+        )
 
         out_shape = (out_rows, ncorrs)
 
@@ -401,8 +483,7 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                 ro = meta.map[ri, fi]
 
                 for co in range(ncorrs):
-                    flagged = (row_flagged or
-                               (have_flag and flag[ri, fi, co] != 0))
+                    flagged = row_flagged or (have_flag and flag[ri, fi, co] != 0)
 
                     if have_flags and flagged:
                         flag_counts[ro, co] += 1
@@ -454,8 +535,7 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                     # unflagged samples never contribute to a
                     # completely flagged bin
                     if have_flags:
-                        in_flag = (row_flagged or
-                                   (have_flag and flag[ri, fi, co] != 0))
+                        in_flag = row_flagged or (have_flag and flag[ri, fi, co] != 0)
                         flags_match[ri, fi, co] = in_flag == out_flag
 
         # -------------
@@ -464,8 +544,7 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
         if not have_vis:
             vis_avg = None
         else:
-            vis_avg, vis_weight_sum = vis_output_arrays(
-                visibilities, out_shape)
+            vis_avg, vis_weight_sum = vis_output_arrays(visibilities, out_shape)
 
             # Aggregate
             for ri in range(meta.map.shape[0]):
@@ -476,13 +555,17 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                         if have_flags and not flags_match[ri, fi, co]:
                             continue
 
-                        wt = (weight_spectrum[ri, fi, co]
-                              if have_weight_spectrum else
-                              weight[ri, co] if have_weight else 1.0)
+                        wt = (
+                            weight_spectrum[ri, fi, co]
+                            if have_weight_spectrum
+                            else weight[ri, co]
+                            if have_weight
+                            else 1.0
+                        )
 
-                        average_visibilities(visibilities,
-                                             vis_avg, vis_weight_sum,
-                                             wt, ri, fi, ro, co)
+                        average_visibilities(
+                            visibilities, vis_avg, vis_weight_sum, wt, ri, fi, ro, co
+                        )
 
             # Normalise
             for ro in range(out_rows):
@@ -506,8 +589,7 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                         if have_flags and not flags_match[ri, fi, co]:
                             continue
 
-                        weight_spectrum_avg[ro, co] += (
-                            weight_spectrum[ri, fi, co])
+                        weight_spectrum_avg[ro, co] += weight_spectrum[ri, fi, co]
 
         # ---------------
         # Sigma Spectrum
@@ -527,11 +609,15 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                         if have_flags and not flags_match[ri, fi, co]:
                             continue
 
-                        wt = (weight_spectrum[ri, fi, co]
-                              if have_weight_spectrum else
-                              weight[ri, co] if have_weight else 1.0)
+                        wt = (
+                            weight_spectrum[ri, fi, co]
+                            if have_weight_spectrum
+                            else weight[ri, co]
+                            if have_weight
+                            else 1.0
+                        )
 
-                        ssv = sigma_spectrum[ri, fi, co]**2 * wt**2
+                        ssv = sigma_spectrum[ri, fi, co] ** 2 * wt**2
                         sigma_spectrum_avg[ro, co] += ssv
                         sigma_spectrum_weight_sum[ro, co] += wt
 
@@ -543,9 +629,9 @@ def nb_row_chan_average(meta, flag_row=None, weight=None,
                         sswsum = sigma_spectrum_weight_sum[ro, co]
                         sigma_spectrum_avg[ro, co] = np.sqrt(ssv / sswsum**2)
 
-        return RowChanAverageOutput(vis_avg, flag_avg,
-                                    weight_spectrum_avg,
-                                    sigma_spectrum_avg)
+        return RowChanAverageOutput(
+            vis_avg, flag_avg, weight_spectrum_avg, sigma_spectrum_avg
+        )
 
     return impl
 
@@ -554,114 +640,193 @@ _chan_output_fields = ["chan_freq", "chan_width", "effective_bw", "resolution"]
 ChannelAverageOutput = namedtuple("ChannelAverageOutput", _chan_output_fields)
 
 
-AverageOutput = namedtuple("AverageOutput",
-                           list(RowMapOutput._fields) +
-                           _row_output_fields +
-                           # _chan_output_fields +
-                           _rowchan_output_fields)
+AverageOutput = namedtuple(
+    "AverageOutput",
+    list(RowMapOutput._fields)
+    + _row_output_fields
+    +
+    # _chan_output_fields +
+    _rowchan_output_fields,
+)
 
 
 @njit(**JIT_OPTIONS)
-def bda(time, interval, antenna1, antenna2,
-        time_centroid=None, exposure=None, flag_row=None,
-        uvw=None, weight=None, sigma=None,
-        chan_freq=None, chan_width=None,
-        effective_bw=None, resolution=None,
-        visibilities=None, flag=None,
-        weight_spectrum=None, sigma_spectrum=None,
-        max_uvw_dist=None, max_fov=3.0,
-        decorrelation=0.98,
-        time_bin_secs=None,
-        min_nchan=1):
+def bda(
+    time,
+    interval,
+    antenna1,
+    antenna2,
+    time_centroid=None,
+    exposure=None,
+    flag_row=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+    chan_freq=None,
+    chan_width=None,
+    effective_bw=None,
+    resolution=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+    max_uvw_dist=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
+    return bda_impl(
+        time,
+        interval,
+        antenna1,
+        antenna2,
+        time_centroid=time_centroid,
+        exposure=exposure,
+        flag_row=flag_row,
+        uvw=uvw,
+        weight=weight,
+        sigma=sigma,
+        chan_freq=chan_freq,
+        chan_width=chan_width,
+        effective_bw=effective_bw,
+        resolution=resolution,
+        visibilities=visibilities,
+        flag=flag,
+        weight_spectrum=weight_spectrum,
+        sigma_spectrum=sigma_spectrum,
+        max_uvw_dist=max_uvw_dist,
+        max_fov=max_fov,
+        decorrelation=decorrelation,
+        time_bin_secs=time_bin_secs,
+        min_nchan=min_nchan,
+    )
 
-    return bda_impl(time, interval, antenna1, antenna2,
-                    time_centroid=time_centroid, exposure=exposure,
-                    flag_row=flag_row, uvw=uvw, weight=weight, sigma=sigma,
-                    chan_freq=chan_freq, chan_width=chan_width,
-                    effective_bw=effective_bw, resolution=resolution,
-                    visibilities=visibilities, flag=flag,
-                    weight_spectrum=weight_spectrum,
-                    sigma_spectrum=sigma_spectrum,
-                    max_uvw_dist=max_uvw_dist, max_fov=max_fov,
-                    decorrelation=decorrelation,
-                    time_bin_secs=time_bin_secs, min_nchan=min_nchan)
 
-
-def bda_impl(time, interval, antenna1, antenna2,
-             time_centroid=None, exposure=None, flag_row=None,
-             uvw=None, weight=None, sigma=None,
-             chan_freq=None, chan_width=None,
-             effective_bw=None, resolution=None,
-             visibilities=None, flag=None,
-             weight_spectrum=None, sigma_spectrum=None,
-             max_uvw_dist=None, max_fov=3.0,
-             decorrelation=0.98,
-             time_bin_secs=None,
-             min_nchan=1):
+def bda_impl(
+    time,
+    interval,
+    antenna1,
+    antenna2,
+    time_centroid=None,
+    exposure=None,
+    flag_row=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+    chan_freq=None,
+    chan_width=None,
+    effective_bw=None,
+    resolution=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+    max_uvw_dist=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
     return NotImplementedError
 
 
 @overload(bda_impl, jit_options=JIT_OPTIONS)
-def nb_bda_impl(time, interval, antenna1, antenna2,
-                time_centroid=None, exposure=None, flag_row=None,
-                uvw=None, weight=None, sigma=None,
-                chan_freq=None, chan_width=None,
-                effective_bw=None, resolution=None,
-                visibilities=None, flag=None,
-                weight_spectrum=None, sigma_spectrum=None,
-                max_uvw_dist=None, max_fov=3.0,
-                decorrelation=0.98,
-                time_bin_secs=None,
-                min_nchan=1):
+def nb_bda_impl(
+    time,
+    interval,
+    antenna1,
+    antenna2,
+    time_centroid=None,
+    exposure=None,
+    flag_row=None,
+    uvw=None,
+    weight=None,
+    sigma=None,
+    chan_freq=None,
+    chan_width=None,
+    effective_bw=None,
+    resolution=None,
+    visibilities=None,
+    flag=None,
+    weight_spectrum=None,
+    sigma_spectrum=None,
+    max_uvw_dist=None,
+    max_fov=3.0,
+    decorrelation=0.98,
+    time_bin_secs=None,
+    min_nchan=1,
+):
     # Merge flag_row and flag arrays
     flag_row = merge_flags(flag_row, flag)
 
-    meta = bda_mapper(time, interval, antenna1, antenna2, uvw,
-                      chan_width, chan_freq,
-                      max_uvw_dist,
-                      flag_row=flag_row,
-                      max_fov=max_fov,
-                      decorrelation=decorrelation,
-                      time_bin_secs=time_bin_secs,
-                      min_nchan=min_nchan)
+    meta = bda_mapper(
+        time,
+        interval,
+        antenna1,
+        antenna2,
+        uvw,
+        chan_width,
+        chan_freq,
+        max_uvw_dist,
+        flag_row=flag_row,
+        max_fov=max_fov,
+        decorrelation=decorrelation,
+        time_bin_secs=time_bin_secs,
+        min_nchan=min_nchan,
+    )
 
-    row_avg = row_average(meta, antenna1, antenna2, flag_row,  # noqa: F841
-                          time_centroid, exposure, uvw,
-                          weight=weight, sigma=sigma)
+    row_avg = row_average(
+        meta,
+        antenna1,
+        antenna2,
+        flag_row,  # noqa: F841
+        time_centroid,
+        exposure,
+        uvw,
+        weight=weight,
+        sigma=sigma,
+    )
 
-    row_chan_avg = row_chan_average(meta,  # noqa: F841
-                                    flag_row=flag_row,
-                                    visibilities=visibilities, flag=flag,
-                                    weight_spectrum=weight_spectrum,
-                                    sigma_spectrum=sigma_spectrum)
+    row_chan_avg = row_chan_average(
+        meta,  # noqa: F841
+        flag_row=flag_row,
+        visibilities=visibilities,
+        flag=flag,
+        weight_spectrum=weight_spectrum,
+        sigma_spectrum=sigma_spectrum,
+    )
 
     # Have to explicitly write it out because numba tuples
     # are highly constrained types
-    return AverageOutput(meta.map,
-                         meta.offsets,
-                         meta.decorr_chan_width,
-                         meta.time,
-                         meta.interval,
-                         meta.chan_width,
-                         meta.flag_row,
-                         row_avg.antenna1,
-                         row_avg.antenna2,
-                         row_avg.time_centroid,
-                         row_avg.exposure,
-                         row_avg.uvw,
-                         row_avg.weight,
-                         row_avg.sigma,
-                         # None,  # chan_data.chan_freq,
-                         # None,  # chan_data.chan_width,
-                         # None,  # chan_data.effective_bw,
-                         # None,  # chan_data.resolution,
-                         row_chan_avg.visibilities,
-                         row_chan_avg.flag,
-                         row_chan_avg.weight_spectrum,
-                         row_chan_avg.sigma_spectrum)
+    return AverageOutput(
+        meta.map,
+        meta.offsets,
+        meta.decorr_chan_width,
+        meta.time,
+        meta.interval,
+        meta.chan_width,
+        meta.flag_row,
+        row_avg.antenna1,
+        row_avg.antenna2,
+        row_avg.time_centroid,
+        row_avg.exposure,
+        row_avg.uvw,
+        row_avg.weight,
+        row_avg.sigma,
+        # None,  # chan_data.chan_freq,
+        # None,  # chan_data.chan_width,
+        # None,  # chan_data.effective_bw,
+        # None,  # chan_data.resolution,
+        row_chan_avg.visibilities,
+        row_chan_avg.flag,
+        row_chan_avg.weight_spectrum,
+        row_chan_avg.sigma_spectrum,
+    )
 
 
-BDA_DOCS = DocstringTemplate("""
+BDA_DOCS = DocstringTemplate(
+    """
 Averages in time and channel, dependent on baseline length.
 
 Parameters
@@ -756,7 +921,8 @@ namedtuple
     A namedtuple whose entries correspond to the input arrays.
     Output arrays will be ``None`` if the inputs were ``None``.
     See the Notes for an explanation of the output formats.
-""")
+"""
+)
 
 try:
     bda.__doc__ = BDA_DOCS.substitute(array_type=":class:`numpy.ndarray`")

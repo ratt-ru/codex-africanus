@@ -53,9 +53,7 @@ def zernike(j, rho, phi):
 
 @jit(nogil=True, nopython=True, cache=True)
 def _convert_coords(l_coords, m_coords):
-    rho, phi = ((l_coords ** 2 + m_coords ** 2) ** 0.5), np.arctan2(
-        l_coords, m_coords
-    )
+    rho, phi = ((l_coords**2 + m_coords**2) ** 0.5), np.arctan2(l_coords, m_coords)
     return rho, phi
 
 
@@ -118,7 +116,7 @@ def zernike_dde(
     antenna_scaling,
     pointing_errors,
 ):
-    """ Wrapper for :func:`nb_zernike_dde` """
+    """Wrapper for :func:`nb_zernike_dde`"""
     _, sources, times, ants, chans = coords.shape
     # ant, chan, corr_1, ..., corr_n, poly
     corr_shape = coeffs.shape[2:-1]

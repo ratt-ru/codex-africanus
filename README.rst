@@ -27,4 +27,3 @@ Documentation
 -------------
 
 https://codex-africanus.readthedocs.io.
-

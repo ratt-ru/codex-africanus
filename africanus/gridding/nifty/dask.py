@@ -21,9 +21,11 @@ else:
 try:
     import nifty_gridder as ng
 except ImportError:
-    nifty_import_err = ImportError("Please manually install nifty_gridder "
-                                   "from https://gitlab.mpcdf.mpg.de/ift/"
-                                   "nifty_gridder.git")
+    nifty_import_err = ImportError(
+        "Please manually install nifty_gridder "
+        "from https://gitlab.mpcdf.mpg.de/ift/"
+        "nifty_gridder.git"
+    )
 else:
     nifty_import_err = None
 
@@ -35,27 +37,24 @@ class GridderConfigWrapper(object):
     Wraps a nifty GridderConfiguration for pickling purposes.
     """
 
-    def __init__(self, nx=1024, ny=1024, eps=2e-13,
-                 cell_size_x=2.0, cell_size_y=2.0):
+    def __init__(self, nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
         self.nx = nx
         self.ny = ny
         self.csx = cell_size_x
         self.csy = cell_size_y
         self.eps = eps
-        self.grid_config = ng.GridderConfig(nx, ny, eps,
-                                            cell_size_x,
-                                            cell_size_y)
+        self.grid_config = ng.GridderConfig(nx, ny, eps, cell_size_x, cell_size_y)
 
     @property
     def object(self):
         return self.grid_config
 
     def __reduce__(self):
-        return (GridderConfigWrapper,
-                (self.nx, self.ny, self.eps, self.csx, self.csy))
+        return (GridderConfigWrapper, (self.nx, self.ny, self.eps, self.csx, self.csy))
 
 
 if import_error is None:
+
     @normalize_token.register(GridderConfigWrapper)
     def normalize_gridder_config_wrapper(gc):
         return normalize_token((gc.nx, gc.ny, gc.csx, gc.csy, gc.eps))
@@ -91,30 +90,29 @@ def grid_config(nx=1024, ny=1024, eps=2e-13, cell_size_x=2.0, cell_size_y=2.0):
 
 
 def _nifty_baselines(uvw, chan_freq):
-    """ Wrapper function for creating baseline mappings per row chunk """
+    """Wrapper function for creating baseline mappings per row chunk"""
     assert len(chan_freq) == 1, "Handle multiple channel chunks"
     return ng.Baselines(uvw[0], chan_freq[0])
 
 
-def _nifty_indices(baselines, grid_config, flag,
-                   chan_begin, chan_end, wmin, wmax):
-    """ Wrapper function for creating indices per row chunk """
-    return ng.getIndices(baselines, grid_config, flag[0],
-                         chan_begin, chan_end, wmin, wmax)
+def _nifty_indices(baselines, grid_config, flag, chan_begin, chan_end, wmin, wmax):
+    """Wrapper function for creating indices per row chunk"""
+    return ng.getIndices(
+        baselines, grid_config, flag[0], chan_begin, chan_end, wmin, wmax
+    )
 
 
 def _nifty_grid(baselines, grid_config, indices, vis, weights):
-    """ Wrapper function for creating a grid of visibilities per row chunk """
+    """Wrapper function for creating a grid of visibilities per row chunk"""
     assert len(vis) == 1 and type(vis) is list
-    return ng.ms2grid_c(baselines, grid_config, indices,
-                        vis[0], None, weights[0])[None, :, :]
+    return ng.ms2grid_c(baselines, grid_config, indices, vis[0], None, weights[0])[
+        None, :, :
+    ]
 
 
-def _nifty_grid_streams(baselines, grid_config, indices,
-                        vis, weights, grid_in=None):
-    """ Wrapper function for creating a grid of visibilities per row chunk """
-    return ng.ms2grid_c(baselines, grid_config, indices,
-                        vis, grid_in, weights)
+def _nifty_grid_streams(baselines, grid_config, indices, vis, weights, grid_in=None):
+    """Wrapper function for creating a grid of visibilities per row chunk"""
+    return ng.ms2grid_c(baselines, grid_config, indices, vis, grid_in, weights)
 
 
 class GridStreamReduction(Mapping):
@@ -129,12 +127,10 @@ class GridStreamReduction(Mapping):
     ``stream`` parallel streams.
     """
 
-    def __init__(self, baselines, indices, gc,
-                 corr_vis, corr_weights,
-                 corr, streams):
-        token = dask.base.tokenize(baselines, indices, gc,
-                                   corr_vis, corr_weights,
-                                   corr, streams)
+    def __init__(self, baselines, indices, gc, corr_vis, corr_weights, corr, streams):
+        token = dask.base.tokenize(
+            baselines, indices, gc, corr_vis, corr_weights, corr, streams
+        )
         self.name = "-".join(("nifty-grid-stream", str(corr), token))
         self.bl_name = baselines.name
         self.idx_name = indices.name
@@ -189,14 +185,16 @@ class GridStreamReduction(Mapping):
             last_key = None
 
             for rb in range(rb_start, rb_end):
-                fn = (_nifty_grid_streams,
-                      (baselines_name, rb),
-                      gc,
-                      (indices_name, rb),
-                      (corr_vis_name, rb, cb),
-                      (corr_wgt_name, rb, cb),
-                      # Re-use grid from last operation if present
-                      last_key)
+                fn = (
+                    _nifty_grid_streams,
+                    (baselines_name, rb),
+                    gc,
+                    (indices_name, rb),
+                    (corr_vis_name, rb, cb),
+                    (corr_wgt_name, rb, cb),
+                    # Re-use grid from last operation if present
+                    last_key,
+                )
 
                 key = (name, rb, cb)
                 layers[key] = fn
@@ -269,8 +267,17 @@ class FinalGridReduction(Mapping):
 
 @requires_optional("dask.array", import_error)
 @requires_optional("nifty_gridder", nifty_import_err)
-def grid(vis, uvw, flags, weights, frequencies, grid_config,
-         wmin=-1e30, wmax=1e30, streams=None):
+def grid(
+    vis,
+    uvw,
+    flags,
+    weights,
+    frequencies,
+    grid_config,
+    wmin=-1e30,
+    wmax=1e30,
+    streams=None,
+):
     """
     Grids the supplied visibilities in parallel. Note that
     a grid is create for each visibility chunk.
@@ -307,10 +314,15 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
         raise ValueError("Chunking in channel currently unsupported")
 
     # Create a baseline object per row chunk
-    baselines = da.blockwise(_nifty_baselines, ("row",),
-                             uvw, ("row", "uvw"),
-                             frequencies, ("chan",),
-                             dtype=object)
+    baselines = da.blockwise(
+        _nifty_baselines,
+        ("row",),
+        uvw,
+        ("row", "uvw"),
+        frequencies,
+        ("chan",),
+        dtype=object,
+    )
 
     if len(frequencies.chunks[0]) != 1:
         raise ValueError("Chunking in channel unsupported")
@@ -323,36 +335,54 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
         corr_vis = vis[:, :, corr]
         corr_weights = weights[:, :, corr]
 
-        indices = da.blockwise(_nifty_indices, ("row",),
-                               baselines, ("row",),
-                               gc, None,
-                               corr_flags, ("row", "chan"),
-                               -1, None,  # channel begin
-                               -1, None,  # channel end
-                               wmin, None,
-                               wmax, None,
-                               dtype=np.int32)
+        indices = da.blockwise(
+            _nifty_indices,
+            ("row",),
+            baselines,
+            ("row",),
+            gc,
+            None,
+            corr_flags,
+            ("row", "chan"),
+            -1,
+            None,  # channel begin
+            -1,
+            None,  # channel end
+            wmin,
+            None,
+            wmax,
+            None,
+            dtype=np.int32,
+        )
 
         if streams is None:
             # Standard parallel reduction, possibly memory hungry
             # if many threads (and thus grids) are gridding
             # parallel
-            grid = da.blockwise(_nifty_grid, ("row", "nu", "nv"),
-                                baselines, ("row",),
-                                gc, None,
-                                indices, ("row",),
-                                corr_vis, ("row", "chan"),
-                                corr_weights, ("row", "chan"),
-                                new_axes={"nu": gc.Nu(), "nv": gc.Nv()},
-                                adjust_chunks={"row": 1},
-                                dtype=np.complex128)
+            grid = da.blockwise(
+                _nifty_grid,
+                ("row", "nu", "nv"),
+                baselines,
+                ("row",),
+                gc,
+                None,
+                indices,
+                ("row",),
+                corr_vis,
+                ("row", "chan"),
+                corr_weights,
+                ("row", "chan"),
+                new_axes={"nu": gc.Nu(), "nv": gc.Nv()},
+                adjust_chunks={"row": 1},
+                dtype=np.complex128,
+            )
 
             grids.append(grid.sum(axis=0))
         else:
             # Stream reduction
-            layers = GridStreamReduction(baselines, indices, gc,
-                                         corr_vis, corr_weights,
-                                         corr, streams)
+            layers = GridStreamReduction(
+                baselines, indices, gc, corr_vis, corr_weights, corr, streams
+            )
             deps = [baselines, indices, corr_vis, corr_weights]
             graph = HighLevelGraph.from_collections(layers.name, layers, deps)
             chunks = corr_vis.chunks
@@ -370,9 +400,8 @@ def grid(vis, uvw, flags, weights, frequencies, grid_config,
 
 
 def _nifty_dirty(grid, grid_config):
-    """ Wrapper function for creating a dirty image """
-    grids = [grid_config.grid2dirty_c(grid[:, :, c]).real
-             for c in range(grid.shape[2])]
+    """Wrapper function for creating a dirty image"""
+    grids = [grid_config.grid2dirty_c(grid[:, :, c]).real for c in range(grid.shape[2])]
 
     return np.stack(grids, axis=2)
 
@@ -401,17 +430,21 @@ def dirty(grid, grid_config):
     nx = gc.Nxdirty()
     ny = gc.Nydirty()
 
-    return da.blockwise(_nifty_dirty, ("nx", "ny", "corr"),
-                        grid, ("nx", "ny", "corr"),
-                        gc, None,
-                        adjust_chunks={"nx": nx, "ny": ny},
-                        dtype=grid.real.dtype)
+    return da.blockwise(
+        _nifty_dirty,
+        ("nx", "ny", "corr"),
+        grid,
+        ("nx", "ny", "corr"),
+        gc,
+        None,
+        adjust_chunks={"nx": nx, "ny": ny},
+        dtype=grid.real.dtype,
+    )
 
 
 def _nifty_model(image, grid_config):
-    """ Wrapper function for creating a dirty image """
-    images = [grid_config.dirty2grid_c(image[:, :, c])
-              for c in range(image.shape[2])]
+    """Wrapper function for creating a dirty image"""
+    images = [grid_config.dirty2grid_c(image[:, :, c]) for c in range(image.shape[2])]
 
     return np.stack(images, axis=2)
 
@@ -440,11 +473,16 @@ def model(image, grid_config):
     nu = gc.Nu()
     nv = gc.Nv()
 
-    return da.blockwise(_nifty_model, ("nu", "nv", "corr"),
-                        image, ("nu", "nv", "corr"),
-                        gc, None,
-                        adjust_chunks={"nu": nu, "nv": nv},
-                        dtype=image.dtype)
+    return da.blockwise(
+        _nifty_model,
+        ("nu", "nv", "corr"),
+        image,
+        ("nu", "nv", "corr"),
+        gc,
+        None,
+        adjust_chunks={"nu": nu, "nv": nv},
+        dtype=image.dtype,
+    )
 
 
 def _nifty_degrid(grid, baselines, indices, grid_config):
@@ -454,8 +492,7 @@ def _nifty_degrid(grid, baselines, indices, grid_config):
 
 @requires_optional("dask.array", import_error)
 @requires_optional("nifty_gridder", nifty_import_err)
-def degrid(grid, uvw, flags, weights, frequencies,
-           grid_config, wmin=-1e30, wmax=1e30):
+def degrid(grid, uvw, flags, weights, frequencies, grid_config, wmin=-1e30, wmax=1e30):
     """
     Degrids the visibilities from the supplied grid in parallel.
 
@@ -489,10 +526,15 @@ def degrid(grid, uvw, flags, weights, frequencies,
         raise ValueError("Chunking in channel currently unsupported")
 
     # Create a baseline object per row chunk
-    baselines = da.blockwise(_nifty_baselines, ("row",),
-                             uvw, ("row", "uvw"),
-                             frequencies, ("chan",),
-                             dtype=object)
+    baselines = da.blockwise(
+        _nifty_baselines,
+        ("row",),
+        uvw,
+        ("row", "uvw"),
+        frequencies,
+        ("chan",),
+        dtype=object,
+    )
 
     gc = grid_config.object
     vis_chunks = []
@@ -501,23 +543,40 @@ def degrid(grid, uvw, flags, weights, frequencies,
         corr_flags = flags[:, :, corr].map_blocks(np.require, requirements="C")
         corr_grid = grid[:, :, corr].map_blocks(np.require, requirements="C")
 
-        indices = da.blockwise(_nifty_indices, ("row",),
-                               baselines, ("row",),
-                               gc, None,
-                               corr_flags, ("row", "chan"),
-                               -1, None,  # channel begin
-                               -1, None,  # channel end
-                               wmin, None,
-                               wmax, None,
-                               dtype=np.int32)
+        indices = da.blockwise(
+            _nifty_indices,
+            ("row",),
+            baselines,
+            ("row",),
+            gc,
+            None,
+            corr_flags,
+            ("row", "chan"),
+            -1,
+            None,  # channel begin
+            -1,
+            None,  # channel end
+            wmin,
+            None,
+            wmax,
+            None,
+            dtype=np.int32,
+        )
 
-        vis = da.blockwise(_nifty_degrid, ("row", "chan"),
-                           corr_grid, ("ny", "nx"),
-                           baselines, ("row",),
-                           indices, ("row",),
-                           grid_config, None,
-                           new_axes={"chan": frequencies.shape[0]},
-                           dtype=grid.dtype)
+        vis = da.blockwise(
+            _nifty_degrid,
+            ("row", "chan"),
+            corr_grid,
+            ("ny", "nx"),
+            baselines,
+            ("row",),
+            indices,
+            ("row",),
+            grid_config,
+            None,
+            new_axes={"chan": frequencies.shape[0]},
+            dtype=grid.dtype,
+        )
 
         vis_chunks.append(vis)
 

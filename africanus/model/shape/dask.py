@@ -44,9 +44,7 @@ def gaussian(uvw, frequency, shape_params):
 
 
 def _shapelet_wrapper(coords, frequency, coeffs, beta, delta_lm):
-    return nb_shapelet(
-        coords[0], frequency, coeffs[0][0], beta[0], delta_lm[0]
-    )
+    return nb_shapelet(coords[0], frequency, coeffs[0][0], beta[0], delta_lm[0])
 
 
 @requires_optional("dask.array", opt_import_error)
@@ -69,9 +67,7 @@ def shapelet(coords, frequency, coeffs, beta, delta_lm):
     )
 
 
-def _shapelet_with_w_term_wrapper(
-    coords, frequency, coeffs, beta, delta_lm, lm
-):
+def _shapelet_with_w_term_wrapper(coords, frequency, coeffs, beta, delta_lm, lm):
     return nb_shapelet_with_w_term(
         coords[0], frequency, coeffs[0][0], beta[0], delta_lm[0], lm[0]
     )
@@ -100,8 +96,6 @@ def shapelet_with_w_term(coords, frequency, coeffs, beta, delta_lm, lm):
 
 
 try:
-    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
-        array_type=":class:`dask.array.Array`"
-    )
+    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`dask.array.Array`")
 except AttributeError:
     pass

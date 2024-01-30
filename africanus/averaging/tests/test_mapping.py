@@ -6,8 +6,7 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal
 import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
-from africanus.averaging.time_and_channel_mapping import (row_mapper,
-                                                          channel_mapper)
+from africanus.averaging.time_and_channel_mapping import row_mapper, channel_mapper
 
 
 @pytest.fixture
@@ -18,19 +17,23 @@ def time():
 @pytest.fixture
 def interval():
     data = np.asarray([1.9, 2.0, 2.1, 1.85, 1.95, 2.0, 2.05, 2.1, 2.05, 1.9])
-    return data*0.1
+    return data * 0.1
 
 
 @pytest.fixture
 def ant1():
-    return np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1],  # noqa
-                      dtype=np.int32)
+    return np.asarray(
+        [0, 0, 1, 0, 0, 1, 2, 0, 0, 1],  # noqa
+        dtype=np.int32,
+    )
 
 
 @pytest.fixture
 def ant2():
-    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2],  # noqa
-                      dtype=np.int32)
+    return np.asarray(
+        [1, 2, 2, 0, 1, 2, 3, 0, 1, 2],  # noqa
+        dtype=np.int32,
+    )
 
 
 def flag_row_factory(nrows, flagged_rows):
@@ -44,8 +47,7 @@ def flag_row_factory(nrows, flagged_rows):
 
 @pytest.mark.parametrize("time_bin_secs", [0.1, 0.2, 1, 2, 4])
 @pytest.mark.parametrize("flagged_rows", [None, [0, 1], [2, 4], range(10)])
-def test_row_mapper(time, interval, ant1, ant2,
-                    flagged_rows, time_bin_secs):
+def test_row_mapper(time, interval, ant1, ant2, flagged_rows, time_bin_secs):
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
     mask = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
@@ -54,9 +56,9 @@ def test_row_mapper(time, interval, ant1, ant2,
 
     flag_row = flag_row_factory(time.size, flagged_rows)
 
-    ret = row_mapper(time, interval, ant1, ant2,
-                     flag_row=flag_row,
-                     time_bin_secs=time_bin_secs)
+    ret = row_mapper(
+        time, interval, ant1, ant2, flag_row=flag_row, time_bin_secs=time_bin_secs
+    )
 
     # For TIME AND INTERVAL, flagged inputs can
     # contribute to unflagged outputs

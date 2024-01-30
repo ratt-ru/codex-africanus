@@ -5,7 +5,7 @@ Fits a simple spectral index model to image cubes. Usage is as follows
 
 .. code-block:: bash
 
-    $ ./simple_spi_fitter.py --fitsmodel=/path/to/model.fits 
+    $ ./simple_spi_fitter.py --fitsmodel=/path/to/model.fits
 
 Run
 
@@ -18,7 +18,7 @@ only compulsary input if the beam parameters are specified.
 If they are not supplied the residual image cube needs to be provided as input
 so that these can be taken from the header. This means you either have to
 specify the beam parameters manually or pass in a residual cube with a header
-which contains beam parameters. 
+which contains beam parameters.
 
 The residual is also used to determine the weights in the different imaging
 bands. The weights will be set as 1/rms**2 in each imaging band, given that

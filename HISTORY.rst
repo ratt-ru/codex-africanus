@@ -4,6 +4,8 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Deprecate python 3.8 support (:pr:`290`)
+* Use pre-commit hooks for auto-linting (:pr:`290`)
 * Deprecate use of @generated_jit. Remove upper bound on numba. (:pr:`289`)
 * Remove unnecessary new_axes in calibration utils after upstream fix in dask (:pr:`288`)
 * Check that ncorr is never larger than 2 in calibration utils (:pr:`287`)

@@ -41,7 +41,7 @@ def exponential_squared(x, xp, sigmaf, l, pspec=False):  # noqa: E741
         if (x[1::] - x[0:-1] != delx).any():
             raise ValueError("pspec only defined on regular grid")
         s = np.fft.fftshift(np.fft.fftfreq(N, d=delx))
-        return np.sqrt(2*np.pi*l)*sigmaf**2.0*np.exp(-l**2*s**2/2.0)
+        return np.sqrt(2 * np.pi * l) * sigmaf**2.0 * np.exp(-(l**2) * s**2 / 2.0)
     else:
         xxp = abs_diff(x, xp)
-        return sigmaf**2*np.exp(-xxp**2/(2*l**2))
+        return sigmaf**2 * np.exp(-(xxp**2) / (2 * l**2))

@@ -9,7 +9,7 @@ import numpy as np
 @structref.register
 class StateStructRef(types.StructRef):
     def preprocess_fields(self, fields):
-        """ Disallow literal types in field definitions """
+        """Disallow literal types in field definitions"""
         return tuple((n, types.unliteral(t)) for n, t in fields)
 
 
@@ -28,11 +28,10 @@ def test_structref_setter():
 
         def codegen(context, builder, signature, args):
             def make_struct():
-                """ Allocate the structure """
+                """Allocate the structure"""
                 return structref.new(state_type)
 
-            state = context.compile_internal(builder, make_struct,
-                                             state_type(), [])
+            state = context.compile_internal(builder, make_struct, state_type(), [])
 
             # Now assign each argument
             U = structref._Utils(context, builder, state_type)
@@ -42,8 +41,7 @@ def test_structref_setter():
                 value = builder.extract_value(args[0], i)
                 value_type = signature.args[0][i]
                 field_type = state_type.field_dict[name]
-                casted = context.cast(builder, value,
-                                      value_type, field_type)
+                casted = context.cast(builder, value, value_type, field_type)
                 old_value = getattr(data_struct, name)
                 context.nrt.incref(builder, value_type, casted)
                 context.nrt.decref(builder, value_type, old_value)

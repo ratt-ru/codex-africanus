@@ -28,9 +28,9 @@ args = create_parser().parse_args()
 
 # get times and normalise
 ms = table(args.ms)
-time = ms.getcol('TIME')
-ant1 = ms.getcol('ANTENNA1')
-ant2 = ms.getcol('ANTENNA2')
+time = ms.getcol("TIME")
+ant1 = ms.getcol("ANTENNA1")
+ant2 = ms.getcol("ANTENNA2")
 n_ant = int(np.maximum(ant1.max(), ant2.max()) + 1)
 ms.close()
 time = np.unique(time)
@@ -42,8 +42,8 @@ time_cov = cov_func(time, time, 0.25, 0.2)
 
 
 # get freqs and normalise
-spw = table(args.ms + '::SPECTRAL_WINDOW')
-freq = spw.getcol('CHAN_FREQ').squeeze()
+spw = table(args.ms + "::SPECTRAL_WINDOW")
+freq = spw.getcol("CHAN_FREQ").squeeze()
 spw.close()
 freq -= freq.min()
 freq /= freq.max()
@@ -73,7 +73,7 @@ for p in range(n_ant):
     gains[:, p, :, :, 1] = samp
 
 # convert to gains
-gains = np.exp(1.0j*gains)
+gains = np.exp(1.0j * gains)
 
 # save result
 np.save(args.gain_file, gains)

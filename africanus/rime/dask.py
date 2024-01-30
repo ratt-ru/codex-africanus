@@ -37,7 +37,7 @@ def _phase_delay_wrap(lm, uvw, frequency, convention):
 
 @requires_optional("dask.array", da_import_error)
 def phase_delay(lm, uvw, frequency, convention="fourier"):
-    """ Dask wrapper for phase_delay function """
+    """Dask wrapper for phase_delay function"""
     return da.core.blockwise(
         _phase_delay_wrap,
         ("source", "row", "chan"),
@@ -58,7 +58,6 @@ def _parangle_wrapper(t, ap, fc, **kw):
 
 @requires_optional("dask.array", da_import_error)
 def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
-
     return da.core.blockwise(
         _parangle_wrapper,
         ("time", "ant"),
@@ -69,7 +68,7 @@ def parallactic_angles(times, antenna_positions, field_centre, **kwargs):
         field_centre,
         ("fc",),
         dtype=times.dtype,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -118,7 +117,6 @@ def transform_sources(
     frequency,
     dtype=None,
 ):
-
     if dtype is None:
         dtype = np.float64
 
@@ -176,7 +174,6 @@ def beam_cube_dde(
     antenna_scaling,
     frequencies,
 ):
-
     if not all(len(c) == 1 for c in beam.chunks):
         raise ValueError("Beam chunking unsupported")
 

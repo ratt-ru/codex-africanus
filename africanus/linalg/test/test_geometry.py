@@ -20,9 +20,7 @@ def test_hull_construction(debug):
     )
     # integral mask area needs to be close to true area
     assert np.abs(mask.sum() - bh.area) / bh.area < 0.05
-    normalized_normals = (
-        bh.rnormals / np.linalg.norm(bh.rnormals, axis=1)[:, None]
-    )
+    normalized_normals = bh.rnormals / np.linalg.norm(bh.rnormals, axis=1)[:, None]
     # test case 2
     for e, n in zip(bh.edges, normalized_normals):
         edge_vec = e[1] - e[0]
@@ -34,8 +32,7 @@ def test_hull_construction(debug):
     sinc_npx = 255
     sinc = np.sinc(np.linspace(-7, 7, sinc_npx))
     sinc2d = np.outer(sinc, sinc).reshape((1, 1, sinc_npx, sinc_npx))
-    (extracted_data,
-     extracted_window_extents) = BoundingConvexHull.regional_data(
+    (extracted_data, extracted_window_extents) = BoundingConvexHull.regional_data(
         bh_extract, sinc2d, oob_value=np.nan
     )
     assert extracted_window_extents == [-10, 293, -30, 268]
@@ -94,9 +91,7 @@ def test_hull_construction(debug):
     assert (-15, 35) not in bb2
     assert (0, 35) in bb2
 
-    bb3 = BoundingBoxFactory.AxisAlignedBoundingBox(
-        bb, square=True
-    )  # enforce odd
+    bb3 = BoundingBoxFactory.AxisAlignedBoundingBox(bb, square=True)  # enforce odd
     assert bb3.box_npx[0] == bb3.box_npx[1]
     assert bb3.box_npx[0] % 2 == 1  # enforce odd
     assert bb3.area == bb3.box_npx[0] ** 2
@@ -107,12 +102,8 @@ def test_hull_construction(debug):
     # test case 7
     bb4s = BoundingBoxFactory.SplitBox(bb, nsubboxes=3)
     assert len(bb4s) == 9
-    xlims = [(np.min(c.corners[:, 0]), np.max(c.corners[:, 0])) for c in bb4s][
-        0:3
-    ]
-    ylims = [(np.min(c.corners[:, 1]), np.max(c.corners[:, 1])) for c in bb4s][
-        0::3
-    ]
+    xlims = [(np.min(c.corners[:, 0]), np.max(c.corners[:, 0])) for c in bb4s][0:3]
+    ylims = [(np.min(c.corners[:, 1]), np.max(c.corners[:, 1])) for c in bb4s][0::3]
     assert np.all(xlims == np.array([(-14, -3), (-2, 9), (10, 20)]))
     assert np.all(ylims == np.array([(30, 36), (37, 43), (44, 49)]))
     assert np.sum([b.area for b in bb4s]) == bb.area
@@ -145,19 +136,14 @@ def test_hull_construction(debug):
     )
     facets = list(
         map(
-            lambda pf: BoundingConvexHull.regional_data(
-                pf, sinc2d, oob_value=np.nan
-            ),
+            lambda pf: BoundingConvexHull.regional_data(pf, sinc2d, oob_value=np.nan),
             facet_regions,
         )
     )
     stitched_image, stitched_region = BoundingBox.project_regions(
         [f[0] for f in facets], facet_regions
     )
-    assert (
-        np.abs(sinc_integral - np.nansum([np.nansum(f[0]) for f in facets]))
-        < 1.0e-8
-    )
+    assert np.abs(sinc_integral - np.nansum([np.nansum(f[0]) for f in facets])) < 1.0e-8
     assert np.abs(sinc_integral - np.sum(stitched_image)) < 1.0e-8
     v = np.argmax(stitched_image)
     vx = v % stitched_image.shape[3]

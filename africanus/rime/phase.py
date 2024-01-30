@@ -9,26 +9,26 @@ from africanus.util.type_inference import infer_complex_dtype
 
 
 @njit(**JIT_OPTIONS)
-def phase_delay(lm, uvw, frequency, convention='fourier'):
+def phase_delay(lm, uvw, frequency, convention="fourier"):
     return phase_delay_impl(lm, uvw, frequency, convention=convention)
 
 
-def phase_delay_impl(lm, uvw, frequency, convention='fourier'):
+def phase_delay_impl(lm, uvw, frequency, convention="fourier"):
     raise NotImplementedError
 
 
 @overload(phase_delay_impl, jit_options=JIT_OPTIONS)
-def nb_phase_delay(lm, uvw, frequency, convention='fourier'):
+def nb_phase_delay(lm, uvw, frequency, convention="fourier"):
     # Bake constants in with the correct type
     one = lm.dtype(1.0)
     zero = lm.dtype(0.0)
     neg_two_pi_over_c = lm.dtype(minus_two_pi_over_c)
     out_dtype = infer_complex_dtype(lm, uvw, frequency)
 
-    def _phase_delay_impl(lm, uvw, frequency, convention='fourier'):
-        if convention == 'fourier':
+    def _phase_delay_impl(lm, uvw, frequency, convention="fourier"):
+        if convention == "fourier":
             constant = neg_two_pi_over_c
-        elif convention == 'casa':
+        elif convention == "casa":
             constant = -neg_two_pi_over_c
         else:
             raise ValueError("convention not in ('fourier', 'casa')")
@@ -104,10 +104,12 @@ PHASE_DELAY_DOCS = DocstringTemplate(
     -------
     complex_phase : $(array_type)
         complex of shape :code:`(source, row, chan)`
-    """)
+    """
+)
 
 try:
     phase_delay.__doc__ = PHASE_DELAY_DOCS.substitute(
-                            array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

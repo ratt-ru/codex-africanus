@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
 
-from africanus.averaging.support import (unique_baselines, unique_time)
+from africanus.averaging.support import unique_baselines, unique_time
 
 
 @pytest.fixture
@@ -15,21 +15,27 @@ def time():
 
 @pytest.fixture
 def ant1():
-    return np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1],  # noqa
-                      dtype=np.int32)
+    return np.asarray(
+        [0, 0, 1, 0, 0, 1, 2, 0, 0, 1],  # noqa
+        dtype=np.int32,
+    )
 
 
 @pytest.fixture
 def ant2():
-    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2],  # noqa
-                      dtype=np.int32)
+    return np.asarray(
+        [1, 2, 2, 0, 1, 2, 3, 0, 1, 2],  # noqa
+        dtype=np.int32,
+    )
 
 
 @pytest.fixture
 def vis():
     def _vis(row, chan, fcorrs):
-        return (np.arange(row*chan*fcorrs, dtype=np.float32) +
-                np.arange(1, row*chan*fcorrs+1, dtype=np.float32)*1j)
+        return (
+            np.arange(row * chan * fcorrs, dtype=np.float32)
+            + np.arange(1, row * chan * fcorrs + 1, dtype=np.float32) * 1j
+        )
 
     return _vis
 
