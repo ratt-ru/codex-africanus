@@ -18,6 +18,8 @@ jobs:
     needs: check_skip
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    env:
+      NUMBA_CACHE_DIR: /tmp/numba-cache
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +41,22 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Restore repo times
+        uses: chetan/git-restore-mtime-action@v2
+
+      - name: Create Key and Numba Cache Directory
+        id: numba-key
+        run: |
+          mkdir -p ${{ env.NUMBA_CACHE_DIR }}
+          echo "timestamp=$(/bin/date -u '+%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      - name: Cache Numba Kernels
+        uses: actions/cache@v3
+        with:
+          key: numba-cache-${{ matrix.python-version }}-${{ steps.numba-key.outputs.timestamp }}
+          restore-keys: numba-cache-${{ matrix.python-version }}-
+          path: ${{ env.NUMBA_CACHE_DIR }}
 
       - name: Create a .env file
         run: |
