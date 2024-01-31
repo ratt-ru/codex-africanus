@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Cache numba kernels between CI runs (:pr:`294`)
+
 0.3.5 (2024-01-30)
 ------------------
 * Update setup.py metadata (:pr:`293`)
