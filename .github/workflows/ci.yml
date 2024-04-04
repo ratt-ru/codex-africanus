@@ -52,7 +52,7 @@ jobs:
           mkdir -p ${{ env.NUMBA_CACHE_DIR }}
           echo "timestamp=$(/bin/date -u '+%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
       - name: Cache Numba Kernels
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: numba-cache-${{ matrix.python-version }}-${{ steps.numba-key.outputs.timestamp }}
           restore-keys: numba-cache-${{ matrix.python-version }}-
