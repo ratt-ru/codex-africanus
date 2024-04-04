@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Fix jax configuration (:pr:`301`)
 * Configure dependabot for github actions (:pr:`296`)
 * Cache numba kernels between CI runs (:pr:`294`)
 
