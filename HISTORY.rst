@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Configure dependabot for github actions (:pr:`296`)
 * Cache numba kernels between CI runs (:pr:`294`)
 
 0.3.5 (2024-01-30)
