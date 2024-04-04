@@ -39,7 +39,7 @@ jobs:
           pipenv
 
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -120,7 +120,7 @@ jobs:
         run: python3 -m pip install -U pip setuptools wheel
 
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
