@@ -7,7 +7,7 @@ https://github.com/google/jax/issues/216
 
 
 try:
-    import jax.config
+    import jax
 except ImportError:
     pass
 else:
