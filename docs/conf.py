@@ -175,8 +175,8 @@ texinfo_documents = [
 ]
 
 extlinks = {
-    "issue": ("https://github.com/ska-sa/codex-africanus/issues/%s", "GH#"),
-    "pr": ("https://github.com/ska-sa/codex-africanus/pull/%s", "GH#"),
+    "issue": ("https://github.com/ska-sa/codex-africanus/issues/%s", "GH#%s"),
+    "pr": ("https://github.com/ska-sa/codex-africanus/pull/%s", "GH#%s"),
 }
 
 intersphinx_mapping = {
