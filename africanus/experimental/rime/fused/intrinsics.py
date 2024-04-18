@@ -18,7 +18,7 @@ from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 try:
     NUMBA_VERSION = Version(numba.__version__)
-except AttributeError:
+except (AttributeError, TypeError):
     # Readthedocs
     NUMBA_VERSION = Version("0.0.0")
 

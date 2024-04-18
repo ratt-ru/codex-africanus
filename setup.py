@@ -3,25 +3,17 @@
 
 """The setup script."""
 
-import os
 from pathlib import Path
 from setuptools import setup, find_packages
 
-# Import requirements
-# requirements
-on_rtd = os.environ.get("READTHEDOCS") == "True"
-
 # Basic requirements containing no C extensions.
 # This is necessary for building on RTD
-requirements = ["appdirs >= 1.4.3", "decorator"]
-
-if not on_rtd:
-    requirements += [
-        # astropy breaks with numpy 1.15.3
-        # https://github.com/astropy/astropy/issues/7943
-        "numpy >= 1.14.0, != 1.15.3",
-        "numba >= 0.53.1",
-    ]
+requirements = [
+    "appdirs >= 1.4.3",
+    "decorator",
+    "numpy >= 1.14.0, != 1.15.3",
+    "numba >= 0.53.1",
+]
 
 extras_require = {
     "cuda": ["cupy >= 9.0.0", "jinja2 >= 2.10"],
