@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Fix readthedocs (:pr:`304`)
+
 0.3.6 (2024-04-15)
 ------------------
 * Upgrade obsolete readthedocs configuration (:pr:`304`)
