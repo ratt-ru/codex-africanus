@@ -3,6 +3,7 @@
 from collections import namedtuple
 
 import numpy as np
+from numba import types
 
 from africanus.averaging.bda_mapping import bda_mapper, RowMapOutput
 from africanus.averaging.shared import chan_corrs, merge_flags, vis_output_arrays
@@ -757,72 +758,132 @@ def nb_bda_impl(
     time_bin_secs=None,
     min_nchan=1,
 ):
-    # Merge flag_row and flag arrays
-    flag_row = merge_flags(flag_row, flag)
+    if is_numba_type_none(chan_width):
+        return TypeError(f"chan_width must be provided")
 
-    meta = bda_mapper(
+    if is_numba_type_none(chan_freq):
+        return TypeError(f"chan_freq must be provided")
+
+    if is_numba_type_none(uvw):
+        raise TypeError(f"uvw must be provided")
+
+    valid_types = (
+        types.misc.NoneType,
+        types.misc.Omitted,
+        types.scalars.Float,
+        types.scalars.Integer,
+    )
+
+    if not isinstance(max_uvw_dist, valid_types):
+        raise TypeError(f"max_uvw_dist ({max_uvw_dist}) must be a scalar float")
+
+    if not isinstance(max_fov, valid_types):
+        raise TypeError(f"max_fov ({max_fov}) must be a scalar float")
+
+    if not isinstance(decorrelation, valid_types):
+        raise TypeError(f"decorrelation ({decorrelation}) must be a scalar float")
+
+    if not isinstance(time_bin_secs, valid_types):
+        raise TypeError(f"time_bin_secs ({time_bin_secs}) must be a scalar float")
+
+    valid_types = (types.misc.NoneType, types.misc.Omitted, types.scalars.Integer)
+
+    if not isinstance(min_nchan, valid_types):
+        raise TypeError(f"min_nchan ({min_nchan}) must be an integer")
+
+    def impl(
         time,
         interval,
         antenna1,
         antenna2,
-        uvw,
-        chan_width,
-        chan_freq,
-        max_uvw_dist,
-        flag_row=flag_row,
-        max_fov=max_fov,
-        decorrelation=decorrelation,
-        time_bin_secs=time_bin_secs,
-        min_nchan=min_nchan,
-    )
+        time_centroid=None,
+        exposure=None,
+        flag_row=None,
+        uvw=None,
+        weight=None,
+        sigma=None,
+        chan_freq=None,
+        chan_width=None,
+        effective_bw=None,
+        resolution=None,
+        visibilities=None,
+        flag=None,
+        weight_spectrum=None,
+        sigma_spectrum=None,
+        max_uvw_dist=None,
+        max_fov=3.0,
+        decorrelation=0.98,
+        time_bin_secs=None,
+        min_nchan=1,
+    ):
+        # Merge flag_row and flag arrays
+        flag_row = merge_flags(flag_row, flag)
 
-    row_avg = row_average(
-        meta,
-        antenna1,
-        antenna2,
-        flag_row,  # noqa: F841
-        time_centroid,
-        exposure,
-        uvw,
-        weight=weight,
-        sigma=sigma,
-    )
+        meta = bda_mapper(
+            time,
+            interval,
+            antenna1,
+            antenna2,
+            uvw,
+            chan_width,
+            chan_freq,
+            max_uvw_dist,
+            flag_row=flag_row,
+            max_fov=max_fov,
+            decorrelation=decorrelation,
+            time_bin_secs=time_bin_secs,
+            min_nchan=min_nchan,
+        )
 
-    row_chan_avg = row_chan_average(
-        meta,  # noqa: F841
-        flag_row=flag_row,
-        visibilities=visibilities,
-        flag=flag,
-        weight_spectrum=weight_spectrum,
-        sigma_spectrum=sigma_spectrum,
-    )
+        row_avg = row_average(
+            meta,
+            antenna1,
+            antenna2,
+            flag_row,  # noqa: F841
+            time_centroid,
+            exposure,
+            uvw,
+            weight=weight,
+            sigma=sigma,
+        )
 
-    # Have to explicitly write it out because numba tuples
-    # are highly constrained types
-    return AverageOutput(
-        meta.map,
-        meta.offsets,
-        meta.decorr_chan_width,
-        meta.time,
-        meta.interval,
-        meta.chan_width,
-        meta.flag_row,
-        row_avg.antenna1,
-        row_avg.antenna2,
-        row_avg.time_centroid,
-        row_avg.exposure,
-        row_avg.uvw,
-        row_avg.weight,
-        row_avg.sigma,
-        # None,  # chan_data.chan_freq,
-        # None,  # chan_data.chan_width,
-        # None,  # chan_data.effective_bw,
-        # None,  # chan_data.resolution,
-        row_chan_avg.visibilities,
-        row_chan_avg.flag,
-        row_chan_avg.weight_spectrum,
-        row_chan_avg.sigma_spectrum,
-    )
+        row_chan_avg = row_chan_average(
+            meta,  # noqa: F841
+            flag_row=flag_row,
+            visibilities=visibilities,
+            flag=flag,
+            weight_spectrum=weight_spectrum,
+            sigma_spectrum=sigma_spectrum,
+        )
+
+        # Have to explicitly write it out because numba tuples
+        # are highly constrained types
+        return AverageOutput(
+            meta.map,
+            meta.offsets,
+            meta.decorr_chan_width,
+            meta.time,
+            meta.interval,
+            meta.chan_width,
+            meta.flag_row,
+            row_avg.antenna1,
+            row_avg.antenna2,
+            row_avg.time_centroid,
+            row_avg.exposure,
+            row_avg.uvw,
+            row_avg.weight,
+            row_avg.sigma,
+            # None,  # chan_data.chan_freq,
+            # None,  # chan_data.chan_width,
+            # None,  # chan_data.effective_bw,
+            # None,  # chan_data.resolution,
+            row_chan_avg.visibilities,
+            row_chan_avg.flag,
+            row_chan_avg.weight_spectrum,
+            row_chan_avg.sigma_spectrum,
+        )
+
+    return impl
 
 
 BDA_DOCS = DocstringTemplate(
