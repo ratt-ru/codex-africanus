@@ -82,6 +82,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/ska-sa/codex-africanus",
-    version="0.3.6",
+    version="0.3.7",
     zip_safe=False,
 )
