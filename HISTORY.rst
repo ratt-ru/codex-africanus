@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.7 (2024-05-23)
 ------------------
 * Fix bda overload to return an implementation (:pr:`307`)
 * Upgrade obsolete readthedocs configuration (:pr:`304`)
