@@ -7,7 +7,7 @@ from numpy.testing import assert_array_almost_equal, assert_array_equal
 import pytest
 
 from africanus.averaging.bda_mapping import RowMapOutput
-from africanus.averaging.bda_avg import row_average, row_chan_average
+from africanus.averaging.bda_avg import bda as bda_avg, row_average, row_chan_average
 from africanus.averaging.dask import bda as dask_bda
 
 
@@ -94,7 +94,7 @@ def _calc_sigma(weight, sigma, rows):
     return np.sqrt(numerator / denominator)
 
 
-def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
+def test_bda_avg_in_parts(bda_test_map, inv_bda_test_map, flags):
     rs = np.random.RandomState(42)
 
     # Derive flag_row from flags
@@ -119,6 +119,7 @@ def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
     weight = rs.normal(size=(in_row, in_corr))
     sigma = rs.normal(size=(in_row, in_corr))
     chan_width = np.repeat(0.856e9 / out_chan, out_chan)
+    chan_freq = np.linspace(0.856e9, 2 * 0.856e9, chan_width.size)
 
     # Aggregate time and interval, in_row => out_row
     # first channel in the map. We're only averaging over
@@ -235,6 +236,17 @@ def test_bda_avg(bda_test_map, inv_bda_test_map, flags):
     assert_array_almost_equal(row_chan_avg.flag, out_flag)
     assert_array_almost_equal(row_chan_avg.weight_spectrum, out_ws)
     assert_array_almost_equal(row_chan_avg.sigma_spectrum, out_ss)
+
+    result = bda_avg(
+        time=time,
+        interval=interval,
+        antenna1=ant1,
+        antenna2=ant2,
+        visibilities=vis,
+        uvw=uvw,
+        chan_width=chan_width,
+        chan_freq=chan_freq,
+    )
 
 
 @pytest.mark.parametrize("vis_format", ["ragged", "flat"])
