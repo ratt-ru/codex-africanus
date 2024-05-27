@@ -515,7 +515,7 @@ def nb_bda_mapper(
             binner.reset()
 
             # Auto-correlated baseline
-            auto_corr = ubl[bl, 0] == ubl[bl, 1]
+            auto_corr = np.allclose(ubl[bl, 0], ubl[bl, 1])
 
             for t in range(ntime):
                 # Lookup row, continue if non-existent
