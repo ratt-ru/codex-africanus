@@ -4,6 +4,7 @@ History
 
 0.3.7 (2024-05-23)
 ------------------
+* Workaround numba #5929 (:pr:`312`)
 * Fix bda overload to return an implementation (:pr:`307`)
 * Upgrade obsolete readthedocs configuration (:pr:`304`)
 
