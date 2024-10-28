@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Fix nvcc compilation (:pr:`316`)
 * Workaround numba #5929 (:pr:`312`)
 * Restrict NumPy to less than 2.0.0 (:pr:`313`)
 
