@@ -16,8 +16,8 @@ from os.path import join as pjoin
 
 import setuptools
 from setuptools import errors
-from setuptools._distutils.ccompiler import msvccompiler
-from setuptools._distutils.ccompiler import unixccompiler
+import setuptools._distutils._msvccompiler as msvccompiler
+import setuptools._distutils.unixccompiler as unixccompiler
 
 from africanus.util.code import format_code
 from africanus.util.requirements import requires_optional
