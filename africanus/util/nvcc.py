@@ -14,10 +14,10 @@ import tempfile
 
 from os.path import join as pjoin
 
-import distutils
-from distutils import errors
-from distutils import msvccompiler
-from distutils import unixccompiler
+import setuptools
+from setuptools import errors
+from setuptools._distutils.ccompiler import msvccompiler
+from setuptools._distutils.ccompiler import unixccompiler
 
 from africanus.util.code import format_code
 from africanus.util.requirements import requires_optional
@@ -106,7 +106,7 @@ def get_cuda_path():
 def get_nvcc_path():
     nvcc = os.environ.get("NVCC", None)
     if nvcc:
-        return distutils.split_quoted(nvcc)
+        return setuptools.split_quoted(nvcc)
 
     cuda_path = get_cuda_path()
     if cuda_path is None:
