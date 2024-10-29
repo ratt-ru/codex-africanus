@@ -16,7 +16,7 @@ requirements = [
 ]
 
 extras_require = {
-    "cuda": ["cupy >= 9.0.0", "jinja2 >= 2.10", "setuptools"],
+    "cuda": ["cupy >= 9.0.0", "jinja2 >= 2.10"],
     "dask": ["dask[array] >= 2.2.0"],
     "jax": ["jax >= 0.2.11", "jaxlib >= 0.1.65"],
     "scipy": ["scipy >= 1.4.0"],
