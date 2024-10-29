@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 requirements = [
     "appdirs >= 1.4.3",
     "decorator",
-    "numpy >= 1.14.0, != 1.15.3, < 2.0.0",
+    "numpy >= 2.0.0",
     "numba >= 0.53.1",
     "setuptools",
 ]
@@ -22,7 +22,7 @@ extras_require = {
     "jax": ["jax >= 0.2.11", "jaxlib >= 0.1.65"],
     "scipy": ["scipy >= 1.4.0"],
     "astropy": ["astropy >= 4.0"],
-    "python-casacore": ["python-casacore >= 3.4.0, != 3.5.0"],
+    "python-casacore": ["python-casacore >= 3.6.1"],
     "ducc0": ["ducc0 >= 0.9.0"],
     "testing": ["pytest", "flaky"],
 }
