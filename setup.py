@@ -13,6 +13,7 @@ requirements = [
     "decorator",
     "numpy >= 1.14.0, != 1.15.3, < 2.0.0",
     "numba >= 0.53.1",
+    "setuptools",
 ]
 
 extras_require = {
