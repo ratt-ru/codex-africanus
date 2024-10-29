@@ -13,6 +13,7 @@ requirements = [
     "decorator",
     "numpy >= 2.0.0",
     "numba >= 0.53.1",
+    "setuptools",
 ]
 
 extras_require = {
@@ -63,9 +64,9 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
     description="Radio Astronomy Building Blocks",
     extras_require=extras_require,
@@ -77,7 +78,7 @@ setup(
     keywords="codex-africanus",
     name="codex-africanus",
     packages=find_packages(),
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     setup_requires=setup_requirements,
     test_suite="tests",
     tests_require=test_requirements,
