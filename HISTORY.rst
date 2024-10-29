@@ -2,8 +2,10 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.3.8 (2024-09-29)
 ------------------
+* Test on Python 3.12 (:pr:`318`)
+* Deprecate Python 3.9 (:pr:`318`)
 * Fix nvcc compilation (:pr:`316`)
 * Workaround numba #5929 (:pr:`312`)
 * Restrict NumPy to less than 2.0.0 (:pr:`313`)
