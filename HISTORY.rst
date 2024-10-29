@@ -4,6 +4,8 @@ History
 
 0.3.8 (2024-09-29)
 ------------------
+* Update to NumPy 2.0.0 (:pr:`317`)
+* Update to python-casacore 3.6.1 (:pr:`317`)
 * Test on Python 3.12 (:pr:`318`)
 * Deprecate Python 3.9 (:pr:`318`)
 * Fix nvcc compilation (:pr:`316`)
