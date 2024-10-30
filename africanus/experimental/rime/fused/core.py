@@ -41,7 +41,7 @@ def rime_impl_factory(terms, transformers, ncorr):
     def nb_rime(*args):
         if not len(args) > 0:
             raise TypeError(
-                "rime must be at least be called " "with the signature argument"
+                "rime must be at least be called with the signature argument"
             )
 
         if not isinstance(args[0], types.Literal):
@@ -103,13 +103,13 @@ def rime_impl_factory(terms, transformers, ncorr):
                     for ch in range(nchan):
                         X = term_sampler(state, s, r, t, f1, f2, a1, a2, ch)
 
-                        for c, value in enumerate(numba.literal_unroll(X)):
+                        for co, value in enumerate(numba.literal_unroll(X)):
                             # Kahan summation
-                            y = value - compensation[r, ch, c]
-                            current = vis[r, ch, c]
+                            y = value - compensation[r, ch, co]
+                            current = vis[r, ch, co]
                             x = current + y
-                            compensation[r, ch, c] = (x - current) - y
-                            vis[r, ch, c] = x
+                            compensation[r, ch, co] = (x - current) - y
+                            vis[r, ch, co] = x
 
             return vis
 
@@ -204,7 +204,6 @@ class RimeFactory(metaclass=Multiton):
 
     def __call__(self, time, antenna1, antenna2, feed1, feed2, **kwargs):
         keys = self.REQUIRED_ARGS_LITERAL + tuple(map(types.literal, kwargs.keys()))
-
         args = keys + (time, antenna1, antenna2, feed1, feed2) + tuple(kwargs.values())
         return self.impl(types.literal(self.rime_spec.spec_hash), *args)
 
