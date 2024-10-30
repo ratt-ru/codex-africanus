@@ -13,7 +13,10 @@ import numpy as np
 
 from africanus.averaging.support import _unique_internal
 
-from africanus.experimental.rime.fused.arguments import ArgumentPack
+from africanus.experimental.rime.fused.arguments import (
+    ArgumentDependencies,
+    ArgumentPack,
+)
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 try:
@@ -561,12 +564,19 @@ class IntrinsicFactory:
             term_fields = []
             constructors = []
 
+            init_state_arg_fields = [
+                (k, arg_pack.type(k)) for k in ArgumentDependencies.KEY_ARGS
+            ]
+            init_state_type = StateStructRef(init_state_arg_fields)
+
             # Query Terms for fields and their associated types
             # that should be created on the State object
             for term in argdeps.terms:
                 it = zip(term.ALL_ARGS, arg_pack.indices(*term.ALL_ARGS))
                 arg_types = {a: args[i] for a, i in it}
-                fields, constructor = term.init_fields(typingctx, **arg_types)
+                fields, constructor = term.init_fields(
+                    typingctx, init_state_type, **arg_types
+                )
                 term.validate_constructor(constructor)
                 term_fields.append(fields)
                 state_fields.extend(fields)
@@ -584,8 +594,34 @@ class IntrinsicFactory:
                 typingctx = context.typing_context
                 rvt = typingctx.resolve_value_type_prefer_literal
 
+                # Create the initial state struct
+                def make_init_struct():
+                    return structref.new(init_state_type)
+
+                init_state = context.compile_internal(
+                    builder, make_init_struct, init_state_type(), []
+                )
+                U = structref._Utils(context, builder, init_state_type)
+                init_data_struct = U.get_data_struct(init_state)
+
+                for arg_name in ArgumentDependencies.KEY_ARGS:
+                    value = builder.extract_value(args[0], arg_pack.index(arg_name))
+                    value_type = signature.args[0][arg_pack.index(arg_name)]
+                    # We increment the reference count here
+                    # as we're taking a reference from data in
+                    # the args tuple and placing it on the structref
+                    context.nrt.incref(builder, value_type, value)
+                    field_type = init_state_type.field_dict[arg_name]
+                    casted = context.cast(builder, value, value_type, field_type)
+                    context.nrt.incref(builder, value_type, casted)
+
+                    # The old value on the structref is being replaced,
+                    # decrease it's reference count
+                    old_value = getattr(init_data_struct, arg_name)
+                    context.nrt.decref(builder, value_type, old_value)
+                    setattr(init_data_struct, arg_name, casted)
+
                 def make_struct():
-                    """Allocate the structure"""
                     return structref.new(state_type)
 
                 state = context.compile_internal(builder, make_struct, state_type(), [])
@@ -616,8 +652,8 @@ class IntrinsicFactory:
                 # need to extract those arguments necessary to construct
                 # the term StructRef
                 for term in argdeps.terms:
-                    cargs = []
-                    ctypes = []
+                    cargs = [init_state]
+                    ctypes = [init_state_type]
 
                     arg_types = arg_pack.types(*term.ALL_ARGS)
                     arg_index = arg_pack.indices(*term.ALL_ARGS)

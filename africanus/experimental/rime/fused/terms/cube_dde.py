@@ -68,6 +68,7 @@ class BeamCubeDDE(Term):
     def init_fields(
         self,
         typingctx,
+        init_state,
         beam,
         beam_lm_extents,
         beam_freq_map,
@@ -88,6 +89,7 @@ class BeamCubeDDE(Term):
         ]
 
         def beam(
+            init_state,
             beam,
             beam_lm_extents,
             beam_freq_map,

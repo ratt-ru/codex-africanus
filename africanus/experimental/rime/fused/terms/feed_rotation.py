@@ -29,8 +29,8 @@ class FeedRotation(Term):
         super().__init__(configuration)
         self.feed_type = feed_type
 
-    def init_fields(self, typingctx, feed_parangle):
-        def dummy(feed_parangle):
+    def init_fields(self, typingctx, init_state, feed_parangle):
+        def dummy(init_state, feed_parangle):
             pass
 
         return [], dummy

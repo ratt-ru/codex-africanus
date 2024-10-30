@@ -144,12 +144,21 @@ class Brightness(Term):
     LOG10 = 2
 
     def init_fields(
-        self, typingctx, stokes, spi, ref_freq, chan_freq, spi_base="standard"
+        self,
+        typingctx,
+        init_state,
+        stokes,
+        spi,
+        ref_freq,
+        chan_freq,
+        spi_base="standard",
     ):
         expected_nstokes = len(self.stokes)
         fields = [("spectral_model", stokes.dtype[:, :, :])]
 
-        def brightness(stokes, spi, ref_freq, chan_freq, spi_base="standard"):
+        def brightness(
+            init_state, stokes, spi, ref_freq, chan_freq, spi_base="standard"
+        ):
             nsrc, nstokes = stokes.shape
             (nchan,) = chan_freq.shape
             nspi = spi.shape[1]
