@@ -125,7 +125,7 @@ class TermMetaClass(type):
             n
             for n, p in init_fields_sig.parameters.items()
             if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
-            and n not in {"self", "typingctx", "init_state"}
+            and n not in set(cls.INIT_FIELDS_REQUIRED_ARGS)
             and p.default is p.empty
         )
 
@@ -133,7 +133,7 @@ class TermMetaClass(type):
             (n, p.default)
             for n, p in init_fields_sig.parameters.items()
             if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
-            and n not in {"self", "typingctx", "init_state"}
+            and n not in set(cls.INIT_FIELDS_REQUIRED_ARGS)
             and p.default is not p.empty
         ]
 

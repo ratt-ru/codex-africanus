@@ -412,26 +412,30 @@ class IntrinsicFactory:
         @intrinsic
         def pack_transformed(typingctx, args):
             assert len(args) == len(arg_names)
-            it = zip(arg_names, args, range(len(arg_names)))
-            arg_info = {n: (t, i) for n, t, i in it}
+            arg_pack = ArgumentPack(arg_names, args, range(len(arg_names)))
 
             rvt = typingctx.resolve_value_type_prefer_literal
             transform_output_types = []
+
+            init_state_arg_fields = [
+                (k, arg_pack.type(k)) for k in ArgumentDependencies.KEY_ARGS
+            ]
+            init_state_type = StateStructRef(init_state_arg_fields)
 
             for transformer in transformers:
                 # Figure out argument types for calling init_fields
                 kw = {}
 
                 for a in transformer.ARGS:
-                    kw[a] = arg_info[a][0]
+                    kw[a] = arg_pack.type(a)
 
                 for a, d in transformer.KWARGS.items():
                     try:
-                        kw[a] = arg_info[a][0]
+                        kw[a] = arg_pack.type(a)
                     except KeyError:
                         kw[a] = rvt(d)
 
-                fields, _ = transformer.init_fields(typingctx, **kw)
+                fields, _ = transformer.init_fields(typingctx, init_state_type, **kw)
 
                 if len(transformer.OUTPUTS) == 0:
                     raise TypingError(f"{transformer} produces no outputs")
@@ -463,6 +467,32 @@ class IntrinsicFactory:
                 llvm_ret_type = context.get_value_type(return_type)
                 ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
+                def make_init_struct():
+                    return structref.new(init_state_type)
+
+                init_state = context.compile_internal(
+                    builder, make_init_struct, init_state_type(), []
+                )
+                U = structref._Utils(context, builder, init_state_type)
+                init_data_struct = U.get_data_struct(init_state)
+
+                for arg_name in ArgumentDependencies.KEY_ARGS:
+                    value = builder.extract_value(args[0], arg_pack.index(arg_name))
+                    value_type = signature.args[0][arg_pack.index(arg_name)]
+                    # We increment the reference count here
+                    # as we're taking a reference from data in
+                    # the args tuple and placing it on the structref
+                    context.nrt.incref(builder, value_type, value)
+                    field_type = init_state_type.field_dict[arg_name]
+                    casted = context.cast(builder, value, value_type, field_type)
+                    context.nrt.incref(builder, value_type, casted)
+
+                    # The old value on the structref is being replaced,
+                    # decrease it's reference count
+                    old_value = getattr(init_data_struct, arg_name)
+                    context.nrt.decref(builder, value_type, old_value)
+                    setattr(init_data_struct, arg_name, casted)
+
                 # Extract supplied arguments from original arg tuple
                 # and insert into the new one
                 for i, typ in enumerate(signature.args[0]):
@@ -481,16 +511,13 @@ class IntrinsicFactory:
                         if o != out_names[i + j + n]:
                             raise TypingError(f"{o} != {out_names[i + j + n]}")
 
-                    transform_args = []
-                    transform_types = []
+                    transform_args = [init_state]
+                    transform_types = [init_state_type]
 
                     # Get required arguments out of the argument pack
                     for name in transformer.ARGS:
-                        try:
-                            typ, j = arg_info[name]
-                        except KeyError:
-                            raise TypingError(f"{name} is not present in arg_types")
-
+                        typ = arg_pack.type(name)
+                        j = arg_pack.index(name)
                         value = builder.extract_value(args[0], j)
                         transform_args.append(value)
                         transform_types.append(typ)

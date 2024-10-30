@@ -6,11 +6,11 @@ from africanus.experimental.rime.fused.transformers.core import Transformer
 class LMTransformer(Transformer):
     OUTPUTS = ["lm"]
 
-    def init_fields(self, typingctx, radec, phase_dir):
+    def init_fields(self, typingctx, init_state, radec, phase_dir):
         dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
         fields = [("lm", dt[:, :])]
 
-        def lm(radec, phase_dir):
+        def lm(init_state, radec, phase_dir):
             lm = np.empty_like(radec)
             pc_ra = phase_dir[0]
             pc_dec = phase_dir[1]

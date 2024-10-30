@@ -15,15 +15,18 @@ class ParallacticTransformer(Transformer):
     def init_fields(
         self,
         typingctx,
-        utime,
-        ufeed,
-        uantenna,
+        init_state,
         antenna_position,
         phase_dir,
         receptor_angle=None,
     ):
+        fdict = init_state.field_dict
+
         dt = typingctx.unify_types(
-            utime.dtype, ufeed.dtype, antenna_position.dtype, phase_dir.dtype
+            fdict["utime"].dtype,
+            fdict["ufeed"].dtype,
+            antenna_position.dtype,
+            phase_dir.dtype,
         )
         fields = [
             ("feed_parangle", dt[:, :, :, :, :]),
@@ -46,17 +49,15 @@ class ParallacticTransformer(Transformer):
 
             return out
 
-        def parangles(
-            utime, ufeed, uantenna, antenna_position, phase_dir, receptor_angle=None
-        ):
-            (ntime,) = utime.shape
-            (nant,) = uantenna.shape
-            (nfeed,) = ufeed.shape
+        def parangles(init_state, antenna_position, phase_dir, receptor_angle=None):
+            (ntime,) = init_state.utime.shape
+            (nant,) = init_state.uantenna.shape
+            (nfeed,) = init_state.ufeed.shape
 
             # Select out the antennae we're interested in
-            antenna_position = antenna_position[uantenna]
+            antenna_position = antenna_position[init_state.uantenna]
 
-            parangles = parangle_stub(utime, antenna_position, phase_dir)
+            parangles = parangle_stub(init_state.utime, antenna_position, phase_dir)
             feed_pa = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
             beam_pa = np.empty((ntime, nfeed, nant, 2), parangles.dtype)
 
@@ -94,10 +95,8 @@ class ParallacticTransformer(Transformer):
 
         return fields, parangles
 
-    def dask_schema(
-        self, utime, ufeed, uantenna, antenna_position, phase_dir, receptor_angle=None
-    ):
-        dt = np.result_type(utime, ufeed, antenna_position, phase_dir, receptor_angle)
+    def dask_schema(self, antenna_position, phase_dir, receptor_angle=None):
+        dt = np.result_type(antenna_position, phase_dir, receptor_angle)
         inputs = {"antenna_position": ("antenna", "ant-comp"), "phase_dir": ("radec",)}
 
         if receptor_angle is not None:
