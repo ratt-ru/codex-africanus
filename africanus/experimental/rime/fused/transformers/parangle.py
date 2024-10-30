@@ -66,10 +66,10 @@ class ParallacticTransformer(Transformer):
                     raise ValueError("receptor_angle.ndim != 2")
 
                 if receptor_angle.shape[1] != 2:
-                    raise ValueError("Only 2 receptor angles " "currently supported")
+                    raise ValueError("Only 2 receptor angles currently supported")
 
                 # Select out the feeds we're interested in
-                receptor_angle = receptor_angle[ufeed, :]
+                receptor_angle = receptor_angle[init_state.ufeed, :]
 
             for t in range(ntime):
                 for f in range(nfeed):
