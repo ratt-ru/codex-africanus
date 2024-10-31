@@ -3,32 +3,37 @@ name = "codex-africanus"
 version = "0.3.7"
 description = "Radio Astronomy Building Blocks"
 authors = ["Simon Perkins <simon.perkins@gmail.com>"]
+packages = [{include = "africanus"}]
 readme = "README.rst"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pytest = {version = "^8.0.0", optional = true, extras = ["testing"]}
-flaky = {version = "^3.8.1", optional = true, extras = ["testing"]}
-dask = {extras = ["dask"], version = "^2024.10.0", optional = true}
-jax = {version = "^0.4.35", optional = true, extras = ["jax"]}
-jaxlib = {version = "^0.4.35", optional = true, extras = ["jax"]}
-scipy = {version = "^1.14.1", optional = true, extras = ["scipy"]}
-python-casacore = {version = "^3.6.1", optional = true, extras = ["python-casacore"]}
-ducc0 = {version = "^0.35.0", optional = true, extras = ["ducc0"]}
-astropy = {version = "^6.1.4", optional = true, extras = ["astropy"]}
-cupy = {version = "^13.3.0", optional = true, extras = ["cuda"]}
-jinja2 = {version = "^3.1.4", optional = true, extras = ["cuda"]}
+pytest = {version = "^8.0.0", optional = true}
+flaky = {version = "^3.8.1", optional = true}
+dask = {extras = ["array"], optional = true, version = "^2024.10.0"}
+jax = {version = "^0.4.35", optional = true}
+jaxlib = {version = "^0.4.35", optional = true}
+scipy = {version = "^1.14.1", optional = true}
+python-casacore = {version = "^3.6.1", optional = true}
+ducc0 = {version = "^0.35.0", optional = true}
+astropy = {version = "^6.1.4", optional = true}
+cupy = {version = "^13.3.0", optional = true}
+jinja2 = {version = "^3.1.4", optional = true}
 appdirs = "^1.4.4"
 decorator = "^5.1.1"
 numpy = ">=2.0.0"
 numba = "^0.60.0"
 
 [tool.poetry.extras]
+astropy = ["astropy"]
+cuda = ["cupy", "jinja2"]
 dask = ["dask"]
 jax = ["jax", "jaxlib"]
 scipy = ["scipy"]
 python-casacore = ["python-casacore"]
 ducc0 = ["ducc0"]
+complete = ["astropy", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
+complete-cuda = ["astropy", "cuda", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
 testing = ["flaky", "pytest"]
 
 [tool.poetry.group.dev.dependencies]
