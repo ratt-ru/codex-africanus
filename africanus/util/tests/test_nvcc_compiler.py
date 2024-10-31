@@ -7,9 +7,8 @@ import pytest
 
 
 def test_nvcc_compiler(tmpdir):
-    from africanus.util.nvcc import compile_using_nvcc
-
     cp = pytest.importorskip("cupy")
+    from africanus.util.nvcc import compile_using_nvcc
 
     code = """
     #include <cupy/carray.cuh>
