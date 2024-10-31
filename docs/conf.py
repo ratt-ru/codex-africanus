@@ -60,7 +60,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Codex Africanus"
-copyright = "2018, Simon Perkins"
+copyright = "2024, South African Radio Astronomy Observatory"
 author = "Simon Perkins"
 
 # The version info for the project you're documenting, acts as replacement
