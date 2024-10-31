@@ -7,11 +7,11 @@ import pytest
 
 
 def test_nvcc_compiler(tmpdir):
-    from africanus.util.nvcc import compile_using_nvcc
+  from africanus.util.nvcc import compile_using_nvcc
 
-    cp = pytest.importorskip("cupy")
+  cp = pytest.importorskip("cupy")
 
-    code = """
+  code = """
     #include <cupy/carray.cuh>
     #include <cub/cub.cuh>
 
@@ -26,10 +26,10 @@ def test_nvcc_compiler(tmpdir):
     }
 
     """
-    mod = compile_using_nvcc(code, options=["-I " + cub_dir()])
-    kernel = mod.get_function("kernel")
-    inputs = cp.arange(1024, dtype=cp.int32)
-    outputs = cp.empty_like(inputs)
+  mod = compile_using_nvcc(code, options=["-I " + cub_dir()])
+  kernel = mod.get_function("kernel")
+  inputs = cp.arange(1024, dtype=cp.int32)
+  outputs = cp.empty_like(inputs)
 
-    kernel((1, 1, 1), (1024, 1, 1), (inputs, outputs))
-    cp.testing.assert_array_almost_equal(inputs, outputs)
+  kernel((1, 1, 1), (1024, 1, 1), (inputs, outputs))
+  cp.testing.assert_array_almost_equal(inputs, outputs)

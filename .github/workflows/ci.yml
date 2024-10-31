@@ -93,8 +93,8 @@ jobs:
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
-      - name: Install base package
-        run: poetry install --extras complete
+      - name: Install complete package
+        run: poetry install --extras "complete testing"
 
       - name: Test complete package
         run: poetry run pytest -s -vvv africanus

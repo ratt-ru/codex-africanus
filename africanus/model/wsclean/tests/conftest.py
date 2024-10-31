@@ -21,9 +21,9 @@ s1c3,GAUSSIAN,07:51:09.24,42.32.46.177,nan,[nan,inf],false,,83.6144111272856,83.
 
 @pytest.fixture
 def wsclean_model_file(tmpdir):
-    filename = pjoin(str(tmpdir), "model.txt")
+  filename = pjoin(str(tmpdir), "model.txt")
 
-    with open(filename, "w") as f:
-        f.write(_WSCLEAN_MODEL_FILE)
+  with open(filename, "w") as f:
+    f.write(_WSCLEAN_MODEL_FILE)
 
-    return filename
+  return filename

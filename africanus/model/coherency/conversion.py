@@ -11,170 +11,166 @@ from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
 stokes_conv = {
-    "RR": {("I", "V"): lambda i, v: i + v + 0j},
-    "RL": {("Q", "U"): lambda q, u: q + u * 1j},
-    "LR": {("Q", "U"): lambda q, u: q - u * 1j},
-    "LL": {("I", "V"): lambda i, v: i - v + 0j},
-    "XX": {("I", "Q"): lambda i, q: i + q + 0j},
-    "XY": {("U", "V"): lambda u, v: u + v * 1j},
-    "YX": {("U", "V"): lambda u, v: u - v * 1j},
-    "YY": {("I", "Q"): lambda i, q: i - q + 0j},
-    "I": {
-        ("XX", "YY"): lambda xx, yy: (xx + yy).real / 2,
-        ("RR", "LL"): lambda rr, ll: (rr + ll).real / 2,
-    },
-    "Q": {
-        ("XX", "YY"): lambda xx, yy: (xx - yy).real / 2,
-        ("RL", "LR"): lambda rl, lr: (rl + lr).real / 2,
-    },
-    "U": {
-        ("XY", "YX"): lambda xy, yx: (xy + yx).real / 2,
-        ("RL", "LR"): lambda rl, lr: (rl - lr).imag / 2,
-    },
-    "V": {
-        ("XY", "YX"): lambda xy, yx: (xy - yx).imag / 2,
-        ("RR", "LL"): lambda rr, ll: (rr - ll).real / 2,
-    },
+  "RR": {("I", "V"): lambda i, v: i + v + 0j},
+  "RL": {("Q", "U"): lambda q, u: q + u * 1j},
+  "LR": {("Q", "U"): lambda q, u: q - u * 1j},
+  "LL": {("I", "V"): lambda i, v: i - v + 0j},
+  "XX": {("I", "Q"): lambda i, q: i + q + 0j},
+  "XY": {("U", "V"): lambda u, v: u + v * 1j},
+  "YX": {("U", "V"): lambda u, v: u - v * 1j},
+  "YY": {("I", "Q"): lambda i, q: i - q + 0j},
+  "I": {
+    ("XX", "YY"): lambda xx, yy: (xx + yy).real / 2,
+    ("RR", "LL"): lambda rr, ll: (rr + ll).real / 2,
+  },
+  "Q": {
+    ("XX", "YY"): lambda xx, yy: (xx - yy).real / 2,
+    ("RL", "LR"): lambda rl, lr: (rl + lr).real / 2,
+  },
+  "U": {
+    ("XY", "YX"): lambda xy, yx: (xy + yx).real / 2,
+    ("RL", "LR"): lambda rl, lr: (rl - lr).imag / 2,
+  },
+  "V": {
+    ("XY", "YX"): lambda xy, yx: (xy - yx).imag / 2,
+    ("RR", "LL"): lambda rr, ll: (rr - ll).real / 2,
+  },
 }
 
 
 class DimensionMismatch(Exception):
-    pass
+  pass
 
 
 class MissingConversionInputs(Exception):
-    pass
+  pass
 
 
 def _element_indices_and_shape(data):
-    if not isinstance(data, (tuple, list)):
-        data = [data]
+  if not isinstance(data, (tuple, list)):
+    data = [data]
 
-    # Shape of the data
-    shape = []
+  # Shape of the data
+  shape = []
 
-    # Each stack element is (list, index, depth)
-    queue = deque([(data, (), 0)])
-    result = OrderedDict()
+  # Each stack element is (list, index, depth)
+  queue = deque([(data, (), 0)])
+  result = OrderedDict()
 
-    while len(queue) > 0:
-        current, current_idx, depth = queue.popleft()
+  while len(queue) > 0:
+    current, current_idx, depth = queue.popleft()
 
-        # First do shape inference
-        if len(shape) <= depth:
-            shape.append(len(current))
-        elif shape[depth] != len(current):
-            raise DimensionMismatch(
-                "Dimension mismatch %d != %d at depth %d"
-                % (shape[depth], len(current), depth)
-            )
+    # First do shape inference
+    if len(shape) <= depth:
+      shape.append(len(current))
+    elif shape[depth] != len(current):
+      raise DimensionMismatch(
+        "Dimension mismatch %d != %d at depth %d" % (shape[depth], len(current), depth)
+      )
 
-        # Handle each sequence element
-        for i, e in enumerate(current):
-            # Found a list, recurse
-            if isinstance(e, (tuple, list)):
-                queue.append((e, current_idx + (i,), depth + 1))
-            # String
-            elif isinstance(e, str):
-                if e in result:
-                    raise ValueError("'%s' defined multiple times" % e)
+    # Handle each sequence element
+    for i, e in enumerate(current):
+      # Found a list, recurse
+      if isinstance(e, (tuple, list)):
+        queue.append((e, current_idx + (i,), depth + 1))
+      # String
+      elif isinstance(e, str):
+        if e in result:
+          raise ValueError("'%s' defined multiple times" % e)
 
-                result[e] = current_idx + (i,)
-            # We have a CASA integer Stokes ID, convert to string
-            elif np.issubdtype(type(e), np.integer):
-                try:
-                    e = STOKES_ID_MAP[e]
-                except KeyError:
-                    raise ValueError(
-                        "Invalid id '%d'. "
-                        "Valid id's '%s'" % (e, pformat(STOKES_ID_MAP))
-                    )
+        result[e] = current_idx + (i,)
+      # We have a CASA integer Stokes ID, convert to string
+      elif np.issubdtype(type(e), np.integer):
+        try:
+          e = STOKES_ID_MAP[e]
+        except KeyError:
+          raise ValueError(
+            "Invalid id '%d'. " "Valid id's '%s'" % (e, pformat(STOKES_ID_MAP))
+          )
 
-                if e in result:
-                    raise ValueError("'%s' defined multiple times" % e)
+        if e in result:
+          raise ValueError("'%s' defined multiple times" % e)
 
-                result[e] = current_idx + (i,)
-            else:
-                raise TypeError("Invalid type '%s' for element '%s'" % (type(e), e))
+        result[e] = current_idx + (i,)
+      else:
+        raise TypeError("Invalid type '%s' for element '%s'" % (type(e), e))
 
-    return result, tuple(shape)
+  return result, tuple(shape)
 
 
 def convert_setup(input, input_schema, output_schema):
-    input_indices, input_shape = _element_indices_and_shape(input_schema)
-    output_indices, output_shape = _element_indices_and_shape(output_schema)
+  input_indices, input_shape = _element_indices_and_shape(input_schema)
+  output_indices, output_shape = _element_indices_and_shape(output_schema)
 
-    if input.shape[-len(input_shape) :] != input_shape:
-        raise ValueError("Last dimension of input doesn't match input schema")
+  if input.shape[-len(input_shape) :] != input_shape:
+    raise ValueError("Last dimension of input doesn't match input schema")
 
-    mapping = []
-    dummy = input.dtype.type(0)
+  mapping = []
+  dummy = input.dtype.type(0)
 
-    # Figure out how to produce an output from available inputs
-    for okey, out_idx in output_indices.items():
-        try:
-            deps = stokes_conv[okey]
-        except KeyError:
-            raise ValueError(
-                "Unknown output '%s'. Known types '%s'" % (deps, STOKES_TYPES)
-            )
+  # Figure out how to produce an output from available inputs
+  for okey, out_idx in output_indices.items():
+    try:
+      deps = stokes_conv[okey]
+    except KeyError:
+      raise ValueError("Unknown output '%s'. Known types '%s'" % (deps, STOKES_TYPES))
 
-        found_conv = False
+    found_conv = False
 
-        # Find a mapping for which we have inputs
-        for (c1, c2), fn in deps.items():
-            # Get indices for both correlations
-            try:
-                c1_idx = (Ellipsis,) + input_indices[c1]
-            except KeyError:
-                continue
+    # Find a mapping for which we have inputs
+    for (c1, c2), fn in deps.items():
+      # Get indices for both correlations
+      try:
+        c1_idx = (Ellipsis,) + input_indices[c1]
+      except KeyError:
+        continue
 
-            try:
-                c2_idx = (Ellipsis,) + input_indices[c2]
-            except KeyError:
-                continue
+      try:
+        c2_idx = (Ellipsis,) + input_indices[c2]
+      except KeyError:
+        continue
 
-            found_conv = True
-            out_idx = (Ellipsis,) + out_idx
-            # Figure out the data type for this output
-            dtype = fn(dummy, dummy).dtype
-            mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
-            break
+      found_conv = True
+      out_idx = (Ellipsis,) + out_idx
+      # Figure out the data type for this output
+      dtype = fn(dummy, dummy).dtype
+      mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
+      break
 
-        # We must find a conversion
-        if not found_conv:
-            raise MissingConversionInputs(
-                "None of the supplied inputs '%s' "
-                "can produce output '%s'. It can be "
-                "produced by the following "
-                "combinations '%s'." % (input_schema, okey, deps.keys())
-            )
+    # We must find a conversion
+    if not found_conv:
+      raise MissingConversionInputs(
+        "None of the supplied inputs '%s' "
+        "can produce output '%s'. It can be "
+        "produced by the following "
+        "combinations '%s'." % (input_schema, okey, deps.keys())
+      )
 
-    out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
+  out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
 
-    return mapping, input_shape, output_shape, out_dtype
+  return mapping, input_shape, output_shape, out_dtype
 
 
 def convert_impl(input, mapping, in_shape, out_shape, dtype):
-    # Make the output array
-    out_shape = input.shape[: -len(in_shape)] + out_shape
-    output = np.empty(out_shape, dtype=dtype)
+  # Make the output array
+  out_shape = input.shape[: -len(in_shape)] + out_shape
+  output = np.empty(out_shape, dtype=dtype)
 
-    for c1_idx, c2_idx, out_idx, fn, _ in mapping:
-        output[out_idx] = fn(input[c1_idx], input[c2_idx])
+  for c1_idx, c2_idx, out_idx, fn, _ in mapping:
+    output[out_idx] = fn(input[c1_idx], input[c2_idx])
 
-    return output
+  return output
 
 
 def convert(input, input_schema, output_schema):
-    """See STOKES_DOCS below"""
+  """See STOKES_DOCS below"""
 
-    # Do the conversion
-    mapping, in_shape, out_shape, dtype = convert_setup(
-        input, input_schema, output_schema
-    )
+  # Do the conversion
+  mapping, in_shape, out_shape, dtype = convert_setup(
+    input, input_schema, output_schema
+  )
 
-    return convert_impl(input, mapping, in_shape, out_shape, dtype)
+  return convert_impl(input, mapping, in_shape, out_shape, dtype)
 
 
 CONVERT_DOCS = """
@@ -256,6 +252,6 @@ CONVERT_DOCS = DocstringTemplate(CONVERT_DOCS.format(stokes_type_map=_map_str))
 del _map_str
 
 try:
-    convert.__doc__ = CONVERT_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+  convert.__doc__ = CONVERT_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
-    pass
+  pass

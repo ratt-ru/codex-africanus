@@ -17,11 +17,11 @@ import argparse
 
 
 def create_parser():
-    p = argparse.ArgumentParser()
-    p.add_argument("--ms", type=str)
-    p.add_argument("--lsm", type=str)
-    p.add_argument("--gain_file", type=str)
-    return p
+  p = argparse.ArgumentParser()
+  p.add_argument("--ms", type=str)
+  p.add_argument("--lsm", type=str)
+  p.add_argument("--gain_file", type=str)
+  return p
 
 
 args = create_parser().parse_args()
@@ -65,12 +65,12 @@ L = kt.kron_cholesky(K)
 # sample phases
 gains = np.zeros((n_time, n_ant, n_freq, n_dir, 2))
 for p in range(n_ant):
-    xi = np.random.randn(n_time * n_freq * n_dir)
-    samp = kt.kron_matvec(L, xi).reshape(n_time, n_freq, n_dir)
-    gains[:, p, :, :, 0] = samp
-    xi = np.random.randn(n_time * n_freq * n_dir)
-    samp = kt.kron_matvec(L, xi).reshape(n_time, n_freq, n_dir)
-    gains[:, p, :, :, 1] = samp
+  xi = np.random.randn(n_time * n_freq * n_dir)
+  samp = kt.kron_matvec(L, xi).reshape(n_time, n_freq, n_dir)
+  gains[:, p, :, :, 0] = samp
+  xi = np.random.randn(n_time * n_freq * n_dir)
+  samp = kt.kron_matvec(L, xi).reshape(n_time, n_freq, n_dir)
+  gains[:, p, :, :, 1] = samp
 
 # convert to gains
 gains = np.exp(1.0j * gains)

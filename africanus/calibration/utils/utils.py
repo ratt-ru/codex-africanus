@@ -9,56 +9,56 @@ FULL = 2
 
 
 def check_type(jones, vis, vis_type="vis"):
-    if vis_type == "vis":
-        vis_ndim = (3, 4)
-    elif vis_type == "model":
-        vis_ndim = (4, 5)
-    else:
-        raise ValueError("Unknown vis_type")
+  if vis_type == "vis":
+    vis_ndim = (3, 4)
+  elif vis_type == "model":
+    vis_ndim = (4, 5)
+  else:
+    raise ValueError("Unknown vis_type")
 
-    vis_axes_count = vis.ndim
-    jones_axes_count = jones.ndim
-    if vis_axes_count == vis_ndim[0]:
-        mode = DIAG_DIAG
-        if jones_axes_count != 5:
-            raise RuntimeError(
-                "Jones axes not compatible with \
+  vis_axes_count = vis.ndim
+  jones_axes_count = jones.ndim
+  if vis_axes_count == vis_ndim[0]:
+    mode = DIAG_DIAG
+    if jones_axes_count != 5:
+      raise RuntimeError(
+        "Jones axes not compatible with \
                                 visibility axes. Expected length \
                                 5 but got length %d"
-                % jones_axes_count
-            )
+        % jones_axes_count
+      )
 
-    elif vis_axes_count == vis_ndim[1]:
-        if jones_axes_count == 5:
-            mode = DIAG
+  elif vis_axes_count == vis_ndim[1]:
+    if jones_axes_count == 5:
+      mode = DIAG
 
-        elif jones_axes_count == 6:
-            mode = FULL
-        else:
-            raise RuntimeError("Jones term has incorrect shape")
+    elif jones_axes_count == 6:
+      mode = FULL
     else:
-        raise RuntimeError("Visibility data has incorrect shape")
+      raise RuntimeError("Jones term has incorrect shape")
+  else:
+    raise RuntimeError("Visibility data has incorrect shape")
 
-    return mode
+  return mode
 
 
 def chunkify_rows(time, utimes_per_chunk):
-    utimes, time_bin_counts = np.unique(time, return_counts=True)
-    n_time = len(utimes)
-    if utimes_per_chunk <= 0:
-        utimes_per_chunk = n_time
-    row_chunks = [
-        np.sum(time_bin_counts[i : i + utimes_per_chunk])
-        for i in range(0, n_time, utimes_per_chunk)
-    ]
-    time_bin_indices = np.zeros(n_time, dtype=np.int32)
-    time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
-    time_bin_counts = time_bin_counts.astype(np.int32)
-    return tuple(row_chunks), time_bin_indices, time_bin_counts
+  utimes, time_bin_counts = np.unique(time, return_counts=True)
+  n_time = len(utimes)
+  if utimes_per_chunk <= 0:
+    utimes_per_chunk = n_time
+  row_chunks = [
+    np.sum(time_bin_counts[i : i + utimes_per_chunk])
+    for i in range(0, n_time, utimes_per_chunk)
+  ]
+  time_bin_indices = np.zeros(n_time, dtype=np.int32)
+  time_bin_indices[1::] = np.cumsum(time_bin_counts)[0:-1]
+  time_bin_counts = time_bin_counts.astype(np.int32)
+  return tuple(row_chunks), time_bin_indices, time_bin_counts
 
 
 CHECK_TYPE_DOCS = DocstringTemplate(
-    """
+  """
     Determines which calibration scenario to apply i.e.
     DIAG_DIAG, DIAG or COMPLEX2x2.
 
@@ -84,12 +84,12 @@ CHECK_TYPE_DOCS = DocstringTemplate(
 )
 
 try:
-    check_type.__doc__ = CHECK_TYPE_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+  check_type.__doc__ = CHECK_TYPE_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
-    pass
+  pass
 
 CHUNKIFY_ROWS_DOCS = DocstringTemplate(
-    """
+  """
     Divides rows into chunks containing integer
     numbers of times keeping track of the indices
     at which the unique time changes and the number
@@ -117,8 +117,8 @@ CHUNKIFY_ROWS_DOCS = DocstringTemplate(
 )
 
 try:
-    chunkify_rows.__doc__ = CHUNKIFY_ROWS_DOCS.substitute(
-        array_type=":class:`numpy.ndarray`"
-    )
+  chunkify_rows.__doc__ = CHUNKIFY_ROWS_DOCS.substitute(
+    array_type=":class:`numpy.ndarray`"
+  )
 except AttributeError:
-    pass
+  pass
