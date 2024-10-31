@@ -46,12 +46,12 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
+exclude = ["turbo-sim.py"]
 line-length = 88
 indent-width = 2
 target-version = "py311"
 
 [tool.ruff.lint]
-exclude = ["turbo-sim.py"]
 extend-select = ["I"]
 select = [
     # flake8-builtins
