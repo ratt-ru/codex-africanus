@@ -13,7 +13,10 @@ import numpy as np
 
 from africanus.averaging.support import _unique_internal
 
-from africanus.experimental.rime.fused.arguments import ArgumentPack
+from africanus.experimental.rime.fused.arguments import (
+    ArgumentDependencies,
+    ArgumentPack,
+)
 from africanus.experimental.rime.fused.terms.core import StateStructRef
 
 try:
@@ -212,13 +215,13 @@ def tuple_adder(typingctx, t1, t2):
 class IntrinsicFactory:
     KEY_ARGS = (
         "utime",
-        "time_index",
+        "time_inverse",
         "uantenna",
-        "antenna1_index",
-        "antenna2_index",
+        "antenna1_inverse",
+        "antenna2_inverse",
         "ufeed",
-        "feed1_index",
-        "feed2_index",
+        "feed1_inverse",
+        "feed2_inverse",
     )
 
     def __init__(self, arg_dependencies):
@@ -312,13 +315,13 @@ class IntrinsicFactory:
 
             key_types = {
                 "utime": arg_info["time"][0],
-                "time_index": types.int64[:],
+                "time_inverse": types.int64[:],
                 "uantenna": arg_info["antenna1"][0],
-                "antenna1_index": types.int64[:],
-                "antenna2_index": types.int64[:],
+                "antenna1_inverse": types.int64[:],
+                "antenna2_inverse": types.int64[:],
                 "ufeed": arg_info["feed1"][0],
-                "feed1_index": types.int64[:],
-                "feed2_index": types.int64[:],
+                "feed1_inverse": types.int64[:],
+                "feed2_inverse": types.int64[:],
             }
 
             if tuple(key_types.keys()) != argdeps.KEY_ARGS:
@@ -365,23 +368,23 @@ class IntrinsicFactory:
                 fn_sig = types.Tuple(list(key_types.values()))(*fn_arg_types)
 
                 def _indices(time, antenna1, antenna2, feed1, feed2):
-                    utime, _, time_index, _ = _unique_internal(time)
+                    utime, _, time_inverse, _ = _unique_internal(time)
                     uants = np.unique(np.concatenate((antenna1, antenna2)))
                     ufeeds = np.unique(np.concatenate((feed1, feed2)))
-                    antenna1_index = np.searchsorted(uants, antenna1)
-                    antenna2_index = np.searchsorted(uants, antenna2)
-                    feed1_index = np.searchsorted(ufeeds, feed1)
-                    feed2_index = np.searchsorted(ufeeds, feed2)
+                    antenna1_inverse = np.searchsorted(uants, antenna1)
+                    antenna2_inverse = np.searchsorted(uants, antenna2)
+                    feed1_inverse = np.searchsorted(ufeeds, feed1)
+                    feed2_inverse = np.searchsorted(ufeeds, feed2)
 
                     return (
                         utime,
-                        time_index,
+                        time_inverse,
                         uants,
-                        antenna1_index,
-                        antenna2_index,
+                        antenna1_inverse,
+                        antenna2_inverse,
                         ufeeds,
-                        feed1_index,
-                        feed2_index,
+                        feed1_inverse,
+                        feed2_inverse,
                     )
 
                 index = context.compile_internal(builder, _indices, fn_sig, fn_args)
@@ -409,26 +412,30 @@ class IntrinsicFactory:
         @intrinsic
         def pack_transformed(typingctx, args):
             assert len(args) == len(arg_names)
-            it = zip(arg_names, args, range(len(arg_names)))
-            arg_info = {n: (t, i) for n, t, i in it}
+            arg_pack = ArgumentPack(arg_names, args, range(len(arg_names)))
 
             rvt = typingctx.resolve_value_type_prefer_literal
             transform_output_types = []
+
+            init_state_arg_fields = [
+                (k, arg_pack.type(k)) for k in ArgumentDependencies.KEY_ARGS
+            ]
+            init_state_type = StateStructRef(init_state_arg_fields)
 
             for transformer in transformers:
                 # Figure out argument types for calling init_fields
                 kw = {}
 
                 for a in transformer.ARGS:
-                    kw[a] = arg_info[a][0]
+                    kw[a] = arg_pack.type(a)
 
                 for a, d in transformer.KWARGS.items():
                     try:
-                        kw[a] = arg_info[a][0]
+                        kw[a] = arg_pack.type(a)
                     except KeyError:
                         kw[a] = rvt(d)
 
-                fields, _ = transformer.init_fields(typingctx, **kw)
+                fields, _ = transformer.init_fields(typingctx, init_state_type, **kw)
 
                 if len(transformer.OUTPUTS) == 0:
                     raise TypingError(f"{transformer} produces no outputs")
@@ -460,6 +467,32 @@ class IntrinsicFactory:
                 llvm_ret_type = context.get_value_type(return_type)
                 ret_tuple = cgutils.get_null_value(llvm_ret_type)
 
+                def make_init_struct():
+                    return structref.new(init_state_type)
+
+                init_state = context.compile_internal(
+                    builder, make_init_struct, init_state_type(), []
+                )
+                U = structref._Utils(context, builder, init_state_type)
+                init_data_struct = U.get_data_struct(init_state)
+
+                for arg_name in ArgumentDependencies.KEY_ARGS:
+                    value = builder.extract_value(args[0], arg_pack.index(arg_name))
+                    value_type = signature.args[0][arg_pack.index(arg_name)]
+                    # We increment the reference count here
+                    # as we're taking a reference from data in
+                    # the args tuple and placing it on the structref
+                    context.nrt.incref(builder, value_type, value)
+                    field_type = init_state_type.field_dict[arg_name]
+                    casted = context.cast(builder, value, value_type, field_type)
+                    context.nrt.incref(builder, value_type, casted)
+
+                    # The old value on the structref is being replaced,
+                    # decrease it's reference count
+                    old_value = getattr(init_data_struct, arg_name)
+                    context.nrt.decref(builder, value_type, old_value)
+                    setattr(init_data_struct, arg_name, casted)
+
                 # Extract supplied arguments from original arg tuple
                 # and insert into the new one
                 for i, typ in enumerate(signature.args[0]):
@@ -478,16 +511,13 @@ class IntrinsicFactory:
                         if o != out_names[i + j + n]:
                             raise TypingError(f"{o} != {out_names[i + j + n]}")
 
-                    transform_args = []
-                    transform_types = []
+                    transform_args = [init_state]
+                    transform_types = [init_state_type]
 
                     # Get required arguments out of the argument pack
                     for name in transformer.ARGS:
-                        try:
-                            typ, j = arg_info[name]
-                        except KeyError:
-                            raise TypingError(f"{name} is not present in arg_types")
-
+                        typ = arg_pack.type(name)
+                        j = arg_pack.index(name)
                         value = builder.extract_value(args[0], j)
                         transform_args.append(value)
                         transform_types.append(typ)
@@ -561,12 +591,19 @@ class IntrinsicFactory:
             term_fields = []
             constructors = []
 
+            init_state_arg_fields = [
+                (k, arg_pack.type(k)) for k in ArgumentDependencies.KEY_ARGS
+            ]
+            init_state_type = StateStructRef(init_state_arg_fields)
+
             # Query Terms for fields and their associated types
             # that should be created on the State object
             for term in argdeps.terms:
                 it = zip(term.ALL_ARGS, arg_pack.indices(*term.ALL_ARGS))
                 arg_types = {a: args[i] for a, i in it}
-                fields, constructor = term.init_fields(typingctx, **arg_types)
+                fields, constructor = term.init_fields(
+                    typingctx, init_state_type, **arg_types
+                )
                 term.validate_constructor(constructor)
                 term_fields.append(fields)
                 state_fields.extend(fields)
@@ -584,8 +621,34 @@ class IntrinsicFactory:
                 typingctx = context.typing_context
                 rvt = typingctx.resolve_value_type_prefer_literal
 
+                # Create the initial state struct
+                def make_init_struct():
+                    return structref.new(init_state_type)
+
+                init_state = context.compile_internal(
+                    builder, make_init_struct, init_state_type(), []
+                )
+                U = structref._Utils(context, builder, init_state_type)
+                init_data_struct = U.get_data_struct(init_state)
+
+                for arg_name in ArgumentDependencies.KEY_ARGS:
+                    value = builder.extract_value(args[0], arg_pack.index(arg_name))
+                    value_type = signature.args[0][arg_pack.index(arg_name)]
+                    # We increment the reference count here
+                    # as we're taking a reference from data in
+                    # the args tuple and placing it on the structref
+                    context.nrt.incref(builder, value_type, value)
+                    field_type = init_state_type.field_dict[arg_name]
+                    casted = context.cast(builder, value, value_type, field_type)
+                    context.nrt.incref(builder, value_type, casted)
+
+                    # The old value on the structref is being replaced,
+                    # decrease it's reference count
+                    old_value = getattr(init_data_struct, arg_name)
+                    context.nrt.decref(builder, value_type, old_value)
+                    setattr(init_data_struct, arg_name, casted)
+
                 def make_struct():
-                    """Allocate the structure"""
                     return structref.new(state_type)
 
                 state = context.compile_internal(builder, make_struct, state_type(), [])
@@ -616,8 +679,8 @@ class IntrinsicFactory:
                 # need to extract those arguments necessary to construct
                 # the term StructRef
                 for term in argdeps.terms:
-                    cargs = []
-                    ctypes = []
+                    cargs = [init_state]
+                    ctypes = [init_state_type]
 
                     arg_types = arg_pack.types(*term.ALL_ARGS)
                     arg_index = arg_pack.indices(*term.ALL_ARGS)
