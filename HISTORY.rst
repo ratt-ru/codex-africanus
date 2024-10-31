@@ -4,6 +4,7 @@ History
 
 0.3.8 (2024-09-29)
 ------------------
+* Optimise the beam cube implementation (:pr:`320`)
 * Support an `init_state` argument into both `Term.init_fields`
   and `Transformer.init_fields` (:pr:`319`)
 * Use virtualenv to setup github CI test environments (:pr:`321`)
