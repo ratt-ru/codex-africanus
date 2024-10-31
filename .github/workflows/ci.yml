@@ -65,9 +65,6 @@ jobs:
           echo "NUMBA_NRT_STATS=1" >> .env
           echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
 
-      - name: Create base virtual environment
-        run: python -m virtualenv -p ${{ matrix.python-version }} /tmp/base
-
       - name: Setup poetry virtual environment
         run: poetry env use python${{ matrix.python-version }}
 
