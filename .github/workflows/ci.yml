@@ -36,7 +36,7 @@ jobs:
           python -m pip install -U
           pip
           setuptools
-          pipenv
+          virtualenv
 
       - name: Checkout source
         uses: actions/checkout@v4
@@ -64,11 +64,18 @@ jobs:
           echo "NUMBA_NRT_STATS=1" >> .env
           echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
 
+      - name: Create base virtual environment
+        run: python -m virtualenv -p ${{ matrix.python-version }} /tmp/base
+
       - name: Install base codex-africanus
-        run: pipenv install .[testing]
+        run: |
+          source /tmp/base/bin/activate
+          pip install .[testing]
 
       - name: Run base test suite
-        run: pipenv run py.test -s -vvv africanus/
+        run: |
+          source /tmp/base/bin/activate
+          py.test -s -vvv africanus/
 
       - name: List the measures directory
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
@@ -89,17 +96,18 @@ jobs:
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
-      - name: Install complete codex-africanus
-        run: >
-          pipenv install
-          .[complete]
-          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
+      - name: Create complete virtual environment
+        run: python -m virtualenv -p ${{ matrix.python-version }} /tmp/complete
 
-      - name: Log installed package versions
-        run: pipenv graph
+      - name: Install complete codex-africanus
+        run: |
+          source /tmp/complete/bin/activate
+          pip install .[complete] git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Run complete test suite
-        run: pipenv run py.test -s -vvv africanus/
+        run: |
+          source /tmp/complete/bin/activate
+          py.test -s -vvv africanus/
 
   deploy:
     needs: [test]
