@@ -138,7 +138,7 @@ defined on the `Phase` term, called `init_fields`.
     from africanus.experimental.rime.fused.terms.core import Term
 
     class Phase(Term)
-        def init_fields(self, typingctx, lm, uvw, chan_freq):
+        def init_fields(self, typingctx, init_state, lm, uvw, chan_freq):
             # Given the numba types of the lm, uvw and chan_freq
             # arrays, derive a unified output numba type
             numba_type = typingctx.unify_types(lm.dtype,
@@ -241,7 +241,7 @@ In the following code snippet, ``LMTransformer.init_fields``
         # OUTPUTS class attribute
         OUTPUTS = ["lm"]
 
-        def init_fields(self, typingctx, radec, phase_dir):
+        def init_fields(self, typingctx, init_state, radec, phase_dir):
             # Type and provide method for initialising the lm output
             dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
             fields = [("lm", dt[:, :])]
@@ -271,6 +271,61 @@ In the following code snippet, ``LMTransformer.init_fields``
 
 The ``lm`` array will be available on the ``state`` object and as a valid input
 for :meth:`Term.init_fields`.
+
+Indexing arrays
++++++++++++++++
+
+The ``init_state`` and ``state`` objects contains NumPy arrays storing
+Measurement Set v2.0 indexing information.
+
+.. code-block:: python
+
+    class State:
+        utime             # Unique times
+        uantenna          # Unique antenna indices
+        ufeed             # Unique feed indices
+        time_inverse      # Maps the time at a row into utime
+        antenna1_inverse  # Maps the antenna1 index at a row into uantenna
+        antenna2_inverse  # Maps the antenna2 index at a row into uantenna
+        feed1_inverse     # Maps the feed1 index at a row into ufeed
+        feed2_inverse     # Maps the feed2 index at a row into ufeed
+        ...
+
+These arrays are useful in cases where the developer wishes to avoid
+recomputing values multiple times for each row in the sampling function.
+Instead they can be pre-computed for unique times, antennas and feeds
+in :meth:`Term.init_fields` and then looked up in :meth:`Term.sampler`.
+
+.. code-block:: python
+
+    class MyTerm(Term):
+        def init_fields(self, typingctx, init_state, ...):
+            fields = [("precomputed", numba.float64[:, :, :])]
+
+            def precompute(init_state, ...):
+                ntime = init_state.utime.shape[0]
+                nfeed = init_state.ufeed.shape[0]
+                nant = init_state.uantenna.shape[0]
+                precomputed = np.empty((ntime, nfeed, nant), np.float64)
+
+                for t in range(ntime):
+                    for f in range(nfeed):
+                        for a in range(nant):
+                            precomputed[t, f, a] = ...
+
+                return precomputed
+
+            return fields, precompute
+
+        def sampler(self, state, s, r, t, f1, f2, a1, a2, c):
+            left = self.configuration == "left"
+
+            def sample_precomputed(state, s, r, t, f1, f2, a1, a2, c):
+                f = state.feed1_inverse[r] if left else state.feed2_inverse[r]
+                a = state.antenna1_inverse[r] if left else state.antenna2_inverse[r]
+                return state.precomputed[t, f, a]
+
+            return sample_precomputed
 
 
 Invoking the RIME
@@ -429,7 +484,8 @@ API
             def __init__(self, configuration):
                 super().__init__(configuration)
 
-    .. py:method:: Term.init_fields(self, typing_ctx, arg1, ..., argn, \
+    .. py:method:: Term.init_fields(self, typing_ctx, init_state, \
+                                    arg1, ..., argn, \
                                     kwarg1=None, ..., kwargn=None)
 
         Requests inputs to the RIME term, ensuring that they are
@@ -445,7 +501,7 @@ API
         ``init_fields`` should return a :code:`(fields, function)` tuple.
         ``fields`` should be a list of the form :code:`[(name, numba_type)]`, while
         ``function`` should be a function of the form
-        :code:`fn(arg1, ..., argn, kwarg1=None, .., kwargn=None)`
+        :code:`fn(init_state, arg1, ..., argn, kwarg1=None, .., kwargn=None)`
         and should return the variables of the type defined
         in ``fields``. Note that it's signature therefore matches
         that of ``init_fields`` from after the ``typingctx``
@@ -453,6 +509,7 @@ API
         :ref:`Simple Example <experimental-fused-rime-example-anchor>`.
 
         :param typingctx: A Numba typing context.
+        :param init_state: State object holding index information.
         :param arg1...argn: Required RIME inputs for this Term.
         :param kwarg1...kwargn: Optional RIME inputs for this Term. \
             Types here should be simple: ints, floats, complex numbers
@@ -528,8 +585,9 @@ API
         This should correspond to the fields produced by
         :meth:`Transformer.init_fields`.
 
-    .. py:method:: Transformer.init_fields(self, typing_ctx, arg1, ..., argn, \
-                                    kwarg1=None, ..., kwargn=None)
+    .. py:method:: Transformer.init_fields(self, typing_ctx, init_state, \
+                                           arg1, ..., argn, \
+                                           kwarg1=None, ..., kwargn=None)
 
         Requests inputs to the Transformer, and specifies new fields and
         the function for creating them on the ``state`` object.
@@ -547,8 +605,9 @@ API
             in Numba's
             `nopython <https://numba.pydata.org/numba-doc/latest/user/jit.html#nopython_>`_ mode.
 
-    .. py:method:: dask_schema(self, arg1, ..., argn, \
-                        kwargs1=None, ..., kwargn=None)
+    .. py:method:: dask_schema(self, init_state, \
+                               arg1, ..., argn, \
+                               kwargs1=None, ..., kwargn=None)
 
 
 
@@ -568,7 +627,6 @@ API
                 is an object with ``dtype`` and ``ndim`` attributes.
                 A suitable array_like for lm data could be
                 :code:`np.empty((0,0), dtype=np.float64)`.
-
 
 
 
