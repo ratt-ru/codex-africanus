@@ -28,13 +28,13 @@ numba = "^0.60.0"
 astropy = ["astropy"]
 cuda = ["cupy", "jinja2"]
 dask = ["dask"]
+ducc0 = ["ducc0"]
 jax = ["jax", "jaxlib"]
 scipy = ["scipy"]
-python-casacore = ["python-casacore"]
-ducc0 = ["ducc0"]
-complete = ["astropy", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
-complete-cuda = ["astropy", "cuda", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
 testing = ["flaky", "pytest"]
+python-casacore = ["python-casacore"]
+complete = ["astropy", "dask", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
+complete-cuda = ["astropy", "cuda", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
 
 [tool.poetry.group.dev.dependencies]
 tbump = "^6.11.0"
