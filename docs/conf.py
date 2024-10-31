@@ -35,13 +35,13 @@ import africanus
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-  "sphinx.ext.autodoc",
-  "sphinx.ext.autosummary",
-  "sphinx.ext.viewcode",
-  "sphinx.ext.mathjax",
-  "sphinx.ext.intersphinx",
-  "sphinx.ext.extlinks",
-  "numpydoc",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
+    "numpydoc",
 ]
 
 autodoc_mock_imports = ["numpy", "numba"]
@@ -117,31 +117,31 @@ htmlhelp_basename = "africanusdoc"
 # -- Options for LaTeX output ------------------------------------------
 
 latex_elements = {
-  # The paper size ('letterpaper' or 'a4paper').
-  #
-  # 'papersize': 'letterpaper',
-  # The font size ('10pt', '11pt' or '12pt').
-  #
-  # 'pointsize': '10pt',
-  # Additional stuff for the LaTeX preamble.
-  #
-  # 'preamble': '',
-  # Latex figure (float) alignment
-  #
-  # 'figure_align': 'htbp',
+    # The paper size ('letterpaper' or 'a4paper').
+    #
+    # 'papersize': 'letterpaper',
+    # The font size ('10pt', '11pt' or '12pt').
+    #
+    # 'pointsize': '10pt',
+    # Additional stuff for the LaTeX preamble.
+    #
+    # 'preamble': '',
+    # Latex figure (float) alignment
+    #
+    # 'figure_align': 'htbp',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-  (
-    master_doc,
-    "africanus.tex",
-    "Codex Africanus Documentation",
-    "Simon Perkins",
-    "manual",
-  ),
+    (
+        master_doc,
+        "africanus.tex",
+        "Codex Africanus Documentation",
+        "Simon Perkins",
+        "manual",
+    ),
 ]
 
 
@@ -159,27 +159,27 @@ numpydoc_class_members_toctree = False
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (
-    master_doc,
-    "africanus",
-    "Codex Africanus Documentation",
-    author,
-    "africanus",
-    "One line description of project.",
-    "Miscellaneous",
-  ),
+    (
+        master_doc,
+        "africanus",
+        "Codex Africanus Documentation",
+        author,
+        "africanus",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]
 
 extlinks = {
-  "issue": ("https://github.com/ska-sa/codex-africanus/issues/%s", "GH#%s"),
-  "pr": ("https://github.com/ska-sa/codex-africanus/pull/%s", "GH#%s"),
+    "issue": ("https://github.com/ska-sa/codex-africanus/issues/%s", "GH#%s"),
+    "pr": ("https://github.com/ska-sa/codex-africanus/pull/%s", "GH#%s"),
 }
 
 intersphinx_mapping = {
-  "cupy": ("https://docs-cupy.chainer.org/en/latest/", None),
-  "dask": ("https://dask.pydata.org/en/latest/", None),
-  "numba": ("https://numba.pydata.org/numba-doc/dev/", None),
-  "numpy": ("https://numpy.org/doc/stable/", None),
-  "python": ("https://docs.python.org/3/", None),
-  "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "cupy": ("https://docs-cupy.chainer.org/en/latest/", None),
+    "dask": ("https://dask.pydata.org/en/latest/", None),
+    "numba": ("https://numba.pydata.org/numba-doc/dev/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "python": ("https://docs.python.org/3/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
 }

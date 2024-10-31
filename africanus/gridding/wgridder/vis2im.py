@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 try:
-  from ducc0.wgridder import ms2dirty
+    from ducc0.wgridder import ms2dirty
 except ImportError as e:
-  ducc_import_error = e
+    ducc_import_error = e
 else:
-  ducc_import_error = None
+    ducc_import_error = None
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -14,93 +14,6 @@ from africanus.util.requirements import requires_optional
 
 @requires_optional("ducc0.wgridder", ducc_import_error)
 def _dirty_internal(
-  uvw,
-  freq,
-  vis,
-  freq_bin_idx,
-  freq_bin_counts,
-  nx,
-  ny,
-  cell,
-  weights,
-  flag,
-  celly,
-  epsilon,
-  nthreads,
-  do_wstacking,
-  double_accum,
-):
-  # adjust for chunking
-  # need a copy here if using multiple row chunks
-  freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
-  nband = freq_bin_idx.size
-  if type(vis[0, 0]) is np.complex64:
-    real_type = np.float32
-  elif type(vis[0, 0]) is np.complex128:
-    real_type = np.float64
-  else:
-    raise ValueError("Vis of incorrect type")
-  # the extra dimension is required to allow for chunking over row
-  dirty = np.zeros((1, nband, nx, ny), dtype=real_type)
-  for i in range(nband):
-    ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
-    if weights is not None:
-      wgt = weights[:, ind]
-    else:
-      wgt = None
-    if flag is not None:
-      mask = flag[:, ind]
-    else:
-      mask = None
-    dirty[0, i] = ms2dirty(
-      uvw=uvw,
-      freq=freq[ind],
-      ms=vis[:, ind],
-      wgt=wgt,
-      npix_x=nx,
-      npix_y=ny,
-      pixsize_x=cell,
-      pixsize_y=celly,
-      nu=0,
-      nv=0,
-      epsilon=epsilon,
-      nthreads=nthreads,
-      mask=mask,
-      do_wstacking=do_wstacking,
-      double_precision_accumulation=double_accum,
-    )
-  return dirty
-
-
-# This additional wrapper is required to allow the dask wrappers
-# to chunk over row
-@requires_optional("ducc0.wgridder", ducc_import_error)
-def dirty(
-  uvw,
-  freq,
-  vis,
-  freq_bin_idx,
-  freq_bin_counts,
-  nx,
-  ny,
-  cell,
-  weights=None,
-  flag=None,
-  celly=None,
-  epsilon=1e-5,
-  nthreads=1,
-  do_wstacking=True,
-  double_accum=False,
-):
-  if celly is None:
-    celly = cell
-
-  if not nthreads:
-    import multiprocessing
-
-    nthreads = multiprocessing.cpu_count()
-
-  dirty = _dirty_internal(
     uvw,
     freq,
     vis,
@@ -116,12 +29,99 @@ def dirty(
     nthreads,
     do_wstacking,
     double_accum,
-  )
-  return dirty[0]
+):
+    # adjust for chunking
+    # need a copy here if using multiple row chunks
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
+    nband = freq_bin_idx.size
+    if type(vis[0, 0]) is np.complex64:
+        real_type = np.float32
+    elif type(vis[0, 0]) is np.complex128:
+        real_type = np.float64
+    else:
+        raise ValueError("Vis of incorrect type")
+    # the extra dimension is required to allow for chunking over row
+    dirty = np.zeros((1, nband, nx, ny), dtype=real_type)
+    for i in range(nband):
+        ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
+        if weights is not None:
+            wgt = weights[:, ind]
+        else:
+            wgt = None
+        if flag is not None:
+            mask = flag[:, ind]
+        else:
+            mask = None
+        dirty[0, i] = ms2dirty(
+            uvw=uvw,
+            freq=freq[ind],
+            ms=vis[:, ind],
+            wgt=wgt,
+            npix_x=nx,
+            npix_y=ny,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            nthreads=nthreads,
+            mask=mask,
+            do_wstacking=do_wstacking,
+            double_precision_accumulation=double_accum,
+        )
+    return dirty
+
+
+# This additional wrapper is required to allow the dask wrappers
+# to chunk over row
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def dirty(
+    uvw,
+    freq,
+    vis,
+    freq_bin_idx,
+    freq_bin_counts,
+    nx,
+    ny,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+    double_accum=False,
+):
+    if celly is None:
+        celly = cell
+
+    if not nthreads:
+        import multiprocessing
+
+        nthreads = multiprocessing.cpu_count()
+
+    dirty = _dirty_internal(
+        uvw,
+        freq,
+        vis,
+        freq_bin_idx,
+        freq_bin_counts,
+        nx,
+        ny,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+        double_accum,
+    )
+    return dirty[0]
 
 
 DIRTY_DOCS = DocstringTemplate(
-  r"""
+    r"""
     Compute visibility to image mapping using ducc gridder i.e.
 
     .. math::
@@ -192,6 +192,6 @@ DIRTY_DOCS = DocstringTemplate(
 )
 
 try:
-  dirty.__doc__ = DIRTY_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    dirty.__doc__ = DIRTY_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
-  pass
+    pass

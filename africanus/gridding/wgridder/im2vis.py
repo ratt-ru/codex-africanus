@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 try:
-  from ducc0.wgridder import dirty2ms
+    from ducc0.wgridder import dirty2ms
 except ImportError as e:
-  ducc_import_error = e
+    ducc_import_error = e
 else:
-  ducc_import_error = None
+    ducc_import_error = None
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -14,77 +14,6 @@ from africanus.util.requirements import requires_optional
 
 @requires_optional("ducc0.wgridder", ducc_import_error)
 def _model_internal(
-  uvw,
-  freq,
-  image,
-  freq_bin_idx,
-  freq_bin_counts,
-  cell,
-  weights,
-  flag,
-  celly,
-  epsilon,
-  nthreads,
-  do_wstacking,
-):
-  # adjust for chunking
-  # need a copy here if using multiple row chunks
-  freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
-  nband, nx, ny = image.shape
-  nrow = uvw.shape[0]
-  nchan = freq.size
-  vis = np.zeros((nrow, nchan), dtype=np.result_type(image, np.complex64))
-  for i in range(nband):
-    ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
-    if weights is not None:
-      wgt = weights[:, ind]
-    else:
-      wgt = None
-    if flag is not None:
-      mask = flag[:, ind]
-    else:
-      mask = None
-    vis[:, ind] = dirty2ms(
-      uvw=uvw,
-      freq=freq[ind],
-      dirty=image[i],
-      wgt=wgt,
-      pixsize_x=cell,
-      pixsize_y=celly,
-      nu=0,
-      nv=0,
-      epsilon=epsilon,
-      mask=mask,
-      nthreads=nthreads,
-      do_wstacking=do_wstacking,
-    )
-  return vis
-
-
-@requires_optional("ducc0.wgridder", ducc_import_error)
-def model(
-  uvw,
-  freq,
-  image,
-  freq_bin_idx,
-  freq_bin_counts,
-  cell,
-  weights=None,
-  flag=None,
-  celly=None,
-  epsilon=1e-5,
-  nthreads=1,
-  do_wstacking=True,
-):
-  if celly is None:
-    celly = cell
-
-  if not nthreads:
-    import multiprocessing
-
-    nthreads = multiprocessing.cpu_count()
-
-  return _model_internal(
     uvw,
     freq,
     image,
@@ -97,11 +26,82 @@ def model(
     epsilon,
     nthreads,
     do_wstacking,
-  )
+):
+    # adjust for chunking
+    # need a copy here if using multiple row chunks
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
+    nband, nx, ny = image.shape
+    nrow = uvw.shape[0]
+    nchan = freq.size
+    vis = np.zeros((nrow, nchan), dtype=np.result_type(image, np.complex64))
+    for i in range(nband):
+        ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
+        if weights is not None:
+            wgt = weights[:, ind]
+        else:
+            wgt = None
+        if flag is not None:
+            mask = flag[:, ind]
+        else:
+            mask = None
+        vis[:, ind] = dirty2ms(
+            uvw=uvw,
+            freq=freq[ind],
+            dirty=image[i],
+            wgt=wgt,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            mask=mask,
+            nthreads=nthreads,
+            do_wstacking=do_wstacking,
+        )
+    return vis
+
+
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def model(
+    uvw,
+    freq,
+    image,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+):
+    if celly is None:
+        celly = cell
+
+    if not nthreads:
+        import multiprocessing
+
+        nthreads = multiprocessing.cpu_count()
+
+    return _model_internal(
+        uvw,
+        freq,
+        image,
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+    )
 
 
 MODEL_DOCS = DocstringTemplate(
-  r"""
+    r"""
     Compute image to visibility mapping using ducc degridder i.e.
 
     .. math::
@@ -178,6 +178,6 @@ MODEL_DOCS = DocstringTemplate(
 )
 
 try:
-  model.__doc__ = MODEL_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    model.__doc__ = MODEL_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
-  pass
+    pass

@@ -7,8 +7,8 @@ https://github.com/google/jax/issues/216
 
 
 try:
-  import jax
+    import jax
 except ImportError:
-  pass
+    pass
 else:
-  jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", True)

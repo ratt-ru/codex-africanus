@@ -8,226 +8,232 @@ from africanus.calibration.utils.utils import DIAG_DIAG, DIAG, FULL
 
 
 def jacobian_factory(mode):
-  if mode == DIAG_DIAG:
+    if mode == DIAG_DIAG:
 
-    def jacobian(a1j, blj, a2j, sign, out):
-      out[...] = sign * a1j * blj * a2j.conjugate()
-      # for c in range(out.shape[-1]):
-      #     out[c] = sign * a1j[c] * blj[c] * a2j[c].conjugate()
-  elif mode == DIAG:
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = sign * a1j * blj * a2j.conjugate()
+            # for c in range(out.shape[-1]):
+            #     out[c] = sign * a1j[c] * blj[c] * a2j[c].conjugate()
+    elif mode == DIAG:
 
-    def jacobian(a1j, blj, a2j, sign, out):
-      out[...] = 0
-  elif mode == FULL:
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = 0
+    elif mode == FULL:
 
-    def jacobian(a1j, blj, a2j, sign, out):
-      out[...] = 0
+        def jacobian(a1j, blj, a2j, sign, out):
+            out[...] = 0
 
-  return njit(nogil=True, inline="always")(jacobian)
+    return njit(nogil=True, inline="always")(jacobian)
 
 
 @njit(**JIT_OPTIONS)
 def compute_jhj_and_jhr(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  return compute_jhj_and_jhr_impl(
-    time_bin_indices,
-    time_bin_counts,
-    antenna1,
-    antenna2,
-    jones,
-    residual,
-    model,
-    flag,
-  )
+    return compute_jhj_and_jhr_impl(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        residual,
+        model,
+        flag,
+    )
 
 
 def compute_jhj_and_jhr_impl(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  return NotImplementedError
+    return NotImplementedError
 
 
 @overload(compute_jhj_and_jhr_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhj_and_jhr(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  mode = check_type(jones, residual)
-  if mode != DIAG_DIAG:
-    raise NotImplementedError("Only DIAG-DIAG case has been implemented")
+    mode = check_type(jones, residual)
+    if mode != DIAG_DIAG:
+        raise NotImplementedError("Only DIAG-DIAG case has been implemented")
 
-  jacobian = jacobian_factory(mode)
+    jacobian = jacobian_factory(mode)
 
-  def _jhj_and_jhr_fn(
-    time_bin_indices,
-    time_bin_counts,
-    antenna1,
-    antenna2,
-    jones,
-    residual,
-    model,
-    flag,
-  ):
-    # for chunked dask arrays we need to adjust the chunks to
-    # start counting from zero (see also map_blocks)
-    time_bin_indices -= time_bin_indices.min()
-    jones_shape = np.shape(jones)
-    n_tim = jones_shape[0]
-    n_chan = jones_shape[2]
-    n_dir = jones_shape[3]
+    def _jhj_and_jhr_fn(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        residual,
+        model,
+        flag,
+    ):
+        # for chunked dask arrays we need to adjust the chunks to
+        # start counting from zero (see also map_blocks)
+        time_bin_indices -= time_bin_indices.min()
+        jones_shape = np.shape(jones)
+        n_tim = jones_shape[0]
+        n_chan = jones_shape[2]
+        n_dir = jones_shape[3]
 
-    # storage arrays
-    jhr = np.zeros(jones.shape, dtype=jones.dtype)
-    jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
-    # tmp array the shape of jones_corr
-    jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
-    for t in range(n_tim):
-      for row in range(time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]):
-        p = antenna1[row]
-        q = antenna2[row]
-        for nu in range(n_chan):
-          if np.any(flag[row, nu]):
-            continue
-          gp = jones[t, p, nu]
-          gq = jones[t, q, nu]
-          for s in range(n_dir):
-            # for the derivative w.r.t. antenna p
-            jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
-            jhj[t, p, nu, s] += (np.conj(jac) * jac).real
-            jhr[t, p, nu, s] += np.conj(jac) * residual[row, nu]
-            # for the derivative w.r.t. antenna q
-            jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
-            jhj[t, q, nu, s] += (np.conj(jac) * jac).real
-            jhr[t, q, nu, s] += np.conj(jac) * residual[row, nu]
-    return jhj, jhr
+        # storage arrays
+        jhr = np.zeros(jones.shape, dtype=jones.dtype)
+        jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
+        # tmp array the shape of jones_corr
+        jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
+        for t in range(n_tim):
+            for row in range(
+                time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]
+            ):
+                p = antenna1[row]
+                q = antenna2[row]
+                for nu in range(n_chan):
+                    if np.any(flag[row, nu]):
+                        continue
+                    gp = jones[t, p, nu]
+                    gq = jones[t, q, nu]
+                    for s in range(n_dir):
+                        # for the derivative w.r.t. antenna p
+                        jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
+                        jhj[t, p, nu, s] += (np.conj(jac) * jac).real
+                        jhr[t, p, nu, s] += np.conj(jac) * residual[row, nu]
+                        # for the derivative w.r.t. antenna q
+                        jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
+                        jhj[t, q, nu, s] += (np.conj(jac) * jac).real
+                        jhr[t, q, nu, s] += np.conj(jac) * residual[row, nu]
+        return jhj, jhr
 
-  return _jhj_and_jhr_fn
+    return _jhj_and_jhr_fn
 
 
 @njit(**JIT_OPTIONS)
 def compute_jhj(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
-):
-  return compute_jhj_impl(
     time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
-  )
+):
+    return compute_jhj_impl(
+        time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+    )
 
 
 def compute_jhj_impl(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
 ):
-  return NotImplementedError
+    return NotImplementedError
 
 
 @overload(compute_jhj_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhj(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
-):
-  mode = check_type(jones, model, vis_type="model")
-
-  jacobian = jacobian_factory(mode)
-
-  def _compute_jhj_fn(
     time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
-  ):
-    # for dask arrays we need to adjust the chunks to
-    # start counting from zero
-    time_bin_indices -= time_bin_indices.min()
-    jones_shape = np.shape(jones)
-    n_tim = jones_shape[0]
-    n_chan = jones_shape[2]
-    n_dir = jones_shape[3]
+):
+    mode = check_type(jones, model, vis_type="model")
 
-    jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
-    # tmp array the shape of jones_corr
-    jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
-    for t in range(n_tim):
-      for row in range(time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]):
-        p = antenna1[row]
-        q = antenna2[row]
-        for nu in range(n_chan):
-          if np.any(flag[row, nu]):
-            continue
-          gp = jones[t, p, nu]
-          gq = jones[t, q, nu]
-          for s in range(n_dir):
-            jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
-            jhj[t, p, nu, s] += (jac.conjugate() * jac).real
-            jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
-            jhj[t, q, nu, s] += (jac.conjugate() * jac).real
-    return jhj
+    jacobian = jacobian_factory(mode)
 
-  return _compute_jhj_fn
+    def _compute_jhj_fn(
+        time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+    ):
+        # for dask arrays we need to adjust the chunks to
+        # start counting from zero
+        time_bin_indices -= time_bin_indices.min()
+        jones_shape = np.shape(jones)
+        n_tim = jones_shape[0]
+        n_chan = jones_shape[2]
+        n_dir = jones_shape[3]
+
+        jhj = np.zeros(jones.shape, dtype=jones.real.dtype)
+        # tmp array the shape of jones_corr
+        jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
+        for t in range(n_tim):
+            for row in range(
+                time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]
+            ):
+                p = antenna1[row]
+                q = antenna2[row]
+                for nu in range(n_chan):
+                    if np.any(flag[row, nu]):
+                        continue
+                    gp = jones[t, p, nu]
+                    gq = jones[t, q, nu]
+                    for s in range(n_dir):
+                        jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
+                        jhj[t, p, nu, s] += (jac.conjugate() * jac).real
+                        jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
+                        jhj[t, q, nu, s] += (jac.conjugate() * jac).real
+        return jhj
+
+    return _compute_jhj_fn
 
 
 @njit(**JIT_OPTIONS)
 def compute_jhr(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  return compute_jhr_impl(
-    time_bin_indices,
-    time_bin_counts,
-    antenna1,
-    antenna2,
-    jones,
-    residual,
-    model,
-    flag,
-  )
+    return compute_jhr_impl(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        residual,
+        model,
+        flag,
+    )
 
 
 def compute_jhr_impl(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  return NotImplementedError
+    return NotImplementedError
 
 
 @overload(compute_jhr_impl, jit_options=JIT_OPTIONS)
 def nb_compute_jhr(
-  time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
+    time_bin_indices, time_bin_counts, antenna1, antenna2, jones, residual, model, flag
 ):
-  mode = check_type(jones, model, vis_type="model")
+    mode = check_type(jones, model, vis_type="model")
 
-  jacobian = jacobian_factory(mode)
+    jacobian = jacobian_factory(mode)
 
-  def _compute_jhr_fn(
-    time_bin_indices,
-    time_bin_counts,
-    antenna1,
-    antenna2,
-    jones,
-    residual,
-    model,
-    flag,
-  ):
-    # for dask arrays we need to adjust the chunks to
-    # start counting from zero
-    time_bin_indices -= time_bin_indices.min()
-    jones_shape = np.shape(jones)
-    n_tim = jones_shape[0]
-    n_chan = jones_shape[2]
-    n_dir = jones_shape[3]
+    def _compute_jhr_fn(
+        time_bin_indices,
+        time_bin_counts,
+        antenna1,
+        antenna2,
+        jones,
+        residual,
+        model,
+        flag,
+    ):
+        # for dask arrays we need to adjust the chunks to
+        # start counting from zero
+        time_bin_indices -= time_bin_indices.min()
+        jones_shape = np.shape(jones)
+        n_tim = jones_shape[0]
+        n_chan = jones_shape[2]
+        n_dir = jones_shape[3]
 
-    jhr = np.zeros(jones.shape, dtype=jones.dtype)
-    # tmp array the shape of jones_corr
-    jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
-    for t in range(n_tim):
-      for row in range(time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]):
-        p = antenna1[row]
-        q = antenna2[row]
-        for nu in range(n_chan):
-          if np.any(flag[row, nu]):
-            continue
-          gp = jones[t, p, nu]
-          gq = jones[t, q, nu]
-          for s in range(n_dir):
-            jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
-            jhr[t, p, nu, s] += jac.conjugate() * residual[row, nu]
-            jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
-            jhr[t, q, nu, s] += jac.conjugate() * residual[row, nu]
-    return jhr
+        jhr = np.zeros(jones.shape, dtype=jones.dtype)
+        # tmp array the shape of jones_corr
+        jac = np.zeros_like(jones[0, 0, 0, 0], dtype=jones.dtype)
+        for t in range(n_tim):
+            for row in range(
+                time_bin_indices[t], time_bin_indices[t] + time_bin_counts[t]
+            ):
+                p = antenna1[row]
+                q = antenna2[row]
+                for nu in range(n_chan):
+                    if np.any(flag[row, nu]):
+                        continue
+                    gp = jones[t, p, nu]
+                    gq = jones[t, q, nu]
+                    for s in range(n_dir):
+                        jacobian(gp[s], model[row, nu, s], gq[s], 1.0j, jac)
+                        jhr[t, p, nu, s] += jac.conjugate() * residual[row, nu]
+                        jacobian(gp[s], model[row, nu, s], gq[s], -1.0j, jac)
+                        jhr[t, q, nu, s] += jac.conjugate() * residual[row, nu]
+        return jhr
 
-  return _compute_jhr_fn
+    return _compute_jhr_fn
 
 
 # LB - TODO somehow this generated_jit causes tests to fail
@@ -235,75 +241,75 @@ def nb_compute_jhr(
 
 
 def gauss_newton(
-  time_bin_indices,
-  time_bin_counts,
-  antenna1,
-  antenna2,
-  jones,
-  vis,
-  flag,
-  model,
-  weight,
-  tol=1e-4,
-  maxiter=100,
+    time_bin_indices,
+    time_bin_counts,
+    antenna1,
+    antenna2,
+    jones,
+    vis,
+    flag,
+    model,
+    weight,
+    tol=1e-4,
+    maxiter=100,
 ):
-  # whiten data
-  sqrtweights = np.sqrt(weight)
-  vis *= sqrtweights
-  model *= sqrtweights[:, :, None]
+    # whiten data
+    sqrtweights = np.sqrt(weight)
+    vis *= sqrtweights
+    model *= sqrtweights[:, :, None]
 
-  mode = check_type(jones, vis)
+    mode = check_type(jones, vis)
 
-  # can avoid recomputing JHJ in DIAG_DIAG mode
-  if mode == DIAG_DIAG:
-    jhj = compute_jhj(
-      time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
-    )
-  else:
-    raise NotImplementedError("Only DIAG_DIAG mode implemented")
+    # can avoid recomputing JHJ in DIAG_DIAG mode
+    if mode == DIAG_DIAG:
+        jhj = compute_jhj(
+            time_bin_indices, time_bin_counts, antenna1, antenna2, jones, model, flag
+        )
+    else:
+        raise NotImplementedError("Only DIAG_DIAG mode implemented")
 
-  eps = 1.0
-  k = 0
-  while eps > tol and k < maxiter:
-    # keep track of old phases
-    phases = np.angle(jones)
+    eps = 1.0
+    k = 0
+    while eps > tol and k < maxiter:
+        # keep track of old phases
+        phases = np.angle(jones)
 
-    # get residual TODO - we can avoid this in DIE case
-    residual = residual_vis(
-      time_bin_indices,
-      time_bin_counts,
-      antenna1,
-      antenna2,
-      jones,
-      vis,
-      flag,
-      model,
-    )
+        # get residual TODO - we can avoid this in DIE case
+        residual = residual_vis(
+            time_bin_indices,
+            time_bin_counts,
+            antenna1,
+            antenna2,
+            jones,
+            vis,
+            flag,
+            model,
+        )
 
-    jhr = compute_jhr(
-      time_bin_indices,
-      time_bin_counts,
-      antenna1,
-      antenna2,
-      jones,
-      residual,
-      model,
-      flag,
-    )
+        jhr = compute_jhr(
+            time_bin_indices,
+            time_bin_counts,
+            antenna1,
+            antenna2,
+            jones,
+            residual,
+            model,
+            flag,
+        )
 
-    # implement update
-    phases_new = phases + 0.5 * (jhr / jhj).real
-    jones = np.exp(1.0j * phases_new)
+        # implement update
+        phases_new = phases + 0.5 * (jhr / jhj).real
+        jones = np.exp(1.0j * phases_new)
 
-    # check convergence/iteration control
-    eps = np.abs(phases_new - phases).max()
-    k += 1
+        # check convergence/iteration control
+        eps = np.abs(phases_new - phases).max()
+        k += 1
 
-  return jones, jhj, jhr, k
+    return jones, jhj, jhr, k
 
 
 GAUSS_NEWTON_DOCS = DocstringTemplate(
-  """
+    """
 Performs phase-only maximum likelihood
 calibration using a Gauss-Newton optimisation
 algorithm. Currently only DIAG mode is supported.
@@ -362,14 +368,14 @@ k: int
 
 
 try:
-  gauss_newton.__doc__ = GAUSS_NEWTON_DOCS.substitute(
-    array_type=":class:`numpy.ndarray`"
-  )
+    gauss_newton.__doc__ = GAUSS_NEWTON_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
-  pass
+    pass
 
 JHJ_AND_JHR_DOCS = DocstringTemplate(
-  """
+    """
 Computes the diagonal of the Hessian and
 the residual locally projected in to gain space.
 
@@ -413,14 +419,14 @@ jhr : $(array_type)
 
 
 try:
-  compute_jhj_and_jhr.__doc__ = JHJ_AND_JHR_DOCS.substitute(
-    array_type=":class:`numpy.ndarray`"
-  )
+    compute_jhj_and_jhr.__doc__ = JHJ_AND_JHR_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
-  pass
+    pass
 
 COMPUTE_JHJ_DOCS = DocstringTemplate(
-  """
+    """
 Computes the diagonal of the Hessian
 required to perform phase-only maximum
 likelihood calibration. Currently assumes
@@ -458,12 +464,14 @@ jhj : $(array_type)
 )
 
 try:
-  compute_jhj.__doc__ = COMPUTE_JHJ_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    compute_jhj.__doc__ = COMPUTE_JHJ_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
-  pass
+    pass
 
 COMPUTE_JHR_DOCS = DocstringTemplate(
-  """
+    """
 Computes the residual projected in to gain space.
 
 Parameters
@@ -501,6 +509,8 @@ jhr : $(array_type)
 )
 
 try:
-  compute_jhr.__doc__ = COMPUTE_JHR_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    compute_jhr.__doc__ = COMPUTE_JHR_DOCS.substitute(
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
-  pass
+    pass

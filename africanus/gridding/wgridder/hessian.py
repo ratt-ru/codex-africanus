@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 try:
-  from ducc0.wgridder import dirty2ms, ms2dirty
+    from ducc0.wgridder import dirty2ms, ms2dirty
 except ImportError as e:
-  ducc_import_error = e
+    ducc_import_error = e
 else:
-  ducc_import_error = None
+    ducc_import_error = None
 
 import numpy as np
 from africanus.util.docs import DocstringTemplate
@@ -14,98 +14,6 @@ from africanus.util.requirements import requires_optional
 
 @requires_optional("ducc0.wgridder", ducc_import_error)
 def _hessian_internal(
-  uvw,
-  freq,
-  image,
-  freq_bin_idx,
-  freq_bin_counts,
-  cell,
-  weights,
-  flag,
-  celly,
-  epsilon,
-  nthreads,
-  do_wstacking,
-  double_accum,
-):
-  # adjust for chunking
-  # need a copy here if using multiple row chunks
-  freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
-  nband = freq_bin_idx.size
-  _, nx, ny = image.shape
-  # the extra dimension is required to allow for chunking over row
-  convolvedim = np.zeros((1, nband, nx, ny), dtype=image.dtype)
-  for i in range(nband):
-    ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
-    if weights is not None:
-      wgt = weights[:, ind]
-    else:
-      wgt = None
-    if flag is not None:
-      mask = flag[:, ind]
-    else:
-      mask = None
-    modelvis = dirty2ms(
-      uvw=uvw,
-      freq=freq[ind],
-      dirty=image[i],
-      wgt=None,
-      pixsize_x=cell,
-      pixsize_y=celly,
-      nu=0,
-      nv=0,
-      epsilon=epsilon,
-      nthreads=nthreads,
-      mask=mask,
-      do_wstacking=do_wstacking,
-    )
-    convolvedim[0, i] = ms2dirty(
-      uvw=uvw,
-      freq=freq[ind],
-      ms=modelvis,
-      wgt=wgt,
-      npix_x=nx,
-      npix_y=ny,
-      pixsize_x=cell,
-      pixsize_y=celly,
-      nu=0,
-      nv=0,
-      epsilon=epsilon,
-      nthreads=nthreads,
-      mask=mask,
-      do_wstacking=do_wstacking,
-      double_precision_accumulation=double_accum,
-    )
-  return convolvedim
-
-
-# This additional wrapper is required to allow the dask wrappers
-# to chunk over row
-@requires_optional("ducc0.wgridder", ducc_import_error)
-def hessian(
-  uvw,
-  freq,
-  image,
-  freq_bin_idx,
-  freq_bin_counts,
-  cell,
-  weights=None,
-  flag=None,
-  celly=None,
-  epsilon=1e-5,
-  nthreads=1,
-  do_wstacking=True,
-  double_accum=False,
-):
-  if celly is None:
-    celly = cell
-
-  if not nthreads:
-    import multiprocessing
-
-    nthreads = multiprocessing.cpu_count()
-
-  residim = _hessian_internal(
     uvw,
     freq,
     image,
@@ -119,12 +27,104 @@ def hessian(
     nthreads,
     do_wstacking,
     double_accum,
-  )
-  return residim[0]
+):
+    # adjust for chunking
+    # need a copy here if using multiple row chunks
+    freq_bin_idx2 = freq_bin_idx - freq_bin_idx.min()
+    nband = freq_bin_idx.size
+    _, nx, ny = image.shape
+    # the extra dimension is required to allow for chunking over row
+    convolvedim = np.zeros((1, nband, nx, ny), dtype=image.dtype)
+    for i in range(nband):
+        ind = slice(freq_bin_idx2[i], freq_bin_idx2[i] + freq_bin_counts[i])
+        if weights is not None:
+            wgt = weights[:, ind]
+        else:
+            wgt = None
+        if flag is not None:
+            mask = flag[:, ind]
+        else:
+            mask = None
+        modelvis = dirty2ms(
+            uvw=uvw,
+            freq=freq[ind],
+            dirty=image[i],
+            wgt=None,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            nthreads=nthreads,
+            mask=mask,
+            do_wstacking=do_wstacking,
+        )
+        convolvedim[0, i] = ms2dirty(
+            uvw=uvw,
+            freq=freq[ind],
+            ms=modelvis,
+            wgt=wgt,
+            npix_x=nx,
+            npix_y=ny,
+            pixsize_x=cell,
+            pixsize_y=celly,
+            nu=0,
+            nv=0,
+            epsilon=epsilon,
+            nthreads=nthreads,
+            mask=mask,
+            do_wstacking=do_wstacking,
+            double_precision_accumulation=double_accum,
+        )
+    return convolvedim
+
+
+# This additional wrapper is required to allow the dask wrappers
+# to chunk over row
+@requires_optional("ducc0.wgridder", ducc_import_error)
+def hessian(
+    uvw,
+    freq,
+    image,
+    freq_bin_idx,
+    freq_bin_counts,
+    cell,
+    weights=None,
+    flag=None,
+    celly=None,
+    epsilon=1e-5,
+    nthreads=1,
+    do_wstacking=True,
+    double_accum=False,
+):
+    if celly is None:
+        celly = cell
+
+    if not nthreads:
+        import multiprocessing
+
+        nthreads = multiprocessing.cpu_count()
+
+    residim = _hessian_internal(
+        uvw,
+        freq,
+        image,
+        freq_bin_idx,
+        freq_bin_counts,
+        cell,
+        weights,
+        flag,
+        celly,
+        epsilon,
+        nthreads,
+        do_wstacking,
+        double_accum,
+    )
+    return residim[0]
 
 
 HESSIAN_DOCS = DocstringTemplate(
-  r"""
+    r"""
     Compute action of Hessian on an image using ducc
 
     .. math::
@@ -194,6 +194,6 @@ HESSIAN_DOCS = DocstringTemplate(
 )
 
 try:
-  hessian.__doc__ = HESSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    hessian.__doc__ = HESSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
-  pass
+    pass

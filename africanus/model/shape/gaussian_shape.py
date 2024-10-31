@@ -10,63 +10,63 @@ from africanus.constants import c as lightspeed
 
 @njit(**JIT_OPTIONS)
 def gaussian(uvw, frequency, shape_params):
-  return gaussian_impl(uvw, frequency, shape_params)
+    return gaussian_impl(uvw, frequency, shape_params)
 
 
 def gaussian_impl(uvw, frequency, shape_params):
-  raise NotImplementedError
+    raise NotImplementedError
 
 
 @overload(gaussian_impl, jit_options=JIT_OPTIONS)
 def nb_gaussian(uvw, frequency, shape_params):
-  # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
-  fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
-  fwhminv = 1.0 / fwhm
-  gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
+    # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
+    fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
+    fwhminv = 1.0 / fwhm
+    gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
-  dtype = np.result_type(
-    *(np.dtype(a.dtype.name) for a in (uvw, frequency, shape_params))
-  )
+    dtype = np.result_type(
+        *(np.dtype(a.dtype.name) for a in (uvw, frequency, shape_params))
+    )
 
-  def impl(uvw, frequency, shape_params):
-    nsrc = shape_params.shape[0]
-    nrow = uvw.shape[0]
-    nchan = frequency.shape[0]
+    def impl(uvw, frequency, shape_params):
+        nsrc = shape_params.shape[0]
+        nrow = uvw.shape[0]
+        nchan = frequency.shape[0]
 
-    shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
-    scaled_freq = np.empty_like(frequency)
+        shape = np.empty((nsrc, nrow, nchan), dtype=dtype)
+        scaled_freq = np.empty_like(frequency)
 
-    # Scale each frequency
-    for f in range(frequency.shape[0]):
-      scaled_freq[f] = frequency[f] * gauss_scale
+        # Scale each frequency
+        for f in range(frequency.shape[0]):
+            scaled_freq[f] = frequency[f] * gauss_scale
 
-    for s in range(shape_params.shape[0]):
-      emaj, emin, angle = shape_params[s]
+        for s in range(shape_params.shape[0]):
+            emaj, emin, angle = shape_params[s]
 
-      # Convert to l-projection, m-projection, ratio
-      el = emaj * np.sin(angle)
-      em = emaj * np.cos(angle)
-      er = emin / (1.0 if emaj == 0.0 else emaj)
+            # Convert to l-projection, m-projection, ratio
+            el = emaj * np.sin(angle)
+            em = emaj * np.cos(angle)
+            er = emin / (1.0 if emaj == 0.0 else emaj)
 
-      for r in range(uvw.shape[0]):
-        u, v, w = uvw[r]
+            for r in range(uvw.shape[0]):
+                u, v, w = uvw[r]
 
-        u1 = (u * em - v * el) * er
-        v1 = u * el + v * em
+                u1 = (u * em - v * el) * er
+                v1 = u * el + v * em
 
-        for f in range(scaled_freq.shape[0]):
-          fu1 = u1 * scaled_freq[f]
-          fv1 = v1 * scaled_freq[f]
+                for f in range(scaled_freq.shape[0]):
+                    fu1 = u1 * scaled_freq[f]
+                    fv1 = v1 * scaled_freq[f]
 
-          shape[s, r, f] = np.exp(-(fu1 * fu1 + fv1 * fv1))
+                    shape[s, r, f] = np.exp(-(fu1 * fu1 + fv1 * fv1))
 
-    return shape
+        return shape
 
-  return impl
+    return impl
 
 
 GAUSSIAN_DOCS = DocstringTemplate(
-  r"""
+    r"""
 Computes the Gaussian Shape Function.
 
 .. math::
@@ -106,6 +106,6 @@ gauss_shape : $(array_type)
 )
 
 try:
-  gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
+    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except KeyError:
-  pass
+    pass
