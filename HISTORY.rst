@@ -4,6 +4,7 @@ History
 
 0.3.8 (2024-09-29)
 ------------------
+* Upgrade backend to poetry (:pr:`322`)
 * Optimise the beam cube implementation (:pr:`320`)
 * Support an `init_state` argument into both `Term.init_fields`
   and `Transformer.init_fields` (:pr:`319`)
