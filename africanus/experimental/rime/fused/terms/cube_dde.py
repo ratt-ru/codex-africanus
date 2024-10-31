@@ -171,8 +171,8 @@ class BeamCubeDDE(Term):
         zero_vis = zero_vis_factory(ncorr)
 
         def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
-            a = state.antenna1_index[r] if left else state.antenna2_index[r]
-            feed = state.feed1_index[r] if left else state.feed2_index[r]
+            a = state.antenna1_inverse[r] if left else state.antenna2_inverse[r]
+            feed = state.feed1_inverse[r] if left else state.feed2_inverse[r]
             sin_pa = state.beam_parangle[t, feed, a, 0]
             cos_pa = state.beam_parangle[t, feed, a, 1]
 
