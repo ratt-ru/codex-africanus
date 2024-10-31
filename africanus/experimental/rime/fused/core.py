@@ -94,7 +94,7 @@ def rime_impl_factory(terms, transformers, ncorr):
 
             for s in range(nsrc):
                 for r in range(nrow):
-                    t = state.time_index[r]
+                    t = state.time_inverse[r]
                     a1 = state.antenna1[r]
                     a2 = state.antenna2[r]
                     f1 = state.feed1[r]

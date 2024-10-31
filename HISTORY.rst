@@ -4,6 +4,9 @@ History
 
 0.3.8 (2024-09-29)
 ------------------
+* Support an `init_state` argument into both `Term.init_fields`
+  and `Transformer.init_fields` (:pr:`319`)
+* Use virtualenv to setup github CI test environments (:pr:`321`)
 * Update to NumPy 2.0.0 (:pr:`317`)
 * Update to python-casacore 3.6.1 (:pr:`317`)
 * Test on Python 3.12 (:pr:`318`)

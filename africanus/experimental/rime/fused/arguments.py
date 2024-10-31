@@ -45,13 +45,13 @@ class ArgumentDependencies:
     REQUIRED_ARGS = ("time", "antenna1", "antenna2", "feed1", "feed2")
     KEY_ARGS = (
         "utime",
-        "time_index",
+        "time_inverse",
         "uantenna",
-        "antenna1_index",
-        "antenna2_index",
+        "antenna1_inverse",
+        "antenna2_inverse",
         "ufeed",
-        "feed1_index",
-        "feed2_index",
+        "feed1_inverse",
+        "feed2_inverse",
     )
 
     def __init__(self, arg_names, terms, transformers):

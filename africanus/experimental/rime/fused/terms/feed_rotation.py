@@ -43,8 +43,8 @@ class FeedRotation(Term):
         linear = self.feed_type == "linear"
 
         def feed_rotation(state, s, r, t, f1, f2, a1, a2, c):
-            a = state.antenna1_index[r] if left else state.antenna2_index[r]
-            f = state.feed1_index[r] if left else state.feed2_index[r]
+            a = state.antenna1_inverse[r] if left else state.antenna2_inverse[r]
+            f = state.feed1_inverse[r] if left else state.feed2_inverse[r]
             sin_a = state.feed_parangle[t, f, a, 0, 0]
             cos_a = state.feed_parangle[t, f, a, 0, 1]
             sin_b = state.feed_parangle[t, f, a, 1, 0]
