@@ -69,12 +69,12 @@ jobs:
 
       - name: Install base codex-africanus
         run: |
-          source /tmp/base/activate
+          source /tmp/base/bin/activate
           pip install .[testing]
 
       - name: Run base test suite
         run: |
-          source /tmp/base/activate
+          source /tmp/base/bin/activate
           py.test -s -vvv africanus/
 
       - name: List the measures directory
@@ -101,12 +101,12 @@ jobs:
 
       - name: Install complete codex-africanus
         run: |
-          source /tmp/complete/activate
+          source /tmp/complete/bin/activate
           pip install .[complete] git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
 
       - name: Run complete test suite
         run: |
-          source /tmp/complete/activate
+          source /tmp/complete/bin/activate
           py.test -s -vvv africanus/
 
   deploy:
