@@ -2,7 +2,7 @@
 History
 =======
 
-0.3.8 (2024-09-29)
+0.4.0 (2024-11-01)
 ------------------
 * Upgrade readthedocs to PyData Sphinx Theme (:pr:`323`)
 * Upgrade backend to poetry (:pr:`322`, :pr:`324`)
