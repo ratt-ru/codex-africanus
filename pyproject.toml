@@ -101,7 +101,7 @@ src = "pyproject.toml"
 src = "africanus/__init__.py"
 
 [[tool.tbump.file]]
-src = "doc/source/conf.py"
+src = "docs/conf.py"
 
 # You can specify a list of commands to
 # run after the files have been patched
