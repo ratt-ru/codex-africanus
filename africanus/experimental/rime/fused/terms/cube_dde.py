@@ -297,6 +297,7 @@ class BeamCubeDDE(Term):
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
+                                # Assign interpolated values
                                 for co in range(ncorr):
                                     div = np.abs(corr_sum[co])
                                     value = corr_sum[co] * absc_sum[co]
