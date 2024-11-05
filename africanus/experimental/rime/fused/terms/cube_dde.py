@@ -235,35 +235,35 @@ class BeamCubeDDE(Term):
                                 md = vm - gm0
 
                                 # Zero the accumulators
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     absc_sum[co] = 0
                                     corr_sum[co] = 0
 
                                 # Lower cube
                                 weight = (1.0 - ld) * (1.0 - md) * nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl0, gm0, gc0, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = ld * (1.0 - md) * nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl1, gm0, gc0, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = (1.0 - ld) * md * nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl0, gm1, gc0, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = ld * md * nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl1, gm1, gc0, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
@@ -271,34 +271,34 @@ class BeamCubeDDE(Term):
                                 # Upper cube
                                 weight = (1.0 - ld) * (1.0 - md) * inv_nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl0, gm0, gc1, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = ld * (1.0 - md) * inv_nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl1, gm0, gc1, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = (1.0 - ld) * md * inv_nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl0, gm1, gc1, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 weight = ld * md * inv_nud
 
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     value = beam[gl1, gm1, gc1, co]
                                     absc_sum[co] += weight * np.abs(value)
                                     corr_sum[co] += weight * value
 
                                 # Assign interpolated values
-                                for co in range(ncorr):
+                                for co in numba.literal_unroll(range(ncorr)):
                                     div = np.abs(corr_sum[co])
                                     value = corr_sum[co] * absc_sum[co]
 
