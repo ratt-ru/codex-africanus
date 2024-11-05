@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codex-africanus"
-version = "0.4.0"
+version = "0.4.1"
 description = "Radio Astronomy Building Blocks"
 authors = ["Simon Perkins <simon.perkins@gmail.com>"]
 packages = [{include = "africanus"}]
@@ -74,7 +74,7 @@ select = [
 ]
 
 [tool.tbump.version]
-current = "0.4.0"
+current = "0.4.1"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
