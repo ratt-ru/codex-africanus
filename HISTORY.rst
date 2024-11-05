@@ -2,6 +2,10 @@
 History
 =======
 
+0.4.1 (2024-11-05)
+------------------
+* Remove tuple allocation in beam cube inner loops (:pr:`337`)
+
 0.4.0 (2024-11-01)
 ------------------
 * Upgrade readthedocs to PyData Sphinx Theme (:pr:`323`)
