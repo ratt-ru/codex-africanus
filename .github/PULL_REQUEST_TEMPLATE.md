@@ -4,15 +4,14 @@
   $ py.test -v -s africanus
   ```
 
-  If the pep8 tests fail, the quickest way to correct
-  this is to run `autopep8` and then `flake8` and
-  `pycodestyle` to fix the remaining issues.
+  If the pre-commit tests fail, install and
+  run the pre-commit hooks in your development
+  virtuale environment:
 
-  ```
-  $ pip install -U autopep8 flake8 pycodestyle
-  $ autopep8 -r -i africanus
-  $ flake8 africanus
-  $ pycodestyle africanus
+  ```bash
+  $ pip install pre-commit
+  $ pre-commit install
+  $ pre-commit run -a
   ```
 
 - [ ] Fully documented, including `HISTORY.rst` for all changes
@@ -20,7 +19,7 @@
 
   To build the docs locally:
 
-  ```
+  ```bash
   pip install -r requirements.readthedocs.txt
   cd docs
   READTHEDOCS=True make html

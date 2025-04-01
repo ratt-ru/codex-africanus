@@ -90,15 +90,15 @@ meqmaker = TensorMeqMaker.TensorMeqMaker()
 # these will show up in the menu automatically
 
 # OMS: time to retire this one
-#import Meow.LSM
-#lsm = Meow.LSM.MeowLSM(include_options=False);
+# import Meow.LSM
+# lsm = Meow.LSM.MeowLSM(include_options=False);
 
 models = [gridded_sky, azel_sky, transient_sky, fitsimage_sky]  # ,lsm ]
 
 try:
     from Siamese.OMS.tigger_lsm import TiggerSkyModel
     models.insert(0, TiggerSkyModel())
-except:
+except BaseException:
     print 'Failure to import TiggerSkyModel module'
     print 'Is the location of Tigger defined in your PYTHONPATH environment variable?'
     pass
@@ -176,7 +176,7 @@ TDLCompileOption("random_seed", "Random generator seed", ["time", 0], more=int,
 def _define_forest(ns):
     random.seed(random_seed if isinstance(random_seed, int) else None)
     if not mssel.msname:
-        raise RuntimeError, "MS not set up in compile-time options"
+        raise RuntimeError("MS not set up in compile-time options")
     if run_purr:
         print mssel.msname
         import os.path
@@ -210,7 +210,8 @@ def _define_forest(ns):
                              (ns.noise(p, q) << noisedef)
         output = ns.noisy_predict
 
-    # in add or subtract sim mode, make some spigots and add/subtract visibilities
+    # in add or subtract sim mode, make some spigots and add/subtract
+    # visibilities
     if sim_mode == ADD_MS:
         spigots = array.spigots(corr=mssel.get_corr_index())
         for p, q in array.ifrs():

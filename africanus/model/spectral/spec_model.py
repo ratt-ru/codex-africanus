@@ -4,7 +4,7 @@
 from numba import types
 import numpy as np
 
-from africanus.util.numba import generated_jit, njit
+from africanus.util.numba import overload, JIT_OPTIONS, njit
 from africanus.util.docs import DocstringTemplate
 
 
@@ -23,32 +23,31 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
     if isinstance(base, list):
         base = base + [base[-1]] * (npol - len(base))
     else:
-        base = [base]*npol
+        base = [base] * npol
 
     spi_exps = np.arange(1, spi.shape[1] + 1)
 
-    spectral_model = np.empty((stokes.shape[0], frequency.shape[0], npol),
-                              dtype=stokes.dtype)
+    spectral_model = np.empty(
+        (stokes.shape[0], frequency.shape[0], npol), dtype=stokes.dtype
+    )
 
     spectral_model[:, :, :] = stokes[:, None, :]
 
     for p, b in enumerate(base):
         if b in ("std", 0):
-            freq_ratio = (frequency[None, :] / ref_freq[:, None])
-            term = freq_ratio[:, None, :]**spi[:, :, p, None]
+            freq_ratio = frequency[None, :] / ref_freq[:, None]
+            term = freq_ratio[:, None, :] ** spi[:, :, p, None]
             spectral_model[:, :, p] *= term.prod(axis=1)
         elif b in ("log", 1):
             freq_ratio = np.log(frequency[None, :] / ref_freq[:, None])
-            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
+            term = freq_ratio[:, None, :] ** spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
-            spectral_model[:, :, p] = (np.exp(np.log(stokes[:, p, None]) +
-                                              term.sum(axis=1)))
+            spectral_model[:, :, p] = stokes[:, p, None] * np.exp(term.sum(axis=1))
         elif b in ("log10", 2):
             freq_ratio = np.log10(frequency[None, :] / ref_freq[:, None])
-            term = freq_ratio[:, None, :]**spi_exps[None, :, None]
+            term = freq_ratio[:, None, :] ** spi_exps[None, :, None]
             term = spi[:, :, p, None] * term
-            spectral_model[:, :, p] = (10**(np.log10(stokes[:, p, None]) +
-                                            term.sum(axis=1)))
+            spectral_model[:, :, p] = stokes[:, p, None] * 10 ** (term.sum(axis=1))
         else:
             raise ValueError("Invalid base %s" % base)
 
@@ -57,9 +56,11 @@ def numpy_spectral_model(stokes, spi, ref_freq, frequency, base):
 
 def pol_getter_factory(npoldims):
     if npoldims == 0:
+
         def impl(pol_shape):
             return 1
     else:
+
         def impl(pol_shape):
             npols = 1
 
@@ -73,9 +74,11 @@ def pol_getter_factory(npoldims):
 
 def promote_base_factory(is_base_list):
     if is_base_list:
+
         def impl(base, npol):
             return base + [base[-1]] * (npol - len(base))
     else:
+
         def impl(base, npol):
             return [base] * npol
 
@@ -84,19 +87,31 @@ def promote_base_factory(is_base_list):
 
 def add_pol_dim_factory(have_pol_dim):
     if have_pol_dim:
+
         def impl(array):
             return array
     else:
+
         def impl(array):
             return array.reshape(array.shape + (1,))
 
     return njit(nogil=True, cache=True)(impl)
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def spectral_model(stokes, spi, ref_freq, frequency, base=0):
-    arg_dtypes = tuple(np.dtype(a.dtype.name) for a
-                       in (stokes, spi, ref_freq, frequency))
+    return spectral_model_impl(stokes, spi, ref_freq, frequency, base=base)
+
+
+def spectral_model_impl(stokes, spi, ref_freq, frequency, base=0):
+    raise NotImplementedError
+
+
+@overload(spectral_model_impl, jit_options=JIT_OPTIONS)
+def nb_spectral_model(stokes, spi, ref_freq, frequency, base=0):
+    arg_dtypes = tuple(
+        np.dtype(a.dtype.name) for a in (stokes, spi, ref_freq, frequency)
+    )
     dtype = np.result_type(*arg_dtypes)
 
     if isinstance(base, types.containers.List):
@@ -108,6 +123,7 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     promote_base = promote_base_factory(is_base_list)
 
     if isinstance(base, types.scalars.Integer):
+
         def is_std(base):
             return base == 0
 
@@ -118,6 +134,7 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
             return base == 2
 
     elif isinstance(base, types.misc.UnicodeType):
+
         def is_std(base):
             return base == "std"
 
@@ -182,13 +199,13 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log(frequency[f] / rf)
-                        spec_model = np.log(estokes[s, p])
+                        spec_model = 0
 
                         for si in range(0, nspi):
-                            term = espi[s, si, p] * freq_ratio**(si + 1)
+                            term = espi[s, si, p] * freq_ratio ** (si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, p] = np.exp(spec_model)
+                        spectral_model[s, f, p] = estokes[s, p] * np.exp(spec_model)
 
             elif is_log10(b):
                 for s in range(nsrc):
@@ -196,13 +213,13 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
 
                     for f in range(nchan):
                         freq_ratio = np.log10(frequency[f] / rf)
-                        spec_model = np.log10(estokes[s, p])
+                        spec_model = 0
 
                         for si in range(0, nspi):
-                            term = espi[s, si, p] * freq_ratio**(si + 1)
+                            term = espi[s, si, p] * freq_ratio ** (si + 1)
                             spec_model += term
 
-                        spectral_model[s, f, p] = 10**spec_model
+                        spectral_model[s, f, p] = estokes[s, p] * 10**spec_model
 
             else:
                 raise ValueError("Invalid base")
@@ -213,7 +230,8 @@ def spectral_model(stokes, spi, ref_freq, frequency, base=0):
     return impl
 
 
-SPECTRAL_MODEL_DOC = DocstringTemplate(r"""
+SPECTRAL_MODEL_DOC = DocstringTemplate(
+    r"""
 Compute a spectral model, per polarisation.
 
 .. math::
@@ -257,10 +275,12 @@ Returns
 spectral_model : $(array_type)
     Spectral Model of shape :code:`(source, chan)` or
     :code:`(source, chan, pol)`.
-""")
+"""
+)
 
 try:
     spectral_model.__doc__ = SPECTRAL_MODEL_DOC.substitute(
-                                array_type=":class:`numpy.ndarray`")
+        array_type=":class:`numpy.ndarray`"
+    )
 except AttributeError:
     pass

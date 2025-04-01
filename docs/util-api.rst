@@ -84,3 +84,18 @@ CUDA
     grids
 
 .. autofunction:: grids
+
+Patterns
+~~~~~~~~
+
+.. currentmodule:: africanus.util.patterns
+
+.. autosummary::
+    Multiton
+    LazyProxy
+    LazyProxyMultiton
+
+.. autoclass:: Multiton
+    :exclude-members: __call__, mro
+.. autoclass:: LazyProxy
+.. autoclass:: LazyProxyMultiton

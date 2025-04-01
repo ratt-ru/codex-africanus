@@ -14,9 +14,9 @@ as a kronecker matrix of the individual matrices i.e.
 
 .. math::
     K = K_0 \\otimes K_1 \\otimes K_2 \\otimes \\cdots
-    
+
 Matrices which exhibit this structure can exploit
-properties of the kronecker product to avoid 
+properties of the kronecker product to avoid
 explicitly expanding the matrix :math:`K`. This
 module implements some common linear algebra
 operations which leverages this property for

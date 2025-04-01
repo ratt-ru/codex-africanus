@@ -4,8 +4,7 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 import pytest
 
-from africanus.averaging.splines import (fit_cubic_spline,
-                                         evaluate_spline)
+from africanus.averaging.splines import fit_cubic_spline, evaluate_spline
 
 
 # Generate y,z coords from given x coords

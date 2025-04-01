@@ -7,8 +7,7 @@ import pytest
 
 from africanus.averaging.support import unique_time, unique_baselines
 from africanus.averaging.time_and_channel_avg import time_and_channel
-from africanus.averaging.time_and_channel_mapping import (row_mapper,
-                                                          channel_mapper)
+from africanus.averaging.time_and_channel_mapping import row_mapper, channel_mapper
 
 nchan = 16
 ncorr = 4
@@ -21,28 +20,30 @@ def time():
 
 @pytest.fixture
 def ant1():
-    return np.asarray([0,   0,   1,   0,   0,   1,   2,   0,   0,   1],
-                      dtype=np.int32)
+    return np.asarray([0, 0, 1, 0, 0, 1, 2, 0, 0, 1], dtype=np.int32)
 
 
 @pytest.fixture
 def ant2():
-    return np.asarray([1,   2,   2,   0,   1,   2,   3,   0,   1,   2],
-                      dtype=np.int32)
+    return np.asarray([1, 2, 2, 0, 1, 2, 3, 0, 1, 2], dtype=np.int32)
 
 
 @pytest.fixture
 def uvw():
-    return np.asarray([[1.0,   1.0,  1.0],
-                       [2.0,   2.0,  2.0],
-                       [3.0,   3.0,  3.0],
-                       [4.0,   4.0,  4.0],
-                       [5.0,   5.0,  5.0],
-                       [6.0,   6.0,  6.0],
-                       [7.0,   7.0,  7.0],
-                       [8.0,   8.0,  8.0],
-                       [9.0,   9.0,  9.0],
-                       [10.0, 10.0, 10.0]])
+    return np.asarray(
+        [
+            [1.0, 1.0, 1.0],
+            [2.0, 2.0, 2.0],
+            [3.0, 3.0, 3.0],
+            [4.0, 4.0, 4.0],
+            [5.0, 5.0, 5.0],
+            [6.0, 6.0, 6.0],
+            [7.0, 7.0, 7.0],
+            [8.0, 8.0, 8.0],
+            [9.0, 9.0, 9.0],
+            [10.0, 10.0, 10.0],
+        ]
+    )
 
 
 @pytest.fixture
@@ -54,42 +55,44 @@ def interval():
 @pytest.fixture
 def weight(time):
     shape = (time.shape[0], ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def sigma(time):
     shape = (time.shape[0], ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def weight_spectrum(time):
     shape = (time.shape[0], nchan, ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def sigma_spectrum(time):
     shape = (time.shape[0], nchan, ncorr)
-    return np.arange(np.product(shape), dtype=np.float64).reshape(shape)
+    return np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
 
 
 @pytest.fixture
 def frequency():
-    return np.linspace(.856, 2*.856e9, nchan)
+    return np.linspace(0.856, 2 * 0.856e9, nchan)
 
 
 @pytest.fixture
 def chan_width():
-    return np.full(nchan, .856e9/nchan)
+    return np.full(nchan, 0.856e9 / nchan)
 
 
 @pytest.fixture
 def vis():
     def _vis(row, chan, fcorrs):
-        flat_vis = (np.arange(row*chan*fcorrs, dtype=np.float64) +
-                    np.arange(1, row*chan*fcorrs+1, dtype=np.float64)*1j)
+        flat_vis = (
+            np.arange(row * chan * fcorrs, dtype=np.float64)
+            + np.arange(1, row * chan * fcorrs + 1, dtype=np.float64) * 1j
+        )
 
         return flat_vis.reshape(row, chan, fcorrs)
 
@@ -104,8 +107,7 @@ def flag():
     return _flag
 
 
-def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
-                        row_meta):
+def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs, row_meta):
     """
     Generates the same lookup as row_mapper, but different.
 
@@ -118,8 +120,7 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
     """
     utime, _, time_inv, _ = unique_time(time)
     ubl, _, bl_inv, _ = unique_baselines(ant1, ant2)
-    bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1,
-                             dtype=np.int32)
+    bl_time_lookup = np.full((ubl.shape[0], utime.shape[0]), -1, dtype=np.int32)
 
     # Create the row index
     row_idx = np.arange(time.size)
@@ -191,9 +192,10 @@ def _gen_testing_lookup(time, interval, ant1, ant2, flag_row, time_bin_secs,
             nominal_bin_map.append(nominal_map)
 
         # Produce a (avg_time, bl, effective_rows, nominal_rows) tuple
-        time_bl_row_map.extend((time[nrows].mean(), (a1, a2), erows, nrows)
-                               for erows, nrows
-                               in zip(effective_bin_map, nominal_bin_map))
+        time_bl_row_map.extend(
+            (time[nrows].mean(), (a1, a2), erows, nrows)
+            for erows, nrows in zip(effective_bin_map, nominal_bin_map)
+        )
 
     # Sort lookup sorted on averaged times
     return sorted(time_bl_row_map, key=lambda tup: tup[0])
@@ -204,24 +206,41 @@ def _calc_sigma(sigma, weight, idx):
     weight = weight[idx]
 
     numerator = (sigma**2 * weight**2).sum(axis=0)
-    denominator = weight.sum(axis=0)**2
+    denominator = weight.sum(axis=0) ** 2
     denominator[denominator == 0.0] = 1.0
 
     return np.sqrt(numerator / denominator)
 
 
-@pytest.mark.parametrize("flagged_rows", [
-    [], [8, 9], [4], [0, 1],
-])
+@pytest.mark.parametrize(
+    "flagged_rows",
+    [
+        [],
+        [8, 9],
+        [4],
+        [0, 1],
+    ],
+)
 @pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
 @pytest.mark.parametrize("chan_bin_size", [1, 3, 5])
-def test_averager(time, ant1, ant2, flagged_rows,
-                  uvw, interval, weight, sigma,
-                  frequency, chan_width,
-                  vis, flag,
-                  weight_spectrum, sigma_spectrum,
-                  time_bin_secs, chan_bin_size):
-
+def test_averager(
+    time,
+    ant1,
+    ant2,
+    flagged_rows,
+    uvw,
+    interval,
+    weight,
+    sigma,
+    frequency,
+    chan_width,
+    vis,
+    flag,
+    weight_spectrum,
+    sigma_spectrum,
+    time_bin_secs,
+    chan_bin_size,
+):
     time_centroid = time
     exposure = interval
 
@@ -232,35 +251,45 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     # flagged_row and flag should agree
     flag_row[flagged_rows] = 1
-    flag[flagged_rows, :, :] = 1
+    flag[flag_row.astype(np.bool_), :, :] = 1
+    flag[~flag_row.astype(np.bool_), :, :] = 0
+    assert_array_equal(flag.all(axis=(1, 2)).astype(np.uint8), flag_row)
 
     row_meta = row_mapper(time, interval, ant1, ant2, flag_row, time_bin_secs)
     chan_map, chan_bins = channel_mapper(nchan, chan_bin_size)
 
-    time_bl_row_map = _gen_testing_lookup(time_centroid, exposure, ant1, ant2,
-                                          flag_row, time_bin_secs,
-                                          row_meta)
+    time_bl_row_map = _gen_testing_lookup(
+        time_centroid, exposure, ant1, ant2, flag_row, time_bin_secs, row_meta
+    )
 
     # Effective and Nominal rows associated with each output row
-    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, nrows, erows
-                             in time_bl_row_map])
+    eff_idx, nom_idx = zip(*[(nrows, erows) for _, _, nrows, erows in time_bl_row_map])
 
     eff_idx = [ei for ei in eff_idx if len(ei) > 0]
 
     # Check that the averaged times from the test and accelerated lookup match
-    assert_array_equal([t for t, _, _, _ in time_bl_row_map],
-                       row_meta.time)
+    assert_array_equal([t for t, _, _, _ in time_bl_row_map], row_meta.time)
 
-    avg = time_and_channel(time, interval, ant1, ant2,
-                           flag_row=flag_row,
-                           time_centroid=time, exposure=exposure, uvw=uvw,
-                           weight=weight, sigma=sigma,
-                           chan_freq=frequency, chan_width=chan_width,
-                           vis=vis, flag=flag,
-                           weight_spectrum=weight_spectrum,
-                           sigma_spectrum=sigma_spectrum,
-                           time_bin_secs=time_bin_secs,
-                           chan_bin_size=chan_bin_size)
+    avg = time_and_channel(
+        time,
+        interval,
+        ant1,
+        ant2,
+        flag_row=flag_row,
+        time_centroid=time,
+        exposure=exposure,
+        uvw=uvw,
+        weight=weight,
+        sigma=sigma,
+        chan_freq=frequency,
+        chan_width=chan_width,
+        visibilities=vis,
+        flag=flag,
+        weight_spectrum=weight_spectrum,
+        sigma_spectrum=sigma_spectrum,
+        time_bin_secs=time_bin_secs,
+        chan_bin_size=chan_bin_size,
+    )
 
     # Take mean time, but first ant1 and ant2
     expected_time_centroids = [time_centroid[i].mean(axis=0) for i in eff_idx]
@@ -289,66 +318,78 @@ def test_averager(time, ant1, ant2, flagged_rows,
 
     chan_avg_shape = (row_meta.interval.shape[0], chan_bins, flag.shape[2])
 
-    assert avg.vis.shape == chan_avg_shape
+    assert avg.visibilities.shape == chan_avg_shape
     assert avg.flag.shape == chan_avg_shape
     assert avg.weight_spectrum.shape == chan_avg_shape
     assert avg.sigma_spectrum.shape == chan_avg_shape
 
-    chan_ranges = np.nonzero(np.ediff1d(chan_map, to_begin=1, to_end=1))[0]
+    # https://github.com/numba/numba/issues/5929
+    one = np.array(1, dtype=chan_map.dtype)
+    chan_ranges = np.nonzero(np.ediff1d(chan_map, to_begin=one, to_end=one))[0]
 
     # Three python loops. Slow, but works...
     # Figure out some way to remove loops with numpy
     for orow, idx in enumerate(eff_idx):
         for ch, (cs, ce) in enumerate(zip(chan_ranges[:-1], chan_ranges[1:])):
             for corr in range(ncorr):
-                chunk_flags = flag[idx, cs:ce, corr] == 1
-                expected_flags = chunk_flags.all()
-                assert_array_equal(expected_flags,  avg.flag[orow, ch, corr])
+                in_flags = flag[idx, cs:ce, corr] != 0
+                out_flag = in_flags.all()
+                assert_array_equal(out_flag, avg.flag[orow, ch, corr])
+                flags_match = in_flags == out_flag
 
                 exp_vis = vis[idx, cs:ce, corr]
                 exp_wts = weight_spectrum[idx, cs:ce, corr]
                 exp_sigma = sigma_spectrum[idx, cs:ce, corr]
 
-                # If all rows+chans in this correlation are flagged
-                # then we use flagged values to calculate vis
-                if expected_flags:
-                    exp_vis = exp_vis[chunk_flags]
-                    exp_wts = exp_wts[chunk_flags]
-                    exp_sigma = exp_sigma[chunk_flags]
-                # Otherwise we used unflagged values to calculate vis
-                else:
-                    exp_vis = exp_vis[~chunk_flags]
-                    exp_wts = exp_wts[~chunk_flags]
-                    exp_sigma = exp_sigma[~chunk_flags]
+                # Use matching to flags to decide which
+                # samples contribute to the bin
+                chunk_exp_vis = exp_vis[flags_match]
+                chunk_exp_wts = exp_wts[flags_match]
+                chunk_exp_sigma = exp_sigma[flags_match]
 
-                exp_vis = (exp_vis*exp_wts).sum()
-                exp_sigma = (exp_sigma**2 * exp_wts**2).sum()
-                exp_wts = exp_wts.sum()
+                exp_vis = (chunk_exp_vis * chunk_exp_wts).sum()
+                exp_sigma = (chunk_exp_sigma**2 * chunk_exp_wts**2).sum()
+                exp_wts = chunk_exp_wts.sum()
 
                 if exp_wts != 0.0:
                     exp_vis = exp_vis / exp_wts
                     exp_sigma = np.sqrt(exp_sigma / (exp_wts**2))
 
-                assert_array_almost_equal(exp_vis, avg.vis[orow, ch, corr])
-                assert_array_almost_equal(exp_sigma,
-                                          avg.sigma_spectrum[orow, ch, corr])
-                assert_array_almost_equal(exp_wts,
-                                          avg.weight_spectrum[orow, ch, corr])
+                assert_array_almost_equal(exp_vis, avg.visibilities[orow, ch, corr])
+                assert_array_almost_equal(exp_wts, avg.weight_spectrum[orow, ch, corr])
+                assert_array_almost_equal(exp_sigma, avg.sigma_spectrum[orow, ch, corr])
 
 
-@pytest.mark.parametrize("flagged_rows", [
-    [], [8, 9], [4], [0, 1],
-])
+@pytest.mark.parametrize(
+    "flagged_rows",
+    [
+        [],
+        [8, 9],
+        [4],
+        [0, 1],
+    ],
+)
 @pytest.mark.parametrize("time_bin_secs", [1, 2, 3, 4])
 @pytest.mark.parametrize("chan_bin_size", [1, 3, 5])
-def test_dask_averager(time, ant1, ant2, flagged_rows,
-                       uvw, interval, weight, sigma,
-                       frequency, chan_width,
-                       vis, flag,
-                       weight_spectrum, sigma_spectrum,
-                       time_bin_secs, chan_bin_size):
-
-    da = pytest.importorskip('dask.array')
+def test_dask_averager(
+    time,
+    ant1,
+    ant2,
+    flagged_rows,
+    uvw,
+    interval,
+    weight,
+    sigma,
+    frequency,
+    chan_width,
+    vis,
+    flag,
+    weight_spectrum,
+    sigma_spectrum,
+    time_bin_secs,
+    chan_bin_size,
+):
+    da = pytest.importorskip("dask.array")
 
     from africanus.averaging.dask import time_and_channel as dask_avg
 
@@ -367,16 +408,26 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     flag = flag(rows, chans, corrs)
     flag_row = np.zeros(time_centroid.shape[0], dtype=np.uint8)
     flag_row[flagged_rows] = 1
-    flag[flagged_rows, :, :] = 1
+    flag[flag_row.astype(np.bool_), :, :] = 1
+    flag[~flag_row.astype(np.bool_), :, :] = 0
 
-    np_avg = time_and_channel(time_centroid, exposure, ant1, ant2,
-                              flag_row=flag_row,
-                              chan_freq=frequency, chan_width=chan_width,
-                              effective_bw=chan_width, resolution=chan_width,
-                              vis=vis, flag=flag,
-                              weight_spectrum=weight_spectrum,
-                              time_bin_secs=time_bin_secs,
-                              chan_bin_size=chan_bin_size)
+    np_avg = time_and_channel(
+        time_centroid,
+        exposure,
+        ant1,
+        ant2,
+        flag_row=flag_row,
+        chan_freq=frequency,
+        chan_width=chan_width,
+        effective_bw=chan_width,
+        resolution=chan_width,
+        visibilities=vis,
+        flag=flag,
+        sigma_spectrum=sigma_spectrum,
+        weight_spectrum=weight_spectrum,
+        time_bin_secs=time_bin_secs,
+        chan_bin_size=chan_bin_size,
+    )
 
     # Using chunks == shape, the dask version should match the numpy version
     da_time_centroid = da.from_array(time_centroid, chunks=rows)
@@ -388,38 +439,57 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_ant2 = da.from_array(ant2, chunks=rows)
     da_chan_freq = da.from_array(frequency, chunks=chans)
     da_chan_width = da.from_array(chan_width, chunks=chans)
-    da_weight_spectrum = da.from_array(weight_spectrum,
-                                       chunks=(rows, chans, corrs))
+    da_weight_spectrum = da.from_array(weight_spectrum, chunks=(rows, chans, corrs))
+    da_sigma_spectrum = da.from_array(sigma_spectrum, chunks=(rows, chans, corrs))
     da_vis = da.from_array(vis, chunks=(rows, chans, corrs))
     da_flag = da.from_array(flag, chunks=(rows, chans, corrs))
 
-    avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
-                   flag_row=da_flag_row,
-                   chan_freq=da_chan_freq, chan_width=da_chan_width,
-                   effective_bw=da_chan_width, resolution=da_chan_width,
-                   weight=da_weight, sigma=da_sigma,
-                   vis=da_vis, flag=da_flag,
-                   weight_spectrum=da_weight_spectrum,
-                   time_bin_secs=time_bin_secs,
-                   chan_bin_size=chan_bin_size)
+    avg = dask_avg(
+        da_time_centroid,
+        da_exposure,
+        da_ant1,
+        da_ant2,
+        flag_row=da_flag_row,
+        chan_freq=da_chan_freq,
+        chan_width=da_chan_width,
+        effective_bw=da_chan_width,
+        resolution=da_chan_width,
+        weight=da_weight,
+        sigma=da_sigma,
+        visibilities=da_vis,
+        flag=da_flag,
+        weight_spectrum=da_weight_spectrum,
+        sigma_spectrum=da_sigma_spectrum,
+        time_bin_secs=time_bin_secs,
+        chan_bin_size=chan_bin_size,
+    )
 
     # Compute all the averages in one go
-    (avg_time_centroid, avg_exposure, avg_flag_row,
-     avg_chan_freq, avg_chan_width,
-     avg_resolution, avg_vis, avg_flag) = da.compute(
-                              avg.time_centroid,
-                              avg.exposure,
-                              avg.flag_row,
-                              avg.chan_freq,
-                              avg.chan_width,
-                              avg.resolution,
-                              avg.vis, avg.flag)
+    (
+        avg_time_centroid,
+        avg_exposure,
+        avg_flag_row,
+        avg_chan_freq,
+        avg_chan_width,
+        avg_resolution,
+        avg_vis,
+        avg_flag,
+    ) = da.compute(
+        avg.time_centroid,
+        avg.exposure,
+        avg.flag_row,
+        avg.chan_freq,
+        avg.chan_width,
+        avg.resolution,
+        avg.visibilities,
+        avg.flag,
+    )
 
     # Should match
     assert_array_equal(np_avg.time_centroid, avg_time_centroid)
     assert_array_equal(np_avg.exposure, avg_exposure)
     assert_array_equal(np_avg.flag_row, avg_flag_row)
-    assert_array_equal(np_avg.vis, avg_vis)
+    assert_array_equal(np_avg.visibilities, avg_vis)
     assert_array_equal(np_avg.flag, avg_flag)
     assert_array_equal(np_avg.chan_freq, avg_chan_freq)
     assert_array_equal(np_avg.chan_width, avg_chan_width)
@@ -438,13 +508,38 @@ def test_dask_averager(time, ant1, ant2, flagged_rows,
     da_vis = da.from_array(vis, chunks=(rc, fc, cc))
     da_flag = da.from_array(flag, chunks=(rc, fc, cc))
 
-    avg = dask_avg(da_time_centroid, da_exposure, da_ant1, da_ant2,
-                   flag_row=da_flag_row,
-                   chan_freq=da_chan_freq, chan_width=da_chan_width,
-                   vis=da_vis, flag=da_flag,
-                   time_bin_secs=time_bin_secs,
-                   chan_bin_size=chan_bin_size)
+    avg = dask_avg(
+        da_time_centroid,
+        da_exposure,
+        da_ant1,
+        da_ant2,
+        flag_row=da_flag_row,
+        chan_freq=da_chan_freq,
+        chan_width=da_chan_width,
+        visibilities=da_vis,
+        flag=da_flag,
+        time_bin_secs=time_bin_secs,
+        chan_bin_size=chan_bin_size,
+    )
 
     # Compute all the fields
     fields = [getattr(avg, f) for f in avg._fields]
     avg = type(avg)(*da.compute(fields)[0])
+
+    # Get same result with a visibility tuple
+    avg2 = dask_avg(
+        da_time_centroid,
+        da_exposure,
+        da_ant1,
+        da_ant2,
+        flag_row=da_flag_row,
+        chan_freq=da_chan_freq,
+        chan_width=da_chan_width,
+        visibilities=(da_vis, da_vis),
+        flag=da_flag,
+        time_bin_secs=time_bin_secs,
+        chan_bin_size=chan_bin_size,
+    )
+
+    assert_array_equal(avg.visibilities, avg2.visibilities[0])
+    assert_array_equal(avg.visibilities, avg2.visibilities[1])

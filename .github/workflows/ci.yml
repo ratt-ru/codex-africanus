@@ -2,6 +2,9 @@ name: Ubuntu CI
 
 on: [push, pull_request]
 
+env:
+  POETRY_VERSION: 1.8.3
+
 jobs:
   check_skip:
     runs-on: ubuntu-latest
@@ -18,37 +21,65 @@ jobs:
     needs: check_skip
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    env:
+      NUMBA_CACHE_DIR: /tmp/numba-cache
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.6", "3.7", "3.8"]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5.5.0
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Upgrade pip and setuptools
-        run: python -m pip install -U pip setuptools pipenv
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
 
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Install base codex-africanus
-        run: pipenv install .[testing]
+      - name: Restore repo times
+        uses: chetan/git-restore-mtime-action@v2
 
-      - name: Run base test suite
-        run: pipenv run py.test --flake8 -s -vvv africanus/
+      - name: Create Key and Numba Cache Directory
+        id: numba-key
+        run: |
+          mkdir -p ${{ env.NUMBA_CACHE_DIR }}
+          echo "timestamp=$(/bin/date -u '+%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      - name: Cache Numba Kernels
+        uses: actions/cache@v4
+        with:
+          key: numba-cache-${{ matrix.python-version }}-${{ steps.numba-key.outputs.timestamp }}
+          restore-keys: numba-cache-${{ matrix.python-version }}-
+          path: ${{ env.NUMBA_CACHE_DIR }}
+
+      - name: Create a .env file
+        run: |
+          touch .env
+          echo "NUMBA_NRT_STATS=1" >> .env
+          echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
+
+      - name: Setup poetry virtual environment
+        run: poetry env use python${{ matrix.python-version }}
+
+      - name: Install base package
+        run: poetry install --extras testing
+
+      - name: Test base package
+        run: poetry run pytest -s -vvv africanus
 
       - name: List the measures directory
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
 
       - name: Load cached CASA Measures Data
         id: load-cached-casa-measures
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           key: casa-measures-${{ hashFiles('measures_dir.txt')}}
           path: |
@@ -62,20 +93,11 @@ jobs:
           curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
-      - name: Install complete codex-africanus
-        # Need pyyaml for dask 2.17.0
-        # See https://github.com/dask/dask/issues/6221
-        run: >
-          pipenv install
-          .[complete]
-          pyyaml
-          git+https://gitlab.mpcdf.mpg.de/ift/nifty_gridder.git#egg=nifty-gridder
+      - name: Install complete package
+        run: poetry install --extras "complete testing"
 
-      - name: Log installed package versions
-        run: pipenv graph
-
-      - name: Run complete test suite
-        run: pipenv run py.test --flake8 -s -vvv africanus/
+      - name: Test complete package
+        run: poetry run pytest -s -vvv africanus
 
   deploy:
     needs: [test]
@@ -87,21 +109,23 @@ jobs:
        github.event.ref == 'refs/heads/master')
 
     steps:
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v1
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5.5.0
         with:
-          python-version: 3.8
+          python-version: '3.10'
 
-      - name: Install latest setuptools, wheel, pip
-        run: python3 -m pip install -U pip setuptools wheel
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
 
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Build distributions
-        run: python setup.py sdist bdist_wheel
+        run: poetry build
 
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master

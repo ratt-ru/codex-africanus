@@ -48,7 +48,7 @@ scenario is determined from the shapes of the input
 gains and the input data.
 
 This module also provides a number of utilities which
-are useful for calibration. 
+are useful for calibration.
 
 Utils
 +++++
@@ -63,7 +63,7 @@ Numpy
     residual_vis
     correct_vis
     compute_and_corrupt_vis
-    
+
 
 .. autofunction:: corrupt_vis
 .. autofunction:: residual_vis
@@ -80,7 +80,7 @@ Dask
     residual_vis
     correct_vis
     compute_and_corrupt_vis
-    
+
 
 .. autofunction:: corrupt_vis
 .. autofunction:: residual_vis

@@ -7,9 +7,8 @@ import pytest
 
 
 def test_nvcc_compiler(tmpdir):
+    cp = pytest.importorskip("cupy")
     from africanus.util.nvcc import compile_using_nvcc
-
-    cp = pytest.importorskip('cupy')
 
     code = """
     #include <cupy/carray.cuh>
@@ -26,7 +25,7 @@ def test_nvcc_compiler(tmpdir):
     }
 
     """
-    mod = compile_using_nvcc(code, options=['-I ' + cub_dir()])
+    mod = compile_using_nvcc(code, options=["-I " + cub_dir()])
     kernel = mod.get_function("kernel")
     inputs = cp.arange(1024, dtype=cp.int32)
     outputs = cp.empty_like(inputs)

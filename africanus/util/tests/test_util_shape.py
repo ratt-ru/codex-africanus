@@ -11,14 +11,17 @@ def test_corr_shape():
     from africanus.util.shapes import corr_shape
 
     for i in range(10):
-        assert corr_shape(i, 'flat') == (i,)
+        assert corr_shape(i, "flat") == (i,)
 
-    assert corr_shape(1, 'matrix') == (1,)
-    assert corr_shape(2, 'matrix') == (2,)
-    assert corr_shape(4, 'matrix') == (2, 2,)
+    assert corr_shape(1, "matrix") == (1,)
+    assert corr_shape(2, "matrix") == (2,)
+    assert corr_shape(4, "matrix") == (
+        2,
+        2,
+    )
 
     with pytest.raises(ValueError, match=r"ncorr not in \(1, 2, 4\)"):
-        corr_shape(3, 'matrix')
+        corr_shape(3, "matrix")
 
 
 def test_aggregate_chunks():

@@ -2,39 +2,43 @@
 from numba import types
 import numpy as np
 
-from africanus.util.numba import generated_jit
+from africanus.util.numba import JIT_OPTIONS, njit, overload
 from africanus.util.docs import DocstringTemplate
 
 
-def ordinary_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
-    """ Numpy ordinary polynomial implementation """
+def ordinary_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
+    """Numpy ordinary polynomial implementation"""
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = (freq[None, :, None] / ref_freq[:, None, None]) - 1.0
-    term = term**coeffs_idx[None, None, :]
-    term = coeffs[:, None, :]*term
+    term = term ** coeffs_idx[None, None, :]
+    term = coeffs[:, None, :] * term
     return I[:, None] + term.sum(axis=2)
 
 
-def log_spectral_model(I, coeffs, log_poly, freq, ref_freq):  # noqa: E741
-    """ Numpy logarithmic polynomial implementation """
-    # No negative flux
-    I = np.where(log_poly == False, 1.0, I)  # noqa: E741, E712
+def log_spectral_model(I, coeffs, log_poly, ref_freq, freq):  # noqa: E741
+    """Numpy logarithmic polynomial implementation"""
     coeffs_idx = np.arange(1, coeffs.shape[1] + 1)
     # (source, chan, coeffs-comp)
     term = np.log(freq[None, :, None] / ref_freq[:, None, None])
-    term = term**coeffs_idx[None, None, :]
-    term = coeffs[:, None, :]*term
-    return np.exp(np.log(I)[:, None] + term.sum(axis=2))
+    term = term ** coeffs_idx[None, None, :]
+    term = coeffs[:, None, :] * term
+    return I[:, None] * np.exp(term.sum(axis=2))
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def _check_log_poly_shape(coeffs, log_poly):
+    raise NotImplementedError
+
+
+@overload(_check_log_poly_shape)
+def overload_check_log_poly_shape(coeffs, log_poly):
     if isinstance(log_poly, types.npytypes.Array):
+
         def impl(coeffs, log_poly):
             if coeffs.shape[0] != log_poly.shape[0]:
                 raise ValueError("coeffs.shape[0] != log_poly.shape[0]")
     elif isinstance(log_poly, types.scalars.Boolean):
+
         def impl(coeffs, log_poly):
             pass
     else:
@@ -43,12 +47,18 @@ def _check_log_poly_shape(coeffs, log_poly):
     return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
 def _log_polynomial(log_poly, s):
+    raise NotImplementedError
+
+
+@overload(_log_polynomial)
+def overload_log_polynomial(log_poly, s):
     if isinstance(log_poly, types.npytypes.Array):
+
         def impl(log_poly, s):
             return log_poly[s]
     elif isinstance(log_poly, types.scalars.Boolean):
+
         def impl(log_poly, s):
             return log_poly
     else:
@@ -57,16 +67,26 @@ def _log_polynomial(log_poly, s):
     return impl
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
-    arg_dtypes = tuple(np.dtype(a.dtype.name) for a
-                       in (I, coeffs, ref_freq, frequency))
+    return spectra_impl(I, coeffs, log_poly, ref_freq, frequency)
+
+
+def spectra_impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
+    raise NotImplementedError
+
+
+@overload(spectra_impl, jit_option=JIT_OPTIONS)
+def nb_spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
+    arg_dtypes = tuple(np.dtype(a.dtype.name) for a in (I, coeffs, ref_freq, frequency))
     dtype = np.result_type(*arg_dtypes)
 
     def impl(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
         if not (I.shape[0] == coeffs.shape[0] == ref_freq.shape[0]):
-            raise ValueError("first dimensions of I, coeffs "
-                             "and ref_freq don't match.")
+            print(I.shape, coeffs.shape, ref_freq.shape)
+            raise ValueError(
+                "first dimensions of I, coeffs " "and ref_freq don't match."
+            )
 
         _check_log_poly_shape(coeffs, log_poly)
 
@@ -83,25 +103,14 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
                 for f in range(frequency.shape[0]):
                     nu = frequency[f]
 
-                    flux = I[s]
-
-                    if flux <= 0.0:
-                        raise ValueError("Log polynomial flux must be > 0")
-
                     # Initialise with base polynomial value
-                    spectral_model[s, f] = np.log(flux)
+                    spectral_model[s, f] = 0
 
                     for c in range(ncoeffs):
-                        term = coeffs[s, c]
-
-                        if term <= 0.0:
-                            raise ValueError("log polynomial coefficient "
-                                             "must be > 0")
-
-                        term *= np.log(nu/rf)**(c + 1)
+                        term = coeffs[s, c] * np.log(nu / rf) ** (c + 1)
                         spectral_model[s, f] += term
 
-                    spectral_model[s, f] = np.exp(spectral_model[s, f])
+                    spectral_model[s, f] = I[s] * np.exp(spectral_model[s, f])
             else:
                 for f in range(frequency.shape[0]):
                     nu = frequency[f]
@@ -111,7 +120,7 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
 
                     for c in range(ncoeffs):
                         term = coeffs[s, c]
-                        term *= ((nu/rf) - 1.0)**(c + 1)
+                        term *= ((nu / rf) - 1.0) ** (c + 1)
                         spectral_model[s, f] += term
 
         return spectral_model
@@ -119,7 +128,8 @@ def spectra(I, coeffs, log_poly, ref_freq, frequency):  # noqa: E741
     return impl
 
 
-SPECTRA_DOCS = DocstringTemplate(r"""
+SPECTRA_DOCS = DocstringTemplate(
+    r"""
 Produces a spectral model from a polynomial expansion of
 a wsclean file model. Depending on how `log_poly` is set
 ordinary or logarithmic polynomials are used to produce
@@ -167,10 +177,10 @@ Returns
 -------
 spectral_model : $(array_type)
     Spectral Model of shape :code:`(source, chan)`
-""")
+"""
+)
 
 try:
-    spectra.__doc__ = SPECTRA_DOCS.substitute(
-                            array_type=":class:`numpy.ndarray`")
+    spectra.__doc__ = SPECTRA_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except AttributeError:
     pass

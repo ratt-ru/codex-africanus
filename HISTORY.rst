@@ -6,6 +6,122 @@ X.Y.Z (YYYY-MM-DD)
 ------------------
 * Improve Gaussian Shape Documenation (:pr:`209`)
 
+0.4.1 (2024-11-05)
+------------------
+* Remove tuple allocation in beam cube inner loops (:pr:`337`)
+
+0.4.0 (2024-11-01)
+------------------
+* Upgrade readthedocs to PyData Sphinx Theme (:pr:`323`)
+* Upgrade backend to poetry (:pr:`322`, :pr:`324`)
+* Optimise the beam cube implementation (:pr:`320`)
+* Support an `init_state` argument into both `Term.init_fields`
+  and `Transformer.init_fields` (:pr:`319`)
+* Use virtualenv to setup github CI test environments (:pr:`321`)
+* Update to NumPy 2.0.0 (:pr:`317`)
+* Update to python-casacore 3.6.1 (:pr:`317`)
+* Test on Python 3.12 (:pr:`318`)
+* Deprecate Python 3.9 (:pr:`318`)
+* Fix nvcc compilation (:pr:`316`)
+* Workaround numba #5929 (:pr:`312`)
+* Restrict NumPy to less than 2.0.0 (:pr:`313`)
+
+0.3.7 (2024-05-23)
+------------------
+* Fix bda overload to return an implementation (:pr:`307`)
+* Upgrade obsolete readthedocs configuration (:pr:`304`)
+
+0.3.6 (2024-04-15)
+------------------
+* Fix jax configuration (:pr:`301`)
+* Configure dependabot for github actions (:pr:`296`)
+* Cache numba kernels between CI runs (:pr:`294`)
+
+0.3.5 (2024-01-30)
+------------------
+* Update setup.py metadata (:pr:`293`)
+* Address warnings (:pr:`292`)
+* Update github action versions (:pr:`291`)
+* Deprecate python 3.8 support (:pr:`290`)
+* Use pre-commit hooks for auto-linting (:pr:`290`)
+* Deprecate use of @generated_jit. Remove upper bound on numba. (:pr:`289`)
+* Remove unnecessary new_axes in calibration utils after upstream fix in dask (:pr:`288`)
+* Check that ncorr is never larger than 2 in calibration utils (:pr:`287`)
+* Optionally check NRT allocations (:pr:`286`)
+* Use `packaging.version.Version` instead of deprecated `distutils.version.LooseVersion` (:pr:`285`)
+* Pin numba to less than 0.59 in anticipation of @generated_jit deprecation (:pr:`284`)
+* Update trove hash (:pr:`279`)
+* Adjust SPI code to handle negative/zero Stokes components (:pr:`276`, :pr:`277`)
+
+
+0.3.4 (2023-10-03)
+------------------
+* Separate stokes and correlation dimensions in dask fused RIME (:pr:`273`)
+* Disallow feed rotation terms for RIME's containing less than four correlations (:pr:`273`)
+* Update trove hash (:pr:`274`)
+
+0.3.3 (2022-08-03)
+------------------
+* Deprecate Python 3.7 and test on Python 3.10 (:pr:`271`)
+* Pin flake8 to >= 4.0.0 and < 5.0.0 (:pr:`272`)
+* Document Fused RIME (:pr:`270`)
+* Add Multiton, LazyProxy and LazyProxyMultiton patterns (:pr:`269`)
+
+
+0.3.2 (2022-01-13)
+------------------
+* Support numba >= 0.54 (:pr:`264`)
+* Fused RIME (:pr:`239`)
+* Restrict numba version to <= 0.54.0 (:pr:`259`)
+* BDA fix typos in numba wrapper (:pr:`261`)
+* BDA Time-smearing fixes (:pr:`253`)
+
+0.3.1 (2021-09-09)
+------------------
+* Handle empty spectral indices in WSClean Model (:pr:`258`)
+* Support missing data during BDA (:pr:`252`)
+
+0.3.0 (2021-09-09)
+------------------
+* Deprecate Python 3.6 support, add Python 3.9 support (:pr:`248`)
+* Using `contextlib.suppress` instead of deprecated `dask.util.ignoring` in EstimatingProgressBar (:pr:`256`)
+* Disallow numba 0.54.0 (:pr:`254`)
+* Upgrade to CuPy 9.0 and fix template encoding (:pr:`251`)
+* Parse and zero spectral models containing 'nan' and 'inf' in wsclean model files (:pr:`250`)
+* Clarify _wrapper names (:pr:`247`)
+* Baseline-Dependent Time-and-Channel Averaging (:pr:`173`, :pr:`243`)
+
+0.2.10 (2021-02-09)
+-------------------
+* Don't let dof go to zero during spi fitting (:pr:`240`)
+* Add support for Shapelets and Zernike Polynomials (:pr:`231`)
+* Add beam model during SPI fitting (:pr:`238`)
+* Add double accumulation option and Hessian function to wgridder (:pr:`237`)
+* Upgrade ducc0 to version 0.8.0 (:pr:`236`)
+* Add mindet to avoid div0 errors in spi fitter and fix alpha and I0 variance
+  estimates (:pr:`234`)
+
+0.2.9 (2020-12-15)
+------------------
+* Upgrade ducc0 to version 0.7.0 (:pr:`233`)
+* Fix manually specifying wgridder precision (:pr:`230`)
+
+0.2.8 (2020-10-08)
+------------------
+* Fix NoneType issue in wgridder when weights are None (:pr:`228`)
+* Bounding hull geometric and image manipulation routines (:pr:`192`, :pr:`154`)
+* Fix row chunk chunking in Perley Polyhedron Degridder Dask Interface
+
+0.2.7 (2020-09-23)
+------------------
+* Deprecate old gridder and filters (:pr:`224`)
+* Upgrade to ducc0 0.6.0 (:pr:`223`)
+* Add Perley Polyhedron Faceting Gridder/Degridder (:pr:`202`, :pr:`215`, :pr:`222`)
+
+0.2.6 (2020-08-07)
+------------------
+* Add wrapper for ducc0.wgridder (:pr:`204`)
+* Correct Irregular Grid nesting in BeamAxes (:pr:`217`)
 
 0.2.5 (2020-07-01)
 ------------------

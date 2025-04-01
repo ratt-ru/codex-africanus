@@ -5,14 +5,13 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pytest
 
-from africanus.model.spectral.spec_model import (spectral_model,
-                                                 numpy_spectral_model)
+from africanus.model.spectral.spec_model import spectral_model, numpy_spectral_model
 
 
 @pytest.fixture
 def flux():
     def impl(nsrc):
-        return np.random.random(nsrc)
+        return np.random.normal(size=nsrc)
 
     return impl
 
@@ -20,7 +19,7 @@ def flux():
 @pytest.fixture
 def frequency():
     def impl(nchan):
-        return np.linspace(.856e9, 2*.856e9, nchan)
+        return np.linspace(0.856e9, 2 * 0.856e9, nchan)
 
     return impl
 
@@ -28,7 +27,7 @@ def frequency():
 @pytest.fixture
 def ref_freq():
     def impl(shape):
-        return np.full(shape, 3*.856e9/2)
+        return np.full(shape, 3 * 0.856e9 / 2)
 
     return impl
 
@@ -41,8 +40,9 @@ def spi():
     return impl
 
 
-@pytest.mark.parametrize("base", [0, 1, 2, "std", "log", "log10",
-                                  ["log", "std", "std", "std"]])
+@pytest.mark.parametrize(
+    "base", [0, 1, 2, "std", "log", "log10", ["log", "std", "std", "std"]]
+)
 @pytest.mark.parametrize("npol", [0, 1, 2, 4])
 def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
     nsrc = 10
@@ -75,13 +75,13 @@ def test_spectral_model_multiple_spi(flux, ref_freq, frequency, base, npol):
     assert model.flags.c_contiguous is True
 
 
-@pytest.mark.parametrize("base", [0, 1, 2, "std", "log", "log10",
-                                  ["log", "std", "std", "std"]])
+@pytest.mark.parametrize(
+    "base", [0, 1, 2, "std", "log", "log10", ["log", "std", "std", "std"]]
+)
 @pytest.mark.parametrize("npol", [0, 1, 2, 4])
 def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
     da = pytest.importorskip("dask.array")
-    from africanus.model.spectral.spec_model import (
-                        spectral_model as np_spectral_model)
+    from africanus.model.spectral.spec_model import spectral_model as np_spectral_model
     from africanus.model.spectral.dask import spectral_model
 
     sc = (5, 5)
@@ -118,8 +118,7 @@ def test_dask_spectral_model(flux, ref_freq, frequency, base, npol):
     da_ref_freq = da.from_array(ref_freq, chunks=sc)
     da_freq = da.from_array(freq, chunks=fc)
 
-    da_model = spectral_model(da_stokes, da_spi,
-                              da_ref_freq, da_freq, base=base)
+    da_model = spectral_model(da_stokes, da_spi, da_ref_freq, da_freq, base=base)
 
     np_model = np_spectral_model(stokes, spi, ref_freq, freq, base=base)
     assert_array_almost_equal(da_model, np_model)

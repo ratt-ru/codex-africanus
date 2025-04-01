@@ -4,19 +4,29 @@
 import numpy as np
 
 from africanus.util.docs import DocstringTemplate
-from africanus.util.numba import generated_jit
+from africanus.util.numba import njit, overload, JIT_OPTIONS
 from africanus.constants import c as lightspeed
 
 
-@generated_jit(nopython=True, nogil=True, cache=True)
+@njit(**JIT_OPTIONS)
 def gaussian(uvw, frequency, shape_params):
+    return gaussian_impl(uvw, frequency, shape_params)
+
+
+def gaussian_impl(uvw, frequency, shape_params):
+    raise NotImplementedError
+
+
+@overload(gaussian_impl, jit_options=JIT_OPTIONS)
+def nb_gaussian(uvw, frequency, shape_params):
     # https://en.wikipedia.org/wiki/Full_width_at_half_maximum
     fwhm = 2.0 * np.sqrt(2.0 * np.log(2.0))
     fwhminv = 1.0 / fwhm
     gauss_scale = fwhminv * np.sqrt(2.0) * np.pi / lightspeed
 
-    dtype = np.result_type(*(np.dtype(a.dtype.name) for
-                             a in (uvw, frequency, shape_params)))
+    dtype = np.result_type(
+        *(np.dtype(a.dtype.name) for a in (uvw, frequency, shape_params))
+    )
 
     def impl(uvw, frequency, shape_params):
         nsrc = shape_params.shape[0]
@@ -41,21 +51,22 @@ def gaussian(uvw, frequency, shape_params):
             for r in range(uvw.shape[0]):
                 u, v, w = uvw[r]
 
-                u1 = (u*em - v*el)*er
-                v1 = u*el + v*em
+                u1 = (u * em - v * el) * er
+                v1 = u * el + v * em
 
                 for f in range(scaled_freq.shape[0]):
-                    fu1 = u1*scaled_freq[f]
-                    fv1 = v1*scaled_freq[f]
+                    fu1 = u1 * scaled_freq[f]
+                    fv1 = v1 * scaled_freq[f]
 
-                    shape[s, r, f] = np.exp(-(fu1*fu1 + fv1*fv1))
+                    shape[s, r, f] = np.exp(-(fu1 * fu1 + fv1 * fv1))
 
         return shape
 
     return impl
 
 
-GAUSSIAN_DOCS = DocstringTemplate(r"""
+GAUSSIAN_DOCS = DocstringTemplate(
+    r"""
 Computes the Gaussian Shape Function.
 
 .. math::
@@ -91,10 +102,10 @@ Returns
 -------
 gauss_shape : $(array_type)
     Shape parameters of shape :code:`(source, row, chan)`
-""")
+"""
+)
 
 try:
-    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(
-                            array_type=":class:`numpy.ndarray`")
+    gaussian.__doc__ = GAUSSIAN_DOCS.substitute(array_type=":class:`numpy.ndarray`")
 except KeyError:
     pass
