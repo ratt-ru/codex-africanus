@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Improve Gaussian Shape Documenation (:pr:`209`)
+
 0.4.1 (2024-11-05)
 ------------------
 * Remove tuple allocation in beam cube inner loops (:pr:`337`)
