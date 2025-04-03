@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Detect auto-correlations via np.allclose, rather than equality (:pr:`309`)
 * Improve Gaussian Shape Documenation (:pr:`209`)
 
 0.4.1 (2024-11-05)
