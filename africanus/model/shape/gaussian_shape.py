@@ -71,18 +71,18 @@ Computes the Gaussian Shape Function.
 
 .. math::
 
-    & \lambda^\prime = 2 \lambda \pi \\
+    & \nu^\prime = \frac{\nu \pi}{2 c \sqrt{\log{2}}} \\
     & r = \frac{e_{min}}{e_{maj}} \\
     & u_{1} = (u \, e_{maj} \, cos(\alpha) - v \, e_{maj} \, sin(\alpha))
-      r \lambda^\prime \\
+      r \nu^\prime \\
     & v_{1} = (u \, e_{maj} \, sin(\alpha) - v \, e_{maj} \, cos(\alpha))
-      \lambda^\prime \\
-    & \textrm{shape} = e^{(-u_{1}^2 - v_{1}^2)}
+      \nu^\prime \\
+    & \textrm{shape} = e^{(-(u_{1}^2) - (v_{1}^2))}
 
 where:
 
 - :math:`u` and :math:`v` are the UV coordinates and
-  :math:`\lambda` the frequency.
+  :math:`\nu` the frequency.
 - :math:`e_{maj}` and :math:`e_{min}` are the major and minor axes
   and :math:`\alpha` the position angle.
 

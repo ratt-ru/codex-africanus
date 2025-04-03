@@ -323,7 +323,9 @@ def test_averager(
     assert avg.weight_spectrum.shape == chan_avg_shape
     assert avg.sigma_spectrum.shape == chan_avg_shape
 
-    chan_ranges = np.nonzero(np.ediff1d(chan_map, to_begin=1, to_end=1))[0]
+    # https://github.com/numba/numba/issues/5929
+    one = np.array(1, dtype=chan_map.dtype)
+    chan_ranges = np.nonzero(np.ediff1d(chan_map, to_begin=one, to_end=one))[0]
 
     # Three python loops. Slow, but works...
     # Figure out some way to remove loops with numpy

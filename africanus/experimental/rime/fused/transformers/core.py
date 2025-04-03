@@ -26,13 +26,14 @@ class TransformerMetaClass(type):
     signatures
     """
 
-    REQUIRED = ("dask_schema", "init_fields")
+    REQUIRED_METHODS = ("dask_schema", "init_fields")
+    INIT_FIELDS_REQUIRED_ARGS = ("self", "typingctx", "init_state")
 
     @classmethod
     def _expand_namespace(cls, name, namespace):
         methods = []
 
-        for method_name in cls.REQUIRED:
+        for method_name in cls.REQUIRED_METHODS:
             try:
                 method = namespace[method_name]
             except KeyError:
@@ -40,26 +41,24 @@ class TransformerMetaClass(type):
             else:
                 methods.append(method)
 
-        methods = dict(zip(cls.REQUIRED, methods))
+        methods = dict(zip(cls.REQUIRED_METHODS, methods))
         init_fields_sig = inspect.signature(methods["init_fields"])
         field_params = list(init_fields_sig.parameters.values())
 
-        if len(init_fields_sig.parameters) < 2:
-            raise InvalidSignature(
-                f"{name}.init_fields{init_fields_sig} "
-                f"should be "
-                f"{name}.init_fields(self, typingctx, ...)"
-            )
+        sig_error = InvalidSignature(
+            f"{name}.init_fields{init_fields_sig} "
+            f"should be "
+            f"{name}.init_fields({', '.join(cls.INIT_FIELDS_REQUIRED_ARGS)}, ...)"
+        )
+
+        if len(init_fields_sig.parameters) < 3:
+            raise sig_error
 
         it = iter(init_fields_sig.parameters.items())
-        first, second = next(it), next(it)
+        expected_args = tuple((next(it)[0], next(it)[0], next(it)[0]))
 
-        if first[0] != "self" or second[0] != "typingctx":
-            raise InvalidSignature(
-                f"{name}.init_fields{init_fields_sig} "
-                f"should be "
-                f"{name}.init_fields(self, typingctx, ...)"
-            )
+        if expected_args != cls.INIT_FIELDS_REQUIRED_ARGS:
+            raise sig_error
 
         for n, p in it:
             if p.kind == p.VAR_POSITIONAL:
@@ -77,7 +76,7 @@ class TransformerMetaClass(type):
                 )
 
         dask_schema_sig = inspect.signature(methods["dask_schema"])
-        expected_dask_params = field_params[0:1] + field_params[2:]
+        expected_dask_params = field_params[0:1] + field_params[3:]
         expected_dask_sig = init_fields_sig.replace(parameters=expected_dask_params)
 
         if dask_schema_sig != expected_dask_sig:
@@ -106,7 +105,7 @@ class TransformerMetaClass(type):
             n
             for n, p in init_fields_sig.parameters.items()
             if p.kind in {p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD}
-            and n not in {"self", "typingctx"}
+            and n not in set(cls.INIT_FIELDS_REQUIRED_ARGS)
             and p.default is p.empty
         )
 
@@ -114,7 +113,7 @@ class TransformerMetaClass(type):
             (n, p.default)
             for n, p in init_fields_sig.parameters.items()
             if p.kind in {p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY}
-            and n not in {"self", "typingctx"}
+            and n not in set(cls.INIT_FIELDS_REQUIRED_ARGS)
             and p.default is not p.empty
         )
 

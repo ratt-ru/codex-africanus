@@ -2,6 +2,30 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Improve Gaussian Shape Documenation (:pr:`209`)
+
+0.4.1 (2024-11-05)
+------------------
+* Remove tuple allocation in beam cube inner loops (:pr:`337`)
+
+0.4.0 (2024-11-01)
+------------------
+* Upgrade readthedocs to PyData Sphinx Theme (:pr:`323`)
+* Upgrade backend to poetry (:pr:`322`, :pr:`324`)
+* Optimise the beam cube implementation (:pr:`320`)
+* Support an `init_state` argument into both `Term.init_fields`
+  and `Transformer.init_fields` (:pr:`319`)
+* Use virtualenv to setup github CI test environments (:pr:`321`)
+* Update to NumPy 2.0.0 (:pr:`317`)
+* Update to python-casacore 3.6.1 (:pr:`317`)
+* Test on Python 3.12 (:pr:`318`)
+* Deprecate Python 3.9 (:pr:`318`)
+* Fix nvcc compilation (:pr:`316`)
+* Workaround numba #5929 (:pr:`312`)
+* Restrict NumPy to less than 2.0.0 (:pr:`313`)
+
 0.3.7 (2024-05-23)
 ------------------
 * Fix bda overload to return an implementation (:pr:`307`)
