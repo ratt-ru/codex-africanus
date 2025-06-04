@@ -1,7 +1,0 @@
-FROM kernsuite/base:dev
-RUN docker-apt-install python3-pip
-RUN pip3 install --upgrade pip setuptools
-ADD . /code
-WORKDIR /code
-RUN pip3 install .
-RUN python3 setup.py test

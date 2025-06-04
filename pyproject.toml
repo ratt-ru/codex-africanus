@@ -1,0 +1,118 @@
+[tool.poetry]
+name = "codex-africanus"
+version = "0.4.1"
+description = "Radio Astronomy Building Blocks"
+authors = ["Simon Perkins <simon.perkins@gmail.com>"]
+packages = [{include = "africanus"}]
+readme = "README.rst"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pytest = {version = "^8.0.0", optional = true}
+flaky = {version = "^3.8.1", optional = true}
+dask = {extras = ["array"], optional = true, version = "^2024.0"}
+jax = {version = "^0.4.35", optional = true}
+jaxlib = {version = "^0.4.35", optional = true}
+scipy = {version = "^1.14.1", optional = true}
+python-casacore = {version = "^3.6.1", optional = true}
+ducc0 = {version = "^0.35.0", optional = true}
+astropy = {version = "^6.1.4", optional = true}
+cupy = {version = "^13.3.0", optional = true}
+jinja2 = {version = "^3.1.4", optional = true}
+appdirs = "^1.4.4"
+decorator = "^5.1.1"
+numpy = "^2.0"
+numba = "^0.60"
+
+[tool.poetry.extras]
+astropy = ["astropy"]
+cuda = ["cupy", "jinja2"]
+dask = ["dask"]
+ducc0 = ["ducc0"]
+jax = ["jax", "jaxlib"]
+scipy = ["scipy"]
+testing = ["flaky", "pytest"]
+python-casacore = ["python-casacore"]
+complete = ["astropy", "dask", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
+complete-cuda = ["astropy", "cuda", "cupy", "ducc0", "jax", "jaxlib", "python-casacore", "scipy"]
+
+[tool.poetry.group.dev.dependencies]
+tbump = "^6.11.0"
+ruff = "^0.7.1"
+pre-commit = "^4.0.1"
+
+[tool.poetry.group.doc.dependencies]
+sphinx = "^8.0.2"
+pygments = "^2.18.0"
+sphinx-copybutton = "^0.5.2"
+pydata-sphinx-theme = "^0.15.4"
+numpydoc = "^1.8.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+exclude = ["turbo-sim.py"]
+line-length = 88
+indent-width = 4
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+select = [
+    # flake8-builtins
+    "A",
+    # flake8-bugbear
+    "B",
+    # isort
+    "I001",
+    "I002",
+    # tidy imports
+    "TID"
+]
+
+[tool.tbump.version]
+current = "0.4.1"
+
+# Example of a semver regexp.
+# Make sure this matches current_version before
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  '''
+
+[tool.tbump.git]
+message_template = "Bump to {new_version}"
+tag_template = "{new_version}"
+
+# For each file to patch, add a [[tool.tbump.file]] config
+# section containing the path of the file, relative to the
+# tbump.toml location.
+[[tool.tbump.file]]
+src = "pyproject.toml"
+
+[[tool.tbump.file]]
+src = "africanus/__init__.py"
+
+[[tool.tbump.file]]
+src = "docs/conf.py"
+
+# You can specify a list of commands to
+# run after the files have been patched
+# and before the git commit is made
+
+#  [[tool.tbump.before_commit]]
+#  name = "check changelog"
+#  cmd = "grep -q {new_version} Changelog.rst"
+
+# Or run some commands after the git tag and the branch
+# have been pushed:
+#  [[tool.tbump.after_push]]
+#  name = "publish"
+#  cmd = "./publish.sh"

@@ -1,0 +1,143 @@
+name: Ubuntu CI
+
+on: [push, pull_request]
+
+env:
+  POETRY_VERSION: 1.8.3
+
+jobs:
+  check_skip:
+    runs-on: ubuntu-latest
+    if: |
+      !contains(format('{0} {1} {2}', github.event.head_commit.message, github.event.pull_request.title, github.event.pull_request.body), '[skip ci]')
+    steps:
+      - run: |
+          cat <<'MESSAGE'
+          github.event_name: ${{ toJson(github.event_name) }}
+          github.event:
+          ${{ toJson(github.event) }}
+          MESSAGE
+  test:
+    needs: check_skip
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    env:
+      NUMBA_CACHE_DIR: /tmp/numba-cache
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore repo times
+        uses: chetan/git-restore-mtime-action@v2
+
+      - name: Create Key and Numba Cache Directory
+        id: numba-key
+        run: |
+          mkdir -p ${{ env.NUMBA_CACHE_DIR }}
+          echo "timestamp=$(/bin/date -u '+%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+      - name: Cache Numba Kernels
+        uses: actions/cache@v4
+        with:
+          key: numba-cache-${{ matrix.python-version }}-${{ steps.numba-key.outputs.timestamp }}
+          restore-keys: numba-cache-${{ matrix.python-version }}-
+          path: ${{ env.NUMBA_CACHE_DIR }}
+
+      - name: Create a .env file
+        run: |
+          touch .env
+          echo "NUMBA_NRT_STATS=1" >> .env
+          echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
+
+      - name: Setup poetry virtual environment
+        run: poetry env use python${{ matrix.python-version }}
+
+      - name: Install base package
+        run: poetry install --extras testing
+
+      - name: Test base package
+        run: poetry run pytest -s -vvv africanus
+
+      - name: List the measures directory
+        run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
+
+      - name: Load cached CASA Measures Data
+        id: load-cached-casa-measures
+        uses: actions/cache@v4
+        with:
+          key: casa-measures-${{ hashFiles('measures_dir.txt')}}
+          path: |
+            ~/measures
+            ~/.casarc
+
+      - name: Download and install CASA Measures Data
+        if: steps.load-cached-casa-measures.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/measures
+          curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
+          echo "measures.directory: ~/measures" > ~/.casarc
+
+      - name: Install complete package
+        run: poetry install --extras "complete testing"
+
+      - name: Test complete package
+        run: poetry run pytest -s -vvv africanus
+
+  deploy:
+    needs: [test]
+    runs-on: ubuntu-latest
+    # Run on a push to a tag or master
+    if: >
+      github.event_name == 'push' &&
+      (startsWith(github.event.ref, 'refs/tags') ||
+       github.event.ref == 'refs/heads/master')
+
+    steps:
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: '3.10'
+
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build distributions
+        run: poetry build
+
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.test_pypi_token }}
+          repository_url: https://test.pypi.org/legacy/
+        continue-on-error: true
+
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_token }}

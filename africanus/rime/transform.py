@@ -1,19 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import math
 
-import numba
 import numpy as np
 
+from africanus.util.numba import jit
 
-@numba.jit(nopython=True, nogil=True, cache=True)
-def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
-                          antenna_scaling, frequency, coords):
+
+@jit(nopython=True, nogil=True, cache=True)
+def _nb_transform_sources(
+    lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, coords
+):
     """
     numba implementation of
     :func:`~africanus.rime.transform_sources`
@@ -29,24 +28,25 @@ def _nb_transform_sources(lm, parallactic_angles, pointing_errors,
                 l, m = lm[s]
 
                 # Rotate source coordinate by parallactic angle
-                l = l*pa_cos - m*pa_sin
-                m = l*pa_sin + m*pa_cos
+                l = l * pa_cos - m * pa_sin  # noqa
+                m = l * pa_sin + m * pa_cos
 
                 # Add pointing errors
-                l += pointing_errors[t, a, 0]
+                l += pointing_errors[t, a, 0]  # noqa
                 m += pointing_errors[t, a, 1]
 
                 # Scale by antenna scaling factors
                 for c in range(nchan):
-                    coords[0, s, t, a, c] = l*antenna_scaling[a, c]
-                    coords[1, s, t, a, c] = m*antenna_scaling[a, c]
+                    coords[0, s, t, a, c] = l * antenna_scaling[a, c]
+                    coords[1, s, t, a, c] = m * antenna_scaling[a, c]
                     coords[2, s, t, a, c] = frequency[c]
 
     return coords
 
 
-def transform_sources(lm, parallactic_angles, pointing_errors,
-                      antenna_scaling, frequency, dtype=None):
+def transform_sources(
+    lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, dtype=None
+):
     """
     Creates beam sampling coordinates suitable for use
     in :func:`~africanus.rime.beam_cube_dde` by:
@@ -79,7 +79,7 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    coords : :class:`numpy.ndarray`
         coordinates of shape :code:`(3, src, time, antenna, chan)`
         where each coordinate component represents **l**, **m** and
         **frequency**, respectively.
@@ -94,5 +94,6 @@ def transform_sources(lm, parallactic_angles, pointing_errors,
     dtype = np.float64 if dtype is None else dtype
     coords = np.empty((3, nsrc, ntime, na, nchan), dtype=dtype)
 
-    return _nb_transform_sources(lm, parallactic_angles, pointing_errors,
-                                 antenna_scaling, frequency, coords)
+    return _nb_transform_sources(
+        lm, parallactic_angles, pointing_errors, antenna_scaling, frequency, coords
+    )
