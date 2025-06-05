@@ -4,7 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
-* Add citation (:pr:`333`)
+* Add citation (:pr:`333`, :pr:`334`)
 * Detect auto-correlations via np.allclose, rather than equality (:pr:`309`)
 * Improve Gaussian Shape Documenation (:pr:`209`)
 
