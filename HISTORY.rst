@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Add citation (:pr:`333`)
+
 0.4.1 (2024-11-05)
 ------------------
 * Remove tuple allocation in beam cube inner loops (:pr:`337`)
