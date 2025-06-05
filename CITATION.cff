@@ -1,12 +1,30 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: If you use this software, please cite both the article from preferred-citation and the software itself.
 authors:
-  - family-names: Perkins
-    given-names: Simon
-    orcid: https://orcid.org/0000-0002-3623-0938
-title: "Africanus I. Scalable, distributed and efficient radio data processing with Dask-MS and Codex Africanus"
-version: 2.0.4
-identifiers:
-  - type: doi
-    value: 10.1016/j.ascom.2025.100958
-date-released: 2025-07-01
+  - family-names: S.J. Perkins
+    given-names: J.S. Kenyon
+  - family-names: L.A.L. Andati
+    given-names: H.L. Bester
+  - family-names: O.M. Smirnov
+    given-names: B.V. Hugo
+title: Africanus I. Scalable, distributed and efficient radio data processing with Dask-MS and Codex Africanus
+version: 1.0.0
+url: https://www.sciencedirect.com/science/article/pii/S2213133725000319
+doi: https://doi.org/10.1016/j.ascom.2025.100958
+date-released: '2025-06-05'
+preferred-citation:
+  authors:
+    - family-names: S.J. Perkins
+      given-names: J.S. Kenyon
+    - family-names: L.A.L. Andati
+      given-names: H.L. Bester
+    - family-names: O.M. Smirnov
+      given-names: B.V. Hugo
+  title: Africanus I. Scalable, distributed and efficient radio data processing with Dask-MS and Codex Africanus
+  doi: https://doi.org/10.1016/j.ascom.2025.100958
+  url: https://www.sciencedirect.com/science/article/pii/S2213133725000319
+  type: article-journal
+  pages: '100958'
+  year: '2025'
+  conference: {}
+  publisher: {}
