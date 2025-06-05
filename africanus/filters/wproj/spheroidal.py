@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import dataclasses
 import logging
 from numbers import Integral
+from typing import List, Tuple
 
 import numba
 import numpy as np
+import numpy.typing as npt
 import numpy.fft as npfft
+
 
 from africanus.constants import c as lightspeed
 
@@ -30,8 +34,7 @@ def _gen_coeffs(x, y, order):
 
 
 def polyfit2d(x, y, z, order=3):
-    """
-    Given ``x`` and ``y`` data points and ``z``, some
+    """Given ``x`` and ``y`` data points and ``z``, some
     values related to ``x`` and ``y``, fit a polynomial
     of order ``order`` to ``z``.
 
@@ -40,14 +43,21 @@ def polyfit2d(x, y, z, order=3):
     return np.linalg.lstsq(_gen_coeffs(x, y, order), z, rcond=None)[0]
 
 
+def _polyval2d(x, y, coeffs):
+    order = int(np.sqrt(coeffs.size)) - 1
+    i, j = (a.ravel() for a in np.mgrid[: order + 1, : order + 1])
+    exp = x[None, :, :] ** i[:, None, None] * y[None, :, :] ** j[:, None, None]
+    return np.sum(coeffs[:, None, None] * exp, axis=0)
+
+
 @numba.jit(nopython=True, nogil=True, cache=True)
 def polyval2d(x, y, coeffs):
-    """
-    Reproduce values from a two-dimensional polynomial fit.
+    """Reproduce values from a two-dimensional polynomial fit.
 
     Derived from https://stackoverflow.com/a/7997925
     """
     order = int(np.sqrt(coeffs.size)) - 1
+    assert (order + 1) ** 2 == coeffs.size
     z = np.zeros_like(x)
     c = 0
 
@@ -68,7 +78,8 @@ def polyval2d(x, y, coeffs):
 # https://library.nrao.edu/public/memos/vla/comp/VLAC_156.pdf
 # Table IIIA (c) and Table IIIB (c) respectively
 
-# These values exist for a support width m = 6,
+# These values exist for a support width m = 6, but in spheroidal_2d
+# the domain is (-1.0, 1.0]
 # First elements are for |nu| < 0.75 and second for 0.75 <= |nu| <= 1.0
 
 # NOTE(sjperkins)
@@ -196,19 +207,45 @@ def zero_pad(img, npix):
     return np.pad(img, padding, "constant", constant_values=0)
 
 
-def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
+def spheroidal_aa_filter(npix, support=11, spheroidal_resolution=111):
+    """Gets a spheroidal anti-aliasing filter in the image domain
+
+    Parameters
+    ----------
+    npix : int
+        Number of image pixels in X and Y
+    support : int
+        Support in the fourier domain
+    spheroidal_resolution : int
+        Size of the spheroidal generated in the image domain.
+        Increasing this may increase the accuracy of the kernel
+        at the cost of compute and result in an increased
+        sampling resolution in the image domain.
+
+    Returns
+    -------
+    convolution_filter : ndarray
+        The original spheroidal (unused)
+    gridding_kernel : ndarray
+        Gridding kernel in the fourier domain (unused)
+    spheroidal_convolution_filter : ndarray
+        The spheroidal in the image domain
+        resized to the size of the actual field
+    """
     # Convolution filter
-    cf = spheroidal_2d(spheroidal_support).astype(np.complex128)
+    cf = spheroidal_2d(spheroidal_resolution).astype(np.complex128)
     # Fourier transformed convolution filter
     fcf = fft2(cf)
 
     # Cut the support out
-    xc = spheroidal_support // 2
+    xc = spheroidal_resolution // 2
     start = xc - support // 2
     end = 1 + xc + support // 2
     fcf = fcf[start:end, start:end].copy()
 
     # Pad and ifft2 the fourier transformed convolution filter
+    # This results in a spheroidal which covers all the pixels
+    # in the image
     zfcf = zero_pad(fcf, npix)
     ifzfcf = ifft2(zfcf)
     ifzfcf[ifzfcf < 0] = 1e-10
@@ -217,10 +254,12 @@ def spheroidal_aa_filter(npix, support=11, spheroidal_support=111):
 
 
 def delta_n_coefficients(l0, m0, radius=1.0, order=4):
-    """
-    Returns polynomical coefficients representing the difference
+    """Returns polynomical coefficients representing the difference
     of coordinate n between a grid of (l,m) values centred
     around (l0, m0).
+
+    Returns
+    ------
     """
 
     # Create 100 points around (l0, m0) in the given radius
@@ -236,21 +275,26 @@ def delta_n_coefficients(l0, m0, radius=1.0, order=4):
 
     if (max_lm := np.max(np.abs((dl + l0) ** 2 + (dm + m0) ** 2))) > 1.0:
         d = np.sqrt(l**2 + m**2)
-        logging.warning(
-            "Pixel outside of the sphere max_lm=%f lm = %.2f => %.2f",
-            max_lm,
-            d.min(),
-            d.max(),
+        raise ValueError(
+            f"There are {l} and {m} coordinates that lie "
+            f"off the unit sphere. max_lm={max_lm}. "
+            f"lm = {d.min():.2f} => {d.max():.2f}"
         )
-        return 0.0, 0.0, np.zeros((order + 1, order + 1), np.float32).ravel()
 
-    y = np.sqrt(1 - (dl + l0) ** 2 - (dm + m0) ** 2) - np.sqrt(1 - l0**2 - m0**2)
-    coeff = polyfit2d(dl, dm, y, order=order)
-    C = coeff.reshape((order + 1, order + 1))
-    Cl = C[0, 1]
-    Cm = C[1, 0]
-    C[0, 1] = 0
-    C[1, 0] = 0
+    # Create coefficients fitting the difference between the
+    # l,m coordinates and phase centre.
+    y = np.sqrt(1 - l**2 - m**2) - np.sqrt(1 - l0**2 - m0**2)
+    coeff = polyfit2d(dl, dm, y, order=order).reshape((order + 1, order + 1))
+    # See the Kogan & Greisen 2009 reference of Section 2.2 of the DDFacet paper.
+    # The first order coefficients of the polynomial fit are equivalent to a
+    # w-dependent (u,v) coordinate scaling.
+    # Removing the 1st order coefficients reduces the support size
+    # of the fitted w kernels. These coefficients are applied within
+    # the gridder itself.
+    Cl = coeff[0, 1]
+    Cm = coeff[1, 0]
+    coeff[0, 1] = 0
+    coeff[1, 0] = 0
 
     return Cl, Cm, coeff
 
@@ -284,18 +328,27 @@ def reorganise_convolution_filter(cf, oversampling):
     return result.reshape(cf.shape)
 
 
-# Find maximum support
-
-
 def find_max_support(radius, maxw, min_wave):
-    """
-    Find the maximum support
+    """Find the maximum support.
+
+    Parameters
+    ----------
+    radius: float
+        Radius in degrees
+    maxw: float
+        Maximum w value, in metres
+    min_wave: float
+        Minimum wavelength, in metres
+
+    Returns
+    -------
+    max_support: float
+        Maximum support
     """
     # Assumed maximum support
     max_support = 501
 
-    # Work out the spheroidal convolution filter for
-    # the maximum support size
+    # spheroidal convolution filter for the maximum support size
     _, _, spheroidal_w = spheroidal_aa_filter(max_support)
 
     # Compute l, m and n-1 over the area of maximum support
@@ -303,33 +356,88 @@ def find_max_support(radius, maxw, min_wave):
     l, m = np.mgrid[-ex : ex : max_support * 1j, -ex : ex : max_support * 1j]
     n_1 = np.sqrt(1.0 - l**2 - m**2) - 1.0
 
-    # Compute the w term
+    # Multiplying the w term by the spheroidal gives the convolution of both in the fourier domain
+    # If the W is larger then the final support will be commensurately larger
+    # due to larger W's resulting in higher frequencies fringe patterns
     w = np.exp(-2.0 * 1j * np.pi * (maxw / min_wave) * n_1) * spheroidal_w
     fw = fft2(w)
 
-    # Want to interpolate across fw. fw is symmetric
-    # so take a slice across fw at the halfway point
+    # NOTE: fw is symmetrical
+    # This takes a slice half-way through the first dimension
     fw1d = np.abs(fw[(max_support - 1) // 2, :])
-    # normalise
+    # Normalise
     fw1d /= np.max(fw1d)
-    # Then take half again due to symmetry
+    # Slight optimation: take a half-slice through
+    # the 1d shape due to symmetry
     fw1d = fw1d[(max_support - 1) // 2 :]
 
+    # Sort the values and return the interpolated support
+    # associated with a small value.
+
+    # NOTE: Why we think this works:
+    # Assume a prolate spheroidal integrates to 1
+    # We're trying to find an approximation of it within some error bound
+    # that limits the support as the support would technically be infinite
+    # This is achieved by throwing away the tails of the function
     ind = np.argsort(fw1d)
+    x = fw1d[ind]
 
-    from scipy.interpolate import interp1d
+    if False:
+        import matplotlib.pyplot as plt
 
-    # TODO(sjperkins)
-    # Find a less clunky way to find the maximum support
-    interp_fn = interp1d(fw1d[ind], np.arange(fw1d.shape[0])[ind])
-    max_support = interp_fn(1.0 / 1000)
+        plt.figure().add_subplot(111).plot(x)
+        plt.show()
 
-    return max_support
+    return np.interp(1e-3, x, np.arange(x.size)[ind])
+
+
+@dataclasses.dataclass
+class WTermData:
+    # LM phase centre
+    lm: Tuple[float]
+    # First order U and V polynomial coefficients
+    cuv: Tuple[float]
+    # W Kernels for each W plane
+    w_kernels: List[npt.NDArray]
+    # Conjugate W kernels for each W plane
+    k_kernels_conj: List[npt.NDArray]
+
+    @property
+    def l(self):
+        """Phase centre l coordinate"""
+        return self.lm[0]
+
+    @property
+    def m(self):
+        """Phase centre m coordinate"""
+        return self.lm[1]
+
+    @property
+    def cu(self):
+        """First order U polynomial coefficient"""
+        return self.cuv[0]
+
+    @property
+    def cv(self):
+        """First order V polynomial coefficient"""
+        return self.cuv[1]
+
+    @property
+    def nwplanes(self):
+        """Number of w planes"""
+        return len(self.w_kernels)
 
 
 def wplanes(
-    nwplanes, cell_size, support, maxw, npix, oversampling, lmshift, frequencies
-):
+    nwplanes: int,
+    cell_size: float,
+    support: int,
+    maxw: float,
+    npix: int,
+    oversampling: int,
+    lmshift: Tuple[float],
+    frequencies: npt.NDArray[np.floating],
+) -> WTermData:
     """
     Compute W projection planes and their conjugates
 
@@ -389,10 +497,37 @@ def wplanes(
     l0, m0 = lmshift if lmshift else (0.0, 0.0)
 
     # Work out general dn polynomial coefficients
+    # NOTE: delta_n_coefficients return cl, cm, coeffs
+    # There may be a sign/nomenclature discrepancy here
+    # Generally, (l,m) is associated with (u,v)
+    # For e.g. in the RIME the complex exponential
+    # is e^(-2 * pi * i * [l.u + m.v + (n-1).w])
     cv, cu, poly_coeffs = delta_n_coefficients(l0, m0, 3 * radius, order=5)
 
-    wplanes = []
-    wplanes_conj = []
+    # NOTE: In the single W plane case, no polynomial fit is applied
+    # It may be worth just removing this case as it can't hurt to
+    # apply the polynomial anyway? Perhaps this case never applies...
+    if len(w_values) <= 1:
+        # Simplified single kernel case
+        _, _, spheroidal_pw = spheroidal_aa_filter(w_support[0])
+        w = np.abs(spheroidal_pw)
+        zw = zero_pad(w, w.shape[0] * oversampling)
+        zw_conj = np.conj(zw)
+
+        fzw = fft2(zw)
+        fzw_conj = fft2(zw_conj)
+
+        fzw = reorganise_convolution_filter(fzw)
+        fzw_conj = reorganise_convolution_filter(fzw_conj)
+
+        # Ensure complex64, aligned and contiguous
+        fzw = np.require(fzw, dtype=np.complex64, requirements=["A", "C"])
+        fzw_conj = np.require(fzw_conj, dtype=np.complex64, requirements=["A", "C"])
+
+        return WTermData((l0, m0), (cu, cv), [fzw], [fzw_conj])
+
+    wkernels = []
+    wkernels_conj = []
 
     # For each w plane and associated support
     for plane_w, w_support in zip(w_values, w_supports):
@@ -417,12 +552,10 @@ def wplanes(
         zw = zero_pad(w, w.shape[0] * oversampling)
         zw_conj = np.conj(zw)
 
-        # Now fft2 zero padded w and it's conjugate
+        # Now fft2 zero padded w and conjugate
         fzw = fft2(zw)
         fzw_conj = fft2(zw_conj)
 
-        # TODO(sjperkins)
-        # Understand what is going on here...
         fzw = reorganise_convolution_filter(fzw, oversampling)
         fzw_conj = reorganise_convolution_filter(fzw_conj, oversampling)
 
@@ -430,10 +563,10 @@ def wplanes(
         fzw = np.require(fzw, dtype=np.complex64, requirements=["A", "C"])
         fzw_conj = np.require(fzw_conj, dtype=np.complex64, requirements=["A", "C"])
 
-        wplanes.append(fzw)
-        wplanes_conj.append(fzw_conj)
+        wkernels.append(fzw)
+        wkernels_conj.append(fzw_conj)
 
-    return cu, cv, wplanes, wplanes_conj
+    return WTermData((l0, m0), (cu, cv), wkernels, wkernels_conj)
 
 
 if __name__ == "__main__":
