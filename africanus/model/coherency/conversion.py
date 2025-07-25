@@ -37,7 +37,8 @@ stokes_conv = {
     },
 }
 
-corr_products = ['XX', 'YX', 'XY', 'YY', 'RR', 'RL', 'LR', 'LL']
+corr_products = ["XX", "YX", "XY", "YY", "RR", "RL", "LR", "LL"]
+
 
 class DimensionMismatch(Exception):
     pass
@@ -145,7 +146,7 @@ def convert_setup(input, input_schema, output_schema):
             dtype = fn(dummy, dummy).dtype
             mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
             break
-        
+
         # We must find a conversion
         if not found_conv:
             raise MissingConversionInputs(
