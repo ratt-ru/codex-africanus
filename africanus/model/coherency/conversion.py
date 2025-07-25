@@ -11,32 +11,33 @@ from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
 stokes_conv = {
-    "RR": {("I", "V"): lambda i, v: i + v + 0j},
-    "RL": {("Q", "U"): lambda q, u: q + u * 1j},
-    "LR": {("Q", "U"): lambda q, u: q - u * 1j},
-    "LL": {("I", "V"): lambda i, v: i - v + 0j},
-    "XX": {("I", "Q"): lambda i, q: i + q + 0j},
-    "XY": {("U", "V"): lambda u, v: u + v * 1j},
-    "YX": {("U", "V"): lambda u, v: u - v * 1j},
-    "YY": {("I", "Q"): lambda i, q: i - q + 0j},
+    "RR": {("I", "V"): lambda i, v=0j: i + v + 0j},
+    "RL": {("Q", "U"): lambda q=0j, u=0j: q + u * 1j},
+    "LR": {("Q", "U"): lambda q=0j, u=0j: q - u * 1j},
+    "LL": {("I", "V"): lambda i, v=0j: i - v + 0j},
+    "XX": {("I", "Q"): lambda i, q=0j: i + q + 0j},
+    "XY": {("U", "V"): lambda u=0j, v=0j: u + v * 1j},
+    "YX": {("U", "V"): lambda u=0j, v=0j: u - v * 1j},
+    "YY": {("I", "Q"): lambda i, q=0j: i - q + 0j},
     "I": {
-        ("XX", "YY"): lambda xx, yy: (xx + yy).real / 2,
-        ("RR", "LL"): lambda rr, ll: (rr + ll).real / 2,
+        ("XX", "YY"): lambda xx, yy: (xx + yy) / 2,
+        ("RR", "LL"): lambda rr, ll: (rr + ll) / 2,
     },
     "Q": {
-        ("XX", "YY"): lambda xx, yy: (xx - yy).real / 2,
-        ("RL", "LR"): lambda rl, lr: (rl + lr).real / 2,
+        ("XX", "YY"): lambda xx, yy: (xx - yy) / 2,
+        ("RL", "LR"): lambda rl, lr: (rl + lr) / 2,
     },
     "U": {
-        ("XY", "YX"): lambda xy, yx: (xy + yx).real / 2,
-        ("RL", "LR"): lambda rl, lr: (rl - lr).imag / 2,
+        ("XY", "YX"): lambda xy, yx: (xy + yx) / 2,
+        ("RL", "LR"): lambda rl, lr: (rl - lr) / 2,
     },
     "V": {
-        ("XY", "YX"): lambda xy, yx: (xy - yx).imag / 2,
-        ("RR", "LL"): lambda rr, ll: (rr - ll).real / 2,
+        ("XY", "YX"): lambda xy, yx: (xy - yx) / 2,
+        ("RR", "LL"): lambda rr, ll: (rr - ll) / 2,
     },
 }
 
+corr_products = ['XX', 'YX', 'XY', 'YY', 'RR', 'RL', 'LR', 'LL']
 
 class DimensionMismatch(Exception):
     pass
@@ -127,12 +128,16 @@ def convert_setup(input, input_schema, output_schema):
             try:
                 c1_idx = (Ellipsis,) + input_indices[c1]
             except KeyError:
-                continue
+                if okey not in corr_products:
+                    continue
+                c1_idx = None
 
             try:
                 c2_idx = (Ellipsis,) + input_indices[c2]
             except KeyError:
-                continue
+                if okey not in corr_products:
+                    continue
+                c2_idx = None
 
             found_conv = True
             out_idx = (Ellipsis,) + out_idx
@@ -140,7 +145,7 @@ def convert_setup(input, input_schema, output_schema):
             dtype = fn(dummy, dummy).dtype
             mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
             break
-
+        
         # We must find a conversion
         if not found_conv:
             raise MissingConversionInputs(
@@ -160,8 +165,15 @@ def convert_impl(input, mapping, in_shape, out_shape, dtype):
     out_shape = input.shape[: -len(in_shape)] + out_shape
     output = np.empty(out_shape, dtype=dtype)
 
+    # this makes it possible to compute mappings such as
+    # ['I'] -> ['XX', 'XY', 'YX', 'YY']
     for c1_idx, c2_idx, out_idx, fn, _ in mapping:
-        output[out_idx] = fn(input[c1_idx], input[c2_idx])
+        if c1_idx is not None and c2_idx is not None:
+            output[out_idx] = fn(input[c1_idx], input[c2_idx])
+        elif c1_idx is not None and c2_idx is None:
+            output[out_idx] = fn(input[c1_idx])
+        elif c1_idx is None and c2_idx is None:
+            output[out_idx] = fn()
 
     return output
 
