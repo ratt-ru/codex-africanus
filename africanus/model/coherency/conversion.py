@@ -29,10 +29,10 @@ stokes_conv = {
     },
     "U": {
         ("XY", "YX"): lambda xy, yx: (xy + yx) / 2,
-        ("RL", "LR"): lambda rl, lr: (rl - lr) / 2,
+        ("RL", "LR"): lambda rl, lr: (rl - lr) / 2j,
     },
     "V": {
-        ("XY", "YX"): lambda xy, yx: (xy - yx) / 2,
+        ("XY", "YX"): lambda xy, yx: (xy - yx) / 2j,
         ("RR", "LL"): lambda rr, ll: (rr - ll) / 2,
     },
 }

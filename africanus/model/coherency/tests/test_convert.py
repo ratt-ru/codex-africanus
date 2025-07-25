@@ -10,20 +10,20 @@ from africanus.model.coherency.conversion import convert as np_convert
 from africanus.util.casa_types import STOKES_TYPE_MAP as smap
 
 stokes_corr_cases = [
-    ("complex", [["XX"], ["YY"]], "real", ["I", "Q"]),
-    ("complex", ["XX", "YY"], "real", ["I", "Q"]),
-    ("complex", ["XX", "XY", "YX", "YY"], "real", ["I", "Q", "U", "V"]),
-    ("complex", [["XX", "XY"], ["YX", "YY"]], "real", [["I", "Q"], ["U", "V"]]),
-    ("real", ["I", "Q", "U", "V"], "complex", ["XX", "XY", "YX", "YY"]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY"], ["YX", "YY"]]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY", "YX", "YY"]]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["RR", "RL", "LR", "LL"]]),
-    ("real", ["I", "V"], "complex", ["RR", "LL"]),
-    ("real", ["I", "Q"], "complex", ["XX", "YY"]),
+    ("complex", [["XX"], ["YY"]], "complex", ["I", "Q"]),
+    ("complex", ["XX", "YY"], "complex", ["I", "Q"]),
+    ("complex", ["XX", "XY", "YX", "YY"], "complex", ["I", "Q", "U", "V"]),
+    ("complex", [["XX", "XY"], ["YX", "YY"]], "complex", [["I", "Q"], ["U", "V"]]),
+    ("complex", ["I", "Q", "U", "V"], "complex", ["XX", "XY", "YX", "YY"]),
+    ("complex", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY"], ["YX", "YY"]]),
+    ("complex", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY", "YX", "YY"]]),
+    ("complex", [["I", "Q"], ["U", "V"]], "complex", [["RR", "RL", "LR", "LL"]]),
+    ("complex", ["I", "V"], "complex", ["RR", "LL"]),
+    ("complex", ["I", "Q"], "complex", ["XX", "YY"]),
 ]
 
 stokes_corr_int_cases = [
-    ("complex", [smap["XX"], smap["YY"]], "real", [smap["I"], smap["Q"]])
+    ("complex", [smap["XX"], smap["YY"]], "complex", [smap["I"], smap["Q"]])
 ]
 
 
@@ -51,7 +51,7 @@ def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwarg
     else:
         raise ValueError("Invalid backend %s" % backend)
 
-    if in_type == "real":
+    if in_type == "complex":
         pass
     elif in_type == "complex":
         vis = vis + 1j * vis
@@ -75,7 +75,7 @@ def test_conversion_schemas(in_type, input_schema, out_type, output_schema, vis_
 
 
 def test_conversion():
-    I, Q, U, V = [1.0, 2.0, 3.0, 4.0]
+    I, Q, U, V = [1.0 + 1j, 2.0 + 2j, 3.0 + 3j, 4.0 + 4j]
 
     # Check conversion to linear (string)
     vis = np_convert(
