@@ -5,17 +5,17 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass
 from enum import Enum
 import heapq
-import numpy.typing as npt
 from pprint import pformat
 from textwrap import fill
 from typing import Any, Callable, Tuple
 
 import numpy as np
+import numpy.typing as npt
 
 from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
-# Definitions for conversion from stokes
+# Definitions for conversion from stokes to correlations
 STOKES_TO_CORR_CONV = {
     "RR": {("I", "V"): lambda i, v: i + v},
     "RL": {("Q", "U"): lambda q, u: q + u * 1j},
@@ -27,6 +27,7 @@ STOKES_TO_CORR_CONV = {
     "YY": {("I", "Q"): lambda i, q: i - q},
 }
 
+# Definitions for conversion from correlations to stokes
 CORR_TO_STOKES_CONV = {
     "I": {
         ("XX", "YY"): lambda xx, yy: (xx + yy) / 2,
@@ -56,8 +57,8 @@ DataSource = Enum("DataSource", ["Index", "Default"])
 class ProductMapping:
     """Defines a mapping between two datasources and a destination via a callable function
 
-    Implements partial ordering such that DataSources from actual data are preferred
-    compared to DataSources producing default values
+    Implements partial ordering such that mapping from actual data (DataSource.Index)
+    are preferredto DataSources producing default values (DataSource.Default)
     """
 
     source_one: Tuple[DataSource, Any]
@@ -149,7 +150,6 @@ def convert_setup(input, input_schema, output_schema, implicit_stokes):
 
     mapping = []
     dummy = input.dtype.type(0)
-    corr_prod_set = set(STOKES_TO_CORR_CONV.keys())
 
     # Figure out how to produce an output from available inputs
     for okey, out_idx in output_indices.items():
@@ -163,25 +163,24 @@ def convert_setup(input, input_schema, output_schema, implicit_stokes):
         # We can substitute defaults for stokes values when converting to correlations
         # This makes it possible to compute mappings such as
         # ['I'] -> ['XX', 'XY', 'YX', 'YY']
-        can_substitute_defaults = implicit_stokes and okey in corr_prod_set
+        can_substitute_defaults = implicit_stokes and okey in STOKES_TO_CORR_CONV
         okey_mappings = []
 
-        # Find a mapping for which we have inputs
+        # Find a mapping for which we have inputs or defaults
         for (c1, c2), fn in deps.items():
-            # Get indices for both correlations
-            try:
+            if c1 in input_indices:
                 c1_src = (DataSource.Index, (Ellipsis,) + input_indices[c1])
-            except KeyError:
-                if not can_substitute_defaults:
-                    continue
+            elif can_substitute_defaults:
                 c1_src = (DataSource.Default, 0)
+            else:
+                continue
 
-            try:
+            if c2 in input_indices:
                 c2_src = (DataSource.Index, (Ellipsis,) + input_indices[c2])
-            except KeyError:
-                if not can_substitute_defaults:
-                    continue
+            elif can_substitute_defaults:
                 c2_src = (DataSource.Default, 0)
+            else:
+                continue
 
             out_idx = (Ellipsis,) + out_idx
             # Figure out the data type for this output
