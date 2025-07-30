@@ -294,7 +294,7 @@ output_schema : list of str or int
     dimension of the return value.
 implicit_stokes : bool
     A flag controlling whether implicitly assuming zeros
-    for missing Stokes inputs is allowwed. Defaults to False.
+    for missing Stokes inputs is allowed. Defaults to False.
 
 Returns
 -------
