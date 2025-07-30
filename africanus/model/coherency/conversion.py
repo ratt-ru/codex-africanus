@@ -10,15 +10,15 @@ import numpy as np
 from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
-stokes_conv = {
-    "RR": {("I", "V"): lambda i, v=0j: i + v + 0j},
+STOKES_CONV = {
+    "RR": {("I", "V"): lambda i, v=0j: i + v},
     "RL": {("Q", "U"): lambda q=0j, u=0j: q + u * 1j},
     "LR": {("Q", "U"): lambda q=0j, u=0j: q - u * 1j},
-    "LL": {("I", "V"): lambda i, v=0j: i - v + 0j},
-    "XX": {("I", "Q"): lambda i, q=0j: i + q + 0j},
+    "LL": {("I", "V"): lambda i, v=0j: i - v},
+    "XX": {("I", "Q"): lambda i, q=0j: i + q},
     "XY": {("U", "V"): lambda u=0j, v=0j: u + v * 1j},
     "YX": {("U", "V"): lambda u=0j, v=0j: u - v * 1j},
-    "YY": {("I", "Q"): lambda i, q=0j: i - q + 0j},
+    "YY": {("I", "Q"): lambda i, q=0j: i - q},
     "I": {
         ("XX", "YY"): lambda xx, yy: (xx + yy) / 2,
         ("RR", "LL"): lambda rr, ll: (rr + ll) / 2,
@@ -37,7 +37,7 @@ stokes_conv = {
     },
 }
 
-corr_products = ["XX", "YX", "XY", "YY", "RR", "RL", "LR", "LL"]
+CORR_PRODUCTS = {"XX", "YX", "XY", "YY", "RR", "RL", "LR", "LL"}
 
 
 class DimensionMismatch(Exception):
@@ -102,7 +102,7 @@ def _element_indices_and_shape(data):
     return result, tuple(shape)
 
 
-def convert_setup(input, input_schema, output_schema):
+def convert_setup(input, input_schema, output_schema, implicit_stokes):
     input_indices, input_shape = _element_indices_and_shape(input_schema)
     output_indices, output_shape = _element_indices_and_shape(output_schema)
 
@@ -115,7 +115,7 @@ def convert_setup(input, input_schema, output_schema):
     # Figure out how to produce an output from available inputs
     for okey, out_idx in output_indices.items():
         try:
-            deps = stokes_conv[okey]
+            deps = STOKES_CONV[okey]
         except KeyError:
             raise ValueError(
                 "Unknown output '%s'. Known types '%s'" % (deps, STOKES_TYPES)
@@ -129,14 +129,14 @@ def convert_setup(input, input_schema, output_schema):
             try:
                 c1_idx = (Ellipsis,) + input_indices[c1]
             except KeyError:
-                if okey not in corr_products:
+                if okey not in CORR_PRODUCTS or not implicit_stokes:
                     continue
                 c1_idx = None
 
             try:
                 c2_idx = (Ellipsis,) + input_indices[c2]
             except KeyError:
-                if okey not in corr_products:
+                if okey not in CORR_PRODUCTS or not implicit_stokes:
                     continue
                 c2_idx = None
 
@@ -179,12 +179,12 @@ def convert_impl(input, mapping, in_shape, out_shape, dtype):
     return output
 
 
-def convert(input, input_schema, output_schema):
+def convert(input, input_schema, output_schema, implicit_stokes=False):
     """See STOKES_DOCS below"""
 
     # Do the conversion
     mapping, in_shape, out_shape, dtype = convert_setup(
-        input, input_schema, output_schema
+        input, input_schema, output_schema, implicit_stokes
     )
 
     return convert_impl(input, mapping, in_shape, out_shape, dtype)
@@ -251,6 +251,9 @@ input_schema : list of str or int
 output_schema : list of str or int
     A schema describing the :code:`ocorr_1, ..., ocorr_n`
     dimension of the return value.
+implicit_stokes : bool
+    A flag controlling whether implicitly assuming zeros
+    for missing Stokes inputs is allowwed. Defaults to False.
 
 Returns
 -------
