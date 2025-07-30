@@ -17,14 +17,14 @@ from africanus.util.docs import DocstringTemplate
 
 # Definitions for conversion from stokes to correlations
 STOKES_TO_CORR_CONV = {
-    "RR": {("I", "V"): lambda i, v: i + v},
+    "RR": {("I", "V"): lambda i, v: i + v + 0j},
     "RL": {("Q", "U"): lambda q, u: q + u * 1j},
     "LR": {("Q", "U"): lambda q, u: q - u * 1j},
-    "LL": {("I", "V"): lambda i, v: i - v},
-    "XX": {("I", "Q"): lambda i, q: i + q},
+    "LL": {("I", "V"): lambda i, v: i - v + 0j},
+    "XX": {("I", "Q"): lambda i, q: i + q + 0j},
     "XY": {("U", "V"): lambda u, v: u + v * 1j},
     "YX": {("U", "V"): lambda u, v: u - v * 1j},
-    "YY": {("I", "Q"): lambda i, q: i - q},
+    "YY": {("I", "Q"): lambda i, q: i - q + 0j},
 }
 
 # Definitions for conversion from correlations to stokes
