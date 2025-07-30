@@ -2,23 +2,32 @@
 
 
 from collections import OrderedDict, deque
+from dataclasses import dataclass
+from enum import Enum
+import heapq
+import numpy.typing as npt
 from pprint import pformat
 from textwrap import fill
+from typing import Any, Callable, Tuple
 
 import numpy as np
 
 from africanus.util.casa_types import STOKES_TYPES, STOKES_ID_MAP
 from africanus.util.docs import DocstringTemplate
 
-STOKES_CONV = {
-    "RR": {("I", "V"): lambda i, v=0j: i + v},
-    "RL": {("Q", "U"): lambda q=0j, u=0j: q + u * 1j},
-    "LR": {("Q", "U"): lambda q=0j, u=0j: q - u * 1j},
-    "LL": {("I", "V"): lambda i, v=0j: i - v},
-    "XX": {("I", "Q"): lambda i, q=0j: i + q},
-    "XY": {("U", "V"): lambda u=0j, v=0j: u + v * 1j},
-    "YX": {("U", "V"): lambda u=0j, v=0j: u - v * 1j},
-    "YY": {("I", "Q"): lambda i, q=0j: i - q},
+# Definitions for conversion from stokes
+STOKES_TO_CORR_CONV = {
+    "RR": {("I", "V"): lambda i, v: i + v},
+    "RL": {("Q", "U"): lambda q, u: q + u * 1j},
+    "LR": {("Q", "U"): lambda q, u: q - u * 1j},
+    "LL": {("I", "V"): lambda i, v: i - v},
+    "XX": {("I", "Q"): lambda i, q: i + q},
+    "XY": {("U", "V"): lambda u, v: u + v * 1j},
+    "YX": {("U", "V"): lambda u, v: u - v * 1j},
+    "YY": {("I", "Q"): lambda i, q: i - q},
+}
+
+CORR_TO_STOKES_CONV = {
     "I": {
         ("XX", "YY"): lambda xx, yy: (xx + yy) / 2,
         ("RR", "LL"): lambda rr, ll: (rr + ll) / 2,
@@ -37,7 +46,38 @@ STOKES_CONV = {
     },
 }
 
-CORR_PRODUCTS = {"XX", "YX", "XY", "YY", "RR", "RL", "LR", "LL"}
+
+CONVERSION_SCHEMA = {**STOKES_TO_CORR_CONV, **CORR_TO_STOKES_CONV}
+
+DataSource = Enum("DataSource", ["Index", "Default"])
+
+
+@dataclass(slots=True)
+class ProductMapping:
+    """Defines a mapping between two datasources and a destination via a callable function
+
+    Implements partial ordering such that DataSources from actual data are preferred
+    compared to DataSources producing default values
+    """
+
+    source_one: Tuple[DataSource, Any]
+    source_two: Tuple[DataSource, Any]
+    dest_index: Tuple[Any, ...]
+    fn: Callable
+    dtype: npt.DTypeLike
+
+    @property
+    def priority(self):
+        """Prefer Index Data sources to Default Data sources"""
+        return int(self.source_one[0] == DataSource.Index) + int(
+            self.source_two[0] == DataSource.Index
+        )
+
+    def __lt__(self, other):
+        if not isinstance(other, ProductMapping):
+            raise NotImplementedError
+        # The priority reversal is intentional
+        return self.priority > other.priority
 
 
 class DimensionMismatch(Exception):
@@ -67,8 +107,7 @@ def _element_indices_and_shape(data):
             shape.append(len(current))
         elif shape[depth] != len(current):
             raise DimensionMismatch(
-                "Dimension mismatch %d != %d at depth %d"
-                % (shape[depth], len(current), depth)
+                f"Dimension mismatch {shape[depth]} != {len(current)} at depth {depth}"
             )
 
         # Handle each sequence element
@@ -79,7 +118,7 @@ def _element_indices_and_shape(data):
             # String
             elif isinstance(e, str):
                 if e in result:
-                    raise ValueError("'%s' defined multiple times" % e)
+                    raise ValueError(f"'{e}' defined multiple times")
 
                 result[e] = current_idx + (i,)
             # We have a CASA integer Stokes ID, convert to string
@@ -88,16 +127,15 @@ def _element_indices_and_shape(data):
                     e = STOKES_ID_MAP[e]
                 except KeyError:
                     raise ValueError(
-                        "Invalid id '%d'. "
-                        "Valid id's '%s'" % (e, pformat(STOKES_ID_MAP))
+                        f"Invalid id '{e}'. Valid id's '{pformat(STOKES_ID_MAP)}'"
                     )
 
                 if e in result:
-                    raise ValueError("'%s' defined multiple times" % e)
+                    raise ValueError(f"'{e}' defined multiple times")
 
                 result[e] = current_idx + (i,)
             else:
-                raise TypeError("Invalid type '%s' for element '%s'" % (type(e), e))
+                raise TypeError(f"Invalid type '{type(e)}' for element '{e}'")
 
     return result, tuple(shape)
 
@@ -111,53 +149,59 @@ def convert_setup(input, input_schema, output_schema, implicit_stokes):
 
     mapping = []
     dummy = input.dtype.type(0)
+    corr_prod_set = set(STOKES_TO_CORR_CONV.keys())
 
     # Figure out how to produce an output from available inputs
     for okey, out_idx in output_indices.items():
         try:
-            deps = STOKES_CONV[okey]
+            deps = CONVERSION_SCHEMA[okey]
         except KeyError:
             raise ValueError(
-                "Unknown output '%s'. Known types '%s'" % (deps, STOKES_TYPES)
+                f"Unknown output {okey}. Known outputs: {list(CONVERSION_SCHEMA.keys())}"
             )
 
-        found_conv = False
+        # We can substitute defaults for stokes values when converting to correlations
+        # This makes it possible to compute mappings such as
+        # ['I'] -> ['XX', 'XY', 'YX', 'YY']
+        can_substitute_defaults = implicit_stokes and okey in corr_prod_set
+        okey_mappings = []
 
         # Find a mapping for which we have inputs
         for (c1, c2), fn in deps.items():
             # Get indices for both correlations
             try:
-                c1_idx = (Ellipsis,) + input_indices[c1]
+                c1_src = (DataSource.Index, (Ellipsis,) + input_indices[c1])
             except KeyError:
-                if okey not in CORR_PRODUCTS or not implicit_stokes:
+                if not can_substitute_defaults:
                     continue
-                c1_idx = None
+                c1_src = (DataSource.Default, 0)
 
             try:
-                c2_idx = (Ellipsis,) + input_indices[c2]
+                c2_src = (DataSource.Index, (Ellipsis,) + input_indices[c2])
             except KeyError:
-                if okey not in CORR_PRODUCTS or not implicit_stokes:
+                if not can_substitute_defaults:
                     continue
-                c2_idx = None
+                c2_src = (DataSource.Default, 0)
 
-            found_conv = True
             out_idx = (Ellipsis,) + out_idx
             # Figure out the data type for this output
             dtype = fn(dummy, dummy).dtype
-            mapping.append((c1_idx, c2_idx, out_idx, fn, dtype))
-            break
-
-        # We must find a conversion
-        if not found_conv:
-            raise MissingConversionInputs(
-                "None of the supplied inputs '%s' "
-                "can produce output '%s'. It can be "
-                "produced by the following "
-                "combinations '%s'." % (input_schema, okey, deps.keys())
+            heapq.heappush(
+                okey_mappings, ProductMapping(c1_src, c2_src, out_idx, fn, dtype)
             )
 
-    out_dtype = np.result_type(*[dt for _, _, _, _, dt in mapping])
+        if len(okey_mappings) == 0:
+            raise MissingConversionInputs(
+                f"None of the supplied inputs '{input_schema}' "
+                f"can produce output '{okey}'. It can be "
+                f"produced by the following "
+                f"combinations '{deps.keys()}'."
+            )
 
+        # Use the highest priority mapping
+        mapping.append(okey_mappings[0])
+
+    out_dtype = np.result_type(*[m.dtype for m in mapping])
     return mapping, input_shape, output_shape, out_dtype
 
 
@@ -166,15 +210,12 @@ def convert_impl(input, mapping, in_shape, out_shape, dtype):
     out_shape = input.shape[: -len(in_shape)] + out_shape
     output = np.empty(out_shape, dtype=dtype)
 
-    # this makes it possible to compute mappings such as
-    # ['I'] -> ['XX', 'XY', 'YX', 'YY']
-    for c1_idx, c2_idx, out_idx, fn, _ in mapping:
-        if c1_idx is not None and c2_idx is not None:
-            output[out_idx] = fn(input[c1_idx], input[c2_idx])
-        elif c1_idx is not None and c2_idx is None:
-            output[out_idx] = fn(input[c1_idx])
-        elif c1_idx is None and c2_idx is None:
-            output[out_idx] = fn()
+    for m in mapping:
+        c1_type, c1_val = m.source_one
+        c2_type, c2_val = m.source_two
+        c1_arg = c1_val if c1_type is DataSource.Default else input[c1_val]
+        c2_arg = c2_val if c2_type is DataSource.Default else input[c2_val]
+        output[m.dest_index] = m.fn(c1_arg, c2_arg)
 
     return output
 
