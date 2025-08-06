@@ -25,9 +25,9 @@ def convert_wrapper(np_input, mapping=None, in_shape=None, out_shape=None, dtype
 
 
 @requires_optional("dask.array", da_import_error)
-def convert(input, input_schema, output_schema):
+def convert(input, input_schema, output_schema, implicit_stokes=False):
     mapping, in_shape, out_shape, dtype = convert_setup(
-        input, input_schema, output_schema
+        input, input_schema, output_schema, implicit_stokes
     )
 
     n_free_dims = len(input.shape) - len(in_shape)

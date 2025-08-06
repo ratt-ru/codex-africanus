@@ -58,7 +58,7 @@ class ProductMapping:
     """Defines a mapping between two datasources and a destination via a callable function
 
     Implements partial ordering such that mapping from actual data (DataSource.Index)
-    are preferredto DataSources producing default values (DataSource.Default)
+    are preferred to DataSources producing default values (DataSource.Default)
     """
 
     source_one: Tuple[DataSource, Any]

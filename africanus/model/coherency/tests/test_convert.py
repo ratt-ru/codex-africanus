@@ -134,7 +134,7 @@ def test_conversion():
 
     assert np.all(stokes == [[I, Q, U, V]])
 
-    # circular to stokes (intger)
+    # circular to stokes (integer)
     stokes = np_convert(
         np.asarray([[RR, RL, LR, LL]]),
         [smap[x] for x in ("RR", "RL", "LR", "LL")],
@@ -142,6 +142,26 @@ def test_conversion():
     )
 
     assert np.all(stokes == [[I, Q, U, V]])
+
+    # linear I to all
+    vis = np_convert(
+        np.asarray([I]), ["I"], ["XX", "XY", "YX", "YY"], implicit_stokes=True
+    )
+
+    assert vis[0] == I and vis[-1] == I
+
+    # circular I to all
+    vis = np_convert(
+        np.asarray([I]), ["I"], ["RR", "RL", "LR", "LL"], implicit_stokes=True
+    )
+
+    assert vis[0] == I and vis[-1] == I
+
+
+@pytest.mark.xfail
+def test_convert_should_fail():
+    # this should fail since I can't be computed from XX
+    vis = np_convert(np.array([1.0 + 1j]), ["XX"], ["I"], implicit_stokes=True)
 
 
 @pytest.mark.parametrize(
