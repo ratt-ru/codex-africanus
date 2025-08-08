@@ -4,6 +4,8 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Modify convert for purely complex outputs.
+  Allow scalar Stokes to all correlation mappings (:pr:`336`).
 * Add citation (:pr:`333`, :pr:`334`)
 * Detect auto-correlations via np.allclose, rather than equality (:pr:`309`)
 * Improve Gaussian Shape Documenation (:pr:`209`)

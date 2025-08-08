@@ -10,21 +10,19 @@ from africanus.model.coherency.conversion import convert as np_convert
 from africanus.util.casa_types import STOKES_TYPE_MAP as smap
 
 stokes_corr_cases = [
-    ("complex", [["XX"], ["YY"]], "real", ["I", "Q"]),
-    ("complex", ["XX", "YY"], "real", ["I", "Q"]),
-    ("complex", ["XX", "XY", "YX", "YY"], "real", ["I", "Q", "U", "V"]),
-    ("complex", [["XX", "XY"], ["YX", "YY"]], "real", [["I", "Q"], ["U", "V"]]),
-    ("real", ["I", "Q", "U", "V"], "complex", ["XX", "XY", "YX", "YY"]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY"], ["YX", "YY"]]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["XX", "XY", "YX", "YY"]]),
-    ("real", [["I", "Q"], ["U", "V"]], "complex", [["RR", "RL", "LR", "LL"]]),
-    ("real", ["I", "V"], "complex", ["RR", "LL"]),
-    ("real", ["I", "Q"], "complex", ["XX", "YY"]),
+    ([["XX"], ["YY"]], ["I", "Q"]),
+    (["XX", "YY"], ["I", "Q"]),
+    (["XX", "XY", "YX", "YY"], ["I", "Q", "U", "V"]),
+    ([["XX", "XY"], ["YX", "YY"]], [["I", "Q"], ["U", "V"]]),
+    (["I", "Q", "U", "V"], ["XX", "XY", "YX", "YY"]),
+    ([["I", "Q"], ["U", "V"]], [["XX", "XY"], ["YX", "YY"]]),
+    ([["I", "Q"], ["U", "V"]], [["XX", "XY", "YX", "YY"]]),
+    ([["I", "Q"], ["U", "V"]], [["RR", "RL", "LR", "LL"]]),
+    (["I", "V"], ["RR", "LL"]),
+    (["I", "Q"], ["XX", "YY"]),
 ]
 
-stokes_corr_int_cases = [
-    ("complex", [smap["XX"], smap["YY"]], "real", [smap["I"], smap["Q"]])
-]
+stokes_corr_int_cases = [([smap["XX"], smap["YY"]], [smap["I"], smap["Q"]])]
 
 
 vis_chunks = [
@@ -37,7 +35,7 @@ vis_chunks = [
 vis_shape = [tuple(sum(dim_chunks) for dim_chunks in case) for case in vis_chunks]
 
 
-def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwargs):
+def visibility_factory(vis_shape, input_shape, backend="numpy", **kwargs):
     shape = vis_shape + input_shape
 
     if backend == "numpy":
@@ -51,31 +49,24 @@ def visibility_factory(vis_shape, input_shape, in_type, backend="numpy", **kwarg
     else:
         raise ValueError("Invalid backend %s" % backend)
 
-    if in_type == "real":
-        pass
-    elif in_type == "complex":
-        vis = vis + 1j * vis
-    else:
-        raise ValueError("Invalid in_type %s" % in_type)
-
     return vis
 
 
 @pytest.mark.parametrize(
-    "in_type, input_schema, out_type, output_schema",
+    "input_schema, output_schema",
     stokes_corr_cases + stokes_corr_int_cases,
 )
 @pytest.mark.parametrize("vis_shape", vis_shape)
-def test_conversion_schemas(in_type, input_schema, out_type, output_schema, vis_shape):
+def test_conversion_schemas(input_schema, output_schema, vis_shape):
     input_shape = np.asarray(input_schema).shape
     output_shape = np.asarray(output_schema).shape
-    vis = visibility_factory(vis_shape, input_shape, in_type)
+    vis = visibility_factory(vis_shape, input_shape)
     xformed_vis = np_convert(vis, input_schema, output_schema)
     assert xformed_vis.shape == vis_shape + output_shape
 
 
 def test_conversion():
-    I, Q, U, V = [1.0, 2.0, 3.0, 4.0]
+    I, Q, U, V = [1.0 + 1j, 2.0 + 2j, 3.0 + 3j, 4.0 + 4j]
 
     # Check conversion to linear (string)
     vis = np_convert(
@@ -134,7 +125,7 @@ def test_conversion():
 
     assert np.all(stokes == [[I, Q, U, V]])
 
-    # circular to stokes (intger)
+    # circular to stokes (integer)
     stokes = np_convert(
         np.asarray([[RR, RL, LR, LL]]),
         [smap[x] for x in ("RR", "RL", "LR", "LL")],
@@ -143,19 +134,39 @@ def test_conversion():
 
     assert np.all(stokes == [[I, Q, U, V]])
 
+    # linear I to all
+    vis = np_convert(
+        np.asarray([I]), ["I"], ["XX", "XY", "YX", "YY"], implicit_stokes=True
+    )
+
+    assert vis[0] == I and vis[-1] == I
+
+    # circular I to all
+    vis = np_convert(
+        np.asarray([I]), ["I"], ["RR", "RL", "LR", "LL"], implicit_stokes=True
+    )
+
+    assert vis[0] == I and vis[-1] == I
+
+
+@pytest.mark.xfail
+def test_convert_should_fail():
+    # this should fail since I can't be computed from XX
+    vis = np_convert(np.array([1.0 + 1j]), ["XX"], ["I"], implicit_stokes=True)
+
 
 @pytest.mark.parametrize(
-    "in_type, input_schema, out_type, output_schema",
+    "input_schema, output_schema",
     stokes_corr_cases + stokes_corr_int_cases,
 )
 @pytest.mark.parametrize("vis_chunks", vis_chunks)
-def test_dask_conversion(in_type, input_schema, out_type, output_schema, vis_chunks):
+def test_dask_conversion(input_schema, output_schema, vis_chunks):
     from africanus.model.coherency.dask import convert as da_convert
 
     vis_shape = tuple(sum(dim_chunks) for dim_chunks in vis_chunks)
     input_shape = np.asarray(input_schema).shape
     vis = visibility_factory(
-        vis_shape, input_shape, in_type, backend="dask", vis_chunks=vis_chunks
+        vis_shape, input_shape, backend="dask", vis_chunks=vis_chunks
     )
 
     da_vis = da_convert(vis, input_schema, output_schema)
