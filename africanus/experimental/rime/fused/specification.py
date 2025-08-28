@@ -394,11 +394,11 @@ class RimeSpecification:
 
         term_type_set = set(term_types)
 
-        if Phase not in term_type_set:
-            raise RimeSpecificationError("RIME must at least contain a Phase term")
+        # if Phase not in term_type_set:
+        #     raise RimeSpecificationError("RIME must at least contain a Phase term")
 
-        if Brightness not in term_type_set:
-            raise RimeSpecificationError("RIME must at least contain a Brightness term")
+        # if Brightness not in term_type_set:
+        #     raise RimeSpecificationError("RIME must at least contain a Brightness term")
 
         transformers = []
 
