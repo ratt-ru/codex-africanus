@@ -23,6 +23,9 @@ class Phase(Term):
     def init_fields(
         self, typingctx, init_state, lm, uvw, chan_freq, convention="fourier"
     ):
+        assert lm.ndim == 2
+        assert uvw.ndim == 2
+        assert chan_freq.ndim == 1
         phase_dt = typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)
         fields = [("phase_dot", phase_dt[:, :])]
 
