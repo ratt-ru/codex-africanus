@@ -22,6 +22,8 @@ class ParallacticTransformer(Transformer):
     ):
         fdict = init_state.field_dict
 
+        assert isinstance(antenna_position, types.Array) and antenna_position.ndim == 2
+
         dt = typingctx.unify_types(
             fdict["utime"].dtype,
             fdict["ufeed"].dtype,
