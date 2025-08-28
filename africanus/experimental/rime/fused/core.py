@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import numba
 from numba import types
+from numba.core.errors import TypingError
 import numpy as np
 
 from africanus.util.patterns import Multiton
@@ -40,15 +41,15 @@ def rime_impl_factory(terms, transformers, ncorr):
     @overload(rime_impl, jit_options=JIT_OPTIONS, prefer_literal=True)
     def nb_rime(*args):
         if not len(args) > 0:
-            raise TypeError(
+            raise TypingError(
                 "rime must be at least be called with the signature argument"
             )
 
         if not isinstance(args[0], types.Literal):
-            raise TypeError(f"Signature hash ({args[0]}) must be a literal")
+            raise TypingError(f"Signature hash ({args[0]}) must be a literal")
 
         if not len(args) % 2 == 1:
-            raise TypeError(
+            raise TypingError(
                 f"Length of named arguments {len(args)} " f"is not divisible by 2"
             )
 
@@ -56,10 +57,10 @@ def rime_impl_factory(terms, transformers, ncorr):
         names = args[1:argstart]
 
         if not all(isinstance(n, types.Literal) for n in names):
-            raise TypeError(f"{names} must be a Tuple of Literal strings")
+            raise TypingError(f"{names} must be a Tuple of Literal strings")
 
         if not all(n.literal_type is types.unicode_type for n in names):
-            raise TypeError(f"{names} must be a Tuple of Literal strings")
+            raise TypingError(f"{names} must be a Tuple of Literal strings")
 
         # Get literal argument names
         names = tuple(n.literal_value for n in names)
