@@ -1,5 +1,7 @@
 import argparse
 import numpy as np
+from numba import literal_unroll
+from numba.cpython.unsafe.tuple import tuple_setitem
 
 # this enables tuple constriction in the sampler
 from africanus.experimental.rime.fused.terms.cube_dde import zero_vis_factory
@@ -25,10 +27,11 @@ class ModelFlux(Term):
         model_flux,
     ):
         return {
-            "model_flux": ("source", "chan", "corr"),
+            "model_flux": ("source", "chan", "stokes"),
         }
 
     def init_fields(self, typingctx, init_state, model_flux):  # (ndir, nchan, nstokes)
+        assert model_flux.ndim == 3
         fields = [("model_flux", model_flux)]
 
         def model(init_state, model_flux):
@@ -42,8 +45,8 @@ class ModelFlux(Term):
 
         def model_sample(state, s, r, t, f1, f2, a1, a2, c):
             flux = zero_vis(state.model_flux.dtype.type(0))
-            # for i in literal_unroll(range(NSTOKES)):
-            #     flux = tuple_setitem(flux, i, state.model_flux[s, c, i])
+            for co in literal_unroll(range(NSTOKES)):
+                flux = tuple_setitem(flux, co, state.model_flux[s, c, co])
             return flux
 
         return model_sample
@@ -56,7 +59,7 @@ def main():
 
     parser.add_argument(
         "ms",
-        type=DaskMSStore,
+        # type=DaskMSStore,
         help="Path to input measurement set, e.g. path/to/dir/foo.MS. Also "
         "accepts valid s3 urls.",
     )
@@ -67,6 +70,13 @@ def main():
     phase_dir = xds_from_table(f"{opts.ms}::FIELD")[0].PHASE_DIR.values.squeeze()
     ant_pos = xds_from_table(f"{opts.ms}::ANTENNA")[0].POSITION.values
 
+    if freq.ndim == 2:
+        freq = freq[0]
+    if phase_dir.ndim == 2:
+        phase_dir = phase_dir[0]
+    print(phase_dir)
+    print(freq.shape)
+    print(phase_dir.shape)
     # 1 fake source location
     nsource = 1
     radec = np.zeros((nsource, 2))
@@ -87,11 +97,17 @@ def main():
         "uvw": xds.UVW.values,
         "chan_freq": freq,
         "model_flux": model_flux,
-        "antenna_position": ant_pos,
+        # "antenna_position": ant_pos,
     }
 
+    # rime_str = "(Kpq,Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]"
     rime_str = "(Kpq,Bpq): [I,Q,U,V] -> [XX,XY,YX,YY]"
     # We want to use the rime with our new custom "Brightness" term
     spec = RimeSpecification(rime_str, terms={"B": ModelFlux})
 
     model_vis = rime(spec, ds)
+    print(model_vis)
+
+
+if __name__ == "__main__":
+    main()
