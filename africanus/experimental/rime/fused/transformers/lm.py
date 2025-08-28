@@ -1,3 +1,4 @@
+from numba.core import types
 import numpy as np
 
 from africanus.experimental.rime.fused.transformers.core import Transformer
@@ -9,6 +10,14 @@ class LMTransformer(Transformer):
     def init_fields(self, typingctx, init_state, radec, phase_dir):
         dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
         fields = [("lm", dt[:, :])]
+
+        assert (
+            (isinstance(phase_dir, types.Array) and phase_dir.ndim == 2)
+            or isinstance(phase_dir, types.Tuple)
+            and len(phase_dir) == 2
+        )
+
+        assert radec.ndim == 2
 
         def lm(init_state, radec, phase_dir):
             lm = np.empty_like(radec)
