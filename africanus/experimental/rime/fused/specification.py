@@ -5,6 +5,7 @@ import inspect
 import multiprocessing
 from pathlib import Path
 import re
+import warnings
 
 from africanus.experimental.rime.fused.terms.core import Term
 from africanus.experimental.rime.fused.terms.phase import Phase
@@ -394,11 +395,11 @@ class RimeSpecification:
 
         term_type_set = set(term_types)
 
-        # if Phase not in term_type_set:
-        #     raise RimeSpecificationError("RIME must at least contain a Phase term")
+        if Phase not in term_type_set:
+            warnings.warn("RIME doesn't contain a standard Phase term")
 
-        # if Brightness not in term_type_set:
-        #     raise RimeSpecificationError("RIME must at least contain a Brightness term")
+        if Brightness not in term_type_set:
+            warnings.warn("RIME doesn't contain a standard Brightness term")
 
         transformers = []
 
