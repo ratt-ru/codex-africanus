@@ -49,8 +49,8 @@ def rime_impl_factory(rime_spec, ncorr):
             raise TypingError(
                 f"Compiling the RIME failed for specification {rime_spec} failed. "
                 f"This often results from passing incorrectly shaped or typed inputs "
-                f"for the various Terms. "
-                f"Please search the resulting stack trace for this error,"
+                f"to the various Terms and Transformers or bugs in their implementations. "
+                f"Please search the associate stack trace for the error"
             )
 
         if not len(args) % 2 == 1:
