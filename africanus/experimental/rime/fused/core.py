@@ -30,7 +30,7 @@ else:
     DATASET_TYPES.append(xrds)
 
 
-def rime_impl_factory(terms, transformers, ncorr):
+def rime_impl_factory(rime_spec, ncorr):
     @njit(**JIT_OPTIONS)
     def rime(*args):
         return rime_impl(*args)
@@ -45,18 +45,23 @@ def rime_impl_factory(terms, transformers, ncorr):
                 "rime must be at least be called with the signature argument"
             )
 
-        if not isinstance(args[0], types.Literal):
-            raise TypingError(f"Signature hash ({args[0]}) must be a literal")
+        if not isinstance(args[0], types.StringLiteral):
+            raise TypingError(
+                f"Compiling the RIME failed for specification {rime_spec} failed. "
+                f"This often results from passing incorrectly shaped or typed inputs "
+                f"for the various Terms. "
+                f"Please search the resulting stack trace for this error,"
+            )
 
         if not len(args) % 2 == 1:
             raise TypingError(
-                f"Length of named arguments {len(args)} " f"is not divisible by 2"
+                f"Length of named arguments {len(args)} is not divisible by 2"
             )
 
         argstart = 1 + (len(args) - 1) // 2
         names = args[1:argstart]
 
-        if not all(isinstance(n, types.Literal) for n in names):
+        if not all(isinstance(n, types.StringLiteral) for n in names):
             raise TypingError(f"{names} must be a Tuple of Literal strings")
 
         if not all(n.literal_type is types.unicode_type for n in names):
@@ -66,7 +71,7 @@ def rime_impl_factory(terms, transformers, ncorr):
         names = tuple(n.literal_value for n in names)
 
         # Generate intrinsics
-        argdeps = ArgumentDependencies(names, terms, transformers)
+        argdeps = ArgumentDependencies(names, rime_spec.terms, rime_spec.transformers)
         factory = IntrinsicFactory(argdeps)
         out_names, pack_opts_indices = factory.pack_optionals_and_indices_fn()
         out_names, pack_transformed = factory.pack_transformed_fn(out_names)
@@ -142,9 +147,7 @@ class RimeFactory(metaclass=Multiton):
             rime_spec = RimeSpecification(rime_spec)
 
         self.rime_spec = rime_spec
-        self.impl = rime_impl_factory(
-            rime_spec.terms, rime_spec.transformers, len(rime_spec.corrs)
-        )
+        self.impl = rime_impl_factory(rime_spec, len(rime_spec.corrs))
 
     def dask_blockwise_args(self, **kwargs):
         """Get the dask schema"""

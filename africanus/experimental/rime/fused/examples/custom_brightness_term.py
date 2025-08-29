@@ -1,6 +1,8 @@
 import argparse
 import numpy as np
 from numba import literal_unroll
+from numba import types
+from numba.core.errors import TypingError
 from numba.cpython.unsafe.tuple import tuple_setitem
 
 # this enables tuple constriction in the sampler
@@ -31,13 +33,12 @@ class ModelFlux(Term):
         }
 
     def init_fields(self, typingctx, init_state, model_flux):  # (ndir, nchan, nstokes)
-        assert model_flux.ndim == 3
-        fields = [("model_flux", model_flux)]
+        if not isinstance(model_flux, types.Array) or model_flux.ndim != 3:
+            raise TypingError(
+                f"model_flux {model_flux} should be a (ndir, nchan, nstokes) array"
+            )
 
-        def model(init_state, model_flux):
-            return model_flux
-
-        return fields, model
+        return [], lambda init_state, model_flux: None
 
     def sampler(self):
         NSTOKES = len(self.stokes)

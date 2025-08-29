@@ -1,4 +1,6 @@
 from africanus.constants import c as lightspeed
+from numba import types
+from numba.core.errors import TypingError
 import numpy as np
 
 from africanus.experimental.rime.fused.terms.core import Term
@@ -19,6 +21,17 @@ class Gaussian(Term):
         }
 
     def init_fields(self, typingctx, init_state, uvw, chan_freq, gauss_shape):
+        if not isinstance(uvw, types.Array) or uvw.ndim != 2:
+            raise TypingError(f"uvw {uvw} should be a (row, uvw) array")
+
+        if not isinstance(chan_freq, types.Array) or chan_freq.ndim != 1:
+            raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
+
+        if not isinstance(gauss_shape, types.Array) or gauss_shape.ndim != 2:
+            raise TypingError(
+                f"gauss_shape {gauss_shape} should be a (source, gauss_shape_params) array"
+            )
+
         guv_dtype = typingctx.unify_types(uvw.dtype, chan_freq.dtype, gauss_shape.dtype)
         fields = [("gauss_uv", guv_dtype[:, :, :]), ("scaled_freq", chan_freq)]
 

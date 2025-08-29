@@ -129,7 +129,7 @@ def term_mul(lhs, rhs):
     try:
         return _jones_typ_map[(lhs_type, rhs_type)]
     except KeyError:
-        raise TypingError(f"No known multiplication " f"function for {lhs} and {rhs}")
+        raise TypingError(f"No known multiplication function for {lhs} and {rhs}")
 
 
 _hermitian_map = {
@@ -145,7 +145,7 @@ def hermitian(jones):
     try:
         return _hermitian_map[jones_type]
     except KeyError:
-        raise TypingError(f"No known hermitian function " f"for {jones}: {jones_type}.")
+        raise TypingError(f"No known hermitian function for {jones}: {jones_type}.")
 
 
 def unify_jones_terms(typingctx, lhs, rhs):
@@ -161,9 +161,7 @@ def unify_jones_terms(typingctx, lhs, rhs):
         lhs_corrs = corr_map[lhs_type]
         rhs_corrs = corr_map[rhs_type]
     except KeyError:
-        raise TypingError(
-            f"{lhs} or {rhs} has no " f"entry in the {corr_map} " f"mapping"
-        )
+        raise TypingError(f"{lhs} or {rhs} has no entry in the {corr_map} mapping")
 
     lhs_types = (lhs,) if lhs_corrs == 1 else tuple(lhs)
     rhs_types = (rhs,) if rhs_corrs == 1 else tuple(rhs)
@@ -582,7 +580,7 @@ class IntrinsicFactory:
 
             if len(arg_names) != len(args):
                 raise TypingError(
-                    f"len(arg_names): {len(arg_names)} != " f"len(args): {len(args)}"
+                    f"len(arg_names): {len(arg_names)} != len(args): {len(args)}"
                 )
 
             arg_pack = ArgumentPack(arg_names, args, tuple(range(len(args))))

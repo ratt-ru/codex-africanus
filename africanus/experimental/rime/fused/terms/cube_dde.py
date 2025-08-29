@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import numba
 from numba.core import cgutils, types
+from numba.core.errors import TypingError
 from numba.extending import intrinsic
 from numba.cpython.unsafe.tuple import tuple_setitem
 import numpy as np
@@ -79,6 +80,27 @@ class BeamCubeDDE(Term):
         beam_point_errors=None,
         beam_antenna_scaling=None,
     ):
+        if not isinstance(beam, types.Array) or beam.ndim != 4:
+            raise TypingError(
+                f"beam {beam} should be a (beam_lw, beam_mg, beam_nud, corr) array"
+            )
+
+        if not isinstance(beam_lm_extents, types.Array) or beam_lm_extents.ndim != 2:
+            raise TypingError(
+                f"beam_lm_extents {beam_lm_extents} should be a (lm_ext, lm_ext_comp) array"
+            )
+
+        if not isinstance(beam_freq_map, types.Array) or beam_freq_map.ndim != 1:
+            raise TypingError(
+                f"beam_freq_map {beam_freq_map} should be (beam_nud,) array"
+            )
+
+        if not isinstance(lm, types.Array) or lm.ndim != 2:
+            raise TypingError(f"lm {lm} should be a (source, lm) array")
+
+        if not isinstance(chan_freq, types.Array) or chan_freq.ndim != 1:
+            raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
+
         ncorr = len(self.corrs)
         zero_vis = zero_vis_factory(ncorr)
         ex_dtype = beam_lm_extents.dtype
