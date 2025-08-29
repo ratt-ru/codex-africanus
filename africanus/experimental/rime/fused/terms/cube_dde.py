@@ -2,30 +2,13 @@ from collections import namedtuple
 
 import numba
 from numba.core import cgutils, types
+from numba.core.errors import TypingError
 from numba.extending import intrinsic
 from numba.cpython.unsafe.tuple import tuple_setitem
 import numpy as np
 
+from africanus.experimental.rime.fused.intrinsics import tuple_fill
 from africanus.experimental.rime.fused.terms.core import Term
-
-
-def zero_vis_factory(ncorr):
-    @intrinsic
-    def zero_vis(typingctx, value):
-        sig = types.Tuple([value] * ncorr)(value)
-
-        def codegen(context, builder, signature, args):
-            llvm_ret_type = context.get_value_type(signature.return_type)
-            tup = cgutils.get_null_value(llvm_ret_type)
-
-            for i in range(ncorr):
-                tup = builder.insert_value(tup, args[0], i)
-
-            return tup
-
-        return sig, codegen
-
-    return zero_vis
 
 
 BeamInfo = namedtuple(
@@ -79,8 +62,28 @@ class BeamCubeDDE(Term):
         beam_point_errors=None,
         beam_antenna_scaling=None,
     ):
+        if not isinstance(beam, types.Array) or beam.ndim != 4:
+            raise TypingError(
+                f"beam {beam} should be a (beam_lw, beam_mg, beam_nud, corr) array"
+            )
+
+        if not isinstance(beam_lm_extents, types.Array) or beam_lm_extents.ndim != 2:
+            raise TypingError(
+                f"beam_lm_extents {beam_lm_extents} should be a (lm_ext, lm_ext_comp) array"
+            )
+
+        if not isinstance(beam_freq_map, types.Array) or beam_freq_map.ndim != 1:
+            raise TypingError(
+                f"beam_freq_map {beam_freq_map} should be (beam_nud,) array"
+            )
+
+        if not isinstance(lm, types.Array) or lm.ndim != 2:
+            raise TypingError(f"lm {lm} should be a (source, lm) array")
+
+        if not isinstance(chan_freq, types.Array) or chan_freq.ndim != 1:
+            raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
+
         ncorr = len(self.corrs)
-        zero_vis = zero_vis_factory(ncorr)
         ex_dtype = beam_lm_extents.dtype
         beam_info_types = [ex_dtype] * 2 + [types.int64] * 2 + [types.float64] * 2
         beam_info_type = types.NamedTuple(beam_info_types, BeamInfo)
@@ -313,15 +316,14 @@ class BeamCubeDDE(Term):
 
     def sampler(self):
         left = self.configuration == "left"
-        ncorr = len(self.corrs)
-        zero_vis = zero_vis_factory(ncorr)
+        NCORR = len(self.corrs)
 
         def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
             a = state.antenna1_inverse[r] if left else state.antenna2_inverse[r]
             f = state.feed1_inverse[r] if left else state.feed2_inverse[r]
-            result = zero_vis(state.beam.dtype.type(0))
+            result = tuple_fill(state.beam.dtype.type(0), NCORR)
 
-            for co in numba.literal_unroll(range(ncorr)):
+            for co in numba.literal_unroll(range(NCORR)):
                 result = tuple_setitem(
                     result, co, state.sampled_beam[s, t, f, a, c, co]
                 )

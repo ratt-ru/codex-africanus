@@ -129,7 +129,7 @@ def term_mul(lhs, rhs):
     try:
         return _jones_typ_map[(lhs_type, rhs_type)]
     except KeyError:
-        raise TypingError(f"No known multiplication " f"function for {lhs} and {rhs}")
+        raise TypingError(f"No known multiplication function for {lhs} and {rhs}")
 
 
 _hermitian_map = {
@@ -145,7 +145,7 @@ def hermitian(jones):
     try:
         return _hermitian_map[jones_type]
     except KeyError:
-        raise TypingError(f"No known hermitian function " f"for {jones}: {jones_type}.")
+        raise TypingError(f"No known hermitian function for {jones}: {jones_type}.")
 
 
 def unify_jones_terms(typingctx, lhs, rhs):
@@ -161,9 +161,7 @@ def unify_jones_terms(typingctx, lhs, rhs):
         lhs_corrs = corr_map[lhs_type]
         rhs_corrs = corr_map[rhs_type]
     except KeyError:
-        raise TypingError(
-            f"{lhs} or {rhs} has no " f"entry in the {corr_map} " f"mapping"
-        )
+        raise TypingError(f"{lhs} or {rhs} has no entry in the {corr_map} mapping")
 
     lhs_types = (lhs,) if lhs_corrs == 1 else tuple(lhs)
     rhs_types = (rhs,) if rhs_corrs == 1 else tuple(rhs)
@@ -188,9 +186,6 @@ def tuple_adder(typingctx, t1, t2):
     sig = t1(t1, t2)
 
     def codegen(context, builder, signature, args):
-        def _add(x, y):
-            return x + y
-
         [t1, t2] = args
         [t1_type, t2_type] = signature.args
         return_type = signature.return_type
@@ -203,13 +198,34 @@ def tuple_adder(typingctx, t1, t2):
             v2 = builder.extract_value(t2, i)
             vr = typingctx.unify_types(t1e, t2e)
 
-            data = context.compile_internal(builder, _add, vr(t1e, t2e), [v1, v2])
+            data = context.compile_internal(
+                builder, lambda x, y: x + y, vr(t1e, t2e), [v1, v2]
+            )
 
             ret_tuple = builder.insert_value(ret_tuple, data, i)
 
         return ret_tuple
 
     return sig, codegen
+
+
+@intrinsic(prefer_literal=True)
+def tuple_fill(typingctx, value, n):
+    if not isinstance(n, types.IntegerLiteral):
+        raise TypingError(f"n {n} must be a IntegerLiteral")
+
+    def codegen(context, builder, signature, args):
+        value, _ = args
+        _, n_type = signature.args
+        llvm_ret_type = context.get_value_type(signature.return_type)
+        ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+        for i in range(n_type.literal_value):
+            ret_tuple = builder.insert_value(ret_tuple, value, i)
+
+        return ret_tuple
+
+    return types.Tuple([value] * n.literal_value)(value, n), codegen
 
 
 class IntrinsicFactory:
@@ -582,7 +598,7 @@ class IntrinsicFactory:
 
             if len(arg_names) != len(args):
                 raise TypingError(
-                    f"len(arg_names): {len(arg_names)} != " f"len(args): {len(args)}"
+                    f"len(arg_names): {len(arg_names)} != len(args): {len(args)}"
                 )
 
             arg_pack = ArgumentPack(arg_names, args, tuple(range(len(args))))

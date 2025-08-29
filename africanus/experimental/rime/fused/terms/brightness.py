@@ -1,6 +1,7 @@
 import numpy as np
 
-from numba.core import cgutils, types, errors
+from numba.core import cgutils, types
+from numba.core.errors import TypingError, RequireLiteralValue
 from numba.extending import intrinsic
 
 
@@ -23,19 +24,17 @@ def conversion_factory(stokes_schema, corr_schema):
     @intrinsic
     def corr_convert(typingctx, spectral_model, source_index, chan_index):
         if not isinstance(spectral_model, types.Array) or spectral_model.ndim != 3:
-            raise errors.TypingError(
-                f"'spectral_model' should be 3D array. " f"Got {spectral_model}"
+            raise TypingError(
+                f"'spectral_model' should be 3D array. Got {spectral_model}"
             )
 
         if not isinstance(source_index, types.Integer):
-            raise errors.TypingError(
-                f"'source_index' should be an integer. " f"Got {source_index}"
+            raise TypingError(
+                f"'source_index' should be an integer. Got {source_index}"
             )
 
         if not isinstance(chan_index, types.Integer):
-            raise errors.TypingError(
-                f"'chan_index' should be an integer. " f"Got {chan_index}"
-            )
+            raise TypingError(f"'chan_index' should be an integer. Got {chan_index}")
 
         spectral_model_map = {s: i for i, s in enumerate(stokes_schema)}
         conv_map = {}
@@ -45,7 +44,7 @@ def conversion_factory(stokes_schema, corr_schema):
                 conv_schema = STOKES_CONVERSION[corr]
             except KeyError:
                 raise ValueError(
-                    f"No conversion schema " f"registered for correlation {corr}"
+                    f"No conversion schema registered for correlation {corr}"
                 )
 
             i1 = -1
@@ -153,6 +152,21 @@ class Brightness(Term):
         chan_freq,
         spi_base="standard",
     ):
+        if not isinstance(stokes, types.Array) or stokes.ndim != 2:
+            raise TypingError(f"stokes {stokes} should be a (source, stokes) array")
+
+        if not isinstance(spi, types.Array) or spi.ndim != 3:
+            raise TypingError(f"spi {spi} should be a (source, spi, stokes) array")
+
+        if not isinstance(ref_freq, types.Array) or ref_freq.ndim != 1:
+            raise TypingError(f"ref_freq {ref_freq} should be a (source,) array")
+
+        if not isinstance(chan_freq, types.Array) or chan_freq.ndim != 1:
+            raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
+
+        if not isinstance(spi_base, types.misc.UnicodeType):
+            raise TypingError(f"spi_base {spi_base} should be a UnicodeType")
+
         expected_nstokes = len(self.stokes)
         fields = [("spectral_model", stokes.dtype[:, :, :])]
 
@@ -165,7 +179,7 @@ class Brightness(Term):
 
             if nstokes != expected_nstokes:
                 raise ValueError(
-                    "corr_schema stokes don't match " "provided number of stokes"
+                    "corr_schema stokes don't match provided number of stokes"
                 )
 
             if (spi_base.startswith("[") and spi_base.endswith("]")) or (

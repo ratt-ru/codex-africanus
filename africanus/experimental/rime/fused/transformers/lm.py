@@ -1,3 +1,5 @@
+from numba.core import types
+from numba.core.errors import TypingError
 import numpy as np
 
 from africanus.experimental.rime.fused.transformers.core import Transformer
@@ -9,6 +11,11 @@ class LMTransformer(Transformer):
     def init_fields(self, typingctx, init_state, radec, phase_dir):
         dt = typingctx.unify_types(radec.dtype, phase_dir.dtype)
         fields = [("lm", dt[:, :])]
+
+        if not isinstance(phase_dir, types.Array) or phase_dir.ndim != 1:
+            raise TypingError(f"phase_dir {phase_dir} is not a (2,) shaped array")
+
+        assert radec.ndim == 2
 
         def lm(init_state, radec, phase_dir):
             lm = np.empty_like(radec)

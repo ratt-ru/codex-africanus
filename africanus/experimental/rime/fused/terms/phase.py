@@ -1,4 +1,6 @@
 from africanus.constants import c as lightspeed
+from numba import types
+from numba.core.errors import TypingError, RequireLiteralValue
 import numpy as np
 
 from africanus.experimental.rime.fused.terms.core import Term
@@ -23,6 +25,21 @@ class Phase(Term):
     def init_fields(
         self, typingctx, init_state, lm, uvw, chan_freq, convention="fourier"
     ):
+        if not isinstance(lm, types.Array) or lm.ndim != 2:
+            raise TypingError(f"lm {lm} should be a (source, lm) array")
+
+        if not isinstance(uvw, types.Array) or uvw.ndim != 2:
+            raise TypingError(f"uvw {uvw} should be a (row, uvw) array")
+
+        if not isinstance(chan_freq, types.Array) or chan_freq.ndim != 1:
+            raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
+
+        if not isinstance(convention, types.misc.UnicodeType):
+            raise TypingError(f"convention {convention} should be a UnicodeType")
+
+        assert lm.ndim == 2
+        assert uvw.ndim == 2
+        assert chan_freq.ndim == 1
         phase_dt = typingctx.unify_types(lm.dtype, uvw.dtype, chan_freq.dtype)
         fields = [("phase_dot", phase_dt[:, :])]
 

@@ -1,5 +1,6 @@
 import numpy as np
-from numba.core import cgutils, types, errors
+from numba.core import cgutils, types
+from numba.core.errors import TypingError
 from numba import njit, objmode
 
 from africanus.rime.parangles_casa import casa_parallactic_angles
@@ -12,6 +13,22 @@ class ParallacticTransformer(Transformer):
     def __init__(self, process_pool):
         self.pool = process_pool
 
+    def dask_schema(self, antenna_position, phase_dir, receptor_angle=None):
+        dt = np.result_type(antenna_position, phase_dir, receptor_angle)
+        inputs = {"antenna_position": ("antenna", "ant-comp"), "phase_dir": ("radec",)}
+
+        if receptor_angle is not None:
+            inputs["receptor_angle"] = ("feed", "receptor_angle")
+        else:
+            inputs["receptor_angle"] = None
+
+        outputs = {
+            "feed_parangle": np.empty((0,) * 5, dt),
+            "beam_parangle": np.empty((0,) * 4, dt),
+        }
+
+        return inputs, outputs
+
     def init_fields(
         self,
         typingctx,
@@ -21,6 +38,11 @@ class ParallacticTransformer(Transformer):
         receptor_angle=None,
     ):
         fdict = init_state.field_dict
+
+        if not isinstance(antenna_position, types.Array) or antenna_position.ndim != 2:
+            raise TypingError(
+                f"antenna_position {antenna_position} should be a (antenna, 3) array"
+            )
 
         dt = typingctx.unify_types(
             fdict["utime"].dtype,
@@ -33,12 +55,12 @@ class ParallacticTransformer(Transformer):
             ("beam_parangle", dt[:, :, :, :]),
         ]
         parangle_dt = types.Array(types.float64, 2, "C")
-        have_ra = not cgutils.is_nonelike(receptor_angle)
+        HAVE_RA = not cgutils.is_nonelike(receptor_angle)
 
-        if have_ra and (
+        if HAVE_RA and (
             not isinstance(receptor_angle, types.Array) or receptor_angle.ndim != 2
         ):
-            raise errors.TypingError("receptor_angle must be a 2D array")
+            raise TypingError("receptor_angle must be a (feed, 2) array")
 
         @njit(inline="never")
         def parangle_stub(time, antenna, phase_dir):
@@ -61,7 +83,7 @@ class ParallacticTransformer(Transformer):
             feed_pa = np.empty((ntime, nfeed, nant, 2, 2), parangles.dtype)
             beam_pa = np.empty((ntime, nfeed, nant, 2), parangles.dtype)
 
-            if have_ra:
+            if HAVE_RA:
                 if receptor_angle.ndim != 2:
                     raise ValueError("receptor_angle.ndim != 2")
 
@@ -73,8 +95,8 @@ class ParallacticTransformer(Transformer):
 
             for t in range(ntime):
                 for f in range(nfeed):
-                    ra1 = receptor_angle[f, 0] if have_ra else dt(0)
-                    ra2 = receptor_angle[f, 1] if have_ra else dt(0)
+                    ra1 = receptor_angle[f, 0] if HAVE_RA else dt(0)
+                    ra2 = receptor_angle[f, 1] if HAVE_RA else dt(0)
 
                     for a in range(nant):
                         pa1 = parangles[t, a]
@@ -94,19 +116,3 @@ class ParallacticTransformer(Transformer):
             return feed_pa, beam_pa
 
         return fields, parangles
-
-    def dask_schema(self, antenna_position, phase_dir, receptor_angle=None):
-        dt = np.result_type(antenna_position, phase_dir, receptor_angle)
-        inputs = {"antenna_position": ("antenna", "ant-comp"), "phase_dir": ("radec",)}
-
-        if receptor_angle is not None:
-            inputs["receptor_angle"] = ("feed", "receptor_angle")
-        else:
-            inputs["receptor_angle"] = None
-
-        outputs = {
-            "feed_parangle": np.empty((0,) * 5, dt),
-            "beam_parangle": np.empty((0,) * 4, dt),
-        }
-
-        return inputs, outputs
