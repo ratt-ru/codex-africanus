@@ -5,8 +5,8 @@ from numba import types
 from numba.core.errors import TypingError
 from numba.cpython.unsafe.tuple import tuple_setitem
 
-# this enables tuple constriction in the sampler
-from africanus.experimental.rime.fused.terms.cube_dde import zero_vis_factory
+
+from africanus.experimental.rime.fused.intrinsics import tuple_fill
 from africanus.experimental.rime.fused.specification import RimeSpecification
 from africanus.experimental.rime.fused.terms.core import Term
 from africanus.experimental.rime.fused.core import rime
@@ -42,10 +42,9 @@ class ModelFlux(Term):
 
     def sampler(self):
         NSTOKES = len(self.stokes)
-        zero_vis = zero_vis_factory(NSTOKES)
 
         def model_sample(state, s, r, t, f1, f2, a1, a2, c):
-            flux = zero_vis(state.model_flux.dtype.type(0))
+            flux = tuple_fill(state.model_flux.dtype.type(0), NSTOKES)
             for co in literal_unroll(range(NSTOKES)):
                 flux = tuple_setitem(flux, co, state.model_flux[s, c, co])
             return flux

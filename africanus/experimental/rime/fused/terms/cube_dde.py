@@ -7,26 +7,8 @@ from numba.extending import intrinsic
 from numba.cpython.unsafe.tuple import tuple_setitem
 import numpy as np
 
+from africanus.experimental.rime.fused.intrinsics import tuple_fill
 from africanus.experimental.rime.fused.terms.core import Term
-
-
-def zero_vis_factory(ncorr):
-    @intrinsic
-    def zero_vis(typingctx, value):
-        sig = types.Tuple([value] * ncorr)(value)
-
-        def codegen(context, builder, signature, args):
-            llvm_ret_type = context.get_value_type(signature.return_type)
-            tup = cgutils.get_null_value(llvm_ret_type)
-
-            for i in range(ncorr):
-                tup = builder.insert_value(tup, args[0], i)
-
-            return tup
-
-        return sig, codegen
-
-    return zero_vis
 
 
 BeamInfo = namedtuple(
@@ -102,7 +84,6 @@ class BeamCubeDDE(Term):
             raise TypingError(f"chan_freq {chan_freq} should be a (chan,) array")
 
         ncorr = len(self.corrs)
-        zero_vis = zero_vis_factory(ncorr)
         ex_dtype = beam_lm_extents.dtype
         beam_info_types = [ex_dtype] * 2 + [types.int64] * 2 + [types.float64] * 2
         beam_info_type = types.NamedTuple(beam_info_types, BeamInfo)
@@ -335,15 +316,14 @@ class BeamCubeDDE(Term):
 
     def sampler(self):
         left = self.configuration == "left"
-        ncorr = len(self.corrs)
-        zero_vis = zero_vis_factory(ncorr)
+        NCORR = len(self.corrs)
 
         def cube_dde(state, s, r, t, f1, f2, a1, a2, c):
             a = state.antenna1_inverse[r] if left else state.antenna2_inverse[r]
             f = state.feed1_inverse[r] if left else state.feed2_inverse[r]
-            result = zero_vis(state.beam.dtype.type(0))
+            result = tuple_fill(state.beam.dtype.type(0), NCORR)
 
-            for co in numba.literal_unroll(range(ncorr)):
+            for co in numba.literal_unroll(range(NCORR)):
                 result = tuple_setitem(
                     result, co, state.sampled_beam[s, t, f, a, c, co]
                 )

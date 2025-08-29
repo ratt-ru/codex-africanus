@@ -179,7 +179,7 @@ class Brightness(Term):
 
             if nstokes != expected_nstokes:
                 raise ValueError(
-                    "corr_schema stokes don't match " "provided number of stokes"
+                    "corr_schema stokes don't match provided number of stokes"
                 )
 
             if (spi_base.startswith("[") and spi_base.endswith("]")) or (

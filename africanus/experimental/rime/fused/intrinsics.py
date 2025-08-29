@@ -186,9 +186,6 @@ def tuple_adder(typingctx, t1, t2):
     sig = t1(t1, t2)
 
     def codegen(context, builder, signature, args):
-        def _add(x, y):
-            return x + y
-
         [t1, t2] = args
         [t1_type, t2_type] = signature.args
         return_type = signature.return_type
@@ -201,13 +198,34 @@ def tuple_adder(typingctx, t1, t2):
             v2 = builder.extract_value(t2, i)
             vr = typingctx.unify_types(t1e, t2e)
 
-            data = context.compile_internal(builder, _add, vr(t1e, t2e), [v1, v2])
+            data = context.compile_internal(
+                builder, lambda x, y: x + y, vr(t1e, t2e), [v1, v2]
+            )
 
             ret_tuple = builder.insert_value(ret_tuple, data, i)
 
         return ret_tuple
 
     return sig, codegen
+
+
+@intrinsic(prefer_literal=True)
+def tuple_fill(typingctx, value, n):
+    if not isinstance(n, types.IntegerLiteral):
+        raise TypingError(f"n {n} must be a IntegerLiteral")
+
+    def codegen(context, builder, signature, args):
+        value, _ = args
+        _, n_type = signature.args
+        llvm_ret_type = context.get_value_type(signature.return_type)
+        ret_tuple = cgutils.get_null_value(llvm_ret_type)
+
+        for i in range(n_type.literal_value):
+            ret_tuple = builder.insert_value(ret_tuple, value, i)
+
+        return ret_tuple
+
+    return types.Tuple([value] * n.literal_value)(value, n), codegen
 
 
 class IntrinsicFactory:
