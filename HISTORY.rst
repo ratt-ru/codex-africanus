@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.4.2 (2025-09-06)
 ------------------
 * Improve input checking and raising of TypingErrors during RIME construction (:pr:`338`)
 * Modify convert for purely complex outputs. (:pr:`336`)
