@@ -1,9 +1,14 @@
 name: Ubuntu CI
 
-on: [push, pull_request]
-
-env:
-  POETRY_VERSION: 1.8.3
+on:
+  push:
+    branches:
+    - main
+    tags:
+    - "*"
+  pull_request:
+  schedule:
+    - cron: '30 2 * * 1,4' # Every Monday and Thursday @ 2h30am UTC
 
 jobs:
   check_skip:
@@ -26,18 +31,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v4
-        with:
-          poetry-version: ${{ env.POETRY_VERSION }}
 
       - name: Checkout source
         uses: actions/checkout@v5
@@ -65,14 +65,11 @@ jobs:
           echo "NUMBA_NRT_STATS=1" >> .env
           echo "NUMBA_CAPTURED_ERRORS='new_style'" >> .env
 
-      - name: Setup poetry virtual environment
-        run: poetry env use python${{ matrix.python-version }}
-
       - name: Install base package
-        run: poetry install --extras testing
+        run: pip install .[testing]
 
       - name: Test base package
-        run: poetry run pytest -s -vvv africanus
+        run: py.test -s -vvv africanus
 
       - name: List the measures directory
         run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
@@ -94,10 +91,10 @@ jobs:
           echo "measures.directory: ~/measures" > ~/.casarc
 
       - name: Install complete package
-        run: poetry install --extras "complete testing"
+        run: pip install .[complete,testing]
 
       - name: Test complete package
-        run: poetry run pytest -s -vvv africanus
+        run: py.test -s -vvv africanus
 
   deploy:
     needs: [test]
@@ -109,15 +106,10 @@ jobs:
        github.event.ref == 'refs/heads/master')
 
     steps:
-      - name: Set up Python 3.10
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6.0.0
         with:
-          python-version: '3.10'
-
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v4
-        with:
-          poetry-version: ${{ env.POETRY_VERSION }}
+          python-version: '3.13'
 
       - name: Checkout source
         uses: actions/checkout@v5
@@ -125,7 +117,9 @@ jobs:
           fetch-depth: 1
 
       - name: Build distributions
-        run: poetry build
+        run: |
+          pip install -U pip build
+          python -m build --sdist --wheel
 
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
