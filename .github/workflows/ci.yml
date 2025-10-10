@@ -100,7 +100,7 @@ jobs:
     needs: [test]
     environment:
       name: pypi
-      url: https:/pypi.org/p/xarray-ms
+      url: https:/pypi.org/p/codex-africanus
     permissions:
       id-token: write
     runs-on: ubuntu-latest
