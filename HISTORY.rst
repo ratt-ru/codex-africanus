@@ -2,8 +2,8 @@
 History
 =======
 
-X.Y.Z (YYY-MM-DD)
------------------
+0.4.3 (2025-10-10)
+------------------
 * Use trusted publishing (:pr:`342`)
 * Convert pyproject.toml from a poetry configuration to a PEP-621 configuration (:pr:`341`)
 
