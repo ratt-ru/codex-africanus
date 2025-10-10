@@ -1,7 +1,7 @@
 [project]
 name = "codex-africanus"
 description = "Radio Astronomy Building Blocks"
-version = "0.4.3"
+version = "0.4.2"
 readme = "README.rst"
 authors = [{name = "Simon Perkins", email = "simon.perkins@gmail.com"}]
 requires-python = '>=3.10,<4.0'
@@ -60,7 +60,7 @@ select = [
 ]
 
 [tool.tbump.version]
-current = "0.4.3"
+current = "0.4.2"
 
 # Example of a semver regexp.
 # Make sure this matches current_version before
