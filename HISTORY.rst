@@ -2,6 +2,10 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Add --disable-epsv command to curl command that downloads measures (:pr:`345`)
+
 0.4.3 (2025-10-10)
 ------------------
 * Use trusted publishing (:pr:`342`)
