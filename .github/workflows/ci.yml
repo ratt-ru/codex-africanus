@@ -72,7 +72,7 @@ jobs:
         run: py.test -s -vvv africanus
 
       - name: List the measures directory
-        run: curl ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
+        run: curl --disable-epsv  ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
 
       - name: Load cached CASA Measures Data
         id: load-cached-casa-measures
@@ -87,7 +87,7 @@ jobs:
         if: steps.load-cached-casa-measures.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/measures
-          curl --disable-epsv ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
+          curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
       - name: Install complete package
