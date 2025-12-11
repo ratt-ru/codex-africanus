@@ -87,7 +87,7 @@ jobs:
         if: steps.load-cached-casa-measures.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/measures
-          curl ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
+          curl --disable-epsv ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
       - name: Install complete package
