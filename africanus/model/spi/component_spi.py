@@ -45,8 +45,6 @@ def _fit_spi_components_impl(
             i0k = i0p + (-hess01 * jr0 + hess00 * jr1) / det
             eps = np.maximum(np.abs(alphak - alphap), np.abs(i0k - i0p))
             k += 1
-        if k == maxiter:
-            print("Warning - max iterations exceeded for component ", comp)
         out[0, comp] = alphak
         out[1, comp] = hess11 / det * lik / dof
         out[2, comp] = i0k
