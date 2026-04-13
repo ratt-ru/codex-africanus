@@ -2,7 +2,7 @@
 History
 =======
 
-X.Y.Z (YYYY-MM-DD)
+0.4.4 (2026-04-13)
 ------------------
 * Remove print statement in `model.spi.component_spi.fit_spi_components` (:pr:`349`)
 * Add --disable-epsv command to curl command that downloads measures (:pr:`345`)
