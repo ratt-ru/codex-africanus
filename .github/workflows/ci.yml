@@ -71,14 +71,14 @@ jobs:
       - name: Test base package
         run: py.test -s -vvv africanus
 
-      - name: List the measures directory
-        run: curl --disable-epsv  ftp://ftp.astron.nl/outgoing/Measures/ > measures_dir.txt
+      - name: Fingerprint the measure data
+        run: curl -sSI https://www.astron.nl/iers/WSRT_Measures.ztar | grep -iE 'last-modified|etag' > measures_etag.txt
 
       - name: Load cached CASA Measures Data
         id: load-cached-casa-measures
         uses: actions/cache@v5
         with:
-          key: casa-measures-${{ hashFiles('measures_dir.txt')}}
+          key: casa-measures-${{ hashFiles('measures_etag.txt')}}
           path: |
             ~/measures
             ~/.casarc
@@ -87,7 +87,17 @@ jobs:
         if: steps.load-cached-casa-measures.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/measures
-          curl --disable-epsv ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar | tar xvzf - -C ~/measures
+          set -e
+          for i in {1..3}; do
+            if curl -L https://www.astron.nl/iers/WSRT_Measures.ztar --output WSRT_Measures.ztar; then
+              break
+            elif [ $i -eq 3 ]; then
+              echo "Download failed after 3 attempts."; exit 1
+            else
+              echo "Retrying download..."; sleep 5
+            fi
+          done
+          tar xvzf WSRT_Measures.ztar -C ~/measures
           echo "measures.directory: ~/measures" > ~/.casarc
 
       - name: Install complete package
