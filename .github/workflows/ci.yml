@@ -72,7 +72,7 @@ jobs:
         run: py.test -s -vvv africanus
 
       - name: Fingerprint the measure data
-        run: curl -sSI https://www.astron.nl/iers/WSRT_Measures.ztar | grep -iE 'last-modified|etag' > measures_etag.txt
+        run: curl -sSI https://iers.astron.nl/WSRT_Measures.ztar | grep -iE 'last-modified|etag' > measures_etag.txt
 
       - name: Load cached CASA Measures Data
         id: load-cached-casa-measures
@@ -89,7 +89,7 @@ jobs:
           mkdir -p ~/measures
           set -e
           for i in {1..3}; do
-            if curl -L https://www.astron.nl/iers/WSRT_Measures.ztar --output WSRT_Measures.ztar; then
+            if curl -L https://iers.astron.nl/WSRT_Measures.ztar --output WSRT_Measures.ztar; then
               break
             elif [ $i -eq 3 ]; then
               echo "Download failed after 3 attempts."; exit 1
