@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Update measures CI download to use `https://iers.astron.nl/WSRT_Measures.ztar` (:pr:`355`)
 * Update measures CI download to use `https://www.astron.nl/iers/WSRT_Measures.ztar` (:pr:`350`)
 
 
