@@ -385,6 +385,7 @@ class RimeSpecification:
 
             term = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
+            hash_elements.append(RimeSpecification._source_digest(cls))
             hash_elements.append(cfg)
             terms.append(term)
 
@@ -420,12 +421,29 @@ class RimeSpecification:
 
             transformer = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
+            hash_elements.append(RimeSpecification._source_digest(cls))
             transformers.append(transformer)
 
         self.terms = terms
         self.transformers = transformers
         str_elements = str((freeze(hash_elements))).encode("utf-8")
         self.spec_hash = shake_256(str_elements).hexdigest(16)
+
+    @staticmethod
+    def _source_digest(cls):
+        """Digest of the source of the module defining :code:`cls`.
+
+        The fused RIME is compiled with ``cache=True``, but numba only
+        invalidates its cache when ``core.py`` changes. Including this
+        digest in the specification hash ensures that changes to a
+        Term or Transformer's implementation invalidate cached RIMEs.
+        """
+        try:
+            source = inspect.getsource(inspect.getmodule(cls))
+        except (OSError, TypeError):
+            return None
+
+        return shake_256(source.encode("utf-8")).hexdigest(16)
 
     @staticmethod
     def _feed_type(corrs):
