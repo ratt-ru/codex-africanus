@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
 
-import warnings
-
 from .parangles_astropy import have_astropy_parangles, astropy_parallactic_angles
 from .parangles_casa import have_casa_parangles, casa_parallactic_angles
 
@@ -33,12 +31,14 @@ def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
         in *metres* in the *ITRF* frame.
     field_centre : :class:`numpy.ndarray`
         Field centre of shape :code:`(2,)` in *radians*
-    backend : {'casa', 'test'}, optional
+    backend : {'casa', 'astropy', 'test'}, optional
         Backend to use for calculating the parallactic angles.
 
         * ``casa`` defers to an implementation
           depending on ``python-casacore``.
           This backend should be used by default.
+        * ``astropy`` defers to an implementation
+          depending on ``astropy``.
         * ``test`` creates parallactic angles
           by multiplying the ``times`` and ``antenna_position``
           arrays. It exist solely for testing.
@@ -58,7 +58,6 @@ def parallactic_angles(times, antenna_positions, field_centre, backend="casa"):
         raise ValueError("Invalid field_centre shape %s" % (field_centre.shape,))
 
     if backend == "astropy":
-        warnings.warn("astropy backend currently returns the incorrect values")
         return astropy_parallactic_angles(times, antenna_positions, field_centre)
     elif backend == "casa":
         return casa_parallactic_angles(times, antenna_positions, field_centre)

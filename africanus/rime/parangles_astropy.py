@@ -4,9 +4,9 @@
 from africanus.util.requirements import requires_optional
 
 try:
-    from astropy.coordinates import EarthLocation, SkyCoord, AltAz, CIRS
-    from astropy.time import Time
     from astropy import units
+    from astropy.coordinates import CIRS, AltAz, EarthLocation, SkyCoord
+    from astropy.time import Time
 except ImportError as e:
     astropy_import_error = e
     have_astropy_parangles = False
@@ -20,6 +20,13 @@ def astropy_parallactic_angles(times, antenna_positions, field_centre):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
+
+    The parallactic angle is the position angle of the
+    Celestial Intermediate Pole (the true celestial pole of date),
+    measured from the apparent topocentric field centre in
+    each antenna's horizontal frame. This includes precession,
+    nutation, annual and diurnal aberration, and IERS polar motion
+    and UT1-UTC (when astropy's IERS tables are available).
     """
     ap = antenna_positions
     fc = field_centre
@@ -29,13 +36,12 @@ def astropy_parallactic_angles(times, antenna_positions, field_centre):
 
     ap = EarthLocation.from_geocentric(ap[:, 0], ap[:, 1], ap[:, 2], unit="m")
     fc = SkyCoord(ra=fc[0], dec=fc[1], unit=units.rad, frame="fk5")
-    pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame="fk5")
 
-    cirs_frame = CIRS(obstime=times)
-    pole_cirs = pole.transform_to(cirs_frame)
-    fc_cirs = fc.transform_to(cirs_frame)
+    # The pole of the CIRS frame is the Celestial Intermediate Pole
+    cirs_frame = CIRS(obstime=times[:, None], location=ap[None, :])
+    pole = SkyCoord(ra=0, dec=90, unit=units.deg, frame=cirs_frame)
 
     altaz_frame = AltAz(location=ap[None, :], obstime=times[:, None])
-    pole_altaz = pole_cirs[:, None].transform_to(altaz_frame)
-    fc_altaz = fc_cirs[:, None].transform_to(altaz_frame)
+    pole_altaz = pole.transform_to(altaz_frame)
+    fc_altaz = fc.transform_to(altaz_frame)
     return fc_altaz.position_angle(pole_altaz)
