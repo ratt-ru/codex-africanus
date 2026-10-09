@@ -2,7 +2,6 @@ import ast
 from hashlib import shake_256
 from importlib import import_module
 import inspect
-import multiprocessing
 from pathlib import Path
 import re
 import warnings
@@ -13,7 +12,7 @@ from africanus.experimental.rime.fused.terms.brightness import Brightness
 from africanus.experimental.rime.fused import terms as term_mod
 from africanus.experimental.rime.fused.transformers.core import Transformer
 from africanus.experimental.rime.fused import transformers as transformer_mod
-from africanus.util.patterns import freeze, LazyProxy
+from africanus.util.patterns import freeze
 
 
 TERM_STRING_REGEX = re.compile("([A-Z])(pq|p|q)")
@@ -337,19 +336,15 @@ class RimeSpecification:
         except KeyError as e:
             raise RimeSpecificationError(f"Can't find a type for {str(e)}")
 
-        Pool = multiprocessing.get_context("spawn").Pool
-        pool = LazyProxy((Pool, RimeSpecification._finalise_pool), 4)
-
         # Create the terms
         terms = []
         global_kw = {
             "corrs": corrs,
             "stokes": stokes,
             "feed_type": feed_type,
-            "process_pool": pool,
         }
 
-        hash_elements = list(v for k, v in global_kw.items() if k != "process_pool")
+        hash_elements = list(global_kw.values())
 
         for cls, cfg in zip(term_types, term_cfgs):
             if cfg == "pq":
@@ -390,6 +385,7 @@ class RimeSpecification:
 
             term = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
+            hash_elements.append(RimeSpecification._source_digest(cls))
             hash_elements.append(cfg)
             terms.append(term)
 
@@ -425,6 +421,7 @@ class RimeSpecification:
 
             transformer = cls(**cls_kw)
             hash_elements.append(".".join((cls.__module__, cls.__name__)))
+            hash_elements.append(RimeSpecification._source_digest(cls))
             transformers.append(transformer)
 
         self.terms = terms
@@ -433,8 +430,20 @@ class RimeSpecification:
         self.spec_hash = shake_256(str_elements).hexdigest(16)
 
     @staticmethod
-    def _finalise_pool(pool):
-        pool.terminate()
+    def _source_digest(cls):
+        """Digest of the source of the module defining :code:`cls`.
+
+        The fused RIME is compiled with ``cache=True``, but numba only
+        invalidates its cache when ``core.py`` changes. Including this
+        digest in the specification hash ensures that changes to a
+        Term or Transformer's implementation invalidate cached RIMEs.
+        """
+        try:
+            source = inspect.getsource(inspect.getmodule(cls))
+        except (OSError, TypeError):
+            return None
+
+        return shake_256(source.encode("utf-8")).hexdigest(16)
 
     @staticmethod
     def _feed_type(corrs):
