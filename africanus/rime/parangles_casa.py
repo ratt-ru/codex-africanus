@@ -22,11 +22,16 @@ else:
 
 @requires_optional("pyrap.measures", "pyrap.quanta", casa_import_error)
 def casa_parallactic_angles(
-    times, antenna_positions, field_centre, zenith_frame="AZEL"
+    times, antenna_positions, field_centre, zenith_frame="AZELGEO"
 ):
     """
     Computes parallactic angles per timestep for the given
     reference antenna position and field centre.
+
+    The parallactic angle is the position angle of the zenith,
+    measured from the apparent (of date) field centre.
+    ``zenith_frame`` should be ``AZELGEO`` (geodetic zenith),
+    as ``AZEL`` assumes a spherical Earth.
     """
 
     try:
@@ -55,7 +60,9 @@ def casa_parallactic_angles(
             meas_serv.do_frame(meas_serv.epoch("UTC", pq.quantity(t, "s")))
             and [  # Set antenna position as the reference frame
                 meas_serv.do_frame(rp)
-                and meas_serv.posangle(fc_rad, zenith).get_value("rad")
+                and meas_serv.posangle(
+                    meas_serv.measure(fc_rad, "APP"), zenith
+                ).get_value("rad")
                 for rp in reference_positions
             ]
             for t in times
