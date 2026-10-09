@@ -3,15 +3,12 @@ from numba.core import cgutils, types
 from numba.core.errors import TypingError
 from numba import njit, objmode
 
-from africanus.rime.parangles_casa import casa_parallactic_angles
+from africanus.rime.parangles_astropy import astropy_parallactic_angles
 from africanus.experimental.rime.fused.transformers.core import Transformer
 
 
 class ParallacticTransformer(Transformer):
     OUTPUTS = ["feed_parangle", "beam_parangle"]
-
-    def __init__(self, process_pool):
-        self.pool = process_pool
 
     def dask_schema(self, antenna_position, phase_dir, receptor_angle=None):
         dt = np.result_type(antenna_position, phase_dir, receptor_angle)
@@ -65,9 +62,8 @@ class ParallacticTransformer(Transformer):
         @njit(inline="never")
         def parangle_stub(time, antenna, phase_dir):
             with objmode(out=parangle_dt):
-                out = self.pool.apply(
-                    casa_parallactic_angles, (time, antenna, phase_dir)
-                )
+                out = astropy_parallactic_angles(time, antenna, phase_dir)
+                out = np.ascontiguousarray(out.radian, dtype=np.float64)
 
             return out
 

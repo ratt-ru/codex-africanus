@@ -105,10 +105,12 @@ def test_fused_rime_feed_rotation(unity_vis_dataset, stokes_schema, corr_schema)
     ds = unity_vis_dataset.copy()
     utime, time_inv = np.unique(ds["time"], return_inverse=True)
 
-    from africanus.rime.parangles_casa import casa_parallactic_angles
+    from africanus.rime.parangles_astropy import astropy_parallactic_angles
     from africanus.rime.feeds import feed_rotation
 
-    pa = casa_parallactic_angles(utime, ds["antenna_position"], ds["phase_dir"])
+    pa = astropy_parallactic_angles(
+        utime, ds["antenna_position"], ds["phase_dir"]
+    ).radian
 
     def pa_feed_rotation(left):
         row_pa = pa[time_inv, ds["antenna1"] if left else ds["antenna2"]]
@@ -180,10 +182,12 @@ def test_fused_rime_cube_dde(unity_vis_dataset, stokes_schema, corr_schema):
     B = convert(SM, stokes_schema, corr_schema)
     B = B.reshape(B.shape[:2] + (2, 2))
 
-    from africanus.rime.parangles_casa import casa_parallactic_angles
+    from africanus.rime.parangles_astropy import astropy_parallactic_angles
     from africanus.rime.fast_beam_cubes import beam_cube_dde
 
-    beam_pa = casa_parallactic_angles(utime, ds["antenna_position"], ds["phase_dir"])
+    beam_pa = astropy_parallactic_angles(
+        utime, ds["antenna_position"], ds["phase_dir"]
+    ).radian
 
     def dde(left):
         ntime, na = beam_pa.shape
