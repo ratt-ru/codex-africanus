@@ -4,6 +4,7 @@ History
 
 X.Y.Z (YYYY-MM-DD)
 ------------------
+* Correct the casa parallactic angle calculation (:pr:`358`)
 * Use the astropy parallactic angle backend in the fused RIME's
   ParallacticTransformer and remove its process pool (:pr:`359`)
 * Correct the astropy parallactic angle calculation (:pr:`357`)

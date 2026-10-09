@@ -101,32 +101,6 @@ def test_parallactic_angles(observation, wsrt_ants, backend):
     assert pa.shape == (5, 4)
 
 
-def _casa_apparent_parallactic_angles(times, antenna_positions, field_centre):
-    """
-    Parallactic angles from python-casacore, measured from the
-    apparent (of date) field centre towards the geodetic zenith
-    """
-    import pyrap.measures
-    import pyrap.quanta as pq
-
-    meas_serv = pyrap.measures.measures()
-    zenith = meas_serv.direction("AZELGEO", "0deg", "90deg")
-    fc = meas_serv.direction("J2000", *(pq.quantity(f, "rad") for f in field_centre))
-    pa = np.empty((times.shape[0], antenna_positions.shape[0]))
-
-    for t, time in enumerate(times):
-        meas_serv.do_frame(meas_serv.epoch("UTC", pq.quantity(time, "s")))
-
-        for a, pos in enumerate(antenna_positions):
-            meas_serv.do_frame(
-                meas_serv.position("itrf", *(pq.quantity(p, "m") for p in pos))
-            )
-            app_fc = meas_serv.measure(fc, "APP")
-            pa[t, a] = meas_serv.posangle(app_fc, zenith).get_value("rad")
-
-    return pa
-
-
 @pytest.mark.flaky(min_passes=1, max_runs=3)
 @pytest.mark.skipif(
     no_casa or no_astropy, reason="Neither python-casacore or astropy installed"
@@ -146,6 +120,7 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     """
     import numpy as np
     from africanus.rime.parangles_astropy import astropy_parallactic_angles
+    from africanus.rime.parangles_casa import casa_parallactic_angles
     from astropy import units
     from astropy.coordinates import Angle
 
@@ -157,7 +132,7 @@ def test_compare_astropy_and_casa(obs_and_tol, wsrt_ants):
     fc = np.array([0.0, 1.04719755], dtype=np.float64)
 
     astro_pa = astropy_parallactic_angles(time, ant, fc)
-    casa_pa = _casa_apparent_parallactic_angles(time, ant, fc)
+    casa_pa = casa_parallactic_angles(time, ant, fc)
 
     # Convert to angle degrees
     astro_pa = Angle(astro_pa, unit=units.deg).wrap_at(180 * units.deg)
