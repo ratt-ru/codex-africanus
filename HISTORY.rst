@@ -5,7 +5,7 @@ History
 X.Y.Z (YYYY-MM-DD)
 ------------------
 * Add an ``nthreads`` argument to ``wsclean_predict`` that parallelises
-  the prediction over rows (:pr:`NNN`)
+  the prediction over rows (:pr:`363`)
 
 0.4.5 (2026-10-09)
 ------------------
