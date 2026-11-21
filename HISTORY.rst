@@ -2,6 +2,11 @@
 History
 =======
 
+X.Y.Z (YYYY-MM-DD)
+------------------
+* Add an ``nthreads`` argument to ``wsclean_predict`` that parallelises
+  the prediction over rows (:pr:`NNN`)
+
 0.4.5 (2026-10-09)
 ------------------
 * Correct the casa parallactic angle calculation (:pr:`358`)

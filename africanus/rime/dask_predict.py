@@ -21,6 +21,7 @@ from africanus.rime.predict import (
 from africanus.rime.wsclean_predict import (
     WSCLEAN_PREDICT_DOCS,
     wsclean_predict_main as wsclean_predict_body,
+    wsclean_predict_parallel_main as wsclean_predict_parallel_body,
 )
 from africanus.model.wsclean.spec_model import spectra as wsclean_spectra
 
@@ -598,16 +599,31 @@ def wsclean_spectrum_wrapper(flux, coeffs, log_poly, ref_freq, frequency):
 
 
 def wsclean_body_wrapper(
-    uvw, lm, source_type, gauss_shape, frequency, spectrum, dtype_
+    uvw, lm, source_type, gauss_shape, frequency, spectrum, dtype_, nthreads
 ):
-    return wsclean_predict_body(
-        uvw[0], lm[0], source_type, gauss_shape[0], frequency, spectrum, dtype_
-    )[None, :]
+    args = (uvw[0], lm[0], source_type, gauss_shape[0], frequency, spectrum, dtype_)
+
+    if nthreads == 1:
+        # The serial kernel is cached, unlike the parallel kernel
+        vis = wsclean_predict_body(*args)
+    else:
+        vis = wsclean_predict_parallel_body(*args, nthreads)
+
+    return vis[None, :]
 
 
 @requires_optional("dask.array", opt_import_error)
 def wsclean_predict(
-    uvw, lm, source_type, flux, coeffs, log_poly, ref_freq, gauss_shape, frequency
+    uvw,
+    lm,
+    source_type,
+    flux,
+    coeffs,
+    log_poly,
+    ref_freq,
+    gauss_shape,
+    frequency,
+    nthreads=1,
 ):
     spectrum_dtype = np.result_type(
         *(a.dtype for a in (flux, coeffs, log_poly, ref_freq, frequency))
@@ -649,6 +665,8 @@ def wsclean_predict(
         spectrum,
         ("source", "chan"),
         out_dtype,
+        None,
+        nthreads,
         None,
         adjust_chunks={"source": 1},
         new_axes={"corr": 1},
